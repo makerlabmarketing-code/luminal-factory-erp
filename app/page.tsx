@@ -1,63 +1,45 @@
+// app/page.tsx
 'use client';
-import { useState } from 'react';
-import { QrCode, ScanLine, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { ShieldCheck, Users, QrCode } from 'lucide-react';
 
-export default function LoginPage() {
-  const [isScanning, setIsScanning] = useState(false);
-
-  const handleScanQR = () => {
-    setIsScanning(true);
-    setTimeout(() => {
-      setIsScanning(false);
-      alert(
-        'Đã nhận mã QR: NV_DOHAIVAN\nĐang kiểm tra tọa độ GPS... Hợp lệ!\nCheck-in thành công lúc 08:55 AM'
-      );
-    }, 2000);
-  };
-
+export default function GatewayPage() {
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 font-sans text-white">
-      <div className="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-700">
-        <div className="bg-slate-950 p-6 text-center border-b border-slate-800">
-          <div className="inline-block p-3 bg-blue-600/20 rounded-full mb-3">
-            <QrCode className="w-10 h-10 text-blue-500" />
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 font-sans">
+      <div className="w-full max-w-sm space-y-8 text-center">
+        <div>
+          <div className="inline-block p-4 bg-blue-600/20 rounded-3xl mb-4 border border-blue-500/30">
+            <QrCode className="w-12 h-12 text-blue-500" />
           </div>
-          <h1 className="text-2xl font-bold tracking-wider text-slate-100">
-            LUMINAL FACTORY
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Hệ thống quản trị nội bộ
-          </p>
+          <h1 className="text-3xl font-black tracking-tighter text-white">LUMINAL FACTORY</h1>
+          <p className="text-slate-500 text-sm mt-2">Hệ thống điều hành xưởng & Đối soát tài chính</p>
         </div>
-        <div className="p-8 flex flex-col items-center">
-          {isScanning ? (
-            <div className="relative w-48 h-48 bg-slate-900 border-2 border-blue-500 rounded-xl flex items-center justify-center overflow-hidden">
-              <div className="absolute top-0 w-full h-1 bg-blue-400 shadow-[0_0_15px_#60a5fa] animate-bounce"></div>
-              <ScanLine className="w-12 h-12 text-slate-600 animate-pulse" />
-              <p className="absolute bottom-4 text-xs text-blue-400 font-medium">
-                Đang tìm mã QR...
-              </p>
+
+        <div className="grid gap-4">
+          {/* Nút vào vai Admin */}
+          <Link href="/admin/dashboard" className="group p-6 bg-slate-900 border border-slate-800 rounded-2xl hover:border-blue-500/50 transition flex items-center gap-4 text-left shadow-xl">
+            <div className="p-3 bg-blue-600/10 text-blue-500 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition">
+              <ShieldCheck className="w-6 h-6" />
             </div>
-          ) : (
-            <div className="w-48 h-48 bg-slate-900 border-2 border-dashed border-slate-600 rounded-xl flex items-center justify-center">
-              <QrCode className="w-16 h-16 text-slate-500" />
+            <div>
+              <h3 className="font-bold text-white">Dành cho Admin</h3>
+              <p className="text-xs text-slate-500">Quản lý lương, góp vốn, quy trình</p>
             </div>
-          )}
-          <button
-            onClick={handleScanQR}
-            disabled={isScanning}
-            className="mt-8 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2"
-          >
-            {isScanning ? 'Đang mở Camera...' : 'Quét Mã QR Đăng Nhập'}
-          </button>
+          </Link>
+
+          {/* Nút vào vai Nhân viên */}
+          <Link href="/staff/tasks" className="group p-6 bg-slate-900 border border-slate-800 rounded-2xl hover:border-amber-500/50 transition flex items-center gap-4 text-left shadow-xl">
+            <div className="p-3 bg-amber-600/10 text-amber-500 rounded-xl group-hover:bg-amber-600 group-hover:text-white transition">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white">Dành cho Nhân sự</h3>
+              <p className="text-xs text-slate-500">Chấm công, làm checklist, báo cáo QC</p>
+            </div>
+          </Link>
         </div>
-        <div className="bg-slate-900/50 p-4 flex gap-3 items-start border-t border-slate-700">
-          <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Yêu cầu cấp quyền Camera và Vị trí (GPS) để thực hiện Check-in. Chỉ
-            áp dụng tại khu vực Studio.
-          </p>
-        </div>
+
+        <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Version 1.0.0 Alpha - Secured by Supabase</p>
       </div>
     </div>
   );
