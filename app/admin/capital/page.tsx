@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PiggyBank, Calendar, Plus, Wallet, TrendingUp, RefreshCcw, History, CheckCircle2, CircleDashed, ArrowUpRight, Edit2, Trash2, X, Save, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PiggyBank, Calendar, Plus, Wallet, TrendingUp, RefreshCcw, History, CheckCircle2, CircleDashed, ArrowUpRight, Edit2, Trash2, X, Save, ChevronLeft, ChevronRight, Banknote } from 'lucide-react';
 
 export default function AdminFinancialLedger() {
   const [ledger, setLedger] = useState<any[]>([]);
@@ -33,7 +33,7 @@ export default function AdminFinancialLedger() {
 
   // PHÂN TRANG CHO SỔ CÁI
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8; // Đặt chuẩn hiển thị tối đa 8 dòng giao dịch/trang
+  const itemsPerPage = 8; 
 
   const loadData = async () => {
     setLoading(true);
@@ -57,13 +57,11 @@ export default function AdminFinancialLedger() {
     }
   };
 
-  // Mỗi khi sếp đổi tháng lọc, tự động ép số trang về trang 1
   useEffect(() => { 
     setCurrentPage(1);
     loadData(); 
   }, [selectedMonth]);
 
-  // Thuật toán tính toán phân trang
   const totalPages = Math.ceil(ledger.length / itemsPerPage);
   const currentLedgerData = ledger.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -143,13 +141,14 @@ export default function AdminFinancialLedger() {
     }
   };
 
-  // Các thẻ tổng số trên đầu vẫn tính toán dựa trên toàn bộ ledger của tháng (không bị phân trang cắt đi)
+  // THUẬT TOÁN ĐỐI SOÁT TÀI CHÍNH HỢP NHẤT
   const totalGop = ledger.filter(l => l.type === 'VON_GOP' && l.is_paid).reduce((sum, l) => sum + Number(l.amount), 0);
   const totalDoanhThu = ledger.filter(l => l.type === 'DOANH_THU' && l.is_paid).reduce((sum, l) => sum + Number(l.amount), 0);
   const totalChi = ledger.filter(l => l.type === 'CHI_TIEU' && l.is_paid).reduce((sum, l) => sum + Number(l.amount), 0);
   const totalTreo = ledger.filter(l => !l.is_paid).reduce((sum, l) => sum + Number(l.amount), 0);
-
-  if (loading) return <div className="p-6 text-xs text-center font-mono text-slate-500"><RefreshCcw className="w-4 h-4 animate-spin inline mr-2" /> Đang đối soát sổ cái...</div>;
+  
+  // Thuật toán nảy số: Số tiền còn lại thực tế trong két = (Vốn + Doanh thu) - Chi phí
+  const totalRemainingBalance = (totalGop + totalDoanhThu) - totalChi;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 text-slate-100 bg-slate-950 min-h-screen font-sans">
@@ -158,7 +157,7 @@ export default function AdminFinancialLedger() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 gap-4">
         <div>
           <h1 className="text-base font-bold flex items-center gap-2"><PiggyBank className="w-5 h-5 text-emerald-500" /> Sổ Cái & Quản Lý Giao Dịch Tài Chính</h1>
-          <p className="text-[11px] text-slate-400 mt-0.5">Hệ thống xử lý phân trang thông minh bảo vệ hiệu năng giao diện</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Hệ thống đối soát quỹ tiền mặt, doanh thu thực tế và các khoản treo nợ</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 p-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2">
           <Calendar className="w-4 h-4 text-blue-400" /> Kỳ báo cáo: 
@@ -166,12 +165,21 @@ export default function AdminFinancialLedger() {
         </div>
       </div>
 
-      {/* METRICS CARD */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs font-bold uppercase tracking-wider">
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex justify-between items-center"><div><p className="text-slate-500 text-[10px]">Vốn Đầu Tư</p><p className="text-sm font-black text-emerald-400 mt-1 font-mono">+{totalGop.toLocaleString()} đ</p></div><Wallet className="w-5 h-5 text-emerald-500" /></div>
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex justify-between items-center"><div><p className="text-slate-500 text-[10px]">Doanh Thu Bán Hàng</p><p className="text-sm font-black text-blue-400 mt-1 font-mono">+{totalDoanhThu.toLocaleString()} đ</p></div><ArrowUpRight className="w-5 h-5 text-blue-500" /></div>
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex justify-between items-center"><div><p className="text-slate-500 text-[10px]">Chi phí Đã trả</p><p className="text-sm font-black text-red-400 mt-1 font-mono">-{totalChi.toLocaleString()} đ</p></div><TrendingUp className="w-5 h-5 text-red-400" /></div>
-        <div className="bg-slate-900 border border-amber-600 p-4 rounded-2xl flex justify-between items-center"><div><p className="text-amber-500/80 text-[10px]">Khoản Treo Nợ</p><p className="text-sm font-black text-amber-400 mt-1 font-mono">{totalTreo.toLocaleString()} đ</p></div><History className="w-5 h-5 text-amber-500" /></div>
+      {/* METRICS CARD MA TRẬN 5 CỘT HIỂN THỊ RÕ RÀNG */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-xs font-bold uppercase tracking-wider">
+        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex justify-between items-center"><div><p className="text-slate-500 text-[10px]">Vốn Đầu Tư</p><p className="text-xs font-black text-emerald-400 mt-1 font-mono">+{totalGop.toLocaleString()} đ</p></div><Wallet className="w-4 h-4 text-emerald-500" /></div>
+        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex justify-between items-center"><div><p className="text-slate-500 text-[10px]">Doanh Thu</p><p className="text-xs font-black text-blue-400 mt-1 font-mono">+{totalDoanhThu.toLocaleString()} đ</p></div><ArrowUpRight className="w-4 h-4 text-blue-400" /></div>
+        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex justify-between items-center"><div><p className="text-slate-500 text-[10px]">Chi phí Đã trả</p><p className="text-xs font-black text-red-400 mt-1 font-mono">-{totalChi.toLocaleString()} đ</p></div><TrendingUp className="w-4 h-4 text-red-400" /></div>
+        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex justify-between items-center"><div><p className="text-slate-500 text-[10px]">Khoản Treo Nợ</p><p className="text-xs font-black text-amber-400 mt-1 font-mono">{totalTreo.toLocaleString()} đ</p></div><History className="w-4 h-4 text-amber-400" /></div>
+        
+        {/* THẺ CHỈ SỐ MỚI THÊM: SỐ TIỀN CÒN LẠI TRONG KÉT */}
+        <div className="bg-slate-900 border-2 border-cyan-500/30 p-4 rounded-2xl flex justify-between items-center shadow-lg shadow-cyan-950/20">
+          <div>
+            <p className="text-cyan-400 text-[10px]">Số tiền còn lại</p>
+            <p className="text-xs font-black text-cyan-400 mt-1 font-mono">{totalRemainingBalance.toLocaleString()} đ</p>
+          </div>
+          <Banknote className="w-4 h-4 text-cyan-400 animate-pulse" />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -234,7 +242,7 @@ export default function AdminFinancialLedger() {
             </tbody>
           </table>
 
-          {/* FOOTER THANH PHÂN TRANG (PAGINATION PANEL) */}
+          {/* FOOTER THANH PHÂN TRANG */}
           {totalPages > 1 && (
             <div className="flex justify-between items-center p-4 bg-slate-950/50 border-t border-slate-800 text-xs shrink-0">
               <span className="text-[10px] text-slate-500 font-mono">Trang {currentPage} / {totalPages} (Tổng {ledger.length} giao dịch)</span>
