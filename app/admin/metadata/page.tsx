@@ -112,7 +112,7 @@ export default function MetadataManagement() {
 
   const handleRemoveRow = (globalIndex: number) => {
     if (!activeCategory) return;
-    const newData = activeCategory.data.filter((_, i) => i !== globalIndex);
+    const newData = activeCategory.data.filter((__, i) => i !== globalIndex);
     setCategories(categories.map(c => c.id === activeCategory.id ? { ...c, data: newData } : c));
     const maxPage = Math.ceil(newData.length / itemsPerPage) || 1;
     if (currentPage > maxPage) setCurrentPage(maxPage);
