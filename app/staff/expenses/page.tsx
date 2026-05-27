@@ -23,7 +23,7 @@ export default function StaffExpensesPage() {
     if (!token) return;
     setLoading(true);
     try {
-      // Khớp chính xác danh tính ông thợ sở hữu token này
+      // Khớp chính xác danh tính ông Nhân sự sở hữu token này
       const { data: emp } = await supabase.from('employees').select('*').eq('qr_token', token).maybeSingle();
       if (emp) {
         setWorker(emp);

@@ -160,13 +160,13 @@ export default function AdminFinancialLedger() {
     if (item.type === 'CHI_TIEU') {
       const matchedStaff = employees.find(e => e.full_name === item.requested_by);
       if (!matchedStaff || !matchedStaff.bank_account_number || !matchedStaff.bank_name) {
-        showToast('Thiếu hồ sơ thợ', `Thợ [${item.requested_by}] chưa khai báo số tài khoản trong hồ sơ để hoàn ứng!`, 'error');
+        showToast('Thiếu hồ sơ nhân sự', `Nhân sự [${item.requested_by}] chưa khai báo số tài khoản trong hồ sơ để hoàn ứng!`, 'error');
         return;
       }
       const cleanCategory = encodeURIComponent(item.category);
       const qrUrl = `https://img.vietqr.io/image/${matchedStaff.bank_name}-${matchedStaff.bank_account_number}-compact2.png?amount=${item.amount}&addInfo=${cleanCategory}`;
       setActiveQrUrl(qrUrl);
-      setActiveQrTarget({ id: item.id, title: '❌ QUÉT MÃ HOÀN TIỀN KÊ KHAI VẬT TƯ CHO THỢ', bankName: matchedStaff.bank_name, accountNo: matchedStaff.bank_account_number, amount: item.amount, category: item.category });
+      setActiveQrTarget({ id: item.id, title: '❌ QUÉT MÃ HOÀN TIỀN KÊ KHAI VẬT TƯ CHO Nhân sự', bankName: matchedStaff.bank_name, accountNo: matchedStaff.bank_account_number, amount: item.amount, category: item.category });
       setShowQrModal(true);
     } 
     else if (item.type === 'VON_GOP') {

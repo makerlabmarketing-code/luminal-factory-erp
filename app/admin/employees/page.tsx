@@ -67,7 +67,7 @@ export default function AdminEmployeesManagement() {
   };
 
   const handleSave = async () => {
-    if (!fullName.trim()) return showToast('Thiếu thông tin', 'Sếp vui lòng nhập họ tên thợ!', 'error');
+    if (!fullName.trim()) return showToast('Thiếu thông tin', 'Sếp vui lòng nhập họ tên Nhân sự!', 'error');
     
     const payload: any = { 
       full_name: fullName.trim(), email: email.trim(), phone: phone.trim(), address: address.trim(), cccd: cccd.trim(), 
@@ -95,7 +95,7 @@ export default function AdminEmployeesManagement() {
     if (!token) return showToast('Lỗi', 'Nhân sự này chưa được cấp token định danh!', 'error');
     const url = `${window.location.origin}/staff/portal?token=${token}`;
     navigator.clipboard.writeText(url);
-    showToast('Đã sao chép', 'Đã sao chép liên kết Cổng Portal gửi cho nhân viên!', 'success');
+    showToast('Đã sao chép', 'Đã sao chép liên kết Cổng Portal gửi cho Nhân sự!', 'success');
   };
 
   const filtered = employees.filter(e => {
@@ -124,7 +124,7 @@ export default function AdminEmployeesManagement() {
             </select>
             <div className="relative flex-1 sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-              <input type="text" placeholder="Tìm tên thợ, chức vụ..." className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
+              <input type="text" placeholder="Tìm tên Nhân sự, chức vụ..." className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
             </div>
           </div>
         </div>
@@ -133,7 +133,7 @@ export default function AdminEmployeesManagement() {
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
               <tr>
-                <th className="p-4">Họ Tên Thợ / Chức Vụ</th>
+                <th className="p-4">Họ Tên Nhân sự / Chức Vụ</th>
                 <th className="p-4">Trạng thái</th>
                 <th className="p-4">Cơ Sở Chỉ Định</th>
                 <th className="p-4">Tài Khoản Ngân Hàng</th>
@@ -186,7 +186,7 @@ export default function AdminEmployeesManagement() {
             <div className="space-y-4">
               <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-2xl grid grid-cols-2 gap-3">
                 <div className="col-span-2 font-bold text-slate-400 uppercase text-[9px] tracking-wider">1. Thông tin cơ bản</div>
-                <div><label className="text-slate-400">Họ Tên Thợ:</label><input type="text" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
+                <div><label className="text-slate-400">Họ Tên Nhân sự:</label><input type="text" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
                 <div><label className="text-slate-400">Email:</label><input type="email" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                 <div><label className="text-slate-400">Số điện thoại:</label><input type="text" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
                 <div><label className="text-slate-400">Số CCCD:</label><input type="text" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={cccd} onChange={(e) => setCccd(e.target.value)} /></div>
@@ -198,7 +198,7 @@ export default function AdminEmployeesManagement() {
                 <div><label className="text-slate-400">Vị trí:</label><select className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer" value={title} onChange={(e) => setTitle(e.target.value)}><option value="Kỹ thuật">Kỹ thuật</option><option value="Vận hành">Vận hành</option><option value="Hành chính">Hành chính</option></select></div>
                 <div><label className="text-slate-400">Cấp độ Level:</label><select className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer" value={level} onChange={(e) => setLevel(e.target.value)}><option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option></select></div>
                 <div><label className="text-slate-400">Trạng thái:</label><select className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer" value={status} onChange={(e) => setStatus(e.target.value)}><option value="ACTIVE">Đang làm việc (Active)</option><option value="INACTIVE">Nghỉ việc (Inactive)</option></select></div>
-                <div><label className="text-slate-400">Phân quyền:</label><select className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer" value={role} onChange={(e) => setRole(e.target.value)}><option value="STAFF">Nhân viên (Staff)</option><option value="ADMIN">Quản trị viên (Admin)</option></select></div>
+                <div><label className="text-slate-400">Phân quyền:</label><select className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer" value={role} onChange={(e) => setRole(e.target.value)}><option value="STAFF">Nhân sự (Staff)</option><option value="ADMIN">Quản trị viên (Admin)</option></select></div>
               </div>
 
               <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-2xl grid grid-cols-1 gap-3">

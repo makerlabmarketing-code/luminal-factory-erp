@@ -33,7 +33,7 @@ export default function StaffAttendancePage() {
         setBranches(branchData);
         if (branchData.length > 0) setSelectedBranchCode(branchData[0].code);
 
-        // 2. 🔥 VÁ LỖI: Định danh đúng nhân viên theo token
+        // 2. 🔥 VÁ LỖI: Định danh đúng Nhân sự theo token
         const { data: emp } = await supabase.from('employees').select('*').eq('qr_token', token).maybeSingle();
         
         if (emp) {

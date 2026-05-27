@@ -63,7 +63,7 @@ export default function AdminProjectManagement() {
       }
       setShowAddModal(false); setProjectName(''); setPhases([{ name: 'Giai đoạn 1', tasks: [{ name: '', assignee: '' }] }]);
       loadData();
-      showToast('Thành công', '✨ Đã kích hoạt chuỗi dự án và phân việc thành công sang máy thợ!', 'success');
+      showToast('Thành công', '✨ Đã kích hoạt chuỗi dự án và phân việc thành công sang máy Nhân sự!', 'success');
     } catch (err: any) { showToast('Lỗi DB', err.message, 'error'); }
   };
 
@@ -211,7 +211,7 @@ export default function AdminProjectManagement() {
                   <div className="pl-4 border-l-2 border-slate-800 space-y-2">
                     {p.tasks.map((t: any, tIdx: number) => (
                       <div key={tIdx} className="flex flex-col sm:flex-row gap-2">
-                        <input type="text" className="flex-1 bg-slate-950 border border-slate-800 p-2 rounded-lg text-slate-200 focus:outline-none" placeholder="Nội dung công việc con (Deadline bỏ trống thợ tự điền)..." value={t.name} onChange={(e) => { const n = [...phases]; n[pIdx].tasks[tIdx].name = e.target.value; setPhases(n); }} />
+                        <input type="text" className="flex-1 bg-slate-950 border border-slate-800 p-2 rounded-lg text-slate-200 focus:outline-none" placeholder="Nội dung công việc con (Deadline bỏ trống Nhân sự tự điền)..." value={t.name} onChange={(e) => { const n = [...phases]; n[pIdx].tasks[tIdx].name = e.target.value; setPhases(n); }} />
                         <select className="w-full sm:w-48 bg-slate-950 border border-slate-800 p-2 rounded-lg text-slate-400 focus:outline-none cursor-pointer" value={t.assignee} onChange={(e) => { const n = [...phases]; n[pIdx].tasks[tIdx].assignee = e.target.value; setPhases(n); }}><option value="">Gán người phụ trách...</option>{employees.map(e => <option key={e.id} value={e.full_name}>{e.full_name}</option>)}</select>
                       </div>
                     ))}

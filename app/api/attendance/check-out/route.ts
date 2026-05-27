@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Tìm bản ghi Check-in gần nhất trong ngày chưa có thời gian Check-out của nhân viên này
+    // 1. Tìm bản ghi Check-in gần nhất trong ngày chưa có thời gian Check-out của Nhân sự này
     const { data: currentLog, error: logError } = await supabase
       .from('attendance_logs')
       .select('*')
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Lấy mức lương cấu hình theo giờ của nhân viên này để tính tổng tiền phát sinh trong ngày
+    // 4. Lấy mức lương cấu hình theo giờ của Nhân sự này để tính tổng tiền phát sinh trong ngày
     const { data: employee } = await supabase
       .from('employees')
       .select('hourly_rate')

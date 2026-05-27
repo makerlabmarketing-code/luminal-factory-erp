@@ -400,7 +400,7 @@ export default function AdminTaskWorkflowDashboard() {
                           </div>
                           <div className="space-y-1">
                             <select className="w-full bg-slate-950 border border-slate-800 rounded p-1 text-slate-300" value={task.assignee || ''} onChange={(e) => handleUpdateNestedTaskInline(phase.key, phase.description, tIdx, 'assignee', e.target.value)}>
-                              <option value="">Gán thợ...</option>
+                              <option value="">Gán Nhân sự...</option>
                               {employees.map(emp => <option key={emp.id} value={emp.full_name}>{emp.full_name}</option>)}
                             </select>
                             <input type="datetime-local" className="w-full bg-slate-950 border border-slate-800 rounded p-1 text-amber-400 text-[10px]" value={task.deadline || ''} onChange={(e) => handleUpdateNestedTaskInline(phase.key, phase.description, tIdx, 'deadline', e.target.value)} />
@@ -459,7 +459,7 @@ export default function AdminTaskWorkflowDashboard() {
                     {p.tasks?.map((t: any, tIdx: number) => (
                       <div key={tIdx} className="flex flex-col sm:flex-row gap-2 p-2 bg-slate-950 rounded-lg border border-slate-850 items-center">
                         <input type="text" className="flex-1 bg-slate-900 border border-slate-800 p-1.5 rounded text-slate-200 focus:outline-none text-xs" placeholder="Tên công việc con..." value={t.name} onChange={(e) => { const n = [...formPhases]; n[pIdx].tasks[tIdx].name = e.target.value; setFormPhases(n); }} />
-                        <select className="bg-slate-900 border border-slate-800 p-1.5 rounded text-slate-400 focus:outline-none text-xs" value={t.assignee} onChange={(e) => { const n = [...formPhases]; n[pIdx].tasks[tIdx].assignee = e.target.value; setFormPhases(n); }}><option value="">Gán thợ...</option>{employees.map(e => <option key={e.id} value={e.full_name}>{e.full_name}</option>)}</select>
+                        <select className="bg-slate-900 border border-slate-800 p-1.5 rounded text-slate-400 focus:outline-none text-xs" value={t.assignee} onChange={(e) => { const n = [...formPhases]; n[pIdx].tasks[tIdx].assignee = e.target.value; setFormPhases(n); }}><option value="">Gán Nhân sự...</option>{employees.map(e => <option key={e.id} value={e.full_name}>{e.full_name}</option>)}</select>
                         <input type="datetime-local" className="bg-slate-900 border border-slate-800 p-1.5 rounded text-amber-400 font-mono text-xs" value={t.deadline} onChange={(e) => { const n = [...formPhases]; n[pIdx].tasks[tIdx].deadline = e.target.value; setFormPhases(n); }} />
                         <button type="button" onClick={() => handleRemoveTaskInForm(pIdx, tIdx)} className="text-slate-500 hover:text-red-400"><Trash2 className="w-4 h-4"/></button>
                       </div>

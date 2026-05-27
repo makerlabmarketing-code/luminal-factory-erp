@@ -322,7 +322,7 @@ function StaffPortalContent() {
             </div>
           </div>
 
-          {/* BẢNG PHẢI: PIPELINE GIAI ĐOẠN CHI TIẾT CỦA THỢ */}
+          {/* BẢNG PHẢI: PIPELINE GIAI ĐOẠN CHI TIẾT CỦA Nhân sự */}
           <div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-y-auto shadow-xl space-y-4">
             {selectedProjectName ? (
               <div className="space-y-4">

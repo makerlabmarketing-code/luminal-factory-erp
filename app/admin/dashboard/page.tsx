@@ -111,10 +111,10 @@ export default function AdminDashboardOverview() {
           <p className="text-[9px] text-slate-500">Sẽ chi trả từ lợi nhuận thương mại</p>
         </div>
 
-        {/* SỐ LƯỢNG THỢ SẢN XUẤT */}
+        {/* SỐ LƯỢNG Nhân sự SẢN XUẤT */}
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2 shadow-xl">
           <div className="flex justify-between items-center text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-            <span>Đội Ngũ Thợ Đang Chạy Ca</span>
+            <span>Đội Ngũ Nhân sự Đang Chạy Ca</span>
             <Users className="w-4 h-4 text-purple-400" />
           </div>
           <p className="text-base font-black font-mono text-purple-400">
@@ -132,7 +132,7 @@ export default function AdminDashboardOverview() {
           <h4 className="font-bold text-amber-400 uppercase text-[10px] tracking-wider">Chỉ thị điều phối vốn khởi nghiệp:</h4>
           <p className="text-slate-400 leading-relaxed text-[11px]">
             Hệ thống ghi nhận tổng chi phí out-of-pocket qua các thời kỳ là <strong className="text-slate-200">{stats.totalChitieuAllTime.toLocaleString()} đ</strong>. 
-            Theo kế hoạch vận hành tối giản, quỹ tiền mặt còn lại sẽ ưu tiên khóa chặt để thanh toán **vật tư sản xuất cốt lõi (Resin, phôi mẫu)** và **lương cứng của thợ**. Toàn bộ các khoản chi ngoài danh mục này được treo tạm tính và sẽ tự động tất toán sau khi chuỗi đại lý kích hoạt doanh thu bán hàng.
+            Theo kế hoạch vận hành tối giản, quỹ tiền mặt còn lại sẽ ưu tiên khóa chặt để thanh toán **vật tư sản xuất cốt lõi (Resin, phôi mẫu)** và **lương cứng của Nhân sự**. Toàn bộ các khoản chi ngoài danh mục này được treo tạm tính và sẽ tự động tất toán sau khi chuỗi đại lý kích hoạt doanh thu bán hàng.
           </p>
         </div>
       </div>

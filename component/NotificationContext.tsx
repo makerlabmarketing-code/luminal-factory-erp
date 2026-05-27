@@ -71,7 +71,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             </div>
             <div className="grid grid-cols-2 gap-2 font-sans pt-1">
               <button onClick={() => setConfirm(p => ({ ...p, show: false }))} className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-xs font-bold hover:bg-slate-850 text-slate-400 transition">Hủy bỏ</button>
-              <button onClick={confirm.onConfirm} className="bg-red-600 hover:bg-red-700 text-white font-bold p-2.5 rounded-xl text-xs transition shadow-lg">Xác Nhận Xóa</button>
+              <button onClick={confirm.onConfirm} className="bg-red-600 hover:bg-red-700 text-white font-bold p-2.5 rounded-xl text-xs transition shadow-lg">Xác Nhận</button>
             </div>
           </div>
         </div>

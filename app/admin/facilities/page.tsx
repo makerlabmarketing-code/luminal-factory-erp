@@ -89,7 +89,7 @@ export default function AdminFacilitiesManagement() {
   };
 
   const handleDelete = (facilityCode: string) => {
-    showConfirm('Xác nhận gỡ cơ sở', 'Sếp có chắc chắn muốn xóa vĩnh viễn chi nhánh này không? Thợ gán vào cơ sở này sẽ tạm thời không thể chấm công.', async () => {
+    showConfirm('Xác nhận gỡ cơ sở', 'Sếp có chắc chắn muốn xóa vĩnh viễn chi nhánh này không? Nhân sự gán vào cơ sở này sẽ tạm thời không thể chấm công.', async () => {
       try {
         const updatedList = branches.filter(b => b.code !== facilityCode);
         const { error } = await supabase.from('system_metadata').upsert({ name: 'Danh sách Chi nhánh', data: updatedList }, { onConflict: 'name' });
@@ -110,7 +110,7 @@ export default function AdminFacilitiesManagement() {
       <div className="flex justify-between items-center border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-base font-bold flex items-center gap-2"><MapPin className="w-5 h-5 text-blue-500" /> Danh Sách Cơ Sở & Quản Lý Vị Trí Làm Việc</h1>
-          <p className="text-[11px] text-slate-400 mt-0.5">Cấu hình rào chắn địa lý vùng an toàn chấm công thợ máy số hóa</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Cấu hình rào chắn địa lý vùng an toàn chấm công Nhân sự máy số hóa</p>
         </div>
         <button onClick={handleOpenAdd} className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shadow-lg"><Plus className="w-4 h-4" /> Thêm Cơ Sở Mới</button>
       </div>

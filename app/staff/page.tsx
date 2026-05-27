@@ -10,7 +10,7 @@ export default function StaffPage() {
 
   useEffect(() => {
     if (token) {
-      // Đẩy thẳng nhân viên vào trang chủ Portal tích hợp mới kèm theo Token bảo mật
+      // Đẩy thẳng Nhân sự vào trang chủ Portal tích hợp mới kèm theo Token bảo mật
       router.replace(`/staff/portal?token=${token}`);
     }
   }, [token, router]);

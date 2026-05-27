@@ -51,8 +51,7 @@ export default function AdminGatekeeper({ children }: { children: React.ReactNod
         <form onSubmit={handleVerify} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl">
           <div className="text-center space-y-2">
             <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto border border-blue-500/20"><KeyRound className="w-6 h-6" /></div>
-            <h2 className="text-sm font-black uppercase tracking-wider">Hệ Thống Xác Thực Tối Cao</h2>
-            <p className="text-[10px] text-slate-500">Mật mã được mã hóa và xử lý ở tầng Backend, chống soi code F12 tuyệt đối</p>
+            <h2 className="text-sm font-black uppercase tracking-wider">Hệ Thống Xác Thực</h2>
           </div>
           <div className="space-y-1.5">
             <input 

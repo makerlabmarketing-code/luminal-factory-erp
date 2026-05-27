@@ -27,7 +27,7 @@ export default function StaffTasksPage() {
   const loadTasksData = async () => {
     if (!token) { setLoading(false); return; }
     try {
-      // 1. Định danh thợ qua Token URL
+      // 1. Định danh Nhân sự qua Token URL
       const { data: emp } = await supabase.from('employees').select('full_name').eq('qr_token', token).maybeSingle();
       if (!emp) { setLoading(false); return; }
       setWorkerName(emp.full_name);
@@ -60,7 +60,7 @@ export default function StaffTasksPage() {
       setLocalDriveInputs(driveMap);
       setEditableTasks(editMap);
 
-      // Tự động ghim chọn dự án đầu tiên có chứa việc của thợ này để hiển thị lên bảng phải
+      // Tự động ghim chọn dự án đầu tiên có chứa việc của Nhân sự này để hiển thị lên bảng phải
       if (!selectedProjectName) {
         const myFirstProj = allData.find(item => (item.description || '').includes(emp.full_name));
         if (myFirstProj) {
@@ -148,7 +148,7 @@ export default function StaffTasksPage() {
     globalProjectGroupsMap[pName].push(t);
   });
 
-  // Chỉ hiển thị dự án nào thợ này được sếp giao việc
+  // Chỉ hiển thị dự án nào Nhân sự này được sếp giao việc
   const uniqueMyProjectNames = Object.keys(globalProjectGroupsMap).filter(pName => {
     return globalProjectGroupsMap[pName].some(phase => (phase.description || '').includes(workerName));
   });
@@ -184,7 +184,7 @@ export default function StaffTasksPage() {
           <ClipboardList className="w-5 h-5 text-purple-500" />
           <div>
             <h1 className="text-base font-bold">Trạm Nhận Việc & Nghiệm Thu Tiến Độ</h1>
-            <p className="text-[10px] text-slate-500 font-mono">Thợ vận hành: {workerName}</p>
+            <p className="text-[10px] text-slate-500 font-mono">Nhân sự vận hành: {workerName}</p>
           </div>
         </div>
         <button onClick={handleStaffRefresh} className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 p-2 rounded-xl transition flex items-center gap-1 text-[11px] font-bold">
