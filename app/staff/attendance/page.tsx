@@ -4,41 +4,23 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation'; 
 import { supabase } from '@/lib/supabase';
 import { useNotification } from '@/component/NotificationContext';
-import { Power, MapPin, RefreshCcw } from 'lucide-react';
+import { Power, User, MapPin, RefreshCcw } from 'lucide-react';
 
-// Khai báo giao diện nhận props để nhúng trực tiếp vào Portal không lo lỗi biến
-interface AttendanceProps {
-  token?: string | null;
-  workerData?: any;
-  assignedBranchData?: any;
-}
-
-export default function StaffAttendancePage({ token: propsToken, workerData, assignedBranchData }: AttendanceProps) {
+export default function StaffAttendancePage() {
   const { showToast } = useNotification();
   const searchParams = useSearchParams();
-  
-  // Ưu tiên lấy token từ props (khi nhúng vào portal), nếu không có mới lấy từ URL (khi chạy độc lập)
-  const token = propsToken || searchParams.get('token'); 
+  const token = searchParams.get('token'); 
 
-  const [worker, setWorker] = useState<any>(workerData || null);
-  const [assignedBranch, setAssignedBranch] = useState<any>(assignedBranchData || null); 
+  const [worker, setWorker] = useState<any>(null);
+  const [assignedBranch, setAssignedBranch] = useState<any>(null); 
   const [isInShift, setIsInShift] = useState(false);
   const [liveTime, setLiveTime] = useState(new Date());
-  const [fetching, setFetching] = useState(!workerData);
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => setLiveTime(new Date()), 1000);
     
     const initializeAttendance = async () => {
-      if (workerData && assignedBranchData) {
-        // Nếu đã có sẵn dữ liệu truyền từ Portal sang, kiểm tra trạng thái ca trực ngay
-        const todayStr = new Date().toLocaleDateString('en-CA');
-        const { data: check } = await supabase.from('attendance').select('*').eq('employee_id', workerData.id).eq('work_date', todayStr).maybeSingle();
-        setIsInShift(!!(check && check.check_in && !check.check_out));
-        setFetching(false);
-        return;
-      }
-      
       if (!token) { setFetching(false); return; }
       try {
         const { data: emp } = await supabase.from('employees').select('*').eq('qr_token', token).maybeSingle();
@@ -59,7 +41,7 @@ export default function StaffAttendancePage({ token: propsToken, workerData, ass
 
     initializeAttendance();
     return () => clearInterval(timer);
-  }, [token, workerData, assignedBranchData]);
+  }, [token]);
 
   const autoDetectShift = (date: Date) => {
     const hour = date.getHours();
@@ -107,27 +89,42 @@ export default function StaffAttendancePage({ token: propsToken, workerData, ass
     }, () => { showToast('Quyền định vị', 'Vui lòng mở quyền vị trí trên điện thoại!', 'error'); });
   };
 
-  if (fetching || !worker) return <div className="text-center p-6 text-xs text-slate-500 font-mono"><RefreshCcw className="w-4 h-4 animate-spin text-blue-500 mx-auto mb-2"/> Đang đồng bộ định vị ca máy...</div>;
+  if (fetching || !worker) return <div className="text-center p-12 text-xs text-slate-500 font-mono"><RefreshCcw className="w-4 h-4 animate-spin text-blue-500 mx-auto mb-2"/> Đang đồng bộ định vị ca máy...</div>;
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 bg-slate-900 border border-slate-800 rounded-3xl space-y-5 shadow-xl max-w-md mx-auto mt-2 animate-fadeIn">
-      <div className="text-center space-y-1">
-        <h2 className="text-3xl font-black font-mono text-slate-100">{liveTime.toLocaleTimeString('vi-VN')}</h2>
+    <div className="p-4 max-w-md mx-auto space-y-6 pt-8 font-sans bg-slate-950 min-h-screen text-slate-100">
+      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex justify-between items-center shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-blue-600/10 text-blue-400 rounded-xl border border-blue-500/20"><User className="w-4 h-4" /></div>
+          <div>
+            <h4 className="text-xs font-black text-slate-100">{worker.full_name}</h4>
+            <p className="text-[10px] text-slate-500 font-mono mt-0.5">{worker.title || 'Kỹ thuật viên'}</p>
+          </div>
+        </div>
+        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${isInShift ? 'border-emerald-500 text-emerald-400 bg-emerald-950/20 shadow-lg' : 'border-slate-800 text-slate-500 bg-slate-950'}`}>{isInShift ? 'TRONG CA' : 'NGOÀI CA'}</span>
+      </div>
+
+      <div className="text-center space-y-1 py-4">
+        <h2 className="text-4xl font-black font-mono text-slate-100">{liveTime.toLocaleTimeString('vi-VN')}</h2>
         <p className="text-[10px] text-slate-400 font-mono uppercase">{liveTime.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'short' })}</p>
       </div>
 
-      <div className="w-full text-left space-y-1">
-        <label className="text-[10px] text-slate-500 font-bold uppercase block pl-0.5">Cơ sở trực ban gán máy (Khóa cứng):</label>
-        <div className="w-full bg-slate-950 border border-slate-850 p-3 rounded-xl font-sans text-xs text-slate-200 font-black tracking-wide border-l-4 border-l-purple-500 shadow-inner">
+      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
+        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-purple-500" /> Cơ sở trực ban được giao (Khóa cứng):</label>
+        <div className="w-full bg-slate-950 border border-slate-850 p-3.5 rounded-xl font-sans text-xs text-slate-200 font-black tracking-wide border-l-4 border-l-purple-500 shadow-inner">
           🏛️ {assignedBranch ? assignedBranch.name : 'Đang bóc tách định vị...'}
+        </div>
+        <div className="text-[9px] text-slate-500 font-mono mt-2 text-center bg-slate-950 p-2 rounded-lg border border-slate-850">
+          Hệ thống nhận ca thông minh: <span className="text-purple-400 font-bold uppercase">{autoDetectShift(liveTime)}</span>
         </div>
       </div>
 
-      <button onClick={handleToggleShift} className={`w-36 h-36 rounded-full border-8 transition-all duration-300 transform hover:scale-105 shadow-2xl flex flex-col items-center justify-center gap-1.5 active:scale-95 cursor-pointer ${isInShift ? 'bg-red-950/20 border-red-500 text-red-400 shadow-red-500/10' : 'bg-emerald-950/20 border-emerald-500 text-emerald-400 shadow-emerald-500/10'}`}>
-        <Power className="w-8 h-8" />
-        <span className="font-black text-[9px] tracking-widest uppercase">{isInShift ? 'TẮT MÁY VỀ' : 'BẤM VÀO CA'}</span>
-      </button>
-      <span className="text-[9px] text-purple-400 font-mono text-center bg-slate-950 p-2 rounded-lg border border-slate-850 w-full">Hệ thống nhận ca: {autoDetectShift(liveTime)}</span>
+      <div className="flex justify-center pt-4">
+        <button onClick={handleToggleShift} className={`w-44 h-44 rounded-full border-8 transition-all active:scale-95 shadow-2xl flex flex-col items-center justify-center gap-2 cursor-pointer ${isInShift ? 'bg-red-950/20 border-red-500 text-red-400' : 'bg-emerald-950/20 border-emerald-500 text-emerald-400'}`}>
+          <Power className="w-10 h-10" />
+          <span className="font-black text-[10px] tracking-widest uppercase">{isInShift ? 'TẮT MÁY VỀ' : 'BẤM VÀO CA'}</span>
+        </button>
+      </div>
     </div>
   );
 }
