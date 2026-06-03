@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useNotification } from '@/component/NotificationContext';
-import { Calendar as CalendarIcon, Clock, RefreshCcw, LayoutGrid, ChevronLeft, ChevronRight, CalendarDays, Banknote, CreditCard } from 'lucide-react';
+import MonthPicker from '@/component/MonthPicker'; // <-- Import Component mới
+import { Calendar as CalendarIcon, Clock, RefreshCcw, LayoutGrid, CalendarDays, Banknote, CreditCard } from 'lucide-react';
 
 export default function AdminAttendanceManagement() {
   const { showToast, showConfirm } = useNotification();
@@ -18,8 +19,14 @@ export default function AdminAttendanceManagement() {
   
   const [filterEmployeeId, setFilterEmployeeId] = useState('');
 
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth()); 
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  // Sửa đổi State để đồng nhất dùng định dạng YYYY-MM
+  const [monthInput, setMonthInput] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const currentYear = parseInt(monthInput.split('-')[0]);
+  const currentMonth = parseInt(monthInput.split('-')[1]) - 1; // getMonth() trả về 0-11
 
   const [showPickerPopup, setShowPickerPopup] = useState(false);
   const [pickerDate, setPickerDate] = useState(new Date());
@@ -27,7 +34,6 @@ export default function AdminAttendanceManagement() {
   const [pickerMinute, setPickerMinute] = useState('00');
   const [pickerPeriod, setPickerPeriod] = useState('AM');
 
-  // BẢNG ĐỊNH GIÁ TIỀN CÔNG CHI TRẢ THEO HỆ SỐ TITLE CỦA XƯỞNG
   const GET_SHIFT_WAGE_BY_TITLE = (title: string) => {
     const formattedTitle = (title || '').trim().toUpperCase();
     if (formattedTitle === 'A1') return 150000; 
@@ -41,9 +47,7 @@ export default function AdminAttendanceManagement() {
       const finalEmps = emps || [];
       setEmployees(finalEmps);
       
-      if (finalEmps.length > 0 && !filterEmployeeId) {
-        setFilterEmployeeId(String(finalEmps[0].id));
-      }
+      if (finalEmps.length > 0 && !filterEmployeeId) setFilterEmployeeId(String(finalEmps[0].id));
 
       const { data: sfs } = await supabase.from('shifts').select('*');
       let finalShifts = sfs || [];
@@ -88,14 +92,13 @@ export default function AdminAttendanceManagement() {
         else await supabase.from('attendance').insert([{ employee_id: emp.id, employee_name: emp.full_name, work_date: targetDateStr, check_out: targetTimeStr, shift_name: selectedShiftName, status: 'PRESENT' }]);
         setCheckType('IN');
       }
-      showToast('Đồng bộ thành công', `Đã lưu thông số công ca cho Nhân sự [${emp.full_name}] xuống hệ thống.`, 'success');
+      showToast('Đồng bộ thành công', `Đã lưu thông số công ca cho Nhân sự [${emp.full_name}].`, 'success');
       loadData();
     } catch (err: any) { showToast('Lỗi kết nối', err.message, 'error'); }
   };
 
   const handleGridDayClick = (dayStr: string) => {
-    const clickedDate = new Date(dayStr);
-    setPickerDate(clickedDate);
+    setPickerDate(new Date(dayStr));
   };
 
   const calculateFilteredPayroll = () => {
@@ -111,9 +114,7 @@ export default function AdminAttendanceManagement() {
     const uniqueRecordsMap: { [key: string]: any } = {};
     targetRecords.forEach(rec => {
       const uniqueKey = `${rec.employee_id}-${rec.work_date}-${rec.shift_name}`;
-      if (!uniqueRecordsMap[uniqueKey]) {
-        uniqueRecordsMap[uniqueKey] = rec;
-      }
+      if (!uniqueRecordsMap[uniqueKey]) uniqueRecordsMap[uniqueKey] = rec;
     });
 
     const validShiftList = Object.values(uniqueRecordsMap);
@@ -129,14 +130,9 @@ export default function AdminAttendanceManagement() {
       }
     });
 
-    return {
-      totalShifts: totalShiftsCount,
-      totalHours: totalShiftsCount * 3, 
-      totalWage: totalPayrollAmount
-    };
+    return { totalShifts: totalShiftsCount, totalHours: totalShiftsCount * 3, totalWage: totalPayrollAmount };
   };
 
-  // 🔥 UPDATE LOGIC: SỬA TEXT POPUP SAI, CHECK TRÙNG NHOE GIÁ TIỀN CHẶN RÁC DỮ LIỆU
   const handleExecuteSettlementToCapital = async () => {
     const currentEmpProfile = employees.find(e => String(e.id) === String(filterEmployeeId));
     if (!currentEmpProfile) return showToast('Lỗi', 'Không xác định được nhân sự đối soát!', 'error');
@@ -145,58 +141,29 @@ export default function AdminAttendanceManagement() {
     const formattedPeriod = `${String(currentMonth + 1).padStart(2, '0')}/${currentYear}`;
     const targetCategory = `Lương T.${currentMonth + 1} - ${currentEmpProfile.full_name}`;
 
-    // SỬA POPUP CHUẨN: Thay đổi title, desc mang tính chất Quyết toán (Không dùng chữ Xóa)
     showConfirm(
       'Xác nhận quyết toán', 
-      `Hệ thống sẽ tiến hành đồng bộ hạch toán phiếu lương tháng ${currentMonth + 1} của Nhân sự [${currentEmpProfile.full_name}] với tổng số tiền là ${payrollSummary.totalWage.toLocaleString()}đ sang Sổ cái tài chính.`, 
+      `Hệ thống sẽ tiến hành đồng bộ hạch toán phiếu lương tháng ${currentMonth + 1} của Nhân sự [${currentEmpProfile.full_name}] với tổng số tiền là ${payrollSummary.totalWage.toLocaleString()}đ sang Sổ cái.`, 
       async () => {
         try {
-          // 1. Quét kiểm tra bản ghi lương cũ trong kỳ báo cáo của Nhân sự
-          const { data: existingLedger } = await supabase
-            .from('financial_ledger')
-            .select('id, amount')
-            .eq('month_period', formattedPeriod)
-            .eq('category', targetCategory)
-            .maybeSingle();
+          const { data: existingLedger } = await supabase.from('financial_ledger').select('id, amount').eq('month_period', formattedPeriod).eq('category', targetCategory).maybeSingle();
 
           if (existingLedger) {
-            // Kiểm tra xem số tiền có trùng khớp giống nhau không
             if (Number(existingLedger.amount) === Number(payrollSummary.totalWage)) {
-              // NẾU GIỐNG NHAU: Báo lỗi đã quyết toán rồi, chặn không cho thao tác trùng
-              return showToast(
-                'Đã quyết toán', 
-                `Thành viên [${currentEmpProfile.full_name}] đã được hạch toán lương tháng này với số tiền ${payrollSummary.totalWage.toLocaleString()}đ trước đó rồi!`, 
-                'error'
-              );
+              return showToast('Đã quyết toán', `Thành viên [${currentEmpProfile.full_name}] đã được hạch toán lương tháng này với số tiền ${payrollSummary.totalWage.toLocaleString()}đ trước đó rồi!`, 'error');
             } else {
-              // NẾU SỐ TIỀN KHÁC NHAU: Cho phép cập nhật làm mới số tiền
-              const { error: updateErr } = await supabase
-                .from('financial_ledger')
-                .update({ amount: payrollSummary.totalWage, is_paid: false })
-                .eq('id', existingLedger.id);
-
+              const { error: updateErr } = await supabase.from('financial_ledger').update({ amount: payrollSummary.totalWage, is_paid: false }).eq('id', existingLedger.id);
               if (updateErr) throw updateErr;
               showToast('Đã làm mới', `✓ Phát hiện thay đổi ngày công! Đã cập nhật lại số tiền lương mới: ${payrollSummary.totalWage.toLocaleString()}đ`, 'success');
             }
           } else {
-            // NẾU CHƯA TỪNG CÓ: Tiến hành insert mới tinh
-            const { error: insertErr } = await supabase
-              .from('financial_ledger')
-              .insert([{
-                type: 'CHI_TIEU',
-                category: targetCategory,
-                amount: payrollSummary.totalWage,
-                requested_by: currentEmpProfile.full_name,
-                month_period: formattedPeriod,
-                is_paid: false 
-              }]);
-
-              if (insertErr) throw insertErr;
-              showToast('Thành công', `✓ Đã kết toán thành công phiếu lương trị giá ${payrollSummary.totalWage.toLocaleString()}đ!`, 'success');
+            const { error: insertErr } = await supabase.from('financial_ledger').insert([{
+              type: 'CHI_TIEU', category: targetCategory, amount: payrollSummary.totalWage, requested_by: currentEmpProfile.full_name, month_period: formattedPeriod, is_paid: false 
+            }]);
+            if (insertErr) throw insertErr;
+            showToast('Thành công', `✓ Đã kết toán thành công phiếu lương trị giá ${payrollSummary.totalWage.toLocaleString()}đ!`, 'success');
           }
-        } catch (err: any) {
-          showToast('Thất bại', err.message, 'error');
-        }
+        } catch (err: any) { showToast('Thất bại', err.message, 'error'); }
       }
     );
   };
@@ -290,11 +257,9 @@ export default function AdminAttendanceManagement() {
                 {employees.map(e => <option key={e.id} value={e.id}>👤 {e.full_name}</option>)}
               </select>
 
-              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                <button onClick={() => { if(currentMonth===0){setCurrentMonth(11); setCurrentYear(y=>y-1);}else{setCurrentMonth(m=>m-1);} }} className="p-1 text-slate-400 hover:text-white"><ChevronLeft className="w-4 h-4"/></button>
-                <span className="text-xs font-black font-mono px-2 text-purple-400 uppercase select-none w-28 text-center">THÁNG {currentMonth + 1} / {currentYear}</span>
-                <button onClick={() => { if(currentMonth===11){setCurrentMonth(0); setCurrentYear(y=>y+1);}else{setCurrentMonth(m=>m+1);} }} className="p-1 text-slate-400 hover:text-white"><ChevronRight className="w-4 h-4"/></button>
-              </div>
+              {/* SỬ DỤNG COMPONENT MỚI Ở ĐÂY VỚI ACCENT MÀU TÍM */}
+              <MonthPicker value={monthInput} onChange={setMonthInput} accent="purple" />
+
             </div>
           </div>
 
