@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useNotification } from '@/component/NotificationContext';
-import MonthPicker from '@/component/MonthPicker'; // <-- Import Component mới
+import MonthPicker from '@/component/MonthPicker';
+import DailyAttendanceModal from './components/DailyAttendanceModal';
 import { Calendar as CalendarIcon, Clock, RefreshCcw, LayoutGrid, CalendarDays, Banknote, CreditCard } from 'lucide-react';
 
 export default function AdminAttendanceManagement() {
@@ -19,20 +20,24 @@ export default function AdminAttendanceManagement() {
   
   const [filterEmployeeId, setFilterEmployeeId] = useState('');
 
-  // Sửa đổi State để đồng nhất dùng định dạng YYYY-MM
+  // Định dạng YYYY-MM
   const [monthInput, setMonthInput] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
   const currentYear = parseInt(monthInput.split('-')[0]);
-  const currentMonth = parseInt(monthInput.split('-')[1]) - 1; // getMonth() trả về 0-11
+  const currentMonth = parseInt(monthInput.split('-')[1]) - 1;
 
+  // Trạng thái cho điểm danh thủ công (Panel Trái)
   const [showPickerPopup, setShowPickerPopup] = useState(false);
   const [pickerDate, setPickerDate] = useState(new Date());
   const [pickerHour, setPickerHour] = useState('08');
   const [pickerMinute, setPickerMinute] = useState('00');
   const [pickerPeriod, setPickerPeriod] = useState('AM');
+
+  // Trạng thái quản lý Modal chỉnh sửa chi tiết ngày
+  const [editDateStr, setEditDateStr] = useState<string | null>(null);
 
   const GET_SHIFT_WAGE_BY_TITLE = (title: string) => {
     const formattedTitle = (title || '').trim().toUpperCase();
@@ -97,8 +102,9 @@ export default function AdminAttendanceManagement() {
     } catch (err: any) { showToast('Lỗi kết nối', err.message, 'error'); }
   };
 
+  // Mở modal khi bấm vào ô lịch
   const handleGridDayClick = (dayStr: string) => {
-    setPickerDate(new Date(dayStr));
+    setEditDateStr(dayStr);
   };
 
   const calculateFilteredPayroll = () => {
@@ -257,7 +263,6 @@ export default function AdminAttendanceManagement() {
                 {employees.map(e => <option key={e.id} value={e.id}>👤 {e.full_name}</option>)}
               </select>
 
-              {/* SỬ DỤNG COMPONENT MỚI Ở ĐÂY VỚI ACCENT MÀU TÍM */}
               <MonthPicker value={monthInput} onChange={setMonthInput} accent="purple" />
 
             </div>
@@ -270,7 +275,7 @@ export default function AdminAttendanceManagement() {
             </div>
             <div className="space-y-1 border-t sm:border-t-0 sm:border-x border-slate-850 pt-2 sm:pt-0 sm:px-4">
               <span className="text-[10px] text-slate-500 uppercase font-bold block flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-amber-500"/> Tổng số giờ làm việc:</span>
-              <span className="text-base font-black font-mono text-amber-400">{payrollSummary.totalHours} Giờ vận hành</span>
+              <span className="text-base font-black font-mono text-amber-400">{payrollSummary.totalHours} Giờ</span>
             </div>
             <div className="space-y-1 border-t sm:border-t-0 pt-2 sm:pt-0 sm:pl-3 flex flex-col justify-between">
               <div>
@@ -316,7 +321,11 @@ export default function AdminAttendanceManagement() {
               const processedDayRecords = Object.values(uniqueDayRecordsMap);
 
               return (
-                <div key={`day-${day}`} onClick={() => handleGridDayClick(currentLoopDateStr)} className={`group relative min-h-[85px] p-2 rounded-xl bg-slate-950 border transition-all flex flex-col justify-between cursor-pointer ${processedDayRecords.length > 0 ? 'border-purple-900/40 bg-gradient-to-b from-slate-950 to-purple-950/10 shadow-lg' : 'border-slate-850 hover:border-slate-700'}`}>
+                <div 
+                  key={`day-${day}`} 
+                  onClick={() => handleGridDayClick(currentLoopDateStr)} 
+                  className={`group relative min-h-[85px] p-2 rounded-xl bg-slate-950 border transition-all flex flex-col justify-between cursor-pointer hover:bg-slate-900 ${processedDayRecords.length > 0 ? 'border-purple-900/40 bg-gradient-to-b from-slate-950 to-purple-950/10 shadow-lg' : 'border-slate-850 hover:border-purple-500/50'}`}
+                >
                   <span className={`text-[11px] font-mono font-black ${processedDayRecords.length > 0 ? 'text-purple-400' : 'text-slate-400'}`}>{day}</span>
                   <div>{processedDayRecords.length > 0 && <span className="block text-[8px] bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded px-1 py-0.5 font-bold uppercase truncate">👥 {processedDayRecords.length} ca trực</span>}</div>
 
@@ -361,6 +370,20 @@ export default function AdminAttendanceManagement() {
           </div>
         </div>
       </div>
+
+      {/* COMPONENT MODAL CHI TIẾT NGÀY */}
+      <DailyAttendanceModal 
+        isOpen={!!editDateStr}
+        dateStr={editDateStr}
+        employees={employees}
+        shifts={shifts}
+        existingRecords={attendanceRecords.filter(r => r.work_date === editDateStr)}
+        currentEmpId={filterEmployeeId}
+        onClose={() => setEditDateStr(null)}
+        onReload={loadData}
+        showToast={showToast}
+        showConfirm={showConfirm}
+      />
     </div>
   );
 }

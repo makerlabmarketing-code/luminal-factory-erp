@@ -1,0 +1,270 @@
+'use client';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { X, Save, Plus, Clock, User, CheckCircle2, Trash2 } from 'lucide-react';
+
+interface DailyAttendanceModalProps {
+  isOpen: boolean;
+  dateStr: string | null;
+  employees: any[];
+  shifts: any[];
+  existingRecords: any[];
+  currentEmpId: string;
+  onClose: () => void;
+  onReload: () => void;
+  showToast: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
+  showConfirm: (title: string, message: string, onConfirm: () => void) => void;
+}
+
+export default function DailyAttendanceModal({
+  isOpen,
+  dateStr,
+  employees,
+  shifts,
+  existingRecords,
+  currentEmpId,
+  onClose,
+  onReload,
+  showToast,
+  showConfirm
+}: DailyAttendanceModalProps) {
+  const [editRows, setEditRows] = useState<Record<number, { check_in: string; check_out: string }>>({});
+  
+  const [newShift, setNewShift] = useState('');
+  const [newIn, setNewIn] = useState('');
+  const [newOut, setNewOut] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && existingRecords) {
+      const initialEdits: Record<number, { check_in: string; check_out: string }> = {};
+      existingRecords.forEach(rec => {
+        initialEdits[rec.id] = {
+          check_in: rec.check_in ? rec.check_in.substring(0, 5) : '', 
+          check_out: rec.check_out ? rec.check_out.substring(0, 5) : ''
+        };
+      });
+      setEditRows(initialEdits);
+      setNewShift(shifts[0]?.shift_name || '');
+      setNewIn('');
+      setNewOut('');
+    }
+  }, [isOpen, existingRecords, shifts]);
+
+  if (!isOpen || !dateStr) return null;
+
+  const handleUpdateRecord = async (recordId: number) => {
+    setIsSubmitting(true);
+    try {
+      const rowData = editRows[recordId];
+      const timeIn = rowData.check_in ? `${rowData.check_in}:00` : null;
+      const timeOut = rowData.check_out ? `${rowData.check_out}:00` : null;
+
+      const { error } = await supabase
+        .from('attendance')
+        .update({ check_in: timeIn, check_out: timeOut })
+        .eq('id', recordId);
+
+      if (error) throw error;
+      showToast('Thành công', 'Đã cập nhật giờ công.', 'success');
+      onReload();
+    } catch (err: any) {
+      showToast('Lỗi', err.message, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteRecord = (recordId: number, shiftName: string) => {
+    showConfirm(
+      'Xác nhận xóa', 
+      `Bạn có chắc chắn muốn xóa bản ghi [${shiftName}] này không?`, 
+      async () => {
+        setIsSubmitting(true);
+        try {
+          const { error } = await supabase.from('attendance').delete().eq('id', recordId);
+          if (error) throw error;
+          showToast('Đã xóa', 'Bản ghi chấm công đã được gỡ bỏ.', 'info');
+          onReload();
+        } catch (err: any) {
+          showToast('Lỗi', err.message, 'error');
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    );
+  };
+
+  const handleAddNewRecord = async () => {
+    if (!currentEmpId || !newShift) return showToast('Thiếu dữ liệu', 'Vui lòng chọn nhân sự và ca làm việc', 'error');
+    
+    setIsSubmitting(true);
+    try {
+      const emp = employees.find(e => String(e.id) === String(currentEmpId));
+      if (!emp) throw new Error('Không tìm thấy nhân sự');
+
+      const timeIn = newIn ? `${newIn}:00` : null;
+      const timeOut = newOut ? `${newOut}:00` : null;
+
+      const { error } = await supabase.from('attendance').insert([{
+        employee_id: emp.id,
+        employee_name: emp.full_name,
+        work_date: dateStr,
+        shift_name: newShift,
+        check_in: timeIn,
+        check_out: timeOut,
+        status: 'PRESENT'
+      }]);
+
+      if (error) throw error;
+      showToast('Thành công', 'Đã bổ sung ca làm việc mới.', 'success');
+      onReload();
+      setNewIn(''); setNewOut('');
+    } catch (err: any) {
+      showToast('Lỗi', err.message, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const displayDate = new Date(dateStr).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  const currentEmpName = employees.find(e => String(e.id) === String(currentEmpId))?.full_name || 'Đang tải...';
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-fadeIn">
+      {/* Container chuyển sang màu tối sâu tương đồng với form sửa hạch toán */}
+      <div className="bg-[#131924] border border-slate-800 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl text-slate-200">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 border-b border-slate-800/80">
+          <div>
+            <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+              CHI TIẾT CÔNG CA NGÀY
+            </h2>
+            <p className="text-[11px] text-slate-400 font-medium mt-1">{displayDate}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition p-1"><X className="w-5 h-5"/></button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
+          
+          <div className="space-y-3">
+            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Các ca đã ghi nhận</h3>
+            {existingRecords.length === 0 ? (
+              <div className="text-center p-6 border border-dashed border-slate-800 rounded-lg text-slate-500 text-[11px] italic">
+                Chưa có dữ liệu chấm công.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2.5">
+                {existingRecords.map((rec) => (
+                  <div key={rec.id} className="bg-[#0b0f19] border border-slate-800 p-3 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-slate-700">
+                    <div>
+                      <p className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                        <User className="w-3 h-3 text-slate-500"/> {rec.employee_name}
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-mono mt-1">[{rec.shift_name}]</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col">
+                        <label className="text-[9px] text-slate-500 font-medium uppercase mb-1">Giờ Vào</label>
+                        <input 
+                          type="time" 
+                          style={{ colorScheme: 'dark' }} /* ÉP TRÌNH DUYỆT HIỂN THỊ POPUP TIME MÀU ĐEN */
+                          value={editRows[rec.id]?.check_in || ''} 
+                          onChange={(e) => setEditRows(prev => ({ ...prev, [rec.id]: { ...prev[rec.id], check_in: e.target.value } }))}
+                          className="bg-[#131924] border border-slate-800 text-slate-300 rounded-md px-2 py-1.5 text-[11px] font-mono focus:border-blue-500 focus:outline-none w-24"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-[9px] text-slate-500 font-medium uppercase mb-1">Giờ Ra</label>
+                        <input 
+                          type="time" 
+                          style={{ colorScheme: 'dark' }}
+                          value={editRows[rec.id]?.check_out || ''} 
+                          onChange={(e) => setEditRows(prev => ({ ...prev, [rec.id]: { ...prev[rec.id], check_out: e.target.value } }))}
+                          className="bg-[#131924] border border-slate-800 text-slate-300 rounded-md px-2 py-1.5 text-[11px] font-mono focus:border-blue-500 focus:outline-none w-24"
+                        />
+                      </div>
+                      
+                      {/* Nút hành động tinh tế dạng Ghost Button */}
+                      <div className="flex items-center gap-1 mt-4">
+                        <button 
+                          onClick={() => handleUpdateRecord(rec.id)}
+                          disabled={isSubmitting}
+                          className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-md border border-transparent hover:border-blue-500/20 transition"
+                          title="Lưu cập nhật"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteRecord(rec.id, rec.shift_name)}
+                          disabled={isSubmitting}
+                          className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-md border border-transparent hover:border-red-500/20 transition"
+                          title="Xóa ca này"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Form bổ sung thiết kế dạng khối liền mạch */}
+          <div className="bg-[#0b0f19] border border-slate-800 p-4 rounded-lg space-y-3 mt-4">
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Plus className="w-3 h-3"/> Bổ sung ca thủ công
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+              <div className="md:col-span-2">
+                <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Nhân sự:</label>
+                <div className="w-full bg-[#131924] border border-slate-800 px-2 py-1.5 rounded-md text-[11px] text-slate-500 cursor-not-allowed flex items-center gap-1.5 select-none">
+                  <User className="w-3 h-3"/>
+                  {currentEmpName}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Ca làm:</label>
+                <select 
+                  className="w-full bg-[#131924] border border-slate-800 px-2 py-1.5 rounded-md text-[11px] text-slate-300 focus:border-blue-500 focus:outline-none" 
+                  value={newShift} 
+                  onChange={e => setNewShift(e.target.value)}
+                >
+                  {shifts.map(s => <option key={s.id} value={s.shift_name}>{s.shift_name}</option>)}
+                </select>
+              </div>
+              
+              <div className="flex items-center gap-2 md:col-span-1">
+                <div className="flex-1">
+                  <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Giờ Vào:</label>
+                  <input type="time" style={{ colorScheme: 'dark' }} value={newIn} onChange={e => setNewIn(e.target.value)} className="w-full bg-[#131924] border border-slate-800 text-slate-300 rounded-md px-1 py-1.5 text-[11px] font-mono focus:border-blue-500 focus:outline-none" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Giờ Ra:</label>
+                  <input type="time" style={{ colorScheme: 'dark' }} value={newOut} onChange={e => setNewOut(e.target.value)} className="w-full bg-[#131924] border border-slate-800 text-slate-300 rounded-md px-1 py-1.5 text-[11px] font-mono focus:border-blue-500 focus:outline-none" />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button 
+                onClick={handleAddNewRecord}
+                disabled={isSubmitting}
+                className="w-full bg-[#131924] hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-300 font-medium py-2 rounded-md transition text-[11px] flex justify-center items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5"/> Lưu bản ghi bổ sung
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
