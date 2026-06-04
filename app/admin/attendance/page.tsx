@@ -181,7 +181,7 @@ export default function AdminAttendanceManagement() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 text-slate-100 bg-slate-950 min-h-screen font-sans">
       <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-        <h1 className="text-base font-bold flex items-center gap-2"><CalendarIcon className="w-5 h-5 text-purple-500" /> Bảng Điều Hành Chấm Công Admin & Đối Soát Lương</h1>
+        <h1 className="text-base font-bold flex items-center gap-2"><CalendarIcon className="w-5 h-5 text-purple-500" /> Bảng Chấm Công & Đối Soát Lương</h1>
         <button onClick={loadData} className="p-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition"><RefreshCcw className="w-4 h-4"/></button>
       </div>
 
