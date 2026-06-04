@@ -127,14 +127,42 @@ export default function AdminFinancialLedger() {
     setFormMonthInput(monthInput);
   }, [monthInput]);
 
+  // Tìm kiếm dữ liệu
   const filteredLedger = ledger.filter(l => 
     (l.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (l.requested_by || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredLedger.length / itemsPerPage) || 1;
-  const currentLedgerData = filteredLedger.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  // --- MỚI: THUẬT TOÁN GOM NHÓM DATA TRƯỚC KHI PHÂN TRANG ---
+  const mainRecords: any[] = [];
+  const potentialChildren = filteredLedger.filter(l => l.type === 'VON_GOP' && l.category?.startsWith('[Đối ứng]'));
+  const remainingChildren = [...potentialChildren];
 
+  filteredLedger.forEach(l => {
+    // Bỏ qua dòng con
+    if (l.type === 'VON_GOP' && l.category?.startsWith('[Đối ứng]')) return;
+    
+    // Tìm đối ứng cho dòng hiện tại
+    const cIndex = remainingChildren.findIndex(
+      c => c.category === `[Đối ứng] Vốn hiện vật: ${l.category}` && c.requested_by === l.requested_by
+    );
+    
+    let linkedChild = null;
+    if (cIndex > -1) {
+      linkedChild = remainingChildren[cIndex];
+      remainingChildren.splice(cIndex, 1);
+    }
+    
+    mainRecords.push({ ...l, linkedChild }); // Nhúng luôn data con vào data cha
+  });
+
+  // Gom nốt các bản ghi đối ứng mồ côi (nếu không tìm thấy cha)
+  const finalGroupedData = [...mainRecords, ...remainingChildren];
+
+  // --- PHÂN TRANG TRÊN DỮ LIỆU ĐÃ ĐƯỢC GOM NHÓM ---
+  const totalPages = Math.ceil(finalGroupedData.length / itemsPerPage) || 1;
+  const currentLedgerData = finalGroupedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  
   const handleInsertLedger = async () => {
     const numericAmount = parseCurrency(amount);
     if (!category.trim() || !numericAmount) {
@@ -174,6 +202,7 @@ export default function AdminFinancialLedger() {
     const hasLink = ledger.some(l => 
       l.type === 'VON_GOP' && l.category === `[Đối ứng] Vốn hiện vật: ${item.category}` && l.requested_by === item.requested_by
     );
+    // Khởi tạo nguồn chi trả cũ
     setEditExpenseSource(hasLink ? 'TU_CHI_TRA' : 'QUY_CHUNG');
     setShowEditModal(true);
   };
@@ -296,7 +325,6 @@ export default function AdminFinancialLedger() {
         </div>
       </div>
 
-      {/* METRICS BOX (Đã nâng cấp truyền thêm biến totalVonHienVat) */}
       <LedgerMetrics 
         totalGop={totalGop}
         totalDoanhThu={totalDoanhThu}
@@ -306,17 +334,14 @@ export default function AdminFinancialLedger() {
         totalVonHienVat={totalVonHienVat}
       />
 
-      {/* COMPONENT MỚI: Hiển thị chi tiết cơ cấu vốn và công nợ của từng thành viên */}
       <CapitalShareCard ledgerData={ledger} />
 
-      {/* TABLE BOX */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="px-5 py-3 border-b border-slate-800 bg-slate-950/40 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <span className="text-xs font-bold uppercase text-slate-400">Nhật Ký Hạch Toán Kỳ {selectedMonth}</span>
           <input type="text" placeholder="Tìm kiếm nội dung..." className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none w-full sm:w-64" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
 
-        {/* TÍCH HỢP COMPONENT TABLE MỚI */}
         <LedgerTable 
           data={currentLedgerData}
           onTogglePaid={handleTogglePaid}
@@ -325,7 +350,6 @@ export default function AdminFinancialLedger() {
           onGenerateQr={handleGenerateVietQR}
         />
         
-        {/* Pagination */}
         {filteredLedger.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-3 bg-slate-950 border-t border-slate-800">
             <span className="text-xs text-slate-500 mb-3 sm:mb-0">Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredLedger.length)} trong tổng số {filteredLedger.length} bản ghi</span>
@@ -340,7 +364,7 @@ export default function AdminFinancialLedger() {
         )}
       </div>
 
-      {/* POPUP ADD MODAL */}
+      {/* ================= MODAL THÊM MỚI ================= */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-sm space-y-4 text-xs text-slate-200 shadow-2xl">
@@ -352,7 +376,17 @@ export default function AdminFinancialLedger() {
               </div>
               <div>
                 <label className="text-slate-400">Nghiệp vụ hạch toán chính:</label>
-                <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" value={type} onChange={e => setType(e.target.value)}>
+                <select 
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" 
+                  value={type} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    setType(val);
+                    // LÀM SẠCH NGAY KHI ĐỔI LOẠI
+                    if (val !== 'CHI_PHI') setExpenseSource('QUY_CHUNG');
+                    if (val !== 'VON_GOP') setSubType('TIEN_MAT');
+                  }}
+                >
                   {transactionTypes.map((t: any) => <option key={t.code} value={t.code}>{t.label}</option>)}
                 </select>
               </div>
@@ -402,7 +436,7 @@ export default function AdminFinancialLedger() {
         </div>
       )}
 
-      {/* POPUP EDIT MODAL */}
+      {/* ================= MODAL CHỈNH SỬA ================= */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-sm space-y-4 text-xs text-slate-200 shadow-2xl">
@@ -414,7 +448,17 @@ export default function AdminFinancialLedger() {
               </div>
               <div>
                 <label className="text-slate-400">Nghiệp vụ hạch toán chính:</label>
-                <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" value={editType} onChange={e => setEditType(e.target.value)}>
+                <select 
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" 
+                  value={editType} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    setEditType(val);
+                    // LÀM SẠCH NGAY KHI ĐỔI LOẠI
+                    if (val !== 'CHI_PHI') setEditExpenseSource('QUY_CHUNG'); 
+                    if (val !== 'VON_GOP') setEditSubType('TIEN_MAT');
+                  }}
+                >
                   {transactionTypes.map((t: any) => <option key={t.code} value={t.code}>{t.label}</option>)}
                 </select>
               </div>
