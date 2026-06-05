@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { X, Save, Plus, Clock, User, CheckCircle2, Trash2 } from 'lucide-react';
+import { X, Save, Plus, User, CheckCircle2, Trash2 } from 'lucide-react';
 
 interface DailyAttendanceModalProps {
   isOpen: boolean;
@@ -35,10 +35,13 @@ export default function DailyAttendanceModal({
   const [newOut, setNewOut] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // LỌC CHUẨN XÁC: Chỉ lấy bản ghi của Nhân sự đang được chọn
+  const myRecords = existingRecords.filter(rec => String(rec.employee_id) === String(currentEmpId));
+
   useEffect(() => {
-    if (isOpen && existingRecords) {
+    if (isOpen && myRecords) {
       const initialEdits: Record<number, { check_in: string; check_out: string }> = {};
-      existingRecords.forEach(rec => {
+      myRecords.forEach(rec => {
         initialEdits[rec.id] = {
           check_in: rec.check_in ? rec.check_in.substring(0, 5) : '', 
           check_out: rec.check_out ? rec.check_out.substring(0, 5) : ''
@@ -49,7 +52,7 @@ export default function DailyAttendanceModal({
       setNewIn('');
       setNewOut('');
     }
-  }, [isOpen, existingRecords, shifts]);
+  }, [isOpen, existingRecords, currentEmpId, shifts]);
 
   if (!isOpen || !dateStr) return null;
 
@@ -132,7 +135,6 @@ export default function DailyAttendanceModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-fadeIn">
-      {/* Container chuyển sang màu tối sâu tương đồng với form sửa hạch toán */}
       <div className="bg-[#131924] border border-slate-800 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl text-slate-200">
         
         {/* Header */}
@@ -151,27 +153,28 @@ export default function DailyAttendanceModal({
           
           <div className="space-y-3">
             <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Các ca đã ghi nhận</h3>
-            {existingRecords.length === 0 ? (
+            {myRecords.length === 0 ? (
               <div className="text-center p-6 border border-dashed border-slate-800 rounded-lg text-slate-500 text-[11px] italic">
                 Chưa có dữ liệu chấm công.
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2.5">
-                {existingRecords.map((rec) => (
+                {myRecords.map((rec) => (
                   <div key={rec.id} className="bg-[#0b0f19] border border-slate-800 p-3 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-slate-700">
-                    <div>
-                      <p className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                        <User className="w-3 h-3 text-slate-500"/> {rec.employee_name}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-slate-300 flex items-center gap-1.5 truncate">
+                        <User className="w-3 h-3 text-slate-500 shrink-0"/> 
+                        <span className="truncate">{rec.employee_name}</span>
                       </p>
                       <p className="text-[10px] text-slate-500 font-mono mt-1">[{rec.shift_name}]</p>
                     </div>
                     
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 shrink-0">
                       <div className="flex flex-col">
                         <label className="text-[9px] text-slate-500 font-medium uppercase mb-1">Giờ Vào</label>
                         <input 
                           type="time" 
-                          style={{ colorScheme: 'dark' }} /* ÉP TRÌNH DUYỆT HIỂN THỊ POPUP TIME MÀU ĐEN */
+                          style={{ colorScheme: 'dark' }} 
                           value={editRows[rec.id]?.check_in || ''} 
                           onChange={(e) => setEditRows(prev => ({ ...prev, [rec.id]: { ...prev[rec.id], check_in: e.target.value } }))}
                           className="bg-[#131924] border border-slate-800 text-slate-300 rounded-md px-2 py-1.5 text-[11px] font-mono focus:border-blue-500 focus:outline-none w-24"
@@ -188,7 +191,6 @@ export default function DailyAttendanceModal({
                         />
                       </div>
                       
-                      {/* Nút hành động tinh tế dạng Ghost Button */}
                       <div className="flex items-center gap-1 mt-4">
                         <button 
                           onClick={() => handleUpdateRecord(rec.id)}
@@ -214,22 +216,22 @@ export default function DailyAttendanceModal({
             )}
           </div>
 
-          {/* Form bổ sung thiết kế dạng khối liền mạch */}
           <div className="bg-[#0b0f19] border border-slate-800 p-4 rounded-lg space-y-3 mt-4">
             <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
               <Plus className="w-3 h-3"/> Bổ sung ca thủ công
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-              <div className="md:col-span-2">
+            {/* ĐÃ FIX: CHIA LƯỚI THÀNH 5 CỘT CHO THOÁNG (2-1-1-1) */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+              <div className="md:col-span-2 min-w-0">
                 <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Nhân sự:</label>
                 <div className="w-full bg-[#131924] border border-slate-800 px-2 py-1.5 rounded-md text-[11px] text-slate-500 cursor-not-allowed flex items-center gap-1.5 select-none">
-                  <User className="w-3 h-3"/>
-                  {currentEmpName}
+                  <User className="w-3 h-3 shrink-0"/>
+                  <span className="truncate" title={currentEmpName}>{currentEmpName}</span>
                 </div>
               </div>
 
-              <div>
+              <div className="md:col-span-1 min-w-0">
                 <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Ca làm:</label>
                 <select 
                   className="w-full bg-[#131924] border border-slate-800 px-2 py-1.5 rounded-md text-[11px] text-slate-300 focus:border-blue-500 focus:outline-none" 
@@ -240,15 +242,14 @@ export default function DailyAttendanceModal({
                 </select>
               </div>
               
-              <div className="flex items-center gap-2 md:col-span-1">
-                <div className="flex-1">
-                  <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Giờ Vào:</label>
-                  <input type="time" style={{ colorScheme: 'dark' }} value={newIn} onChange={e => setNewIn(e.target.value)} className="w-full bg-[#131924] border border-slate-800 text-slate-300 rounded-md px-1 py-1.5 text-[11px] font-mono focus:border-blue-500 focus:outline-none" />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Giờ Ra:</label>
-                  <input type="time" style={{ colorScheme: 'dark' }} value={newOut} onChange={e => setNewOut(e.target.value)} className="w-full bg-[#131924] border border-slate-800 text-slate-300 rounded-md px-1 py-1.5 text-[11px] font-mono focus:border-blue-500 focus:outline-none" />
-                </div>
+              <div className="md:col-span-1 min-w-0">
+                <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Giờ Vào:</label>
+                <input type="time" style={{ colorScheme: 'dark' }} value={newIn} onChange={e => setNewIn(e.target.value)} className="w-full bg-[#131924] border border-slate-800 text-slate-300 rounded-md px-2 py-1.5 text-[11px] font-mono focus:border-blue-500 focus:outline-none" />
+              </div>
+
+              <div className="md:col-span-1 min-w-0">
+                <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Giờ Ra:</label>
+                <input type="time" style={{ colorScheme: 'dark' }} value={newOut} onChange={e => setNewOut(e.target.value)} className="w-full bg-[#131924] border border-slate-800 text-slate-300 rounded-md px-2 py-1.5 text-[11px] font-mono focus:border-blue-500 focus:outline-none" />
               </div>
             </div>
 
