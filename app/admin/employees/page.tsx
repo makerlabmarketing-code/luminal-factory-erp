@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useNotification } from '@/component/NotificationContext';
-import { Users, UserPlus, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit2, Trash2, X, RefreshCcw, Link, MapPin } from 'lucide-react';
+import { Users, UserPlus, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit2, Trash2, X, RefreshCcw, MapPin } from 'lucide-react';
 
 export default function AdminEmployeesManagement() {
   const { showToast, showConfirm } = useNotification();
@@ -38,7 +38,6 @@ export default function AdminEmployeesManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // ĐỌC DỮ LIỆU TỪ BẢNG FACILITIES CHUẨN
       const { data: facs } = await supabase.from('facilities').select('*').order('id', { ascending: true });
       setBranches(facs || []);
 
@@ -51,6 +50,17 @@ export default function AdminEmployeesManagement() {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  // --- HÀM THÔNG MINH: TỰ ĐỘNG ĐỐI SOÁT DATA CŨ VÀ MỚI ---
+  const resolveBranchName = (empBranchCode: string) => {
+    if (!empBranchCode) return 'Chưa gán';
+    const matched = branches.find(b => 
+      String(b.id) === String(empBranchCode) || // Data mới (VD: "1")
+      String(empBranchCode).toLowerCase() === `cn${b.id}` || // Data cũ (VD: "CN1")
+      (String(empBranchCode) === 'CN1' && b.id === 1) // Dự phòng cứng
+    );
+    return matched ? matched.facility_name : 'Chưa gán';
+  };
 
   const handleOpenAdd = () => {
     setIsEditing(false); setTargetId(''); setFullName(''); setEmail(''); setPhone(''); setAddress(''); setCccd(''); 
@@ -65,7 +75,14 @@ export default function AdminEmployeesManagement() {
     setDriveCccd(emp.drive_cccd || ''); setDriveContract(emp.drive_contract || ''); 
     setTitle(emp.title || 'Kỹ thuật'); setLevel(emp.level || 'A1'); setStatus(emp.status || 'ACTIVE'); setRole(emp.role || 'STAFF'); 
     setBankName(emp.bank_name || 'MB'); setBankAccountNumber(emp.bank_account_number || '');
-    setBranchCode(emp.branch_code || (branches[0] ? String(branches[0].id) : '')); 
+    
+    // Nếu data cũ là CN1, cố gắng map về ID chuẩn để form sửa hiển thị đúng
+    let defaultBranch = String(emp.branch_code);
+    if (defaultBranch?.toLowerCase().startsWith('cn')) {
+      const match = branches.find(b => defaultBranch.toLowerCase() === `cn${b.id}`);
+      if (match) defaultBranch = String(match.id);
+    }
+    setBranchCode(defaultBranch || (branches[0] ? String(branches[0].id) : '')); 
     setShowModal(true);
   };
 
@@ -76,7 +93,8 @@ export default function AdminEmployeesManagement() {
     const payload: any = { 
       full_name: fullName.trim(), email: email.trim(), phone: phone.trim(), address: address.trim(), cccd: cccd.trim(), 
       drive_cccd: driveCccd.trim(), drive_contract: driveContract.trim(), title, level, status, role,
-      bank_name: bankName, bank_account_number: bankAccountNumber.trim(), branch_code: String(branchCode)
+      bank_name: bankName, bank_account_number: bankAccountNumber.trim(), 
+      branch_code: String(branchCode) // Lưu đè ID mới vào DB
     };
     
     if (!isEditing) payload.qr_token = crypto.randomUUID();
@@ -106,7 +124,15 @@ export default function AdminEmployeesManagement() {
 
   const filtered = employees.filter(e => {
     const matchText = (e.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (e.title || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchBranch = selectedBranchFilter === 'ALL' || String(e.branch_code) === String(selectedBranchFilter);
+    
+    // Nâng cấp Filter để lọc được cả data cũ
+    let matchBranch = false;
+    if (selectedBranchFilter === 'ALL') {
+      matchBranch = true;
+    } else {
+      matchBranch = String(e.branch_code) === String(selectedBranchFilter) || 
+                    String(e.branch_code).toLowerCase() === `cn${selectedBranchFilter}`;
+    }
     return matchText && matchBranch;
   });
 
@@ -139,12 +165,12 @@ export default function AdminEmployeesManagement() {
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
               <tr>
-                <th className="p-4">Họ Tên Nhân sự / Chức Vụ</th>
-                <th className="p-4">Trạng thái</th>
-                <th className="p-4">Cơ Sở Chỉ Định</th>
-                <th className="p-4">Tài Khoản Ngân Hàng</th>
-                <th className="p-4">Cổng Định Danh Số</th>
-                <th className="p-4 text-center w-28">Thao tác</th>
+                <th className="p-4 w-[25%]">Họ Tên Nhân sự / Chức Vụ</th>
+                <th className="p-4 w-[12%]">Trạng thái</th>
+                <th className="p-4 w-[22%]">Cơ Sở Chỉ Định</th>
+                <th className="p-4 w-[20%]">Tài Khoản Ngân Hàng</th>
+                <th className="p-4 w-[13%]">Cổng Định Danh</th>
+                <th className="p-4 text-center w-[8%]">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-[11px]">
@@ -157,9 +183,13 @@ export default function AdminEmployeesManagement() {
                     <td className="p-4">
                       <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${emp.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>{emp.status === 'ACTIVE' ? 'Đang làm' : 'Nghỉ việc'}</span>
                     </td>
-                    <td className="p-4 font-bold text-slate-400 flex items-center gap-1 mt-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-blue-400"/> 
-                      {branches.find(b => String(b.id) === String(emp.branch_code))?.facility_name || 'Chưa gán'}
+                    <td className="p-4">
+                      <div className="font-bold text-slate-400 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0"/> 
+                        <span className="truncate max-w-[160px]" title={resolveBranchName(emp.branch_code)}>
+                          {resolveBranchName(emp.branch_code)}
+                        </span>
+                      </div>
                     </td>
                     <td className="p-4 font-mono text-slate-400">{emp.bank_name} - {emp.bank_account_number || '⏳ Chưa kê khai'}</td>
                     <td className="p-4"><button onClick={() => handleCopyLink(emp.qr_token)} className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 font-mono text-[10px] bg-purple-950/30 border border-purple-800/30 px-2.5 py-1 rounded-lg transition">Link Portal</button></td>
