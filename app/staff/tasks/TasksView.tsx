@@ -236,7 +236,7 @@ export function StaffTasksContent({ token: propsToken, workerData }: any) {
                       </div>
                     )}
                     <div className="space-y-3 pt-1">
-                      {allTasksInPhase.map((t: any) => {
+                    {allTasksInPhase.map((t: any) => {
                         const targetKey = `${phase.key}_TASK_${t.__globalIdx}`;
                         const taskBuffer = editableTasks[targetKey] || { status: t.status || 'TODO', deadline: t.deadline || '', note: t.note || '' };
                         
@@ -245,9 +245,10 @@ export function StaffTasksContent({ token: propsToken, workerData }: any) {
 
                         return (
                           <div key={t.__globalIdx} className={`bg-slate-900 border p-3 rounded-xl flex flex-col gap-2.5 ${isAssignedToMe ? 'border-purple-900/40' : 'border-slate-850 opacity-65'}`}>
+                            {/* Dòng 1: Tiêu đề Hạng mục và Trạng thái */}
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-2 border-b border-slate-950 pb-1.5">
                               <div>
-                                <p className="font-bold text-slate-200 text-xs">⚙️ Hạng mục: {t.name}</p>
+                                <p className="font-bold text-slate-200 text-xs flex items-center gap-1.5">⚙️ {t.name}</p>
                                 <p className="text-[10px] text-slate-400 mt-0.5">👤 Phụ trách: <span className={isAssignedToMe ? "text-purple-400 font-bold" : "text-slate-300"}>{t.assignee} {isAssignedToMe && '(Bạn)'}</span></p>
                               </div>
                               <select 
@@ -261,19 +262,39 @@ export function StaffTasksContent({ token: propsToken, workerData }: any) {
                                 <option value="DONE">✓ ĐÃ XONG</option>
                               </select>
                             </div>
-                            <input 
-                              type="text" 
-                              disabled={!isAssignedToMe}
-                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50" 
-                              value={taskBuffer.note} 
-                              onChange={e => handleBufferChange(phase.key, t.__globalIdx, 'note', e.target.value)} 
-                              placeholder={isAssignedToMe ? "Nhập báo cáo tiến độ gửi sếp..." : "Chỉ xem - Không có quyền cập nhật tiến độ"} 
-                            />
+                            
+                            {/* Dòng 2: Deadline và Ghi chú */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                              <div className="md:col-span-1">
+                                <label className="text-[9px] text-slate-500 font-bold block mb-1 uppercase">Hạn chót:</label>
+                                <input 
+                                  type="date"
+                                  disabled={!isAssignedToMe}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-300 font-mono focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                  style={{ colorScheme: 'dark' }} // Giữ lịch dạng Dark Mode
+                                  value={taskBuffer.deadline || ''} 
+                                  onChange={e => handleBufferChange(phase.key, t.__globalIdx, 'deadline', e.target.value)} 
+                                />
+                              </div>
+                              <div className="md:col-span-3">
+                                <label className="text-[9px] text-slate-500 font-bold block mb-1 uppercase">Tiến độ báo cáo sếp:</label>
+                                <input 
+                                  type="text" 
+                                  disabled={!isAssignedToMe}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50" 
+                                  value={taskBuffer.note} 
+                                  onChange={e => handleBufferChange(phase.key, t.__globalIdx, 'note', e.target.value)} 
+                                  placeholder={isAssignedToMe ? "Nhập báo cáo tiến độ gửi sếp..." : "Chỉ xem - Không có quyền cập nhật tiến độ"} 
+                                />
+                              </div>
+                            </div>
+
+                            {/* Dòng 3: Nút Lưu Cập Nhật */}
                             {isAssignedToMe && (
                               <button 
                                 type="button" 
                                 onClick={() => handleSaveSpecificTask(phase, t.__globalIdx)} 
-                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex justify-center items-center gap-1 shadow transition cursor-pointer"
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex justify-center items-center gap-1 shadow transition cursor-pointer mt-1"
                               >
                                 <Save size={12}/> Lưu Cập Nhật
                               </button>

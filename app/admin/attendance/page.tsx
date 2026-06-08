@@ -6,12 +6,14 @@ import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
 import DailyAttendanceModal from './components/DailyAttendanceModal';
 import { Calendar as CalendarIcon, Clock, RefreshCcw, LayoutGrid, Banknote, CreditCard, User } from 'lucide-react';
+import { calculateHoursFromStrings, calculateSalary } from '@/services/payrollService';
 
 export default function AdminAttendanceManagement() {
   const { showToast, showConfirm } = useNotification();
   const [employees, setEmployees] = useState<any[]>([]);
   const [shifts, setShifts] = useState<any[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+  const [salaryMetadata, setSalaryMetadata] = useState<any[]>([]); // Lưu trữ danh mục cấu trúc lương động từ DB
   const [loading, setLoading] = useState(true);
 
   // Bộ lọc chính cho toàn trang
@@ -29,15 +31,37 @@ export default function AdminAttendanceManagement() {
   // Trạng thái quản lý Modal chỉnh sửa chi tiết ngày
   const [editDateStr, setEditDateStr] = useState<string | null>(null);
 
-  const GET_SHIFT_WAGE_BY_TITLE = (title: string) => {
-    const formattedTitle = (title || '').trim().toUpperCase();
-    if (formattedTitle === 'A1') return 150000; 
-    return 100000; 
+  // HÀM ĐỘNG: Tìm định mức lương/giờ dựa trên chức danh nhân sự và danh mục Metadata trung tâm
+  const getHourlyRateByTitle = (title: string): number => {
+    if (!title || salaryMetadata.length === 0) return 30000; // Fallback mặc định 30k nếu chưa thiết lập
+    
+    const formattedTitle = title.trim().toUpperCase();
+    // Tìm kiếm hàng dữ liệu có Key trùng với chức danh nhân sự (Ví dụ: A1, A2, A3)
+    const matchedGrade = salaryMetadata.find(
+      (item: any) => String(item.key || item.level || '').trim().toUpperCase() === formattedTitle
+    );
+    
+    if (matchedGrade) {
+      return Number(matchedGrade.value || matchedGrade.rate || 30000);
+    }
+    return 30000;
   };
 
   const loadData = async () => {
     setLoading(true);
     try {
+      // 1. Truy vấn Metadata trung tâm để lấy danh mục Mức lương cơ bản
+      const { data: metaData } = await supabase
+        .from('system_metadata')
+        .select('*')
+        .ilike('name', '%mức lương cơ bản%')
+        .maybeSingle();
+      
+      if (metaData && metaData.data) {
+        setSalaryMetadata(metaData.data);
+      }
+
+      // 2. Truy vấn danh sách nhân sự
       const { data: emps } = await supabase.from('employees').select('id, full_name, title');
       const finalEmps = emps || [];
       setEmployees(finalEmps);
@@ -46,6 +70,7 @@ export default function AdminAttendanceManagement() {
         setFilterEmployeeId(String(finalEmps[0].id));
       }
 
+      // 3. Truy vấn ca làm việc
       const { data: sfs } = await supabase.from('shifts').select('*');
       let finalShifts = sfs || [];
       if (!finalShifts.some(s => s.shift_name.includes('Tối'))) {
@@ -53,6 +78,7 @@ export default function AdminAttendanceManagement() {
       }
       setShifts(finalShifts);
       
+      // 4. Truy vấn lịch sử chấm công
       const { data: atts } = await supabase.from('attendance').select('*').order('work_date', { ascending: false });
       setAttendanceRecords(atts || []);
     } catch (error) { 
@@ -67,6 +93,7 @@ export default function AdminAttendanceManagement() {
     setEditDateStr(dayStr);
   };
 
+  // TÍNH TOÁN ĐỒNG BỘ: Tính toán tổng giờ làm và tiền lương dựa trên định mức động từ Metadata
   const calculateFilteredPayroll = () => {
     let targetRecords = attendanceRecords.filter(r => {
       const recordDate = new Date(r.work_date);
@@ -85,18 +112,31 @@ export default function AdminAttendanceManagement() {
 
     const validShiftList = Object.values(uniqueRecordsMap);
     let totalShiftsCount = 0;
+    let totalHoursAccumulated = 0;
     let totalPayrollAmount = 0;
 
     validShiftList.forEach((rec: any) => {
       if (rec.check_in && rec.check_out) {
         totalShiftsCount++;
+        
+        // Trích xuất thông tin chức danh của nhân sự thuộc bản ghi này
         const empProfile = employees.find(e => String(e.id) === String(rec.employee_id));
-        const empTitle = empProfile ? empProfile.title : 'STANDARD';
-        totalPayrollAmount += GET_SHIFT_WAGE_BY_TITLE(empTitle);
+        const empTitle = empProfile ? empProfile.title : '';
+        const hourlyRate = getHourlyRateByTitle(empTitle);
+
+        // Ưu tiên sử dụng số giờ tính toán chính xác lưu sẵn dưới DB, nếu chưa có thì tính từ chuỗi giờ công
+        const decimalHours = rec.total_hours ? Number(rec.total_hours) : calculateHoursFromStrings(rec.check_in, rec.check_out);
+        
+        totalHoursAccumulated += decimalHours;
+        totalPayrollAmount += calculateSalary(decimalHours, hourlyRate);
       }
     });
 
-    return { totalShifts: totalShiftsCount, totalHours: totalShiftsCount * 3, totalWage: totalPayrollAmount };
+    return { 
+      totalShifts: totalShiftsCount, 
+      totalHours: Number(totalHoursAccumulated.toFixed(2)), 
+      totalWage: totalPayrollAmount 
+    };
   };
 
   const handleExecuteSettlementToCapital = async () => {
@@ -129,6 +169,7 @@ export default function AdminAttendanceManagement() {
             if (insertErr) throw insertErr;
             showToast('Thành công', `✓ Đã kết toán thành công phiếu lương trị giá ${payrollSummary.totalWage.toLocaleString()}đ!`, 'success');
           }
+          loadData();
         } catch (err: any) { showToast('Thất bại', err.message, 'error'); }
       }
     );
@@ -250,6 +291,9 @@ export default function AdminAttendanceManagement() {
                         const isSuccessShift = rec.check_in && rec.check_out;
                         const currentEmp = employees.find(e => String(e.id) === String(rec.employee_id));
                         const empTitle = currentEmp ? currentEmp.title : 'Chưa gán';
+                        const hourlyRate = getHourlyRateByTitle(empTitle);
+                        const decimalHours = rec.total_hours ? Number(rec.total_hours) : calculateHoursFromStrings(rec.check_in, rec.check_out);
+                        const currentShiftWage = calculateSalary(decimalHours, hourlyRate);
                         
                         return (
                           <div key={rec.id || rIdx} className="border-b border-slate-850/50 pb-1.5 last:border-none last:pb-0">
@@ -264,7 +308,7 @@ export default function AdminAttendanceManagement() {
                             </div>
                             <div className="text-[8px] font-mono mt-1 text-right">
                               {isSuccessShift ? (
-                                <span className="text-emerald-400 font-bold">Đạt công: +{GET_SHIFT_WAGE_BY_TITLE(empTitle).toLocaleString()} đ</span>
+                                <span className="text-emerald-400 font-bold">Đạt công: +{currentShiftWage.toLocaleString()} đ</span>
                               ) : (
                                 <span className="text-amber-500 italic">Thiếu lượt Check-out</span>
                               )}

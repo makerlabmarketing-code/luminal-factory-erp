@@ -54,7 +54,6 @@ function StaffPortalContent() {
             <p className="text-[10px] text-slate-500 font-mono mt-0.5">{worker?.title || 'Kỹ thuật viên'}</p>
           </div>
         </div>
-        <span className="text-[9px] text-slate-400 font-mono bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-850">🏛️ {assignedBranch ? assignedBranch.name : 'Đang nạp định vị...'}</span>
       </div>
 
       {/* 🔥 LIÊN THÔNG MA TRẬN PHÂN HỆ SẠCH SẼ - GỌI COMPONENT KHÔNG CHỨA CODE COPIED TRÙNG LẶP */}

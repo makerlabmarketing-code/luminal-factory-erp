@@ -3,6 +3,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { X, Save, Plus, User, CheckCircle2, Trash2 } from 'lucide-react';
 
+// Import các hàm tính toán chuẩn từ thư mục services bên ngoài
+import { calculateHoursFromStrings, calculateSalary } from '@/services/payrollService';
+
 interface DailyAttendanceModalProps {
   isOpen: boolean;
   dateStr: string | null;
@@ -38,6 +41,10 @@ export default function DailyAttendanceModal({
   // LỌC CHUẨN XÁC: Chỉ lấy bản ghi của Nhân sự đang được chọn
   const myRecords = existingRecords.filter(rec => String(rec.employee_id) === String(currentEmpId));
 
+  // Tự động tìm nhân sự và cấu hình mức lương dựa theo bảng Metadata danh mục mới (Mặc định fallback là 30000 nếu chưa gán)
+  const currentEmployee = employees.find(e => String(e.id) === String(currentEmpId));
+  const baseHourlyRate = currentEmployee?.hourly_rate || currentEmployee?.base_salary_per_hour || 30000;
+
   useEffect(() => {
     if (isOpen && myRecords) {
       const initialEdits: Record<number, { check_in: string; check_out: string }> = {};
@@ -63,13 +70,22 @@ export default function DailyAttendanceModal({
       const timeIn = rowData.check_in ? `${rowData.check_in}:00` : null;
       const timeOut = rowData.check_out ? `${rowData.check_out}:00` : null;
 
+      // Tính toán lại số công giờ thập phân và tổng lương ca chính xác từ service chung
+      const totalHours = calculateHoursFromStrings(timeIn, timeOut);
+      const totalSalary = calculateSalary(totalHours, baseHourlyRate);
+
       const { error } = await supabase
         .from('attendance')
-        .update({ check_in: timeIn, check_out: timeOut })
+        .update({ 
+          check_in: timeIn, 
+          check_out: timeOut,
+          total_hours: totalHours,    // Ghi nhận số giờ thập phân (Ví dụ: 3.00)
+          total_salary: totalSalary   // Thành tiền chuẩn xác (Ví dụ: 90000)
+        })
         .eq('id', recordId);
 
       if (error) throw error;
-      showToast('Thành công', 'Đã cập nhật giờ công.', 'success');
+      showToast('Thành công', 'Đã cập nhật giờ công và đồng bộ lại tiền lương ca.', 'success');
       onReload();
     } catch (err: any) {
       showToast('Lỗi', err.message, 'error');
@@ -103,24 +119,29 @@ export default function DailyAttendanceModal({
     
     setIsSubmitting(true);
     try {
-      const emp = employees.find(e => String(e.id) === String(currentEmpId));
-      if (!emp) throw new Error('Không tìm thấy nhân sự');
+      if (!currentEmployee) throw new Error('Không tìm thấy dữ liệu nhân sự');
 
       const timeIn = newIn ? `${newIn}:00` : null;
       const timeOut = newOut ? `${newOut}:00` : null;
 
+      // Tính toán các trường dữ liệu ngầm dựa trên service chung trước khi insert vào database
+      const totalHours = calculateHoursFromStrings(timeIn, timeOut);
+      const totalSalary = calculateSalary(totalHours, baseHourlyRate);
+
       const { error } = await supabase.from('attendance').insert([{
-        employee_id: emp.id,
-        employee_name: emp.full_name,
+        employee_id: currentEmployee.id,
+        employee_name: currentEmployee.full_name,
         work_date: dateStr,
         shift_name: newShift,
         check_in: timeIn,
         check_out: timeOut,
+        total_hours: totalHours,      // Lưu số giờ chính xác 
+        total_salary: totalSalary,    // Lưu số tiền không làm tròn lệch
         status: 'PRESENT'
       }]);
 
       if (error) throw error;
-      showToast('Thành công', 'Đã bổ sung ca làm việc mới.', 'success');
+      showToast('Thành công', 'Đã bổ sung ca làm việc và tính toán lương chuẩn.', 'success');
       onReload();
       setNewIn(''); setNewOut('');
     } catch (err: any) {
@@ -131,7 +152,7 @@ export default function DailyAttendanceModal({
   };
 
   const displayDate = new Date(dateStr).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
-  const currentEmpName = employees.find(e => String(e.id) === String(currentEmpId))?.full_name || 'Đang tải...';
+  const currentEmpName = currentEmployee?.full_name || 'Đang tải...';
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-fadeIn">
@@ -166,7 +187,14 @@ export default function DailyAttendanceModal({
                         <User className="w-3 h-3 text-slate-500 shrink-0"/> 
                         <span className="truncate">{rec.employee_name}</span>
                       </p>
-                      <p className="text-[10px] text-slate-500 font-mono mt-1">[{rec.shift_name}]</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-[10px] text-slate-500 font-mono">[{rec.shift_name}]</p>
+                        {rec.total_hours > 0 && (
+                          <span className="text-[10px] bg-slate-800/60 text-emerald-400 px-1.5 py-0.5 rounded font-mono">
+                            {rec.total_hours}h → {Number(rec.total_salary).toLocaleString('vi-VN')}đ
+                          </span>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex items-center gap-3 shrink-0">
@@ -221,7 +249,6 @@ export default function DailyAttendanceModal({
               <Plus className="w-3 h-3"/> Bổ sung ca thủ công
             </h3>
             
-            {/* ĐÃ FIX: CHIA LƯỚI THÀNH 5 CỘT CHO THOÁNG (2-1-1-1) */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
               <div className="md:col-span-2 min-w-0">
                 <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">Nhân sự:</label>
