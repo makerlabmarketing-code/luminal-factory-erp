@@ -25,5 +25,6 @@ export function calculateHoursFromStrings(
 
 export function calculateSalary(decimalHours: number, hourlyRate: number): number {
   if (decimalHours <= 0 || hourlyRate <= 0) return 0;
+
   return Math.round(decimalHours * hourlyRate);
 }

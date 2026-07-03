@@ -26,4 +26,17 @@ export interface Employee {
     status?: string | null;
   }
   
+  export interface SalaryMetadataItem {
+    key?: string | null;
+    level?: string | null;
+    value?: number | string | null;
+    rate?: number | string | null;
+  }
+  
+  export interface PayrollSummary {
+    totalShifts: number;
+    totalHours: number;
+    totalWage: number;
+  }
+  
   export type ToastType = 'success' | 'error' | 'info';
