@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { calculateHoursFromStrings, calculateSalary } from '@/services/payrollService';
-import type { AttendanceRecord } from '@/lib/types/attendance';
+import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 
 export function getEmployeeHourlyRate(employee: Employee | undefined | null): number {
@@ -10,6 +10,67 @@ export function getEmployeeHourlyRate(employee: Employee | undefined | null): nu
 export function normalizeTimeValue(value: string | null | undefined): string | null {
   if (!value) return null;
   return value.length === 5 ? `${value}:00` : value;
+}
+
+export function mergeAttendanceRecords(records: AttendanceRecord[]): AttendanceRecord[] {
+  const mergedMap = new Map<string, AttendanceRecord>();
+
+  records.forEach((record) => {
+    const key = `${record.employee_id}-${record.work_date}-${record.shift_name}`;
+    const existing = mergedMap.get(key);
+
+    if (!existing) {
+      mergedMap.set(key, { ...record });
+      return;
+    }
+
+    const prefersCurrentId = record.check_out && !existing.check_out;
+    const mergedCheckIn = existing.check_in || record.check_in || null;
+    const mergedCheckOut = existing.check_out || record.check_out || null;
+    const mergedTotalHours =
+      existing.total_hours ?? record.total_hours ?? (mergedCheckIn && mergedCheckOut
+        ? calculateHoursFromStrings(mergedCheckIn, mergedCheckOut)
+        : null);
+    const mergedTotalSalary = existing.total_salary ?? record.total_salary ?? null;
+
+    mergedMap.set(key, {
+      ...existing,
+      id: prefersCurrentId ? record.id : existing.id,
+      employee_name: existing.employee_name || record.employee_name || null,
+      check_in: mergedCheckIn,
+      check_out: mergedCheckOut,
+      total_hours: mergedTotalHours,
+      total_salary: mergedTotalSalary,
+      status: existing.status || record.status || null,
+    });
+  });
+
+  return Array.from(mergedMap.values());
+}
+
+export function isAttendanceRecordComplete(record: AttendanceRecord): boolean {
+  return Boolean(record.check_in && record.check_out);
+}
+
+export function isMissingCheckoutRecord(record: AttendanceRecord): boolean {
+  return Boolean(record.check_in && !record.check_out);
+}
+
+export function isAttendanceRecordOverdue(params: {
+  record: AttendanceRecord;
+  shifts: Shift[];
+  now?: Date;
+}): boolean {
+  if (!isMissingCheckoutRecord(params.record)) return false;
+
+  const shift = params.shifts.find((item) => item.shift_name === params.record.shift_name);
+  const shiftEnd = shift?.end_time?.slice(0, 5);
+  if (!shiftEnd) return false;
+
+  const cutoff = new Date(`${params.record.work_date}T${shiftEnd}:00`);
+  const now = params.now || new Date();
+
+  return Number.isFinite(cutoff.getTime()) && cutoff.getTime() <= now.getTime();
 }
 
 export async function getOpenAttendanceRecord(params: {

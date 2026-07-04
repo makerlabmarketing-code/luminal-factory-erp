@@ -9,6 +9,12 @@ import { Calendar as CalendarIcon, Clock, RefreshCcw, LayoutGrid, Banknote, Cred
 import { calculateHoursFromStrings, calculateSalary } from '@/services/payrollService';
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
+import {
+  isAttendanceRecordComplete,
+  isAttendanceRecordOverdue,
+  isMissingCheckoutRecord,
+  mergeAttendanceRecords,
+} from '@/services/attendanceService';
 
 interface SalaryMetadataItem {
   key?: string | null;
@@ -22,7 +28,7 @@ export default function AdminAttendanceManagement() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [salaryMetadata, setSalaryMetadata] = useState<any[]>([]); // Lưu trữ danh mục cấu trúc lương động từ DB
+  const [salaryMetadata, setSalaryMetadata] = useState<SalaryMetadataItem[]>([]); // Lưu trữ danh mục cấu trúc lương động từ DB
   const [loading, setLoading] = useState(true);
 
   // Bộ lọc chính cho toàn trang
@@ -72,7 +78,7 @@ export default function AdminAttendanceManagement() {
 
       // 2. Truy vấn danh sách nhân sự
       const { data: emps } = await supabase.from('employees').select('id, full_name, title');
-      const finalEmps = emps || [];
+      const finalEmps = (emps || []) as Employee[];
       setEmployees(finalEmps);
       
       if (finalEmps.length > 0 && !filterEmployeeId) {
@@ -81,15 +87,15 @@ export default function AdminAttendanceManagement() {
 
       // 3. Truy vấn ca làm việc
       const { data: sfs } = await supabase.from('shifts').select('*');
-      let finalShifts = sfs || [];
-      if (!finalShifts.some(s => s.shift_name.includes('Tối'))) {
+      let finalShifts = (sfs || []) as Shift[];
+      if (!finalShifts.some((shift) => shift.shift_name.includes('Tối'))) {
         finalShifts.push({ id: 't_mock', shift_name: 'Ca Tối', start_time: '18:00:00', end_time: '22:00:00' });
       }
       setShifts(finalShifts);
       
       // 4. Truy vấn lịch sử chấm công
       const { data: atts } = await supabase.from('attendance').select('*').order('work_date', { ascending: false });
-      setAttendanceRecords(atts || []);
+      setAttendanceRecords((atts || []) as AttendanceRecord[]);
     } catch (error) { 
       console.error(error); 
     }
@@ -104,41 +110,33 @@ export default function AdminAttendanceManagement() {
 
   // TÍNH TOÁN ĐỒNG BỘ: Tính toán tổng giờ làm và tiền lương dựa trên định mức động từ Metadata
   const calculateFilteredPayroll = () => {
-    let targetRecords = attendanceRecords.filter(r => {
-      const recordDate = new Date(r.work_date);
+    let targetRecords = attendanceRecords.filter((record) => {
+      const recordDate = new Date(record.work_date);
       return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
     });
 
     if (filterEmployeeId) {
-      targetRecords = targetRecords.filter(r => String(r.employee_id) === String(filterEmployeeId));
+      targetRecords = targetRecords.filter((record) => String(record.employee_id) === String(filterEmployeeId));
     }
 
-    const uniqueRecordsMap: { [key: string]: any } = {};
-    targetRecords.forEach(rec => {
-      const uniqueKey = `${rec.employee_id}-${rec.work_date}-${rec.shift_name}`;
-      if (!uniqueRecordsMap[uniqueKey]) uniqueRecordsMap[uniqueKey] = rec;
-    });
-
-    const validShiftList = Object.values(uniqueRecordsMap);
+    const normalizedRecords = mergeAttendanceRecords(targetRecords);
     let totalShiftsCount = 0;
     let totalHoursAccumulated = 0;
     let totalPayrollAmount = 0;
 
-    validShiftList.forEach((rec: any) => {
-      if (rec.check_in && rec.check_out) {
-        totalShiftsCount++;
-        
-        // Trích xuất thông tin chức danh của nhân sự thuộc bản ghi này
-        const empProfile = employees.find(e => String(e.id) === String(rec.employee_id));
-        const empTitle = empProfile ? empProfile.title : '';
-        const hourlyRate = getHourlyRateByTitle(empTitle);
+    normalizedRecords.forEach((record) => {
+      if (!isAttendanceRecordComplete(record)) return;
 
-        // Ưu tiên sử dụng số giờ tính toán chính xác lưu sẵn dưới DB, nếu chưa có thì tính từ chuỗi giờ công
-        const decimalHours = rec.total_hours ? Number(rec.total_hours) : calculateHoursFromStrings(rec.check_in, rec.check_out);
-        
-        totalHoursAccumulated += decimalHours;
-        totalPayrollAmount += calculateSalary(decimalHours, hourlyRate);
-      }
+      totalShiftsCount += 1;
+
+      const empProfile = employees.find((employee) => String(employee.id) === String(record.employee_id));
+      const hourlyRate = getHourlyRateByTitle(empProfile?.title);
+      const decimalHours = record.total_hours
+        ? Number(record.total_hours)
+        : calculateHoursFromStrings(record.check_in || null, record.check_out || null);
+
+      totalHoursAccumulated += decimalHours;
+      totalPayrollAmount += calculateSalary(decimalHours, hourlyRate);
     });
 
     return { 
@@ -185,6 +183,24 @@ export default function AdminAttendanceManagement() {
   };
 
   const payrollSummary = calculateFilteredPayroll();
+  const normalizedMonthlyRecords = mergeAttendanceRecords(
+    attendanceRecords.filter((record) => {
+      const recordDate = new Date(record.work_date);
+      const matchesMonth =
+        recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+      const matchesEmployee =
+        !filterEmployeeId || String(record.employee_id) === String(filterEmployeeId);
+
+      return matchesMonth && matchesEmployee;
+    })
+  );
+  const missingCheckoutRecords = normalizedMonthlyRecords.filter(isMissingCheckoutRecord);
+  const overdueCheckoutRecords = missingCheckoutRecords.filter((record) =>
+    isAttendanceRecordOverdue({
+      record,
+      shifts,
+    })
+  );
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
@@ -247,6 +263,18 @@ export default function AdminAttendanceManagement() {
         </div>
       </div>
 
+      {missingCheckoutRecords.length > 0 && (
+        <div className="bg-amber-950/20 border border-amber-500/20 rounded-2xl px-4 py-3 text-xs text-amber-100">
+          <p className="font-bold text-amber-300">
+            Đang có {missingCheckoutRecords.length} ca thiếu check-out
+            {overdueCheckoutRecords.length > 0 ? `, trong đó ${overdueCheckoutRecords.length} ca đã quá giờ.` : '.'}
+          </p>
+          <p className="mt-1 text-amber-100/80">
+            Hệ thống hiện chưa tự gửi email nhắc check-out. Giải pháp an toàn lúc này là mở từng ngày để bổ sung giờ ra, sau đó mình có thể nối tiếp bằng cron/email reminder theo `shift.end_time`.
+          </p>
+        </div>
+      )}
+
       {/* FULL CALENDAR GRID */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl space-y-4">
         <h2 className="text-sm font-black text-slate-100 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-800/60 pb-3">
@@ -263,23 +291,12 @@ export default function AdminAttendanceManagement() {
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
             const currentLoopDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            let rawDayRecords = attendanceRecords.filter(r => r.work_date === currentLoopDateStr);
+            let rawDayRecords = attendanceRecords.filter((record) => record.work_date === currentLoopDateStr);
             
             if (filterEmployeeId) {
-              rawDayRecords = rawDayRecords.filter(r => String(r.employee_id) === String(filterEmployeeId));
+              rawDayRecords = rawDayRecords.filter((record) => String(record.employee_id) === String(filterEmployeeId));
             }
-
-            const uniqueDayRecordsMap: { [key: string]: any } = {};
-            rawDayRecords.forEach(rec => {
-              const uniqueKey = `${rec.employee_id}-${rec.shift_name}`;
-              if (!uniqueDayRecordsMap[uniqueKey]) uniqueDayRecordsMap[uniqueKey] = { ...rec };
-              else {
-                if (rec.check_in && !uniqueDayRecordsMap[uniqueKey].check_in) uniqueDayRecordsMap[uniqueKey].check_in = rec.check_in;
-                if (rec.check_out && !uniqueDayRecordsMap[uniqueKey].check_out) uniqueDayRecordsMap[uniqueKey].check_out = rec.check_out;
-              }
-            });
-
-            const processedDayRecords = Object.values(uniqueDayRecordsMap);
+            const processedDayRecords = mergeAttendanceRecords(rawDayRecords);
 
             return (
               <div 
@@ -296,12 +313,14 @@ export default function AdminAttendanceManagement() {
                       <span>📅 Ngày {day}/{currentMonth + 1}:</span>
                     </p>
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {processedDayRecords.map((rec: any, rIdx) => {
-                        const isSuccessShift = rec.check_in && rec.check_out;
-                        const currentEmp = employees.find(e => String(e.id) === String(rec.employee_id));
-                        const empTitle = currentEmp ? currentEmp.title : 'Chưa gán';
-                        const hourlyRate = getHourlyRateByTitle(empTitle);
-                        const decimalHours = rec.total_hours ? Number(rec.total_hours) : calculateHoursFromStrings(rec.check_in, rec.check_out);
+                      {processedDayRecords.map((rec, rIdx) => {
+                        const isSuccessShift = isAttendanceRecordComplete(rec);
+                        const currentEmp = employees.find((employee) => String(employee.id) === String(rec.employee_id));
+                        const empTitle = currentEmp?.title || 'Chưa gán';
+                        const hourlyRate = getHourlyRateByTitle(currentEmp?.title);
+                        const decimalHours = rec.total_hours
+                          ? Number(rec.total_hours)
+                          : calculateHoursFromStrings(rec.check_in || null, rec.check_out || null);
                         const currentShiftWage = calculateSalary(decimalHours, hourlyRate);
                         
                         return (
