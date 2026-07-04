@@ -61,6 +61,10 @@ export async function getWorkflowItems(): Promise<WorkflowSetting[]> {
   const tasks = await workflowRepository.listTasksByPhaseIds(phaseIds);
 
   const tasksByPhaseId = tasks.reduce<Record<number, typeof tasks>>((groups, task) => {
+    if (typeof task.phase_id !== 'number') {
+      return groups;
+    }
+
     if (!groups[task.phase_id]) groups[task.phase_id] = [];
     groups[task.phase_id].push(task);
     return groups;

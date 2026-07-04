@@ -41,7 +41,7 @@ export default function AdminAttendanceManagement() {
   const [editDateStr, setEditDateStr] = useState<string | null>(null);
 
   // HÀM ĐỘNG: Tìm định mức lương/giờ dựa trên chức danh nhân sự và danh mục Metadata trung tâm
-  const getHourlyRateByTitle = (title: string): number => {
+  const getHourlyRateByTitle = (title?: string | null): number => {
     if (!title || salaryMetadata.length === 0) return 30000; // Fallback mặc định 30k nếu chưa thiết lập
     
     const formattedTitle = title.trim().toUpperCase();
