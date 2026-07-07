@@ -67,7 +67,8 @@ export async function getSmtpConfig() {
   const host = settingsMap.get('SMTP_HOST') || '';
   const port = Number(settingsMap.get('SMTP_PORT') || '0');
   const user = settingsMap.get('SMTP_USER') || '';
-  const pass = settingsMap.get('SMTP_PASS') || '';
+  const rawPass = settingsMap.get('SMTP_PASS') || '';
+  const pass = rawPass.replace(/\s+/g, '');
   const fromName = settingsMap.get('SMTP_FROM_NAME') || 'Luminal ERP';
 
   const missingKeys: SystemSettingKey[] = [];
@@ -83,6 +84,10 @@ export async function getSmtpConfig() {
 
   if (![465, 587].includes(port)) {
     throw new Error(`SMTP_PORT hiện là ${port}. Với Gmail nên dùng 465 hoặc 587.`);
+  }
+
+  if (host === 'smtp.gmail.com' && pass.length !== 16) {
+    throw new Error('SMTP_PASS phải là Google App Password 16 ký tự. Không dùng mật khẩu Gmail thường.');
   }
 
   return {
