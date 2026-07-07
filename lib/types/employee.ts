@@ -2,6 +2,7 @@ export interface Employee {
     id: number | string;
     employee_id?: number | string | null;
     full_name: string;
+    email?: string | null;
     title?: string | null;
     status?: string | null;
     qr_token?: string | null;

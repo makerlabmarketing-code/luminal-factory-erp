@@ -29,6 +29,7 @@ export default function AdminEmailTemplates() {
   const [showTestMailPopup, setShowTestMailPopup] = useState(false);
   const [testMailAddress, setTestMailAddress] = useState('admin@gmail.com');
   const [activeTestTemplate, setActiveTestTemplate] = useState<any>(null);
+  const [sendingTestMail, setSendingTestMail] = useState(false);
 
   // Form Fields
   const [groupType, setGroupType] = useState('WELCOME');
@@ -98,11 +99,42 @@ export default function AdminEmailTemplates() {
     setShowTestMailPopup(true);
   };
 
-  const executeSendTestEmail = () => {
+  const executeSendTestEmail = async () => {
     if (!testMailAddress.trim()) return showToast('Thiếu địa chỉ', 'Vui lòng nhập email nhận thử nghiệm!', 'error');
-    setShowTestMailPopup(false);
-    // 🔥 ĐÃ VÁ: Phát lệnh bắn Toast UI hoành tráng thay cho alert gồ ghề
-    showToast('Bắn lệnh SMTP', `🚀 Cổng SMTP đã phát lệnh bắn thử nghiệm kịch bản thư [${activeTestTemplate?.template_name || ''}] tới địa chỉ: ${testMailAddress.trim()} thành công!`, 'success');
+    if (!activeTestTemplate?.id) return showToast('Thiếu template', 'Không xác định được template cần gửi thử.', 'error');
+
+    setSendingTestMail(true);
+
+    try {
+      const response = await fetch('/api/admin/email/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          templateId: activeTestTemplate.id,
+          recipient: testMailAddress.trim(),
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Không thể gửi email test.');
+      }
+
+      setShowTestMailPopup(false);
+      showToast(
+        'Bắn lệnh SMTP',
+        `🚀 Đã gửi thử template [${activeTestTemplate?.template_name || ''}] tới ${testMailAddress.trim()} thành công!`,
+        'success'
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể gửi email test.';
+      showToast('SMTP lỗi', message, 'error');
+    } finally {
+      setSendingTestMail(false);
+    }
   };
 
   const handleSave = async () => {
@@ -269,7 +301,7 @@ export default function AdminEmailTemplates() {
               <p className="text-[11px] text-slate-400 font-medium">Bắn lệnh phát thử nghiệm cấu trúc kịch bản [{activeTestTemplate?.template_name}] qua cổng SMTP xưởng.</p>
             </div>
             <div className="text-left"><label className="text-slate-500 font-bold block mb-1">Nhập địa chỉ Email nhận:</label><input type="email" className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl font-mono text-purple-400 font-bold focus:outline-none" value={testMailAddress} onChange={e => setTestMailAddress(e.target.value)} /></div>
-            <div className="grid grid-cols-2 gap-2 pt-1 font-sans"><button onClick={() => setShowTestMailPopup(false)} className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl font-bold text-slate-400">Hủy</button><button onClick={executeSendTestEmail} className="bg-purple-600 text-white font-black p-2.5 rounded-xl shadow-lg">🚀 Phát lệnh bắn</button></div>
+            <div className="grid grid-cols-2 gap-2 pt-1 font-sans"><button onClick={() => setShowTestMailPopup(false)} disabled={sendingTestMail} className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl font-bold text-slate-400 disabled:opacity-50">Hủy</button><button onClick={executeSendTestEmail} disabled={sendingTestMail} className="bg-purple-600 text-white font-black p-2.5 rounded-xl shadow-lg disabled:opacity-50">{sendingTestMail ? 'Đang gửi...' : '🚀 Phát lệnh bắn'}</button></div>
           </div>
         </div>
       )}
