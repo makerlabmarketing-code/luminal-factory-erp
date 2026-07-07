@@ -17,6 +17,16 @@ export function calculateShiftUnitsFromHours(hours: number): number {
   return Math.ceil(hours / 3);
 }
 
+function throwAttendanceError(error: unknown): never {
+  if (error instanceof Error) throw error;
+
+  if (error && typeof error === 'object' && 'message' in error) {
+    throw new Error(String((error as { message?: unknown }).message));
+  }
+
+  throw new Error('Không thể ghi dữ liệu chấm công.');
+}
+
 export function mergeAttendanceRecords(records: AttendanceRecord[]): AttendanceRecord[] {
   const mergedMap = new Map<string, AttendanceRecord>();
 
@@ -90,12 +100,11 @@ export async function getOpenAttendanceRecord(params: {
     .is('check_out', null)
     .not('check_in', 'is', null)
     .order('id', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
 
-  if (error) throw error;
+  if (error) throwAttendanceError(error);
 
-  return (data as AttendanceRecord | null) || null;
+  return ((data as AttendanceRecord[] | null)?.[0]) || null;
 }
 
 export async function getAttendanceRecordByShift(params: {
@@ -109,12 +118,12 @@ export async function getAttendanceRecordByShift(params: {
     .eq('employee_id', params.employeeId)
     .eq('work_date', params.workDate)
     .eq('shift_name', params.shiftName)
-    .limit(1)
-    .maybeSingle();
+    .order('id', { ascending: true })
+    .limit(1);
 
-  if (error) throw error;
+  if (error) throwAttendanceError(error);
 
-  return (data as AttendanceRecord | null) || null;
+  return ((data as AttendanceRecord[] | null)?.[0]) || null;
 }
 
 export async function checkInAttendance(params: {
@@ -135,20 +144,18 @@ export async function checkInAttendance(params: {
     const { error } = await supabase
       .from('attendance')
       .update({
-        employee_name: params.employee.full_name,
         check_in: normalizeTimeValue(params.checkIn),
         status: 'PRESENT',
       })
       .eq('id', existingRecord.id);
 
-    if (error) throw error;
+    if (error) throwAttendanceError(error);
     return;
   }
 
   const { error } = await supabase.from('attendance').insert([
     {
       employee_id: params.employee.id,
-      employee_name: params.employee.full_name,
       work_date: params.workDate,
       shift_name: params.shiftName,
       check_in: normalizeTimeValue(params.checkIn),
@@ -156,7 +163,7 @@ export async function checkInAttendance(params: {
     },
   ]);
 
-  if (error) throw error;
+  if (error) throwAttendanceError(error);
 }
 
 export async function checkOutAttendance(params: {
@@ -178,7 +185,7 @@ export async function checkOutAttendance(params: {
     })
     .eq('id', params.record.id);
 
-  if (error) throw error;
+  if (error) throwAttendanceError(error);
 }
 
 export async function updateAttendanceRecordTime(params: {
@@ -203,7 +210,7 @@ export async function updateAttendanceRecordTime(params: {
     })
     .eq('id', params.recordId);
 
-  if (error) throw error;
+  if (error) throwAttendanceError(error);
 }
 
 export async function upsertAttendanceRecord(params: {
@@ -229,7 +236,6 @@ export async function upsertAttendanceRecord(params: {
     const { error } = await supabase
       .from('attendance')
       .update({
-        employee_name: params.employee.full_name,
         check_in: timeIn,
         check_out: timeOut,
         total_hours: totalHours,
@@ -238,14 +244,13 @@ export async function upsertAttendanceRecord(params: {
       })
       .eq('id', existingRecord.id);
 
-    if (error) throw error;
+    if (error) throwAttendanceError(error);
     return;
   }
 
   const { error } = await supabase.from('attendance').insert([
     {
       employee_id: params.employee.id,
-      employee_name: params.employee.full_name,
       work_date: params.workDate,
       shift_name: params.shiftName,
       check_in: timeIn,
@@ -256,12 +261,12 @@ export async function upsertAttendanceRecord(params: {
     },
   ]);
 
-  if (error) throw error;
+  if (error) throwAttendanceError(error);
 }
 
 export async function deleteAttendanceRecord(recordId: number | string): Promise<void> {
   const { error } = await supabase.from('attendance').delete().eq('id', recordId);
-  if (error) throw error;
+  if (error) throwAttendanceError(error);
 }
 
 export function hasDuplicatedShift(params: {

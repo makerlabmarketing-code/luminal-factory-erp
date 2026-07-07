@@ -401,7 +401,7 @@ export default function AdminAttendanceManagement() {
                         return (
                           <div key={rec.id || rIdx} className="border-b border-slate-850/50 pb-1.5 last:border-none last:pb-0">
                             <div className="flex justify-between items-center">
-                              <p className="font-black text-slate-200 truncate pr-2">👤 {rec.employee_name}</p>
+                              <p className="font-black text-slate-200 truncate pr-2">👤 {rec.employee_name || currentEmp?.full_name || 'Nhân sự'}</p>
                               <span className="text-[8px] px-1 bg-slate-950 border border-slate-800 rounded font-mono text-purple-400 font-bold shrink-0">{empTitle}</span>
                             </div>
                             <p className="text-[9px] text-slate-400 font-medium font-mono mt-0.5">⏱️ Khung: {rec.shift_name}</p>

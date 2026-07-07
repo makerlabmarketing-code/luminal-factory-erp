@@ -223,7 +223,7 @@ export default function DailyAttendanceModal({
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-slate-300 flex items-center gap-1.5 truncate">
                         <User className="w-3 h-3 text-slate-500 shrink-0" />
-                        <span className="truncate">{record.employee_name}</span>
+                        <span className="truncate">{record.employee_name || currentEmpName}</span>
                       </p>
 
                       <div className="flex items-center gap-2 mt-1">
