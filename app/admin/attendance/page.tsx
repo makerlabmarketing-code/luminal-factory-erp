@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
 import DailyAttendanceModal from './components/DailyAttendanceModal';
-import { Calendar as CalendarIcon, Clock, LayoutGrid, Banknote, CreditCard, User, X, ArrowUpDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, LayoutGrid, Banknote, CreditCard, User, X } from 'lucide-react';
 import { calculateHoursFromStrings, calculateSalary } from '@/services/payrollService';
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
@@ -35,9 +35,6 @@ interface EmployeePayrollSummary extends PayrollSummary {
   recordCount: number;
 }
 
-type AttendanceSortKey = 'work_date' | 'employee' | 'shift' | 'check_in' | 'check_out' | 'hours' | 'salary' | 'status';
-type SortDirection = 'asc' | 'desc';
-
 function getPayrollPaymentPeriod(workMonthIndex: number, workYear: number) {
   const paymentDate = new Date(workYear, workMonthIndex + 1, 1);
   const paymentMonth = paymentDate.getMonth() + 1;
@@ -59,10 +56,6 @@ export default function AdminAttendanceManagement() {
   const [loading, setLoading] = useState(true);
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
   const [isSettlingPayroll, setIsSettlingPayroll] = useState(false);
-  const [attendanceSort, setAttendanceSort] = useState<{ key: AttendanceSortKey; direction: SortDirection }>({
-    key: 'work_date',
-    direction: 'desc',
-  });
 
   // Bộ lọc chính cho toàn trang
   const [filterEmployeeId, setFilterEmployeeId] = useState('');
@@ -78,7 +71,6 @@ export default function AdminAttendanceManagement() {
 
   // Trạng thái quản lý Modal chỉnh sửa chi tiết ngày
   const [editDateStr, setEditDateStr] = useState<string | null>(null);
-  const [editEmployeeId, setEditEmployeeId] = useState('');
 
   // HÀM ĐỘNG: Tìm định mức lương/giờ dựa trên chức danh nhân sự và danh mục Metadata trung tâm
   const getHourlyRateByTitle = (title?: string | null): number => {
@@ -134,44 +126,8 @@ export default function AdminAttendanceManagement() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleGridDayClick = (dayStr: string, employeeId = filterEmployeeId) => {
-    setEditEmployeeId(employeeId);
+  const handleGridDayClick = (dayStr: string) => {
     setEditDateStr(dayStr);
-  };
-
-  const handleAttendanceSort = (key: AttendanceSortKey) => {
-    setAttendanceSort((current) => ({
-      key,
-      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
-    }));
-  };
-
-  const getEmployeeProfile = (employeeId: number | string) => {
-    return employees.find((employee) => String(employee.id) === String(employeeId));
-  };
-
-  const getAttendanceHours = (record: AttendanceRecord) => {
-    return record.total_hours
-      ? Number(record.total_hours)
-      : calculateHoursFromStrings(record.check_in || null, record.check_out || null);
-  };
-
-  const getAttendanceSalary = (record: AttendanceRecord) => {
-    const employee = getEmployeeProfile(record.employee_id);
-    return calculateSalary(getAttendanceHours(record), getHourlyRateByTitle(employee?.title));
-  };
-
-  const getAttendanceSortValue = (record: AttendanceRecord, key: AttendanceSortKey): string | number => {
-    const employee = getEmployeeProfile(record.employee_id);
-
-    if (key === 'work_date') return record.work_date;
-    if (key === 'employee') return employee?.full_name || record.employee_name || '';
-    if (key === 'shift') return record.shift_name || '';
-    if (key === 'check_in') return record.check_in || '';
-    if (key === 'check_out') return record.check_out || '';
-    if (key === 'hours') return getAttendanceHours(record);
-    if (key === 'salary') return getAttendanceSalary(record);
-    return isAttendanceRecordComplete(record) ? 'complete' : 'missing';
   };
 
   const calculatePayrollFromRecords = (targetRecords: AttendanceRecord[]): PayrollSummary => {
@@ -333,17 +289,6 @@ export default function AdminAttendanceManagement() {
       return matchesMonth && matchesEmployee;
     })
   );
-  const sortedMonthlyRecords = [...normalizedMonthlyRecords].sort((leftRecord, rightRecord) => {
-    const leftValue = getAttendanceSortValue(leftRecord, attendanceSort.key);
-    const rightValue = getAttendanceSortValue(rightRecord, attendanceSort.key);
-    const directionModifier = attendanceSort.direction === 'asc' ? 1 : -1;
-
-    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
-      return (leftValue - rightValue) * directionModifier;
-    }
-
-    return String(leftValue).localeCompare(String(rightValue), 'vi') * directionModifier;
-  });
   const missingCheckoutRecords = normalizedMonthlyRecords.filter(isMissingCheckoutRecord);
   const overdueCheckoutRecords = missingCheckoutRecords.filter((record) =>
     isAttendanceRecordOverdue({
@@ -351,16 +296,6 @@ export default function AdminAttendanceManagement() {
       shifts,
     })
   );
-  const attendanceTableColumns: Array<{ key: AttendanceSortKey; label: string; align?: 'left' | 'right' | 'center' }> = [
-    { key: 'work_date', label: 'Ngày' },
-    { key: 'employee', label: 'Nhân sự' },
-    { key: 'shift', label: 'Ca' },
-    { key: 'check_in', label: 'Vào', align: 'center' },
-    { key: 'check_out', label: 'Ra', align: 'center' },
-    { key: 'hours', label: 'Giờ', align: 'right' },
-    { key: 'salary', label: 'Lương', align: 'right' },
-    { key: 'status', label: 'Trạng thái', align: 'center' },
-  ];
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
@@ -424,92 +359,6 @@ export default function AdminAttendanceManagement() {
           </p>
         </div>
       )}
-
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/60 pb-3">
-          <h2 className="text-sm font-black text-slate-100 uppercase tracking-wide flex items-center gap-1.5">
-            <LayoutGrid className="w-4 h-4 text-purple-400" /> Danh sách công trong tháng
-          </h2>
-          <span className="text-[11px] text-slate-500 font-mono">
-            {String(currentMonth + 1).padStart(2, '0')}/{currentYear} · {sortedMonthlyRecords.length} bản ghi
-          </span>
-        </div>
-
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full min-w-[920px] text-left text-[11px]">
-            <thead className="bg-slate-950 text-slate-500 uppercase tracking-wider">
-              <tr>
-                {attendanceTableColumns.map((column) => (
-                  <th
-                    key={column.key}
-                    className={`px-3 py-2.5 font-black ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleAttendanceSort(column.key)}
-                      className={`inline-flex items-center gap-1 hover:text-slate-200 transition ${column.align === 'right' ? 'justify-end' : column.align === 'center' ? 'justify-center' : 'justify-start'} w-full`}
-                    >
-                      {column.label}
-                      <ArrowUpDown className={`w-3 h-3 ${attendanceSort.key === column.key ? 'text-purple-400' : 'text-slate-600'}`} />
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/80 bg-slate-950/40">
-              {sortedMonthlyRecords.length === 0 ? (
-                <tr>
-                  <td colSpan={attendanceTableColumns.length} className="px-3 py-8 text-center text-slate-500 italic">
-                    Chưa có dữ liệu chấm công trong tháng này.
-                  </td>
-                </tr>
-              ) : (
-                sortedMonthlyRecords.map((record) => {
-                  const employee = getEmployeeProfile(record.employee_id);
-                  const displayHours = getAttendanceHours(record);
-                  const displaySalary = getAttendanceSalary(record);
-                  const isComplete = isAttendanceRecordComplete(record);
-
-                  return (
-                    <tr
-                      key={`${record.id}-${record.employee_id}-${record.work_date}-${record.shift_name}`}
-                      onClick={() => handleGridDayClick(record.work_date, String(record.employee_id))}
-                      className="hover:bg-slate-900/80 cursor-pointer transition"
-                    >
-                      <td className="px-3 py-2.5 font-mono font-bold text-slate-300 whitespace-nowrap">
-                        {new Date(record.work_date).toLocaleDateString('vi-VN')}
-                      </td>
-                      <td className="px-3 py-2.5 text-slate-200 font-bold max-w-[180px] truncate">
-                        {employee?.full_name || record.employee_name || 'Nhân sự'}
-                      </td>
-                      <td className="px-3 py-2.5 text-purple-300 font-mono font-bold whitespace-nowrap">
-                        {record.shift_name}
-                      </td>
-                      <td className="px-3 py-2.5 text-center font-mono text-emerald-400">
-                        {record.check_in ? record.check_in.slice(0, 5) : '--:--'}
-                      </td>
-                      <td className="px-3 py-2.5 text-center font-mono text-red-400">
-                        {record.check_out ? record.check_out.slice(0, 5) : '--:--'}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-mono text-amber-400 font-bold">
-                        {displayHours}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-mono text-emerald-400 font-bold">
-                        {displaySalary.toLocaleString('vi-VN')} đ
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className={`inline-flex items-center justify-center rounded-md border px-2 py-1 text-[10px] font-bold ${isComplete ? 'border-emerald-500/20 bg-emerald-950/30 text-emerald-400' : 'border-amber-500/20 bg-amber-950/30 text-amber-400'}`}>
-                          {isComplete ? 'Đủ công' : 'Thiếu giờ ra'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       {/* FULL CALENDAR GRID */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl space-y-4">
@@ -673,10 +522,9 @@ export default function AdminAttendanceManagement() {
         employees={employees}
         shifts={shifts}
         existingRecords={attendanceRecords.filter(r => r.work_date === editDateStr)}
-        currentEmpId={editEmployeeId || filterEmployeeId}
+        currentEmpId={filterEmployeeId}
         onClose={() => {
           setEditDateStr(null);
-          setEditEmployeeId('');
         }}
         onReload={loadData}
         showToast={showToast}
