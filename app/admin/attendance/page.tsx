@@ -35,6 +35,18 @@ interface EmployeePayrollSummary extends PayrollSummary {
   recordCount: number;
 }
 
+function getPayrollPaymentPeriod(workMonthIndex: number, workYear: number) {
+  const paymentDate = new Date(workYear, workMonthIndex + 1, 1);
+  const paymentMonth = paymentDate.getMonth() + 1;
+  const paymentYear = paymentDate.getFullYear();
+
+  return {
+    month: paymentMonth,
+    year: paymentYear,
+    formattedPeriod: `${String(paymentMonth).padStart(2, '0')}/${paymentYear}`,
+  };
+}
+
 export default function AdminAttendanceManagement() {
   const { showToast, showConfirm } = useNotification();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -186,7 +198,8 @@ export default function AdminAttendanceManagement() {
   };
 
   const settlePayrollSummary = async (summary: EmployeePayrollSummary) => {
-    const formattedPeriod = `${String(currentMonth + 1).padStart(2, '0')}/${currentYear}`;
+    const paymentPeriod = getPayrollPaymentPeriod(currentMonth, currentYear);
+    const formattedPeriod = paymentPeriod.formattedPeriod;
     const targetCategory = `Lương T.${currentMonth + 1} - ${summary.employee.full_name}`;
     const { data: existingLedger } = await supabase
       .from('financial_ledger')
@@ -260,6 +273,7 @@ export default function AdminAttendanceManagement() {
 
   const payrollSummary = calculateFilteredPayroll();
   const employeePayrollSummaries = buildEmployeePayrollSummaries();
+  const paymentPeriod = getPayrollPaymentPeriod(currentMonth, currentYear);
   const bulkPayrollSummary = employeePayrollSummaries.reduce(
     (result, summary) => ({
       totalShifts: result.totalShifts + summary.totalShifts,
@@ -437,7 +451,7 @@ export default function AdminAttendanceManagement() {
                   <CreditCard className="w-4 h-4 text-purple-400" /> Phát lệnh quyết toán tổng
                 </h2>
                 <p className="text-[11px] text-slate-400 font-medium mt-1">
-                  Tháng {String(currentMonth + 1).padStart(2, '0')}/{currentYear} - {employeePayrollSummaries.length} nhân viên có công hợp lệ
+                  Công tháng {String(currentMonth + 1).padStart(2, '0')}/{currentYear} - ghi sổ kỳ {paymentPeriod.formattedPeriod} - {employeePayrollSummaries.length} nhân viên có công hợp lệ
                 </p>
               </div>
               <button onClick={() => setIsSettlementModalOpen(false)} className="text-slate-500 hover:text-white transition p-1">

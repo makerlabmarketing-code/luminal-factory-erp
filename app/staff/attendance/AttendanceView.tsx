@@ -5,8 +5,17 @@ import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useNotification } from '@/component/NotificationContext';
 import { Power, RefreshCcw, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { calculateHoursFromStrings, calculateSalary } from '@/services/payrollService';
-import { checkInAttendance } from '@/services/attendanceService';
+import { calculateHoursFromStrings } from '@/services/payrollService';
+import {
+  checkInAttendance,
+  checkOutAttendance,
+  getAttendanceRecordByShift,
+  getEmployeeHourlyRate,
+  getOpenAttendanceRecord,
+  isAttendanceRecordComplete,
+  isMissingCheckoutRecord,
+  mergeAttendanceRecords,
+} from '@/services/attendanceService';
 import type { AttendanceRecord } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 import type { Facility as FacilityType } from '@/lib/types/facility';
@@ -30,6 +39,7 @@ export function StaffAttendanceContent({
   const [localBranchName, setLocalBranchName] = useState('Đang nạp định vị...');
   const [isInShift, setIsInShift] = useState(false);
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
+  const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [liveTime, setLiveTime] = useState(new Date());
   const [fetching, setFetching] = useState(true);
 
@@ -60,40 +70,49 @@ export function StaffAttendanceContent({
     return branch?.facility_name || branch?.name || 'Chưa gán cơ sở';
   };
 
+  const loadAttendanceHistory = async (currentWorker: Employee) => {
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toLocaleDateString('en-CA');
+
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('employee_id', currentWorker.id)
+      .gte('work_date', startDate)
+      .lte('work_date', endDate)
+      .order('work_date', { ascending: false })
+      .order('id', { ascending: false });
+
+    if (error) throw error;
+
+    setAttendanceHistory(mergeAttendanceRecords((data || []) as AttendanceRecord[]));
+  };
+
   const loadInitialShiftStatus = async (currentWorker: Employee) => {
     try {
       const todayStr = new Date().toLocaleDateString('en-CA');
 
-      const { data: openRecord } = await supabase
-        .from('attendance')
-        .select('*')
-        .eq('employee_id', currentWorker.id)
-        .eq('work_date', todayStr)
-        .is('check_out', null)
-        .not('check_in', 'is', null)
-        .order('id', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const openRecord = await getOpenAttendanceRecord({
+        employeeId: currentWorker.id,
+        workDate: todayStr,
+      });
 
       if (openRecord) {
-        setTodayRecord(openRecord as AttendanceRecord);
+        setTodayRecord(openRecord);
         setIsInShift(true);
         return;
       }
 
       const currentShift = autoDetectShift(new Date());
 
-      const { data: currentShiftRecord } = await supabase
-        .from('attendance')
-        .select('*')
-        .eq('employee_id', currentWorker.id)
-        .eq('work_date', todayStr)
-        .eq('shift_name', currentShift)
-        .order('id', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const currentShiftRecord = await getAttendanceRecordByShift({
+        employeeId: currentWorker.id,
+        workDate: todayStr,
+        shiftName: currentShift,
+      });
 
-      setTodayRecord((currentShiftRecord as AttendanceRecord) || null);
+      setTodayRecord(currentShiftRecord || null);
       setIsInShift(false);
     } catch (error) {
       console.error(error);
@@ -146,6 +165,7 @@ export function StaffAttendanceContent({
         }
 
         await loadInitialShiftStatus(finalWorker);
+        await loadAttendanceHistory(finalWorker);
       } catch (error) {
         console.error(error);
         setFetching(false);
@@ -238,52 +258,33 @@ export function StaffAttendanceContent({
             const timeStr = now.toLocaleTimeString('vi-VN', { hour12: false });
             const currentShift = autoDetectShift(now);
 
-            const { data: openRecord } = await supabase
-              .from('attendance')
-              .select('*')
-              .eq('employee_id', activeWorker.id)
-              .eq('work_date', todayStr)
-              .is('check_out', null)
-              .not('check_in', 'is', null)
-              .order('id', { ascending: false })
-              .limit(1)
-              .maybeSingle();
+            const openRecord = await getOpenAttendanceRecord({
+              employeeId: activeWorker.id,
+              workDate: todayStr,
+            });
 
             if (openRecord) {
-              const record = openRecord as AttendanceRecord;
-              const totalHours = calculateHoursFromStrings(record.check_in || null, timeStr);
-              const hourlyRate = Number(activeWorker.hourly_rate || 30000);
-              const totalSalary = calculateSalary(totalHours, hourlyRate);
-
-              const { error } = await supabase
-                .from('attendance')
-                .update({
-                  check_out: timeStr,
-                  total_hours: totalHours,
-                  total_salary: totalSalary,
-                  status: 'PRESENT',
-                })
-                .eq('id', record.id);
-
-              if (error) throw error;
+              const record = openRecord;
+              await checkOutAttendance({
+                record,
+                checkOut: timeStr,
+                hourlyRate: getEmployeeHourlyRate(activeWorker),
+              });
 
               showToast('Tắt máy về', `Đã tan ca [${record.shift_name}] thành công.`, 'success');
               await loadInitialShiftStatus(activeWorker);
+              await loadAttendanceHistory(activeWorker);
               return;
             }
 
-            const { data: existingShift } = await supabase
-              .from('attendance')
-              .select('*')
-              .eq('employee_id', activeWorker.id)
-              .eq('work_date', todayStr)
-              .eq('shift_name', currentShift)
-              .order('id', { ascending: false })
-              .limit(1)
-              .maybeSingle();
+            const existingShift = await getAttendanceRecordByShift({
+              employeeId: activeWorker.id,
+              workDate: todayStr,
+              shiftName: currentShift,
+            });
 
             if (existingShift) {
-              setTodayRecord(existingShift as AttendanceRecord);
+              setTodayRecord(existingShift);
               setIsInShift(false);
               showToast('Đã ghi nhận', `Ca [${currentShift}] đã có dữ liệu chấm công.`, 'info');
               return;
@@ -298,6 +299,7 @@ export function StaffAttendanceContent({
 
             showToast('Vào ca thành công', `Đã ghi nhận [${currentShift}] lúc ${timeStr}.`, 'success');
             await loadInitialShiftStatus(activeWorker);
+            await loadAttendanceHistory(activeWorker);
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Không thể chấm công.';
             showToast('Lỗi kết nối', message, 'error');
@@ -334,6 +336,16 @@ export function StaffAttendanceContent({
       </div>
     );
   }
+
+  const completedAttendanceRecords = attendanceHistory.filter(isAttendanceRecordComplete);
+  const missingCheckoutRecords = attendanceHistory.filter(isMissingCheckoutRecord);
+  const totalMonthlyHours = completedAttendanceRecords.reduce((total, record) => {
+    const hours = record.total_hours
+      ? Number(record.total_hours)
+      : calculateHoursFromStrings(record.check_in || null, record.check_out || null);
+
+    return total + hours;
+  }, 0);
 
   return (
     <div className="flex flex-col items-center justify-center p-8 sm:p-10 bg-slate-900 border border-slate-800 rounded-3xl space-y-6 shadow-xl max-w-md mx-auto mt-6 animate-fadeIn w-full">
@@ -387,6 +399,63 @@ export function StaffAttendanceContent({
       <span className="text-[9px] text-purple-400 font-mono text-center bg-slate-950 p-2 rounded-lg border border-slate-800 w-full">
         Hệ thống nhận diện ca: {autoDetectShift(liveTime)}
       </span>
+
+      <div className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Công tháng này</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {completedAttendanceRecords.length} ca đủ, {missingCheckoutRecords.length} ca thiếu giờ ra
+            </p>
+          </div>
+          <div className="text-right font-mono">
+            <p className="text-lg font-black text-emerald-400">{Number(totalMonthlyHours.toFixed(2))}h</p>
+            <p className="text-[9px] text-slate-500">tổng giờ</p>
+          </div>
+        </div>
+
+        {missingCheckoutRecords.length > 0 && (
+          <div className="bg-amber-950/20 border border-amber-500/20 rounded-xl p-3 text-[11px] text-amber-200">
+            Bạn đang có {missingCheckoutRecords.length} ca thiếu giờ ra. Vui lòng báo quản lý để bổ sung nếu đã tan ca.
+          </div>
+        )}
+
+        <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+          {attendanceHistory.length === 0 ? (
+            <div className="text-center p-4 border border-dashed border-slate-800 rounded-xl text-slate-500 text-[11px] italic">
+              Chưa có dữ liệu chấm công trong tháng này.
+            </div>
+          ) : (
+            attendanceHistory.map((record) => {
+              const isComplete = isAttendanceRecordComplete(record);
+              const displayHours = record.total_hours
+                ? Number(record.total_hours)
+                : calculateHoursFromStrings(record.check_in || null, record.check_out || null);
+              const displayDate = new Date(record.work_date).toLocaleDateString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+              });
+
+              return (
+                <div key={record.id} className="flex items-center justify-between gap-3 border border-slate-850 bg-slate-900/60 rounded-xl px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-200 truncate">{displayDate} - {record.shift_name}</p>
+                    <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                      {record.check_in ? record.check_in.slice(0, 5) : '--:--'} → {record.check_out ? record.check_out.slice(0, 5) : '--:--'}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`text-[10px] font-bold ${isComplete ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {isComplete ? `${displayHours}h` : 'Thiếu giờ ra'}
+                    </p>
+                    <p className="text-[9px] text-slate-500">{isComplete ? 'Đã ghi nhận' : 'Cần bổ sung'}</p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }
