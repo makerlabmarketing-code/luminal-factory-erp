@@ -44,6 +44,44 @@ function stripHtmlTags(value: string): string {
   return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function normalizeSmtpPassword(value: string): string {
+  return value.replace(/\s+/g, '');
+}
+
+function getSmtpErrorMessage(error: unknown): string {
+  const smtpError = error as {
+    code?: string;
+    command?: string;
+    response?: string;
+    responseCode?: number;
+    message?: string;
+  };
+  const rawMessage = smtpError?.message || 'Gửi email thất bại.';
+  const detailParts = [
+    rawMessage,
+    smtpError?.response,
+    smtpError?.code,
+    smtpError?.command,
+    smtpError?.responseCode ? String(smtpError.responseCode) : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (/535|Invalid login|Username and Password not accepted|BadCredentials/i.test(detailParts)) {
+    return 'Gmail từ chối đăng nhập SMTP. Hãy kiểm tra SMTP_USER đúng email Gmail và SMTP_PASS là Google App Password 16 ký tự mới tạo, không phải mật khẩu Gmail thường.';
+  }
+
+  if (/EAUTH/i.test(detailParts)) {
+    return 'SMTP xác thực thất bại. Vui lòng kiểm tra tài khoản gửi và mật khẩu ứng dụng.';
+  }
+
+  if (/ETIMEDOUT|Greeting never received|ESOCKET|ECONNREFUSED|ENOTFOUND/i.test(detailParts)) {
+    return 'Không kết nối được máy chủ SMTP. Hãy kiểm tra SMTP_HOST, SMTP_PORT và mạng máy chủ.';
+  }
+
+  return rawMessage;
+}
+
 export async function getSystemSettingsMap() {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase.from('system_settings').select('key, value');
@@ -64,11 +102,11 @@ export async function getSystemSettingsMap() {
 export async function getSmtpConfig() {
   const settingsMap = await getSystemSettingsMap();
 
-  const host = settingsMap.get('SMTP_HOST') || '';
+  const host = (settingsMap.get('SMTP_HOST') || '').toLowerCase();
   const port = Number(settingsMap.get('SMTP_PORT') || '0');
   const user = settingsMap.get('SMTP_USER') || '';
   const rawPass = settingsMap.get('SMTP_PASS') || '';
-  const pass = rawPass.replace(/\s+/g, '');
+  const pass = normalizeSmtpPassword(rawPass);
   const fromName = settingsMap.get('SMTP_FROM_NAME') || 'Luminal ERP';
 
   const missingKeys: SystemSettingKey[] = [];
@@ -84,6 +122,10 @@ export async function getSmtpConfig() {
 
   if (![465, 587].includes(port)) {
     throw new Error(`SMTP_PORT hiện là ${port}. Với Gmail nên dùng 465 hoặc 587.`);
+  }
+
+  if (host === 'smtp.gmail.com' && /^smtp_?pass$/i.test(pass)) {
+    throw new Error('SMTP_PASS đang là giá trị mẫu. Hãy nhập Google App Password thật do Google cấp.');
   }
 
   if (host === 'smtp.gmail.com' && pass.length !== 16) {
@@ -229,7 +271,7 @@ async function sendWithTemplate(params: {
       subject: renderedSubject,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Gửi email thất bại.';
+    const message = getSmtpErrorMessage(error);
 
     await logEmailHistory({
       recipient: params.recipient,
