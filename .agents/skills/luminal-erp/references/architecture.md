@@ -1,91 +1,108 @@
 # Architecture
 
-## Overview
+## Principle
 
-Luminal Factory ERP is built with:
+Refactor the existing ERP incrementally.
 
-- Next.js App Router
-- React
-- TypeScript
-- Tailwind CSS
-- Supabase
+Refactor around current behavior and coupling observed in the active task.
 
-The project consists of two primary applications:
+## Responsibility Boundaries
 
-- Admin Portal
-- Staff Portal
+### Pages
 
-Business logic should be isolated from presentation whenever practical.
+Pages should focus on route parameters, page-level access, page-level data composition, and view composition.
 
----
+Large operational workflows should not live directly in page files.
 
-## Directory Structure
+### Views
 
-app/
-    admin/
-    api/
-    staff/
+Views own screen composition, feature presentation, and interactive orchestration.
 
-components/
-lib/
-services/
-utils/
-public/
+Attendance calculations, salary calculations, workflow transition rules, financial aggregation, and inventory enforcement should live in domain or service seams that views call.
 
----
+### Services
 
-## Admin
+Services expose meaningful operational operations.
 
-Location
+Examples:
 
-app/admin/
+    getAttendanceForEmployee
+    checkInEmployee
+    checkOutEmployee
+    calculateWorkedHours
+    getEmployees
+    updateEmployee
+    getProductionWorkflow
+    assignWorkflowTask
+    transitionWorkflowStatus
+    calculatePayroll
+    getExpenseSummary
 
-Responsibilities
+A service should hide data-access or operational complexity behind a small interface.
 
-- Employee management
-- Production workflow
-- Attendance management
-- Financial management
-- Facility management
-- System settings
+A service should provide a meaningful operational operation, not only a renamed Supabase query.
 
----
+### Types
 
-## Staff
+Reusable domain types should live in stable type modules.
 
-Location
+Avoid repeated interfaces representing the same domain object differently without an intentional reason.
 
-app/staff/
+## Supabase Boundary
 
-Main entry
+`references/supabase-contract.md` owns Supabase client strategy, environment variables, RLS, authorization, query boundaries, and shared backend strategy.
 
-app/staff/portal/page.tsx
+Supabase access should not be copied into every component.
 
-Views
+Feature-specific query functions or services should provide typed interfaces.
 
-- AttendanceView
-- TasksView
-- ExpensesView
-- ProfileView
+## Feature Direction
 
-page.tsx should remain thin.
+The application may evolve toward feature boundaries such as:
 
-Business logic belongs in services, hooks or reusable components.
+    attendance
+    employees
+    payroll
+    production
+    workflow
+    materials
+    finance
+    staff-portal
+    commerce-admin
 
----
+Use these boundaries when a current task exposes a real coupling problem; the list is not a mandatory folder plan.
 
-## Shared Layer
+## Server and Client Components
 
-Prefer
+Use Server Components where supported by the current Next.js 13 architecture and data flow.
 
-- services/
-- lib/types/
-- utils/
+Use Client Components for hooks, browser APIs, local interaction, timers, realtime browser subscriptions, geolocation, QR interaction, and client-rendered charts.
 
-Avoid duplicating business logic across Admin and Staff.
+Before making a large parent component client-side, consider extracting the smallest interactive child.
 
----
+## Existing-Application Rule
 
-## Future Direction
+Before moving code:
 
-Prefer extracting reusable services over copying logic between modules.
+1. identify callers
+2. identify imported types
+3. identify Supabase dependencies
+4. identify user-visible behavior
+5. identify side effects
+6. identify validation coverage
+
+Completion criterion:
+
+The moved responsibility has one clear owner, all callers use the intended boundary, and no duplicate legacy path remains without an explicit compatibility reason.
+
+## Shared Commerce Architecture
+
+ERP and storefront may eventually share commerce domain types, database contracts, and validation schemas.
+
+Possible future strategies:
+
+1. shared package
+2. monorepo package
+3. generated database types plus shared validation contracts
+
+Choose a permanent repository-sharing strategy after auditing both repositories and the Supabase schema.

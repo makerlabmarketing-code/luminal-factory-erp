@@ -1,81 +1,97 @@
 # Coding Style
 
+## General
+
+Preserve existing behavior during refactoring.
+
+Use explicit domain language.
+
 ## TypeScript
 
-Avoid
+Use strict TypeScript.
 
-- any
-- implicit any
+Do not introduce new `any`.
 
-Always
+When touching an existing `any`, replace it when the actual shape can be established safely within the task.
 
-- define interfaces
-- use optional chaining
-- handle null
-- provide default values when necessary
+Prefer explicit domain types, discriminated unions for stateful workflows, readonly values where mutation is unnecessary, and shared reusable types for repeated domain structures.
 
----
-
-## React
-
-Prefer
-
-small components
-
-early returns
-
-clear state names
-
-Avoid
-
-deep nesting
-
-large render functions
-
-duplicated JSX
-
----
-
-## Next.js
-
-page.tsx should remain minimal.
-
-Business logic belongs in
-
-- services
-- hooks
-- reusable utilities
-
----
-
-## Supabase
-
-Prefer shared clients.
-
-Avoid creating duplicate clients.
-
-Extract database access into services.
-
----
-
-## Comments
-
-Comments should explain intent.
-
-Avoid obvious comments.
-
----
+Avoid unsafe assertions used only to silence the compiler.
 
 ## Naming
 
-Use descriptive names.
+Prefer:
 
-Prefer
+    employeeId
+    attendanceRecord
+    workflowStage
+    workflowStatus
+    assignedEmployeeId
+    workedHours
+    payrollPeriod
+    expenseCategory
 
-employeeService
+Avoid generic names such as `data`, `item`, `obj`, `temp`, and `info2` when a real domain name exists.
 
-workflowService
+Boolean names should communicate conditions.
 
-attendanceService
+Examples:
 
-instead of generic helper names.
+    isCheckedIn
+    canCheckOut
+    isWorkflowBlocked
+    hasPendingReview
+
+## Stable Identifiers
+
+`references/erp-domain.md` owns stable relationship rules.
+
+Use its identifier rules when naming variables, parameters, and types.
+
+## React
+
+Keep components focused.
+
+Separate data access, domain calculation, interaction, and presentation.
+
+A component should not simultaneously own a complex Supabase query, payroll calculations, workflow rules, and large markup.
+
+## Services
+
+Service functions should use explicit inputs and typed outputs.
+
+Prefer:
+
+    getEmployeeAttendance(employeeId, range)
+    calculatePayroll(input)
+    transitionWorkflowStage(input)
+
+Avoid vague names such as `processData`, `handleEverything`, and `updateStuff`.
+
+## Supabase Queries
+
+Select only required columns where practical.
+
+Distinguish expected empty results, authorization failures, and database failures.
+
+`references/supabase-contract.md` owns Supabase query-boundary rules.
+
+## Error Handling
+
+User-facing errors must not expose stack traces, secrets, privileged identifiers, or raw database internals.
+
+Operational errors should retain enough context for diagnosis.
+
+## Calculations
+
+Keep time, salary, and financial calculations in pure functions where practical.
+
+Pure calculation seams are preferred regression-test targets.
+
+Document rounding rules when money or worked hours are involved.
+
+## Refactoring
+
+Keep unrelated bug fixes inside the smallest file and responsibility boundary that preserves behavior.
+
+A refactor should expose a clearer responsibility boundary or reduce verified duplication.

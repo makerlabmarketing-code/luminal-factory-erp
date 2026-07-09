@@ -1,6 +1,6 @@
 ---
 name: reference-analysis
-description: Analyze one or more websites as design, motion, interaction, commerce, or engineering references for Luminal Factory. Extract useful patterns, document behavior, identify technical approaches, and propose Luminal-specific adaptations. Never clone branding, content, assets, or complete layouts literally.
+description: Analyze one or more websites as design, motion, interaction, product, or engineering references for Luminal Factory. Extract useful patterns, document behavior, identify technical approaches, and propose Luminal-specific adaptations under repository-owned authority.
 argument-hint: "<url1> [<url2> ...]"
 user-invocable: true
 ---
@@ -9,9 +9,7 @@ user-invocable: true
 
 Analyze one or more websites provided in `$ARGUMENTS` as references for Luminal Factory.
 
-This skill is for research and adaptation.
-
-It is not a pixel-perfect cloning workflow.
+This skill is for research and adaptation. It records evidence, extracts useful patterns, and adapts them under repository-owned authority.
 
 The objective is to understand:
 
@@ -23,15 +21,19 @@ The objective is to understand:
 - what must not be copied
 - how the concept should be adapted to Luminal's identity
 
-Use the full workflow when the reference may affect project direction, a page specification, a motion system, commerce structure, or implementation planning.
+Use the full workflow when the reference may affect project direction, a page specification, a motion system, product structure, or implementation planning.
 
 For a quick scan, identify only the requested scope, observed behavior, useful principle, what should not be copied, and Luminal adaptation.
 
+For ERP operational references, focus on workflow clarity, state visibility, task flow, information density, tables, forms, permissions, and traceability before visual style.
+
 ## Core Rule
 
-Never treat a reference website as the final design authority.
+Treat reference websites as evidence, not final design authority.
 
-Luminal Factory's project context, commerce model, design rules, and approved page scripts are authoritative.
+Luminal Factory's repository-owned project context, ERP domain rules, architecture, UI rules, workflow rules, and user-approved scope are authoritative.
+
+Authority order is owned by `AGENTS.md`.
 
 A reference may contribute:
 
@@ -42,9 +44,9 @@ A reference may contribute:
 - technical pattern
 - component behavior
 - spatial composition
-- commerce structure
+- product structure
 
-A reference must not automatically contribute:
+A reference may not override repository-owned Luminal guidance for:
 
 - branding
 - logos
@@ -60,27 +62,27 @@ A reference must not automatically contribute:
 
 ## Luminal Context
 
-Before analyzing a reference for implementation use, consult the Luminal commerce skill.
+Before analyzing a reference for implementation use, consult the relevant Luminal ERP guidance.
 
 Relevant project guidance lives in:
 
-    .agents/skills/luminal-commerce/
+    .agents/skills/luminal-erp/
 
 At minimum, consider:
 
     references/project-context.md
     references/ui-rules.md
+
+For ERP domain or workflow references, also consult:
+
+    references/erp-domain.md
     references/workflow.md
-
-For commerce references, also consult:
-
-    references/commerce-domain.md
 
 For architectural references, also consult:
 
     references/architecture.md
 
-Authority order is owned by `AGENTS.md`. Visual and motion rules are owned by `references/ui-rules.md`. Commerce meaning is owned by `references/commerce-domain.md`.
+ERP visual stability is owned by `references/ui-rules.md`. ERP business meaning is owned by `references/erp-domain.md`.
 
 ## Analysis Modes
 
@@ -93,14 +95,24 @@ Possible modes include:
 - interaction
 - 3D
 - layout
-- commerce
+- product structure
 - content structure
 - engineering architecture
 - component behavior
 
 A reference may use multiple modes.
 
-Do not perform unrelated analysis merely because the website contains additional features.
+Analyze only the modes that match the user's request or the Luminal feature being considered.
+
+For ERP references, prefer these modes before visual or motion modes:
+
+- workflow
+- information hierarchy
+- state presentation
+- form behavior
+- table behavior
+- permissions and role boundaries
+- audit or traceability model
 
 ## Browser Inspection
 
@@ -137,17 +149,13 @@ Examples:
 
     Soda hero
     -> 3D and pointer interaction
-    -> Luminal Home Hero
-
-    Artkey catalogue
-    -> commerce structure
-    -> Luminal Archive
+    -> Luminal ERP dashboard header
 
     Aixor project sections
     -> editorial composition
-    -> Luminal Home and Factory pages
+    -> Luminal ERP dashboard information hierarchy
 
-Do not analyze an entire site when the user only references one interaction.
+Keep the scope to the referenced page, section, or interaction unless the user asks for a broader audit.
 
 ## Phase 2: Observe the Experience
 
@@ -202,7 +210,7 @@ Document interactions in this form:
     Settle behavior:
     Smoothed interpolation
 
-Do not describe a behavior merely as "animated".
+Describe the trigger, input, response, and settle behavior for each relevant interaction.
 
 ## Phase 4: Identify Spatial Layers
 
@@ -302,7 +310,7 @@ If yes, identify whether it is:
 
 Identify the simplest plausible technology for the observed behavior.
 
-Apply the Luminal animation technology hierarchy from `references/ui-rules.md`.
+Apply the visual stability and UI refactoring rules from `references/ui-rules.md`.
 
 Additional reference-analysis options may include:
 
@@ -323,7 +331,7 @@ Appropriate for:
 - scroll-driven product rotation
 - highly art-directed rendered objects
 
-Do not recommend WebGL merely because a scene looks visually rich.
+Recommend WebGL only when the observed behavior or requested implementation scope needs it.
 
 ## Phase 7: Separate Observation From Source Evidence
 
@@ -477,7 +485,7 @@ Use this structure:
 
     ## Applicable Luminal Pages
 
-Do not create a research file automatically for every casual reference.
+Create research files only for durable reference decisions.
 
 Create one when:
 
@@ -488,34 +496,26 @@ Create one when:
 
 ## Implementation Rule
 
-Reference analysis does not grant permission to implement a page.
+Reference analysis records observations and adaptations. Implementation still requires user-approved scope and the relevant repository-owned guidance.
 
-Before implementing a major Luminal page or experience:
+Before implementing from a reference:
 
-1. the page script must be approved
-2. the specification must exist
-3. the technical plan must exist
-4. implementation scope must be clear
+1. the user-requested implementation scope must be clear
+2. relevant ERP guidance owners must be read
+3. any product behavior, UI appearance, workflow storage, database shape, or cross-module architecture change must be explicitly requested or authorized by repository-owned guidance
 
-Do not turn a reference analysis directly into a finished page unless the user explicitly changes the project workflow.
+Small brownfield fixes and refactors continue to follow the repository's incremental process.
 
 ## What Not to Do
 
-Do not:
+Keep the analysis adapted to Luminal:
 
-- create a pixel-perfect clone by default
-- copy branding
-- copy product names
-- copy page text
-- copy proprietary imagery
-- download reference assets for final Luminal production use
-- copy a complete page layout without adaptation
-- treat extracted CSS values as Luminal design tokens
-- install every library detected in a reference
-- assume visual similarity proves identical technical implementation
-- add reference effects without checking the motion budget
-- implement an unapproved page directly from a reference
-- override Luminal commerce rules because another brand uses a different model
+- describe behavior before implementation
+- distinguish observation, source-confirmed evidence, and inference
+- adapt principles instead of copying branding, copy, proprietary assets, complete layouts, or design tokens
+- recommend libraries only when they fit the requested implementation scope
+- compare motion recommendations against the motion budget
+- keep ERP product, UI, data, workflow, and architecture rules authoritative
 
 ## Completion
 

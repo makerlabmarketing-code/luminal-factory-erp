@@ -1,70 +1,126 @@
 # Project Context
 
-Luminal Factory ERP is an internal factory management system.
+## Project
 
-The goal is to manage
+Luminal Factory ERP
 
-- employees
+## Role
+
+The ERP is the internal operational back office for Luminal Factory.
+
+The business currently focuses on artisan keycaps and may later expand into collectible objects, keycap holders, art lamps, and other small 3D-produced products.
+
+The ERP should reflect a small creative production studio, not a generic corporate ERP.
+
+## Current Operational Areas
+
+Known areas include:
+
+- Admin
+- Staff Portal
 - attendance
-- production
+- tasks
 - expenses
-- facilities
+- profile
+- employees
+- payroll
+- production projects
+- workflow settings
+- materials or inventory concerns
+- financial reporting concerns
+- raffle administration
+- commission administration
+- product and collection administration
+- order and fulfillment operations
 
----
+Staff Portal conceptually contains:
 
-## User Roles
+- attendance
+- task
+- expense
+- profile
 
-Admin
+## Operational Priorities
 
-- Manage employees
-- Manage workflow
-- Review attendance
-- Review expenses
-- Configure the system
+Prioritize:
 
-Staff
+1. data correctness
+2. attendance integrity
+3. payroll correctness
+4. production traceability
+5. material and inventory integrity
+6. financial traceability
+7. staff usability
+8. visual refinement
 
-- Check in
-- Check out
-- View assigned tasks
-- Update task status
-- Submit expenses
-- Update profile
+## Current Technical Context
 
----
+The application uses Next.js App Router, TypeScript, Supabase, and Tailwind CSS.
 
-## Business Philosophy
+Known concerns from prior review include:
 
-The application is designed for internal daily operations.
+- large page and view components
+- repeated Supabase queries
+- duplicate Supabase client patterns
+- inconsistent environment variable names
+- repeated inline interfaces
+- historical `any` usage
+- business logic mixed with view logic
+- employee mapping by `full_name` in some paths
+- workflow configuration based on system settings and `PRODUCTION_WORKFLOW`
 
-Stability is more important than introducing new UI patterns.
+## Current Refactoring Direction
 
-Users are already familiar with the current interface.
+Preferred incremental order:
 
-Avoid changing user experience unless explicitly requested.
+1. standardize Supabase access
+2. centralize reusable types
+3. replace unstable relationship matching
+4. extract clear service seams
+5. refine workflow contracts
+6. reduce `any`
+7. split oversized views
+8. optimize Staff Portal data loading and rerenders
 
----
+Potential service seams include attendance, employee, workflow, payroll, and financial services.
 
-## Identity
+These are directional seams, not mandatory filenames.
 
-Prefer
+## Production Reality
 
-employee_id
+Luminal production is colorway-oriented.
 
-instead of
+Projects may need progress tracking per colorway or product variant.
 
-full_name
+Production may include:
 
-for relationships.
+- idea and concept
+- sculpting
+- 2D card or media preparation
+- color planning
+- support and slicing
+- test printing and parameter tuning
+- resin casting
+- mold making
+- sanding and finishing
+- painting
+- packaging
+- photography and video
+- content
+- shipping and after-sales
 
----
+Not every stage applies to every product.
 
-## Development Goals
+The workflow system should support controlled variation without losing traceability.
 
-Reduce duplicate code.
+## Storefront Boundary
 
-Increase service reuse.
+The ERP is the back office.
 
-Improve TypeScript safety.
+The public storefront is a separate customer-facing application.
 
-Keep UI stable.
+Storefront-owned concerns include public brand experience, public product presentation, raffle discovery and customer entry, customer account, checkout, and customer commission submission.
+
+Both may eventually share Supabase and compatible commerce contracts.
+
+The final repository-sharing strategy remains open until a combined audit is complete.

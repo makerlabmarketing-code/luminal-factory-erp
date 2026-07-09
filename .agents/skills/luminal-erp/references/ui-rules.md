@@ -1,53 +1,98 @@
-# UI Rules
+# UI and UX Rules
 
-UI consistency has the highest priority.
+## Experience Direction
 
-Unless explicitly requested, do NOT change
+The ERP is an operational tool.
 
-- colors
-- spacing
-- layout
-- typography
-- Tailwind utility classes
-- lucide-react icons
-- component order
+The interface should feel clear, efficient, calm, structured, state-aware, and responsive.
 
----
+It may share restrained Luminal brand tokens while remaining optimized for internal operations rather than cinematic storefront presentation.
 
-## Refactoring
+## Priority
 
-Refactoring should preserve visual output.
+UI priority:
 
-Improve
+1. data clarity
+2. operational state clarity
+3. action clarity
+4. scanning speed
+5. responsive usability
+6. visual polish
 
-- readability
-- maintainability
-- typing
+## Status Presentation
 
-without changing appearance.
+Production statuses must be distinguishable without relying only on color.
 
----
+Use labels, icons where useful, position or grouping, and color as reinforcement.
 
-## Components
+Status treatments should expose semantic hierarchy instead of presenting many visually similar pills.
 
-Extract reusable components only when it reduces duplication.
+## Workflow Views
 
-Do not split components unnecessarily.
+Colorway-oriented project views should make it easy to answer:
 
----
+- what stage is this colorway in
+- what is ready
+- what is blocked
+- who owns the current work
+- what needs review
+- what needs revision
+- what is completed
 
-## Loading States
+The primary workflow view should show current production state at scan level before item drill-down.
 
-Keep existing loading patterns.
+## Tables
 
-Do not redesign loaders.
+Use tables for dense comparable records.
 
----
+Support appropriate sorting, filtering, pagination or virtualization, empty states, loading states, and error states.
 
-## User Messages
+Keep primary actions discoverable.
 
-Messages should be
+Put row actions where they support the primary task; move secondary or rare actions into a lower-emphasis control.
 
-- concise
-- neutral
-- easy to understand
+## Forms
+
+Use explicit labels.
+
+Show validation near the relevant field.
+
+Protect destructive or high-impact operations with appropriate confirmation.
+
+Preserve user input after a failed submission.
+
+## Staff Portal
+
+Staff Portal screens should be fast on mobile.
+
+Prioritize the current task.
+
+Attendance actions should be immediately understandable.
+
+Task views should emphasize assignment, current state, and next required action.
+
+Staff Portal density should match task execution on mobile rather than admin review.
+
+## Dashboard
+
+Dashboards should answer operational questions.
+
+Charts and summary cards require a real decision use case.
+
+Use charts when the displayed comparison or trend supports an operational decision.
+
+## Accessibility
+
+Use semantic controls.
+
+Maintain visible keyboard focus.
+
+Encode status with text, shape, icon, grouping, or position, with color as reinforcement.
+
+Support readable contrast and reduced motion for non-essential transitions.
+
+## UI UX Pro Max
+
+Use `.codex/skills/ui-ux-pro-max/SKILL.md` for review of form UX, table UX, hierarchy, responsive behavior, accessibility, typography, contrast, and information density.
+
+Apply UI UX Pro Max as advisory design intelligence under the authority order in `AGENTS.md`.
