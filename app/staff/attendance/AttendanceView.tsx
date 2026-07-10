@@ -8,6 +8,16 @@ import MonthPicker from '@/component/MonthPicker';
 import { Power, RefreshCcw, AlertTriangle, CheckCircle2, Building2 } from 'lucide-react';
 import { calculateHoursFromStrings } from '@/services/payrollService';
 import {
+  businessDateFromDateInput,
+  businessDateFromInstant,
+  businessMonthFromDateInput,
+  businessMonthFromInstant,
+  businessMonthRange,
+  formatBusinessDate,
+  formatBusinessDateInput,
+  formatBusinessMonthInput,
+} from '@/lib/business-date';
+import {
   checkInAttendance,
   checkOutAttendance,
   getAttendanceRecordByShift,
@@ -45,8 +55,7 @@ export function StaffAttendanceContent({
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [liveTime, setLiveTime] = useState(new Date());
   const [historyMonthInput, setHistoryMonthInput] = useState(() => {
-    const date = new Date();
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    return formatBusinessMonthInput(businessMonthFromInstant(new Date()));
   });
   const [historyPage, setHistoryPage] = useState(1);
   const [fetching, setFetching] = useState(true);
@@ -79,17 +88,17 @@ export function StaffAttendanceContent({
   };
 
   const loadAttendanceHistory = async (currentWorker: Employee, monthValue = historyMonthInput) => {
-    const [yearValue, monthValueText] = monthValue.split('-').map(Number);
-    const monthIndex = monthValueText - 1;
-    const startDate = new Date(yearValue, monthIndex, 1).toLocaleDateString('en-CA');
-    const endDate = new Date(yearValue, monthIndex + 1, 0).toLocaleDateString('en-CA');
+    const month = businessMonthFromDateInput(monthValue);
+    const monthRange = businessMonthRange(month);
+    const startDate = formatBusinessDateInput(monthRange.localStart);
+    const endDate = formatBusinessDateInput(monthRange.localEnd);
 
     const { data, error } = await supabase
       .from('attendance')
       .select('*')
       .eq('employee_id', currentWorker.id)
       .gte('work_date', startDate)
-      .lte('work_date', endDate)
+      .lt('work_date', endDate)
       .order('work_date', { ascending: false })
       .order('id', { ascending: false });
 
@@ -101,7 +110,7 @@ export function StaffAttendanceContent({
 
   const loadInitialShiftStatus = async (currentWorker: Employee) => {
     try {
-      const todayStr = new Date().toLocaleDateString('en-CA');
+      const todayStr = formatBusinessDateInput(businessDateFromInstant(new Date()));
 
       const openRecord = await getOpenAttendanceRecord({
         employeeId: currentWorker.id,
@@ -264,7 +273,7 @@ export function StaffAttendanceContent({
             }
 
             const now = new Date();
-            const todayStr = now.toLocaleDateString('en-CA');
+            const todayStr = formatBusinessDateInput(businessDateFromInstant(now));
             const timeStr = now.toLocaleTimeString('vi-VN', { hour12: false });
             const currentShift = autoDetectShift(now);
 
@@ -459,11 +468,7 @@ export function StaffAttendanceContent({
               const displayHours = record.total_hours
                 ? Number(record.total_hours)
                 : calculateHoursFromStrings(record.check_in || null, record.check_out || null);
-              const displayDate = new Date(record.work_date).toLocaleDateString('vi-VN', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              });
+              const displayDate = formatBusinessDate(businessDateFromDateInput(record.work_date));
 
               return (
                 <div key={record.id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-3">
@@ -522,11 +527,7 @@ export function StaffAttendanceContent({
                   const displayHours = record.total_hours
                     ? Number(record.total_hours)
                     : calculateHoursFromStrings(record.check_in || null, record.check_out || null);
-                  const displayDate = new Date(record.work_date).toLocaleDateString('vi-VN', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                  });
+                  const displayDate = formatBusinessDate(businessDateFromDateInput(record.work_date));
 
                   return (
                     <tr key={record.id} className="hover:bg-slate-900/70 transition">
@@ -573,4 +574,3 @@ export function StaffAttendanceContent({
     </div>
   );
 }
-

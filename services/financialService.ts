@@ -1,3 +1,5 @@
+import { businessMonthFromInstant, formatBusinessMonthPeriod } from '@/lib/business-date';
+
 export function formatCurrency(value: string): string {
   if (!value) return '';
 
@@ -11,6 +13,5 @@ export function parseCurrency(value: string): number {
 }
 
 export function getCurrentMonthPeriod(): string {
-  const now = new Date();
-  return `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+  return formatBusinessMonthPeriod(businessMonthFromInstant(new Date()));
 }

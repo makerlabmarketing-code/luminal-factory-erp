@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { mergeAttendanceRecords, isAttendanceRecordOverdue } from '@/services/attendanceService';
+import { businessDateFromInstant, formatBusinessDateInput } from '@/lib/business-date';
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 
@@ -289,7 +290,7 @@ async function sendWithTemplate(params: {
 
 export async function getCheckoutReminderCandidates() {
   const supabase = createServerSupabaseClient();
-  const today = new Date().toLocaleDateString('en-CA');
+  const today = formatBusinessDateInput(businessDateFromInstant(new Date()));
 
   const [{ data: records, error: recordsError }, { data: employees, error: employeesError }, { data: shifts, error: shiftsError }] =
     await Promise.all([

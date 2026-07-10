@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
+import { businessMonthFromInstant, formatBusinessMonthInput } from '@/lib/business-date';
 import {
   Banknote,
   ChevronLeft,
@@ -47,9 +48,7 @@ export function StaffExpensesContent({
   const [searchTerm, setSearchTerm] = useState('');
 
   const [monthInput, setMonthInput] = useState(() => {
-    const currentDate = new Date();
-
-    return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    return formatBusinessMonthInput(businessMonthFromInstant(new Date()));
   });
 
   const [currentPage, setCurrentPage] = useState(1);

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { X, Save, Plus, User, CheckCircle2, Trash2 } from 'lucide-react';
 import type { AttendanceRecord, Shift, ToastType } from '@/lib/types/attendance';
 import type { Employee } from "@/lib/types/employee";
+import { businessDateFromDateInput, formatBusinessDate } from '@/lib/business-date';
 import {
   deleteAttendanceRecord,
   getEmployeeHourlyRate,
@@ -179,12 +180,7 @@ export default function DailyAttendanceModal({
     }
   };
 
-  const displayDate = new Date(dateStr).toLocaleDateString('vi-VN', {
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  const displayDate = formatBusinessDate(businessDateFromDateInput(dateStr), { weekday: 'long' });
 
   const currentEmpName = currentEmployee?.full_name || 'Đang tải...';
 

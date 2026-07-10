@@ -7,6 +7,15 @@ import MonthPicker from '@/component/MonthPicker';
 import DailyAttendanceModal from './components/DailyAttendanceModal';
 import { Calendar as CalendarIcon, Clock, LayoutGrid, Banknote, CreditCard, User, X } from 'lucide-react';
 import { calculateHoursFromStrings, calculateSalary } from '@/services/payrollService';
+import {
+  addBusinessMonths,
+  businessDateFromDateInput,
+  businessMonthCalendar,
+  businessMonthFromDateInput,
+  businessMonthFromInstant,
+  formatBusinessMonthInput,
+  formatBusinessMonthPeriod,
+} from '@/lib/business-date';
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 import {
@@ -36,14 +45,15 @@ interface EmployeePayrollSummary extends PayrollSummary {
 }
 
 function getPayrollPaymentPeriod(workMonthIndex: number, workYear: number) {
-  const paymentDate = new Date(workYear, workMonthIndex + 1, 1);
-  const paymentMonth = paymentDate.getMonth() + 1;
-  const paymentYear = paymentDate.getFullYear();
+  const paymentMonthValue = addBusinessMonths(
+    { year: workYear, month: workMonthIndex + 1 },
+    1,
+  );
 
   return {
-    month: paymentMonth,
-    year: paymentYear,
-    formattedPeriod: `${String(paymentMonth).padStart(2, '0')}/${paymentYear}`,
+    month: paymentMonthValue.month,
+    year: paymentMonthValue.year,
+    formattedPeriod: formatBusinessMonthPeriod(paymentMonthValue),
   };
 }
 
@@ -62,12 +72,12 @@ export default function AdminAttendanceManagement() {
 
   // Định dạng YYYY-MM
   const [monthInput, setMonthInput] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return formatBusinessMonthInput(businessMonthFromInstant(new Date()));
   });
 
-  const currentYear = parseInt(monthInput.split('-')[0]);
-  const currentMonth = parseInt(monthInput.split('-')[1]) - 1;
+  const currentBusinessMonth = businessMonthFromDateInput(monthInput);
+  const currentYear = currentBusinessMonth.year;
+  const currentMonth = currentBusinessMonth.month - 1;
 
   // Trạng thái quản lý Modal chỉnh sửa chi tiết ngày
   const [editDateStr, setEditDateStr] = useState<string | null>(null);
@@ -160,8 +170,8 @@ export default function AdminAttendanceManagement() {
   // TÍNH TOÁN ĐỒNG BỘ: Tính toán tổng giờ làm và tiền lương dựa trên định mức động từ Metadata
   const calculateFilteredPayroll = () => {
     let targetRecords = attendanceRecords.filter((record) => {
-      const recordDate = new Date(record.work_date);
-      return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+      const recordDate = businessDateFromDateInput(record.work_date);
+      return recordDate.month === currentBusinessMonth.month && recordDate.year === currentBusinessMonth.year;
     });
 
     if (filterEmployeeId) {
@@ -175,10 +185,10 @@ export default function AdminAttendanceManagement() {
     return employees
       .map((employee) => {
         const employeeRecords = attendanceRecords.filter((record) => {
-          const recordDate = new Date(record.work_date);
+          const recordDate = businessDateFromDateInput(record.work_date);
           return (
-            recordDate.getMonth() === currentMonth &&
-            recordDate.getFullYear() === currentYear &&
+            recordDate.month === currentBusinessMonth.month &&
+            recordDate.year === currentBusinessMonth.year &&
             String(record.employee_id) === String(employee.id)
           );
         });
@@ -280,9 +290,9 @@ export default function AdminAttendanceManagement() {
   );
   const normalizedMonthlyRecords = mergeAttendanceRecords(
     attendanceRecords.filter((record) => {
-      const recordDate = new Date(record.work_date);
+      const recordDate = businessDateFromDateInput(record.work_date);
       const matchesMonth =
-        recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+        recordDate.month === currentBusinessMonth.month && recordDate.year === currentBusinessMonth.year;
       const matchesEmployee =
         !filterEmployeeId || String(record.employee_id) === String(filterEmployeeId);
 
@@ -296,8 +306,7 @@ export default function AdminAttendanceManagement() {
       shifts,
     })
   );
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const { firstWeekday: firstDayOfMonth, daysInMonth } = businessMonthCalendar(currentBusinessMonth);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 text-slate-100 bg-slate-950 min-h-screen font-sans">
