@@ -10,14 +10,20 @@ This repository is not the public storefront. The ERP owns internal operations; 
 
 When instructions overlap, use this order:
 
-1. user-approved scope and explicit task instructions
+1. user-approved scope and explicit task instructions in the current session
 2. approved Luminal ERP business rules and specifications
 3. `.agents/skills/luminal-erp/` domain, architecture, Supabase, UI, coding, and workflow guidance
 4. operational usability and data clarity
 5. advisory skills such as UI UX Pro Max, reference-analysis, and third-party engineering skills
 6. external references
 
+`AGENTS.md` is the only repository authority-order owner. Other guidance files may point here but should not define a competing order.
+
 Treat installed third-party skills as read-only dependencies unless an explicit fork decision is made.
+
+## Interface Language
+
+Interface language rules live in `.agents/skills/luminal-erp/references/ui-rules.md`.
 
 ## Governing Project Skill
 

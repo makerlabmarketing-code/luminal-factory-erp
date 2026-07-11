@@ -7,7 +7,7 @@ description: Use for non-trivial Luminal Factory ERP work: operational data corr
 
 Use this skill for non-trivial work in the Luminal Factory ERP repository.
 
-Luminal ERP is an operational back-office system.
+Luminal ERP is an operational back-office system. Preserve working behavior while improving one explicit seam at a time.
 
 ## Reference Map
 
@@ -23,15 +23,15 @@ Read `references/architecture.md` when moving code, changing page/view responsib
 
 ### ERP domain
 
-Read `references/erp-domain.md` when changing staff, attendance, payroll, production projects, colorways, workflow definitions, workflow statuses, assignment, approval, materials, expenses, finance, or future commerce administration.
+Read `references/erp-domain.md` when changing staff, attendance, payroll, production projects, colorways, workflow definitions, workflow statuses, workflow status labels, assignment, approval, materials, expenses, finance, or future commerce administration.
 
 ### Supabase
 
-Read `references/supabase-contract.md` when changing Supabase clients, environment variables, RLS, authorization, query boundaries, database types, workflow settings storage, or shared backend strategy.
+Read `references/supabase-contract.md` when changing Supabase clients, environment variables, RLS, authorization, query boundaries, database types, workflow settings storage, migrations, or shared backend strategy.
 
 ### UI
 
-Read `references/ui-rules.md` when changing ERP admin UI, Staff Portal UI, production state presentation, tables, forms, dashboards, responsive behavior, accessibility, or when applying UI UX Pro Max recommendations.
+Read `references/ui-rules.md` when changing ERP admin UI, Staff Portal UI, application shell, page patterns, dashboards, production state presentation, tables, forms, responsive behavior, accessibility, Vietnamese interface copy, shared label sources, or when applying UI UX Pro Max recommendations.
 
 ### Coding
 
@@ -39,22 +39,20 @@ Read `references/coding-style.md` when changing TypeScript, React, naming, types
 
 ### Workflow
 
-Read `references/workflow.md` when planning or implementing a change, auditing before refactor, deciding whether a formal specification is needed, diagnosing hard bugs, validating, or reporting completion.
+Read `references/workflow.md` when planning or implementing a change, auditing before refactor, deciding whether a formal specification is needed, validating, reporting completion, reviewing a diff before commit, or maintaining guidance files.
+
+For guidance maintenance, also consult `.agents/skills/writing-great-skills/SKILL.md`.
 
 ## Core Working Rule
 
-This is an existing operational application.
-
-Preserve working behavior while improving one explicit seam at a time.
-
 Before editing:
 
-1. inspect the current implementation
-2. identify the authoritative data source
-3. trace callers and dependent views
-4. identify the relevant domain rule
-5. choose the smallest safe change boundary
+1. inspect the current implementation or guidance owner
+2. identify the authoritative data source, rule, or reference owner
+3. trace callers, dependent views, or dependent guidance
+4. choose the smallest safe change boundary
+5. validate with the available checks for that boundary
 
 Completion criterion:
 
-Every changed behavior is traced to its source data and domain rule, all touched callers are accounted for, and the relevant available validation has been run.
+Every changed behavior or durable rule is traced to its owner, all touched dependents are accounted for, the relevant validation has run when applicable, and the diff has been reviewed before any commit.

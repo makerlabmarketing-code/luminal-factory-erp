@@ -7,6 +7,14 @@ user-invocable: true
 
 # Website Reference Analysis
 
+## Provenance
+
+This repository-owned skill was verified in this ERP repository at `.codex/skills/reference-analysis/SKILL.md`.
+
+It is adapted for Luminal Factory ERP reference analysis and operates under the authority order in `AGENTS.md`.
+
+The expected upstream source is the Luminal commerce repository, but this checkout does not record an upstream path or commit. Treat this local file as the verified ERP copy until provenance is updated.
+
 Analyze one or more websites provided in `$ARGUMENTS` as references for Luminal Factory.
 
 This skill is for research and adaptation. It records evidence, extracts useful patterns, and adapts them under repository-owned authority.

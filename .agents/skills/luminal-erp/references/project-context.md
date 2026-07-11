@@ -113,6 +113,8 @@ Not every stage applies to every product.
 
 The workflow system should support controlled variation without losing traceability.
 
+Canonical workflow status vocabulary and transition rules live in `references/erp-domain.md`.
+
 ## Storefront Boundary
 
 The ERP is the back office.

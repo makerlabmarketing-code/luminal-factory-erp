@@ -1,5 +1,7 @@
 # Supabase Contract
 
+This file owns Supabase client strategy, environment variables, RLS, authorization, query boundaries, database planning, migration preflight, and shared backend strategy.
+
 ## Current Concern
 
 The repository has historically used more than one Supabase client pattern.
@@ -83,6 +85,8 @@ Database types do not replace domain-state validation, form validation, or workf
 
 Use foreign keys and stable identifiers when implementing Supabase relationships.
 
+Do not store related entity IDs as delimited strings.
+
 ## Workflow Settings
 
 Current workflow behavior may read from settings associated with:
@@ -98,6 +102,49 @@ Before changing this mechanism:
 3. inspect every writer
 4. inspect historical project records
 5. define migration or compatibility behavior
+
+## Database Planning and Migration Preflight
+
+Before creating any migration, report:
+
+- current schema
+- proposed schema
+- new tables
+- changed columns
+- foreign keys
+- indexes
+- unique constraints
+- policies or RLS changes
+- backfill plan
+- compatibility plan
+- rollback plan
+- data-loss risks
+
+Potential production-workflow entities may include:
+
+- Project
+- ProjectStage
+- ProjectTask
+- ProjectMember
+- ProjectTaskAssignee
+- ProjectTaskDependency
+- ProjectApproval
+- ProjectActivityLog
+- ProjectAttachment
+- ProjectComment
+- ProjectChecklist
+- ProjectChecklistItem
+- ProjectColorway
+- ProjectPrintTest
+- ProjectMold
+- ProjectCastingBatch
+- ProjectQcResult
+- WorkflowTemplate
+- WorkflowTemplateStage
+- WorkflowTemplateTask
+- WorkflowTransitionRule
+
+No production migration should run without explicit approval.
 
 ## Shared Storefront Contract
 
