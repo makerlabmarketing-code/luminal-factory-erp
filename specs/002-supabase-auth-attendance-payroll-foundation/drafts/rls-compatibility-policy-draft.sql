@@ -1,0 +1,142 @@
+-- Batch 3B RLS compatibility policy draft.
+-- REVIEW ONLY. Do not run until explicitly approved.
+--
+-- This draft uses employees.role only as a temporary compatibility source.
+-- It is not the final authorization model. Payroll, finance, HR, and audit
+-- access must move to explicit permissions and record scopes before broad
+-- access is granted.
+
+-- ---------------------------------------------------------------------------
+-- Compatibility helpers
+-- ---------------------------------------------------------------------------
+
+-- create or replace function public.current_employee_id()
+-- returns bigint
+-- language sql
+-- stable
+-- security invoker
+-- set search_path = public
+-- as $$
+--   select e.id
+--   from public.employees e
+--   where e.auth_user_id = (select auth.uid())
+--     and coalesce(e.is_active, true) = true
+--   limit 1
+-- $$;
+
+-- create or replace function public.current_employee_role()
+-- returns text
+-- language sql
+-- stable
+-- security invoker
+-- set search_path = public
+-- as $$
+--   select e.role
+--   from public.employees e
+--   where e.auth_user_id = (select auth.uid())
+--     and coalesce(e.is_active, true) = true
+--   limit 1
+-- $$;
+
+-- create or replace function public.is_role_compat(allowed_roles text[])
+-- returns boolean
+-- language sql
+-- stable
+-- security invoker
+-- set search_path = public
+-- as $$
+--   select (select public.current_employee_role()) = any (allowed_roles)
+-- $$;
+
+-- ---------------------------------------------------------------------------
+-- Safe-first policy candidates
+-- ---------------------------------------------------------------------------
+-- These are the safest initial policies because they are own-record scoped and
+-- do not grant broad payroll/finance/HR access.
+
+-- Employees: own row only. Sensitive columns still need column selection or
+-- server route filtering; RLS is row-scoped, not column-scoped.
+-- alter table public.employees enable row level security;
+-- create policy "employees_select_self_compat"
+-- on public.employees
+-- for select
+-- to authenticated
+-- using (
+--   auth.uid() is not null
+--   and auth_user_id = (select auth.uid())
+-- );
+
+-- Attendance: own records only.
+-- alter table public.attendance enable row level security;
+-- create policy "attendance_select_self_compat"
+-- on public.attendance
+-- for select
+-- to authenticated
+-- using (
+--   auth.uid() is not null
+--   and employee_id = public.current_employee_id()
+-- );
+
+-- Attendance logs: own records only.
+-- alter table public.attendance_logs enable row level security;
+-- create policy "attendance_logs_select_self_compat"
+-- on public.attendance_logs
+-- for select
+-- to authenticated
+-- using (
+--   auth.uid() is not null
+--   and employee_id = public.current_employee_id()
+-- );
+
+-- Tasks: assigned task visibility if schema has assignee_id.
+-- alter table public.tasks enable row level security;
+-- create policy "tasks_select_assigned_self_compat"
+-- on public.tasks
+-- for select
+-- to authenticated
+-- using (
+--   auth.uid() is not null
+--   and assignee_id = public.current_employee_id()
+-- );
+
+-- ---------------------------------------------------------------------------
+-- Admin compatibility candidates
+-- ---------------------------------------------------------------------------
+-- These are temporary and must be replaced by explicit permissions.
+-- Do not use a broad role for payroll, finance, HR documents, or audit logs
+-- unless a separate approval accepts that risk.
+
+-- create policy "employees_select_admin_owner_compat"
+-- on public.employees
+-- for select
+-- to authenticated
+-- using (
+--   auth.uid() is not null
+--   and public.is_role_compat(array['OWNER', 'ADMIN'])
+-- );
+
+-- create policy "projects_admin_owner_all_compat"
+-- on public.projects
+-- for all
+-- to authenticated
+-- using (
+--   auth.uid() is not null
+--   and public.is_role_compat(array['OWNER', 'ADMIN'])
+-- )
+-- with check (
+--   auth.uid() is not null
+--   and public.is_role_compat(array['OWNER', 'ADMIN'])
+-- );
+
+-- ---------------------------------------------------------------------------
+-- Must wait for permission model
+-- ---------------------------------------------------------------------------
+-- Do not implement broad policies for these resources with employees.role only:
+-- - payroll_runs
+-- - payroll_items
+-- - wage_rate_history
+-- - payroll_adjustments
+-- - financial_ledger finance-wide access
+-- - HR confidential file metadata
+-- - audit_logs read access
+-- - storage.objects payroll/staff/source buckets
