@@ -131,6 +131,7 @@ describe('static security boundaries', () => {
 
   it('uses neutral auth messages for login and password reset', () => {
     const adminLogin = readFileSync(join(repositoryRoot, 'app/admin/AdminLoginForm.tsx'), 'utf8');
+    const adminLoginFlow = readFileSync(join(repositoryRoot, 'utils/auth/admin-login.ts'), 'utf8');
     const staffLogin = readFileSync(join(repositoryRoot, 'app/staff/StaffLoginForm.tsx'), 'utf8');
     const forgotPassword = readFileSync(
       join(repositoryRoot, 'app/auth/forgot-password/ForgotPasswordForm.tsx'),
@@ -141,7 +142,8 @@ describe('static security boundaries', () => {
       'utf8'
     );
 
-    expect(adminLogin).toMatch(/Email hoặc mật khẩu chưa đúng\./);
+    expect(adminLogin).toMatch(/submitAdminLogin/);
+    expect(adminLoginFlow).toMatch(/Email hoặc mật khẩu chưa đúng\./);
     expect(staffLogin).toMatch(/Email hoặc mật khẩu chưa đúng\./);
     expect(forgotPassword).toMatch(
       /Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu sẽ được gửi\./

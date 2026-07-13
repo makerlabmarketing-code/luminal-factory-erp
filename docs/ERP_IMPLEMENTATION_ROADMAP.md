@@ -119,8 +119,8 @@ Không xóa lịch sử giai đoạn đã hoàn thành.
 | **13. Batch 3C3 Part 4: Owner Backfill** | ✅ | Owner backfill đã chạy trong Supabase SQL Editor. Part 5 validation xác nhận employee ID 3 được map đúng một Auth user, không đổi role/status/email. | `Part 4 đã hoàn thành. Part 5 mapping validation đã PASS.` | Đã chuyển sang Part 5. |
 | **14. Batch 3C3 Part 5: Mapping Validation** | ✅ | Read-only validation đã PASS: employee ID 3 có đúng một `auth_user_id`, Auth user tồn tại, normalized email khớp, không duplicate/orphan, role `ADMIN`, status `ACTIVE`, không có mapping ngoài employee ID 3. | `Part 5 mapping validation đã PASS. Không sửa dữ liệu, schema, RLS, role hoặc migration history.` | Chờ duyệt Part 6. |
 | **15. Batch 3C3 Part 6: Migration History** | ✅ | Đã đánh dấu riêng version `20260712181332` là applied bằng `migration repair`. Hai migration cũ vẫn chưa bị ghi nhận trên remote. Schema và Owner mapping không đổi sau repair. | `Part 6 đã PASS. Không chạy migration SQL, migration up, db push, db reset hoặc repair migration cũ.` | Batch 3C4 Invite và Password Flow. |
-| **16. Batch 3C4: Invite và Password Flow** | ⚠️ | Cần kiểm tra thực tế `/auth/callback`, `/auth/update-password`, quên mật khẩu, đăng nhập email/mật khẩu và server admin gate theo `employees.auth_user_id`. Không sửa schema hoặc RLS. | `Batch 3C4 chưa hoàn thành. Recovery email delivery đang bị chặn bởi Supabase email rate limit, không phải application-code failure.` | Hoàn tất live verification trước Batch 3D1. |
-| **17. Batch 3D1: system_settings Refactor** | ⏳ | Chưa bắt đầu. Chỉ chuyển thành Đang làm sau khi Batch 3C4 hoàn tất. | `Không chuyển sang Batch 3D1 khi Batch 3C4 còn Cần kiểm tra thực tế hoặc bị chặn bởi Supabase email rate limit.` | Khóa broad policy. |
+| **16. Batch 3C4: Invite và Password Flow** | ⚠️ | Password setup live PASS. Supabase signIn request PASS. Admin session/navigation đang bị chặn vì `/admin/dashboard` trả 200 nhưng vẫn render form đăng nhập. Không sửa schema hoặc RLS. | `Batch 3C4 chưa hoàn thành. Sửa session/navigation sau đăng nhập rồi deploy để test lại.` | Hoàn tất admin session/navigation live verification trước Batch 3D1. |
+| **17. Batch 3D1: system_settings Refactor** | ⏳ | Chưa bắt đầu. Chỉ chuyển thành Đang làm sau khi Batch 3C4 hoàn tất. | `Không chuyển sang Batch 3D1 khi Batch 3C4 còn bị chặn ở admin session/navigation.` | Khóa broad policy. |
 | **18. Batch 3D2: system_settings RLS** | ⏳ | Xóa policy `anon/authenticated ALL`. Dùng deny-by-default và policy theo phạm vi. | `Triển khai RLS cho system_settings theo policy matrix đã duyệt. Có rollback SQL và security tests. Rollout từng policy nhỏ.` | Kiểm tra config và SMTP. |
 | **19. Batch 3E1: Own-row RLS** | ⏳ | Bật RLS an toàn cho `employees`, `attendance`, `attendance_logs`. Staff chỉ xem dữ liệu của mình. | `Triển khai own-row RLS dựa trên auth.uid() → employees.auth_user_id. Không mở payroll/finance toàn hệ thống.` | Security matrix cho authenticated và wrong-user access. |
 | **20. Batch 3E2: Payroll và Finance Authorization** | ⏳ | Staff chỉ xem payslip của mình. Owner/Admin/Payroll xem theo permission. Project Manager không mặc định xem lương. | `Thiết kế và triển khai server authorization/RLS cho payroll và finance. Không thay đổi payroll calculation.` | Audit log và regression security tests. |
@@ -179,9 +179,11 @@ Không xóa lịch sử giai đoạn đã hoàn thành.
 - Public route `/auth/forgot-password`: PASS
 - Production route `/auth/callback` không còn 404: PASS
 - Link email cũ trả `otp_expired`: EXPECTED do link đã hết hạn
-- Recovery email delivery: Bị chặn bởi Supabase email rate limit
-- Supabase email rate limit: Không đánh dấu là application-code failure
-- Đăng nhập email/mật khẩu: Cần kiểm thử live
+- Recovery email delivery từ ERP: PASS
+- Password setup bằng link thật: PASS
+- Đăng nhập email/mật khẩu: Bị chặn
+- Supabase signIn request: PASS
+- Admin session/navigation: Bị chặn do `/admin/dashboard` trả 200 nhưng vẫn render form đăng nhập
 - Quên mật khẩu dùng thông báo trung tính: PASS
 - Admin gate dùng `employees.auth_user_id`: PASS
 - Không để `code`, access token hoặc refresh token trên URL sau callback: PASS
@@ -192,9 +194,11 @@ Không xóa lịch sử giai đoạn đã hoàn thành.
 - Linked Auth user không orphan: PASS
 - Employee ID 3 vẫn active ADMIN: PASS
 - Invite/recovery email redirect URL thực nhận trong inbox: CHƯA XÁC MINH
-- `/auth/callback` xử lý callback từ link thật thành công: CHƯA XÁC MINH
-- `/auth/update-password` đặt mật khẩu mới bằng session từ link thật: CHƯA XÁC MINH
-- Đăng nhập email/mật khẩu bằng password thật: CHƯA XÁC MINH
+- `/auth/callback` xử lý callback từ link thật thành công: PASS
+- `/auth/update-password` đặt mật khẩu mới bằng session từ link thật: PASS
+- Password setup: PASS
+- Supabase signIn request: PASS
+- Admin session/navigation: BỊ CHẶN
 - User không có quyền bị chặn khỏi khu vực quản trị bằng tài khoản thật: CHƯA XÁC MINH
 
 ### Kết luận Part 5
@@ -263,22 +267,22 @@ cho version `20260712181332`.
 
 ### Blocking còn lại
 
-Batch 3C4 chưa thể chuyển Hoàn thành vì live verification đang bị chặn bởi
-Supabase email rate limit. Đây là giới hạn gửi email của Supabase, không phải
-application-code failure. Không tự tạo workaround bỏ qua email verification,
-không đổi schema/RLS và không tự chuyển sang Batch 3D1.
+Batch 3C4 chưa thể chuyển Hoàn thành vì admin session/navigation đang bị chặn.
+Password setup đã PASS và Supabase signIn request đã PASS, nhưng
+`/admin/dashboard` trả 200 vẫn render form đăng nhập. Không đổi schema/RLS/SMTP
+và không tự chuyển sang Batch 3D1.
 
 Checklist live verification còn lại:
 
-1. Gửi recovery email mới sau khi rate limit được reset hoặc Custom SMTP được cấu hình.
-2. Mở duy nhất email mới nhất.
-3. Callback chuyển tới trang đặt mật khẩu.
-4. URL không còn token hoặc code.
-5. Đặt mật khẩu thành công.
-6. Đăng nhập email/mật khẩu thành công.
-7. ADMIN vào được khu vực quản trị.
+1. Deploy bản sửa session/navigation sau đăng nhập quản trị.
+2. Mở trang đăng nhập quản trị.
+3. Nhập email/mật khẩu thật.
+4. Xác nhận Supabase signIn request vẫn PASS.
+5. Xác nhận ADMIN hợp lệ vào được dashboard shell, không render form đăng nhập.
+6. Xác nhận lỗi được hiển thị rõ nếu sai mật khẩu, chưa map employee hoặc không có role ADMIN.
+7. Xác nhận không có redirect loop.
 
 ### Bước tiếp theo
 
-Tạm dừng và chờ người vận hành xác nhận sau khi email recovery mới gửi được.
+Tạm dừng và chờ người vận hành deploy bản sửa session/navigation rồi test lại.
 Batch 3D1 vẫn chưa bắt đầu.
