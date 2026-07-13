@@ -136,13 +136,18 @@ describe('static security boundaries', () => {
       join(repositoryRoot, 'app/auth/forgot-password/ForgotPasswordForm.tsx'),
       'utf8'
     );
+    const passwordRecovery = readFileSync(
+      join(repositoryRoot, 'utils/auth/password-recovery.ts'),
+      'utf8'
+    );
 
     expect(adminLogin).toMatch(/Email hoặc mật khẩu chưa đúng\./);
     expect(staffLogin).toMatch(/Email hoặc mật khẩu chưa đúng\./);
     expect(forgotPassword).toMatch(
       /Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu sẽ được gửi\./
     );
-    expect(forgotPassword).toMatch(/resetPasswordForEmail/);
+    expect(forgotPassword).toMatch(/sendPasswordRecoveryEmail/);
+    expect(passwordRecovery).toMatch(/resetPasswordForEmail/);
   });
 
   it('does not expose privileged admin credentials through public env names', () => {

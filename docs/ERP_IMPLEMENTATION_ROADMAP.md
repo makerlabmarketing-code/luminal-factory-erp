@@ -119,8 +119,8 @@ Không xóa lịch sử giai đoạn đã hoàn thành.
 | **13. Batch 3C3 Part 4: Owner Backfill** | ✅ | Owner backfill đã chạy trong Supabase SQL Editor. Part 5 validation xác nhận employee ID 3 được map đúng một Auth user, không đổi role/status/email. | `Part 4 đã hoàn thành. Part 5 mapping validation đã PASS.` | Đã chuyển sang Part 5. |
 | **14. Batch 3C3 Part 5: Mapping Validation** | ✅ | Read-only validation đã PASS: employee ID 3 có đúng một `auth_user_id`, Auth user tồn tại, normalized email khớp, không duplicate/orphan, role `ADMIN`, status `ACTIVE`, không có mapping ngoài employee ID 3. | `Part 5 mapping validation đã PASS. Không sửa dữ liệu, schema, RLS, role hoặc migration history.` | Chờ duyệt Part 6. |
 | **15. Batch 3C3 Part 6: Migration History** | ✅ | Đã đánh dấu riêng version `20260712181332` là applied bằng `migration repair`. Hai migration cũ vẫn chưa bị ghi nhận trên remote. Schema và Owner mapping không đổi sau repair. | `Part 6 đã PASS. Không chạy migration SQL, migration up, db push, db reset hoặc repair migration cũ.` | Batch 3C4 Invite và Password Flow. |
-| **16. Batch 3C4: Invite và Password Flow** | ⚠️ | Cần kiểm tra live `/auth/callback`, `/auth/update-password`, quên mật khẩu, đăng nhập email/mật khẩu và server admin gate theo `employees.auth_user_id`. Không sửa schema hoặc RLS. | `Batch 3C4 chưa hoàn thành. Chỉ chuyển Hoàn thành khi live verification PASS đầy đủ.` | Hoàn tất live verification trước Batch 3D1. |
-| **17. Batch 3D1: system_settings Refactor** | ⏳ | Chưa bắt đầu. Chỉ chuyển thành Đang làm sau khi Batch 3C4 hoàn tất. | `Không chuyển sang Batch 3D1 khi Batch 3C4 còn Cần kiểm tra hoặc bị chặn bởi thao tác thủ công.` | Khóa broad policy. |
+| **16. Batch 3C4: Invite và Password Flow** | ⚠️ | Cần kiểm tra thực tế `/auth/callback`, `/auth/update-password`, quên mật khẩu, đăng nhập email/mật khẩu và server admin gate theo `employees.auth_user_id`. Không sửa schema hoặc RLS. | `Batch 3C4 chưa hoàn thành. Recovery email delivery đang bị chặn bởi Supabase email rate limit, không phải application-code failure.` | Hoàn tất live verification trước Batch 3D1. |
+| **17. Batch 3D1: system_settings Refactor** | ⏳ | Chưa bắt đầu. Chỉ chuyển thành Đang làm sau khi Batch 3C4 hoàn tất. | `Không chuyển sang Batch 3D1 khi Batch 3C4 còn Cần kiểm tra thực tế hoặc bị chặn bởi Supabase email rate limit.` | Khóa broad policy. |
 | **18. Batch 3D2: system_settings RLS** | ⏳ | Xóa policy `anon/authenticated ALL`. Dùng deny-by-default và policy theo phạm vi. | `Triển khai RLS cho system_settings theo policy matrix đã duyệt. Có rollback SQL và security tests. Rollout từng policy nhỏ.` | Kiểm tra config và SMTP. |
 | **19. Batch 3E1: Own-row RLS** | ⏳ | Bật RLS an toàn cho `employees`, `attendance`, `attendance_logs`. Staff chỉ xem dữ liệu của mình. | `Triển khai own-row RLS dựa trên auth.uid() → employees.auth_user_id. Không mở payroll/finance toàn hệ thống.` | Security matrix cho authenticated và wrong-user access. |
 | **20. Batch 3E2: Payroll và Finance Authorization** | ⏳ | Staff chỉ xem payslip của mình. Owner/Admin/Payroll xem theo permission. Project Manager không mặc định xem lương. | `Thiết kế và triển khai server authorization/RLS cho payroll và finance. Không thay đổi payroll calculation.` | Audit log và regression security tests. |
@@ -141,7 +141,7 @@ Không xóa lịch sử giai đoạn đã hoàn thành.
 
 ## Batch 3C4: Invite và Password Flow
 
-**Trạng thái:** ⚠️ Cần kiểm tra
+**Trạng thái:** ⚠️ Cần kiểm tra thực tế
 
 **Cập nhật:** 2026-07-13
 
@@ -173,10 +173,14 @@ Không xóa lịch sử giai đoạn đã hoàn thành.
 - Hai migration cũ `20260704153000` và `20260709110000`: remote vẫn trống sau repair.
 - Schema live sau repair: không đổi, vẫn tương đương migration `20260712181332`.
 - Owner mapping sau repair: không đổi.
-- Batch 3C4 invite/password flow: Cần kiểm thử live
+- Batch 3C4 invite/password flow: Cần kiểm tra thực tế
 - Public route `/auth/callback`: PASS
 - Public route `/auth/update-password`: PASS
 - Public route `/auth/forgot-password`: PASS
+- Production route `/auth/callback` không còn 404: PASS
+- Link email cũ trả `otp_expired`: EXPECTED do link đã hết hạn
+- Recovery email delivery: Bị chặn bởi Supabase email rate limit
+- Supabase email rate limit: Không đánh dấu là application-code failure
 - Đăng nhập email/mật khẩu: Cần kiểm thử live
 - Quên mật khẩu dùng thông báo trung tính: PASS
 - Admin gate dùng `employees.auth_user_id`: PASS
@@ -259,19 +263,22 @@ cho version `20260712181332`.
 
 ### Blocking còn lại
 
-Batch 3C4 chưa thể chuyển Hoàn thành vì live verification còn thiếu thao tác
-thủ công với email/link/password thật. Không tự tạo dữ liệu giả, không đổi
-schema/RLS và không tự chuyển sang Batch 3D1.
+Batch 3C4 chưa thể chuyển Hoàn thành vì live verification đang bị chặn bởi
+Supabase email rate limit. Đây là giới hạn gửi email của Supabase, không phải
+application-code failure. Không tự tạo workaround bỏ qua email verification,
+không đổi schema/RLS và không tự chuyển sang Batch 3D1.
 
-Cần người vận hành thực hiện hoặc cung cấp kết quả các bước sau:
+Checklist live verification còn lại:
 
-- Tạo hoặc gửi lại invite/password recovery email cho tài khoản thật cần kiểm thử.
-- Mở email thật và xác nhận link redirect về `https://erp.luminalfactory.com/auth/callback`.
-- Dùng link đó để đi qua `/auth/callback` tới `/auth/update-password`.
-- Đặt mật khẩu mới, sau đó đăng nhập bằng email/mật khẩu thật.
-- Cung cấp tài khoản thật không có quyền admin, hoặc xác nhận có thể dùng tài khoản đó để kiểm thử admin gate.
+1. Gửi recovery email mới sau khi rate limit được reset hoặc Custom SMTP được cấu hình.
+2. Mở duy nhất email mới nhất.
+3. Callback chuyển tới trang đặt mật khẩu.
+4. URL không còn token hoặc code.
+5. Đặt mật khẩu thành công.
+6. Đăng nhập email/mật khẩu thành công.
+7. ADMIN vào được khu vực quản trị.
 
 ### Bước tiếp theo
 
-Tiếp tục Batch 3C4 live verification sau khi có link/email/password thật. Batch
-3D1 vẫn chưa bắt đầu.
+Tạm dừng và chờ người vận hành xác nhận sau khi email recovery mới gửi được.
+Batch 3D1 vẫn chưa bắt đầu.

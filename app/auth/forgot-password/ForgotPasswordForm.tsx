@@ -4,7 +4,10 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { Mail, RefreshCcw } from 'lucide-react';
 import { supabase } from '@/utils/supabase/client';
-import { AUTH_CALLBACK_PATH, buildAuthRedirectUrl } from '@/utils/auth/flow';
+import {
+  getPasswordRecoveryConfigurationError,
+  sendPasswordRecoveryEmail,
+} from '@/utils/auth/password-recovery';
 
 const neutralMessage =
   'Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu sẽ được gửi.';
@@ -19,12 +22,14 @@ export default function ForgotPasswordForm() {
     setSubmitting(true);
     setMessage('');
 
-    await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: buildAuthRedirectUrl(
-        window.location.origin,
-        `${AUTH_CALLBACK_PATH}?next=/auth/update-password`
-      ),
-    });
+    const configurationError = getPasswordRecoveryConfigurationError();
+    if (configurationError) {
+      setMessage(configurationError);
+      setSubmitting(false);
+      return;
+    }
+
+    await sendPasswordRecoveryEmail(supabase.auth, email);
 
     setMessage(neutralMessage);
     setSubmitting(false);

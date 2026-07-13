@@ -1,14 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   ADMIN_DASHBOARD_PATH,
   AUTH_CALLBACK_PATH,
   UPDATE_PASSWORD_PATH,
   buildAuthRedirectUrl,
+  buildPasswordRecoveryRedirectUrl,
   getConfiguredAppBaseUrl,
   parseAuthCallbackAction,
   resolveSafeRedirectPath,
   validateNewPassword,
 } from '../utils/auth/flow';
+import { sendPasswordRecoveryEmail } from '../utils/auth/password-recovery';
 
 describe('auth flow helpers', () => {
   it('handles invite callback with token hash', () => {
@@ -72,8 +74,35 @@ describe('auth flow helpers', () => {
 
   it('builds reset links through the callback route', () => {
     expect(
-      buildAuthRedirectUrl('https://luminalfactory.com', `${AUTH_CALLBACK_PATH}?next=/auth/update-password`)
-    ).toBe('https://luminalfactory.com/auth/callback?next=/auth/update-password');
+      buildAuthRedirectUrl(
+        'https://erp.luminalfactory.com',
+        `${AUTH_CALLBACK_PATH}?next=/auth/update-password`
+      )
+    ).toBe('https://erp.luminalfactory.com/auth/callback?next=/auth/update-password');
+  });
+
+  it('builds the ERP password recovery redirect URL from configured app base URL', () => {
+    expect(
+      buildPasswordRecoveryRedirectUrl({
+        NEXT_PUBLIC_APP_BASE_URL: 'https://erp.luminalfactory.com',
+      })
+    ).toBe('https://erp.luminalfactory.com/auth/update-password');
+  });
+
+  it('passes the ERP update-password URL to resetPasswordForEmail', async () => {
+    const resetPasswordForEmail = vi.fn().mockResolvedValue({ error: null });
+
+    await sendPasswordRecoveryEmail(
+      { resetPasswordForEmail },
+      '  nhanvien@luminalfactory.com  ',
+      {
+        NEXT_PUBLIC_APP_BASE_URL: 'https://erp.luminalfactory.com',
+      }
+    );
+
+    expect(resetPasswordForEmail).toHaveBeenCalledWith('nhanvien@luminalfactory.com', {
+      redirectTo: 'https://erp.luminalfactory.com/auth/update-password',
+    });
   });
 
   it('validates mismatched passwords', () => {
@@ -94,12 +123,12 @@ describe('auth flow helpers', () => {
     expect(validateNewPassword('matkhau123', 'matkhau123')).toEqual({ ok: true });
   });
 
-  it('supports production, local, and Codespaces base URL configuration', () => {
+  it('requires a valid explicit app base URL configuration', () => {
     expect(
       getConfiguredAppBaseUrl({
-        NEXT_PUBLIC_APP_BASE_URL: 'https://luminalfactory.com',
+        NEXT_PUBLIC_APP_BASE_URL: 'https://erp.luminalfactory.com',
       })
-    ).toBe('https://luminalfactory.com');
+    ).toBe('https://erp.luminalfactory.com');
 
     expect(
       getConfiguredAppBaseUrl({
@@ -107,11 +136,14 @@ describe('auth flow helpers', () => {
       })
     ).toBe('http://localhost:3000');
 
-    expect(
+    expect(() => getConfiguredAppBaseUrl({})).toThrow(
+      'Thiếu cấu hình NEXT_PUBLIC_APP_BASE_URL cho luồng đặt lại mật khẩu.'
+    );
+
+    expect(() =>
       getConfiguredAppBaseUrl({
-        CODESPACE_NAME: 'sample-space',
-        GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: 'app.github.dev',
+        NEXT_PUBLIC_APP_BASE_URL: 'ftp://erp.luminalfactory.com',
       })
-    ).toBe('https://sample-space-3000.app.github.dev');
+    ).toThrow('NEXT_PUBLIC_APP_BASE_URL không hợp lệ cho luồng đặt lại mật khẩu.');
   });
 });
