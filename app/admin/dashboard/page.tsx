@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase/client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { RefreshCcw, Wallet, Banknote, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { AlertTriangle, RefreshCcw, Wallet, Banknote, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import type {
   MonthlyChartData,
   PieChartData,
@@ -19,6 +19,7 @@ const COLORS = {
 
 export default function DashboardCharts() {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   
   const [monthlyData, setMonthlyData] = useState<MonthlyChartData[]>([]);
   const [pieData, setPieData] = useState<PieChartData[]>([]);
@@ -35,14 +36,23 @@ export default function DashboardCharts() {
   useEffect(() => {
     const fetchAndProcessData = async () => {
       setLoading(true);
+      setLoadError('');
       try {
         // Lấy toàn bộ dữ liệu hạch toán đã được xác nhận (is_paid = true)
-        const { data: ledger } = await supabase
+        const { data: ledger, error } = await supabase
           .from('financial_ledger')
           .select('id, type, category, amount, is_paid, month_period')
           .eq('is_paid', true);
 
-        if (!ledger) return;
+        if (error) {
+          setLoadError('Không tải được dữ liệu dashboard. Vui lòng kiểm tra quyền đọc dữ liệu.');
+          return;
+        }
+
+        if (!ledger) {
+          setLoadError('Không tải được dữ liệu dashboard. Vui lòng thử lại.');
+          return;
+        }
 
         const currentYear = new Date().getFullYear().toString();
         const groupedByMonth: Record<string, { name: string; thu: number; chi: number }> = {};
@@ -106,8 +116,8 @@ export default function DashboardCharts() {
           { name: 'Hoàn Ứng', value: totalHoanUng, color: COLORS.hoan_ung },
         ].filter(d => d.value > 0)); 
 
-      } catch (error) {
-        console.error("Lỗi lấy dữ liệu biểu đồ:", error);
+      } catch {
+        setLoadError('Không tải được dữ liệu dashboard. Vui lòng thử lại.');
       } finally {
         setLoading(false);
       }
@@ -135,6 +145,20 @@ export default function DashboardCharts() {
 
   if (loading) {
     return <div className="flex justify-center p-10"><RefreshCcw className="w-5 h-5 text-emerald-500 animate-spin" /></div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="mt-4 rounded-lg border border-red-500/30 bg-red-950/20 p-4 text-sm text-red-100">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" />
+          <div>
+            <p className="font-bold">Không tải được dữ liệu</p>
+            <p className="mt-1 text-xs text-red-200/80">{loadError}</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

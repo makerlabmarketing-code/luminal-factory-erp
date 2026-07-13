@@ -8,6 +8,11 @@ import {
   submitAdminLogin,
   verifyAdminSessionWithApi,
 } from '../utils/auth/admin-login';
+import {
+  LOGOUT_MESSAGES,
+  navigateAfterLogout,
+  signOutCurrentDevice,
+} from '../utils/auth/logout';
 
 function verificationResponse(
   ok: boolean,
@@ -269,6 +274,50 @@ describe('admin login flow', () => {
     });
   });
 
+  it('signs out only the current device for admin logout', async () => {
+    const signOut = vi.fn().mockResolvedValue({ error: null });
+
+    const result = await signOutCurrentDevice({ signOut });
+
+    expect(result).toEqual({ ok: true });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
+  });
+
+  it('reports admin logout failures without swallowing them', async () => {
+    const result = await signOutCurrentDevice({
+      signOut: vi.fn().mockResolvedValue({ error: new Error('logout failed') }),
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: LOGOUT_MESSAGES.failed,
+    });
+  });
+
+  it('uses document navigation after logout so cached admin data is not restored', () => {
+    const originalWindow = globalThis.window;
+    const replace = vi.fn();
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        location: {
+          replace,
+        },
+      },
+    });
+
+    navigateAfterLogout('/');
+
+    expect(replace).toHaveBeenCalledWith('/');
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+  });
+
   it('does not swallow server verification failures', async () => {
     const result = await submitAdminLogin({
       auth: {
@@ -429,6 +478,25 @@ describe('admin login flow', () => {
     expect(layoutSource).toMatch(/dynamic = 'force-dynamic'/);
     expect(layoutSource).toMatch(/revalidate = 0/);
     expect(layoutSource).toMatch(/fetchCache = 'force-no-store'/);
+  });
+
+  it('keeps admin logout as a real local Supabase sign-out flow', () => {
+    const shellSource = readFileSync(
+      join(__dirname, '../app/admin/AdminShell.tsx'),
+      'utf8'
+    );
+    const logoutSource = readFileSync(
+      join(__dirname, '../app/admin/AdminLogoutButton.tsx'),
+      'utf8'
+    );
+
+    expect(shellSource).toMatch(/AdminLogoutButton/);
+    expect(shellSource).not.toMatch(/Thoát Admin/);
+    expect(logoutSource).toMatch(/signOutCurrentDevice/);
+    expect(logoutSource).toMatch(/Đăng xuất/);
+    expect(logoutSource).toMatch(/Đang đăng xuất\.\.\./);
+    expect(logoutSource).toMatch(/router\.refresh\(\)/);
+    expect(logoutSource).toMatch(/navigateAfterLogout\('\/'\)/);
   });
 
   it('does not render the admin login form for a valid admin context', () => {

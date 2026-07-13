@@ -7,13 +7,13 @@ import {
   ClipboardList,
   Database,
   LayoutDashboard,
-  LogOut,
   Mail,
   MapPin,
   PiggyBank,
   Settings,
   Users,
 } from 'lucide-react';
+import AdminLogoutButton from './AdminLogoutButton';
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -83,9 +83,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         </nav>
 
         <div className="p-4 border-t border-slate-800">
-          <Link href="/" className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-red-400 text-xs font-bold transition">
-            <LogOut className="w-4 h-4" /> Thoát Admin
-          </Link>
+          <AdminLogoutButton />
         </div>
       </aside>
 

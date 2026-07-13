@@ -165,7 +165,26 @@ describe('static security boundaries', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('prefers the publishable Supabase key over the legacy anon fallback', () => {
+  it('keeps the account-type landing page explicit and token-free', () => {
+    const source = readFileSync(join(repositoryRoot, 'app/page.tsx'), 'utf8');
+
+    expect(source).toMatch(/Dành cho quản trị/);
+    expect(source).toMatch(/Dành cho nhân viên/);
+    expect(source).toMatch(/href: '\/admin\/dashboard'/);
+    expect(source).toMatch(/href: '\/staff'/);
+    expect(source).not.toMatch(/staff\/portal\?token=|localStorage|sessionStorage/);
+  });
+
+  it('does not turn dashboard query errors into empty financial data', () => {
+    const source = readFileSync(join(repositoryRoot, 'app/admin/dashboard/page.tsx'), 'utf8');
+
+    expect(source).toMatch(/data: ledger, error/);
+    expect(source).toMatch(/setLoadError/);
+    expect(source).toMatch(/Không tải được dữ liệu dashboard/);
+    expect(source).not.toMatch(/console\.error\("Lỗi lấy dữ liệu biểu đồ:/);
+  });
+
+  it('uses the publishable Supabase key even when a legacy anon key is present', () => {
     const previousPublishable = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     const previousAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -178,14 +197,14 @@ describe('static security boundaries', () => {
     restoreEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', previousAnon);
   });
 
-  it('falls back to the legacy anon Supabase key during compatibility rollout', () => {
+  it('does not fall back to the legacy anon Supabase key', () => {
     const previousPublishable = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     const previousAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-test-key';
 
-    expect(getSupabasePublicKey()).toBe('anon-test-key');
+    expect(() => getSupabasePublicKey()).toThrow(/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/);
 
     restoreEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', previousPublishable);
     restoreEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', previousAnon);
@@ -198,7 +217,7 @@ describe('static security boundaries', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    expect(() => getSupabasePublicKey()).toThrow(/Supabase public key/);
+    expect(() => getSupabasePublicKey()).toThrow(/Supabase publishable key/);
 
     restoreEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', previousPublishable);
     restoreEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', previousAnon);

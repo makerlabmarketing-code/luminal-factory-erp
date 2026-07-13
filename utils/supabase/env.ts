@@ -9,13 +9,11 @@ export function getSupabaseUrl(): string {
 }
 
 export function getSupabasePublicKey(): string {
-  const key =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!key) {
     throw new Error(
-      'Thiếu Supabase public key. Hãy cấu hình NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY hoặc NEXT_PUBLIC_SUPABASE_ANON_KEY.'
+      'Thiếu Supabase publishable key. Hãy cấu hình NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.'
     );
   }
 
