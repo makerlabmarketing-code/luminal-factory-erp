@@ -27,7 +27,18 @@ mismatched hashes, or any transaction raises an exception.
 
 ## Part 1. Before Running
 
-Run this read-only preflight SQL in Supabase SQL Editor.
+Run this read-only preflight SQL in Supabase SQL Editor or another approved
+read-only query channel.
+
+This parse-safe preflight intentionally does not require the full Owner Auth
+UUID. It verifies the target Auth user using only the saved masked evidence:
+
+- Auth user ID hash: `f27b06f2078a`
+- normalized email hash: `02ebdc98273a`
+
+It also intentionally avoids referencing `public.employees.auth_user_id` until
+after confirming whether that column exists. If the column does not exist, the
+employee mapping condition is `not_applicable_pre_migration`.
 
 Expected:
 
@@ -37,9 +48,10 @@ Expected:
 - `index_name_exists = false`
 - `target_auth_user_count = 1`
 - `target_employee_count = 1`
-- `target_employee_null_mapping_count = 1`
+- `target_employee_mapping_check = not_applicable_pre_migration`
 - `target_employee_role = ADMIN`
 - `target_employee_status = ACTIVE`
+- `target_employee_email_hash = 02ebdc98273a`
 
 ```sql
 select jsonb_build_object(
@@ -57,7 +69,7 @@ select jsonb_build_object(
     exists (
       select 1
       from pg_constraint
-      where conrelid = 'public.employees'::regclass
+      where conrelid = to_regclass('public.employees')
         and conname = 'employees_auth_user_id_fkey'
     ),
   'index_name_exists',
@@ -76,12 +88,19 @@ select jsonb_build_object(
         and table_name = 'users'
         and column_name = 'id'
     ),
+  'auth_users_id_udt_name',
+    (
+      select udt_name
+      from information_schema.columns
+      where table_schema = 'auth'
+        and table_name = 'users'
+        and column_name = 'id'
+    ),
   'target_auth_user_count',
     (
       select count(*)
       from auth.users
-      where id = '<OWNER_AUTH_USER_ID>'::uuid
-        and substr(md5(id::text), 1, 12) = 'f27b06f2078a'
+      where substr(md5(id::text), 1, 12) = 'f27b06f2078a'
         and substr(md5(lower(trim(email))), 1, 12) = '02ebdc98273a'
         and email_confirmed_at is not null
     ),
@@ -92,16 +111,6 @@ select jsonb_build_object(
       where id = 3
         and role = 'ADMIN'
         and status = 'ACTIVE'
-        and substr(md5(lower(trim(email))), 1, 12) = '02ebdc98273a'
-    ),
-  'target_employee_null_mapping_count',
-    (
-      select count(*)
-      from public.employees
-      where id = 3
-        and role = 'ADMIN'
-        and status = 'ACTIVE'
-        and auth_user_id is null
         and substr(md5(lower(trim(email))), 1, 12) = '02ebdc98273a'
     ),
   'target_employee_role',
@@ -115,19 +124,107 @@ select jsonb_build_object(
       select status
       from public.employees
       where id = 3
-    )
-) as batch_3c3_preflight;
+    ),
+  'target_employee_email_hash',
+    (
+      select substr(md5(lower(trim(email))), 1, 12)
+      from public.employees
+      where id = 3
+    ),
+  'target_employee_mapping_check',
+    case
+      when exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'employees'
+          and column_name = 'auth_user_id'
+      ) then 'schema_drift_mapping_check_required'
+      else 'not_applicable_pre_migration'
+    end
+) as batch_3c3_preflight_parse_safe;
 ```
 
 Recovery if this fails:
 
 - Do not run schema migration.
-- If `auth_user_id_exists = true`, switch to validation mode and inspect whether
-  the schema was already applied.
+- If `auth_user_id_exists = true`, this is schema drift for Batch 3C3. Do not
+  run schema migration. Run only the drift inspection query below, then stop.
 - If target auth count is not `1`, re-check the invite/user in Supabase Auth.
 - If target employee count is not `1`, stop and review the employee record.
 - If employee role/status changed, stop and decide whether Batch 3C3 assumptions
   still hold.
+
+If and only if `auth_user_id_exists = true`, run this read-only drift inspection
+query. It references `auth_user_id`, so do not run it before the first preflight
+confirms the column exists.
+
+Expected for the normal Batch 3C3 path: this query is not applicable because
+`auth_user_id_exists = false`.
+
+```sql
+select jsonb_build_object(
+  'schema_drift', true,
+  'owner_mapping',
+    (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'employee_internal_id', e.id,
+        'role', e.role,
+        'status', e.status,
+        'is_active', e.is_active,
+        'employee_email_hash', substr(md5(lower(trim(e.email))), 1, 12),
+        'auth_user_id_hash', case
+          when e.auth_user_id is null then null
+          else substr(md5(e.auth_user_id::text), 1, 12)
+        end,
+        'matching_auth_user_count',
+          (
+            select count(*)
+            from auth.users u
+            where u.id = e.auth_user_id
+              and substr(md5(lower(trim(u.email))), 1, 12) = substr(md5(lower(trim(e.email))), 1, 12)
+          )
+      ) order by e.id), '[]'::jsonb)
+      from public.employees e
+      where e.id = 3
+    ),
+  'non_null_auth_user_id_count',
+    (
+      select count(*)
+      from public.employees
+      where auth_user_id is not null
+    ),
+  'duplicate_auth_user_id_links',
+    (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'auth_user_id_hash', substr(md5(auth_user_id::text), 1, 12),
+        'employee_count', employee_count,
+        'employee_internal_ids', employee_internal_ids
+      )), '[]'::jsonb)
+      from (
+        select
+          auth_user_id,
+          count(*) as employee_count,
+          jsonb_agg(id order by id) as employee_internal_ids
+        from public.employees
+        where auth_user_id is not null
+        group by auth_user_id
+        having count(*) > 1
+      ) duplicates
+    ),
+  'orphan_auth_user_id_links',
+    (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'employee_internal_id', e.id,
+        'auth_user_id_hash', substr(md5(e.auth_user_id::text), 1, 12)
+      ) order by e.id), '[]'::jsonb)
+      from public.employees e
+      left join auth.users u on u.id = e.auth_user_id
+      where e.auth_user_id is not null
+        and u.id is null
+    )
+) as batch_3c3_preflight_schema_drift_inspection;
+```
 
 ## Part 2. Schema Migration
 
@@ -207,27 +304,35 @@ select jsonb_build_object(
   'foreign_key',
     (
       select coalesce(jsonb_agg(jsonb_build_object(
-        'constraint_name', tc.constraint_name,
-        'source_table', tc.table_schema || '.' || tc.table_name,
-        'source_column', kcu.column_name,
-        'target_table', ccu.table_schema || '.' || ccu.table_name,
-        'target_column', ccu.column_name,
-        'delete_rule', rc.delete_rule
-      )), '[]'::jsonb)
-      from information_schema.table_constraints tc
-      join information_schema.key_column_usage kcu
-        on kcu.constraint_schema = tc.constraint_schema
-       and kcu.constraint_name = tc.constraint_name
-      join information_schema.constraint_column_usage ccu
-        on ccu.constraint_schema = tc.constraint_schema
-       and ccu.constraint_name = tc.constraint_name
-      join information_schema.referential_constraints rc
-        on rc.constraint_schema = tc.constraint_schema
-       and rc.constraint_name = tc.constraint_name
-      where tc.table_schema = 'public'
-        and tc.table_name = 'employees'
-        and tc.constraint_name = 'employees_auth_user_id_fkey'
-        and tc.constraint_type = 'FOREIGN KEY'
+        'constraint_name', c.conname,
+        'source_table', c.conrelid::regclass::text,
+        'source_column', source_attr.attname,
+        'target_table', c.confrelid::regclass::text,
+        'target_column', target_attr.attname,
+        'delete_rule', case c.confdeltype
+          when 'a' then 'NO ACTION'
+          when 'r' then 'RESTRICT'
+          when 'c' then 'CASCADE'
+          when 'n' then 'SET NULL'
+          when 'd' then 'SET DEFAULT'
+          else c.confdeltype::text
+        end,
+        'constraint_def', pg_get_constraintdef(c.oid, true)
+      ) order by c.conname), '[]'::jsonb)
+      from pg_constraint c
+      join unnest(c.conkey) with ordinality as source_key(attnum, ord)
+        on true
+      join unnest(c.confkey) with ordinality as target_key(attnum, ord)
+        on target_key.ord = source_key.ord
+      join pg_attribute source_attr
+        on source_attr.attrelid = c.conrelid
+       and source_attr.attnum = source_key.attnum
+      join pg_attribute target_attr
+        on target_attr.attrelid = c.confrelid
+       and target_attr.attnum = target_key.attnum
+      where c.conrelid = to_regclass('public.employees')
+        and c.conname = 'employees_auth_user_id_fkey'
+        and c.contype = 'f'
     ),
   'unique_partial_index',
     (
@@ -566,4 +671,3 @@ Recovery if rollback fails:
 - Inspect whether any other mapping exists.
 - If schema rollback is blocked by remaining mappings, keep schema and only fix
   the incorrect mapping after approval.
-

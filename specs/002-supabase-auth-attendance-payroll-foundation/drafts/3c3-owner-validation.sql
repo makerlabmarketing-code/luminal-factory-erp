@@ -11,12 +11,59 @@ select jsonb_build_object(
         and column_name = 'auth_user_id'
     ),
   'foreign_key_exists',
-    exists (
-      select 1
-      from pg_constraint
-      where conrelid = 'public.employees'::regclass
-        and conname = 'employees_auth_user_id_fkey'
-        and contype = 'f'
+    (
+      select count(*) = 1
+      from pg_constraint c
+      join unnest(c.conkey) with ordinality as source_key(attnum, ord)
+        on true
+      join unnest(c.confkey) with ordinality as target_key(attnum, ord)
+        on target_key.ord = source_key.ord
+      join pg_attribute source_attr
+        on source_attr.attrelid = c.conrelid
+       and source_attr.attnum = source_key.attnum
+      join pg_attribute target_attr
+        on target_attr.attrelid = c.confrelid
+       and target_attr.attnum = target_key.attnum
+      where c.conrelid = to_regclass('public.employees')
+        and c.confrelid = to_regclass('auth.users')
+        and c.conname = 'employees_auth_user_id_fkey'
+        and c.contype = 'f'
+        and source_attr.attname = 'auth_user_id'
+        and target_attr.attname = 'id'
+        and c.confdeltype = 'n'
+    ),
+  'foreign_key',
+    (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'constraint_name', c.conname,
+        'source_table', c.conrelid::regclass::text,
+        'source_column', source_attr.attname,
+        'target_table', c.confrelid::regclass::text,
+        'target_column', target_attr.attname,
+        'delete_rule', case c.confdeltype
+          when 'a' then 'NO ACTION'
+          when 'r' then 'RESTRICT'
+          when 'c' then 'CASCADE'
+          when 'n' then 'SET NULL'
+          when 'd' then 'SET DEFAULT'
+          else c.confdeltype::text
+        end,
+        'constraint_def', pg_get_constraintdef(c.oid, true)
+      ) order by c.conname), '[]'::jsonb)
+      from pg_constraint c
+      join unnest(c.conkey) with ordinality as source_key(attnum, ord)
+        on true
+      join unnest(c.confkey) with ordinality as target_key(attnum, ord)
+        on target_key.ord = source_key.ord
+      join pg_attribute source_attr
+        on source_attr.attrelid = c.conrelid
+       and source_attr.attnum = source_key.attnum
+      join pg_attribute target_attr
+        on target_attr.attrelid = c.confrelid
+       and target_attr.attnum = target_key.attnum
+      where c.conrelid = to_regclass('public.employees')
+        and c.conname = 'employees_auth_user_id_fkey'
+        and c.contype = 'f'
     ),
   'unique_partial_index_exists',
     exists (
@@ -34,10 +81,6 @@ select jsonb_build_object(
         'status', e.status,
         'is_active', e.is_active,
         'email_hash', substr(md5(lower(trim(e.email))), 1, 12),
-        'auth_user_id_prefix', case
-          when e.auth_user_id is null then null
-          else substr(e.auth_user_id::text, 1, 8) || '...'
-        end,
         'auth_user_id_hash', case
           when e.auth_user_id is null then null
           else substr(md5(e.auth_user_id::text), 1, 12)
@@ -56,7 +99,6 @@ select jsonb_build_object(
   'duplicate_auth_user_id_links',
     (
       select coalesce(jsonb_agg(jsonb_build_object(
-        'auth_user_id_prefix', substr(auth_user_id::text, 1, 8) || '...',
         'auth_user_id_hash', substr(md5(auth_user_id::text), 1, 12),
         'employee_count', employee_count,
         'employee_internal_ids', employee_internal_ids
@@ -76,7 +118,6 @@ select jsonb_build_object(
     (
       select coalesce(jsonb_agg(jsonb_build_object(
         'employee_internal_id', e.id,
-        'auth_user_id_prefix', substr(e.auth_user_id::text, 1, 8) || '...',
         'auth_user_id_hash', substr(md5(e.auth_user_id::text), 1, 12)
       ) order by e.id), '[]'::jsonb)
       from public.employees e
@@ -85,4 +126,3 @@ select jsonb_build_object(
         and u.id is null
     )
 ) as batch_3c3_identity_validation;
-
