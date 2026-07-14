@@ -3,6 +3,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase/client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { AlertTriangle, RefreshCcw, Wallet, Banknote, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import {
+  compareReportingPeriods,
+  groupPaidLedgerCashflowByReportingPeriod,
+  isValidReportingPeriod,
+} from '@/services/financialReportingService';
+import type { FinancialLedgerEntry } from '@/lib/types/finance';
 import type {
   MonthlyChartData,
   PieChartData,
@@ -55,33 +61,23 @@ export default function DashboardCharts() {
         }
 
         const currentYear = new Date().getFullYear().toString();
-        const groupedByMonth: Record<string, { name: string; thu: number; chi: number }> = {};
         
         let totalVon = 0, totalDoanhThu = 0, totalChiPhi = 0, totalHoanUng = 0;
         
         // Biến tạm tính tổng theo năm
         let ytdCap = 0, ytdRev = 0, ytdExp = 0;
 
-        ledger.forEach((item) => {
+        const paidLedger = ledger as FinancialLedgerEntry[];
+
+        paidLedger.forEach((item) => {
           const amount = Number(item.amount) || 0;
           const month = item.month_period || 'Khác';
 
           // --- 1. XỬ LÝ DỮ LIỆU TỔNG KẾT NĂM (YTD) ---
-          if (month.includes(currentYear)) {
+          if (isValidReportingPeriod(month) && month.endsWith(`/${currentYear}`)) {
             if (item.type === 'VON_GOP') ytdCap += amount;
             else if (item.type === 'DOANH_THU') ytdRev += amount;
-            else if (['CHI_PHI', 'CHI_TIEU', 'HOAN_UNG'].includes(item.type)) ytdExp += amount;
-          }
-
-          // --- 2. XỬ LÝ DỮ LIỆU CHO BIỂU ĐỒ CỘT ---
-          if (!groupedByMonth[month]) {
-            groupedByMonth[month] = { name: month, thu: 0, chi: 0 };
-          }
-
-          if (item.type === 'VON_GOP' || item.type === 'DOANH_THU') {
-            groupedByMonth[month].thu += amount;
-          } else if (['CHI_PHI', 'CHI_TIEU', 'HOAN_UNG'].includes(item.type)) {
-            groupedByMonth[month].chi += amount;
+            else if (['CHI_PHI', 'CHI_TIEU', 'HOAN_UNG'].includes(item.type || '')) ytdExp += amount;
           }
 
           // --- 3. XỬ LÝ DỮ LIỆU CHO BIỂU ĐỒ TRÒN ---
@@ -101,11 +97,9 @@ export default function DashboardCharts() {
         });
 
         // Chuyển object thành array và sort theo tháng cho biểu đồ
-        const chartData = Object.values(groupedByMonth).sort((a, b) => {
-          const [monthA, yearA] = a.name.split('/');
-          const [monthB, yearB] = b.name.split('/');
-          return new Date(Number(yearA), Number(monthA) - 1).getTime() - new Date(Number(yearB), Number(monthB) - 1).getTime();
-        });
+        const chartData = groupPaidLedgerCashflowByReportingPeriod(paidLedger).sort((a, b) => (
+          compareReportingPeriods(a.name, b.name)
+        ));
 
         setMonthlyData(chartData);
 

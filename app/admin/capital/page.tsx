@@ -7,6 +7,13 @@ import MonthPicker from '@/component/MonthPicker';
 import LedgerMetrics from './components/LedgerMetrics';
 import LedgerTable from './components/LedgerTable'; 
 import CapitalShareCard from './components/CapitalShareCard';
+import type { FinancialLedgerEntry } from '@/lib/types/finance';
+import {
+  isValidReportingPeriod,
+  monthInputFromReportingPeriod,
+  reportingPeriodFromMonthInput,
+  summarizeFinancialLedger,
+} from '@/services/financialReportingService';
 import { 
   PiggyBank, Plus, X, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight 
 } from 'lucide-react';
@@ -22,33 +29,22 @@ const parseCurrency = (value: string) => {
   return Number(value.replace(/,/g, ''));
 };
 
-const convertToPeriodFormat = (monthInputStr: string) => {
-  if (!monthInputStr) return '';
-  const [year, month] = monthInputStr.split('-');
-  return `${month}/${year}`;
-};
-
-const convertToInputFormat = (periodStr: string) => {
-  if (!periodStr) return '';
-  const [month, year] = periodStr.split('/');
-  return `${year}-${month}`;
-};
-
 export default function AdminFinancialLedger() {
   const { showToast, showConfirm } = useNotification();
-  const [ledger, setLedger] = useState<any[]>([]);
+  const [ledger, setLedger] = useState<FinancialLedgerEntry[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [transactionTypes, setTransactionTypes] = useState<any[]>([]); 
   const [contributionTypes, setContributionTypes] = useState<any[]>([]); 
   const [companyBankCode, setCompanyBankCode] = useState<string>('MB'); 
   const [companyBankAccount, setCompanyBankAccount] = useState<string>(''); 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   
   const [monthInput, setMonthInput] = useState(() => {
     const d = new Date(); 
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const selectedMonth = convertToPeriodFormat(monthInput); 
+  const selectedMonth = reportingPeriodFromMonthInput(monthInput); 
 
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -86,6 +82,7 @@ export default function AdminFinancialLedger() {
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const { data: emps } = await supabase
         .from('employees')
@@ -111,14 +108,17 @@ export default function AdminFinancialLedger() {
       const { data: setAccount } = await supabase.from('system_settings').select('value').eq('key', 'company_bank_account').maybeSingle();
       if (setAccount) setCompanyBankAccount(setAccount.value);
 
-      const { data: ledgers } = await supabase
+      const { data: ledgers, error: ledgerError } = await supabase
         .from('financial_ledger')
-        .select('id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, expense_source')
+        .select('id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at')
         .eq('month_period', selectedMonth)
         .order('id', { ascending: false });
-      setLedger(ledgers || []);
+      if (ledgerError) throw ledgerError;
+
+      setLedger((ledgers || []) as FinancialLedgerEntry[]);
     } catch (e) { 
       console.error(e); 
+      setLoadError('Không tải được dữ liệu.');
     } finally {
       setLoading(false);
     }
@@ -176,7 +176,11 @@ export default function AdminFinancialLedger() {
       return;
     }
     
-    const targetPeriod = convertToPeriodFormat(formMonthInput);
+    const targetPeriod = reportingPeriodFromMonthInput(formMonthInput);
+    if (!isValidReportingPeriod(targetPeriod)) {
+      showToast('Kỳ báo cáo không hợp lệ', 'Vui lòng chọn kỳ báo cáo hợp lệ.', 'error');
+      return;
+    }
 
     try {
       if (type === 'CHI_PHI' && expenseSource === 'TU_CHI_TRA') {
@@ -202,7 +206,7 @@ export default function AdminFinancialLedger() {
 
   const handleOpenEdit = (item: any) => {
     setEditingId(item.id); setEditType(item.type); setEditCategory(item.category); setEditAmount(formatCurrency(item.amount.toString())); 
-    setEditReporter(item.requested_by); setEditIsPaid(item.is_paid); setEditMonthInput(convertToInputFormat(item.month_period));
+    setEditReporter(item.requested_by); setEditIsPaid(item.is_paid); setEditMonthInput(monthInputFromReportingPeriod(item.month_period));
     setEditSubType(item.sub_type || 'TIEN_MAT');
 
     const hasLink = ledger.some(l => 
@@ -218,7 +222,12 @@ export default function AdminFinancialLedger() {
     if (!editCategory.trim() || !numericAmount) return showToast('Thiếu số liệu', 'Vui lòng điền đủ thông tin sửa hạch toán!', 'error');
     if (!editingId) return;
 
-    const targetPeriod = convertToPeriodFormat(editMonthInput);
+    const targetPeriod = reportingPeriodFromMonthInput(editMonthInput);
+    if (!isValidReportingPeriod(targetPeriod)) {
+      showToast('Kỳ báo cáo không hợp lệ', 'Vui lòng chọn kỳ báo cáo hợp lệ.', 'error');
+      return;
+    }
+
     const originalItem = ledger.find(l => l.id === editingId);
     if (!originalItem) return;
     
@@ -304,14 +313,13 @@ export default function AdminFinancialLedger() {
   };
 
   // --- CÔNG THỨC HẠCH TOÁN DOANH NGHIỆP ---
-  const totalGop = ledger.filter(l => l.type === 'VON_GOP' && l.is_paid).reduce((sum, l) => sum + Number(l.amount), 0);
-  const totalDoanhThu = ledger.filter(l => l.type === 'DOANH_THU' && l.is_paid).reduce((sum, l) => sum + Number(l.amount), 0);
-  const totalChiPhi = ledger.filter(l => ((l.type === 'CHI_PHI' || l.type === 'CHI_TIEU' || l.type === 'HOAN_UNG') && l.is_paid)).reduce((sum, l) => sum + Number(l.amount), 0);
-  const totalTreo = ledger.filter(l => !l.is_paid).reduce((sum, l) => sum + Number(l.amount), 0);
-  
-  const totalVonHienVat = ledger.filter(l => l.type === 'VON_GOP' && l.sub_type === 'HIEN_VAT' && l.is_paid).reduce((sum, l) => sum + Number(l.amount), 0);
-  
-  const totalRemainingBalance = (totalGop + totalDoanhThu) - totalChiPhi;
+  const ledgerSummary = summarizeFinancialLedger(ledger);
+  const totalGop = ledgerSummary.capital;
+  const totalDoanhThu = ledgerSummary.revenue;
+  const totalChiPhi = ledgerSummary.expense;
+  const totalTreo = ledgerSummary.pending;
+  const totalVonHienVat = ledgerSummary.inKindCapital;
+  const totalRemainingBalance = ledgerSummary.balance;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 text-slate-100 bg-slate-950 min-h-screen font-sans">
@@ -348,13 +356,23 @@ export default function AdminFinancialLedger() {
           <input type="text" placeholder="Tìm kiếm nội dung..." className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none w-full sm:w-64" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
 
-        <LedgerTable 
-          data={currentLedgerData}
-          onTogglePaid={handleTogglePaid}
-          onOpenEdit={handleOpenEdit}
-          onDelete={handleDeleteLedger}
-          onGenerateQr={handleGenerateVietQR}
-        />
+        {loadError ? (
+          <div className="p-8 text-center text-sm font-bold text-red-300">
+            Không tải được dữ liệu.
+          </div>
+        ) : filteredLedger.length === 0 ? (
+          <div className="p-8 text-center text-sm text-slate-500">
+            Không có giao dịch trong kỳ đã chọn.
+          </div>
+        ) : (
+          <LedgerTable 
+            data={currentLedgerData}
+            onTogglePaid={handleTogglePaid}
+            onOpenEdit={handleOpenEdit}
+            onDelete={handleDeleteLedger}
+            onGenerateQr={handleGenerateVietQR}
+          />
+        )}
         
         {filteredLedger.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-3 bg-slate-950 border-t border-slate-800">
