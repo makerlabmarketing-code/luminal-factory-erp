@@ -5,6 +5,7 @@ import { requireAdminEmployeePermission } from '@/services/server/adminEmployeeD
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import {
   AUTH_CALLBACK_PATH,
+  buildUpdatePasswordRedirectPath,
   buildAuthRedirectUrl,
   buildPasswordRecoveryRedirectUrl,
   getPublicAppBaseUrl,
@@ -207,7 +208,10 @@ export async function inviteEmployee(employeeId: string): Promise<AdminActionRes
 
   const supabaseAdmin = createSupabaseAdminClient();
   const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(employee.email!.trim(), {
-    redirectTo: buildAuthRedirectUrl(getPublicAppBaseUrl(), AUTH_CALLBACK_PATH),
+    redirectTo: buildAuthRedirectUrl(
+      getPublicAppBaseUrl(),
+      `${AUTH_CALLBACK_PATH}?mode=invite&next=${encodeURIComponent(buildUpdatePasswordRedirectPath('invite'))}`
+    ),
   });
 
   if (error) {
@@ -246,7 +250,10 @@ export async function resendEmployeeInvite(employeeId: string): Promise<AdminAct
 
   const supabaseAdmin = createSupabaseAdminClient();
   const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(employee.email!.trim(), {
-    redirectTo: buildAuthRedirectUrl(getPublicAppBaseUrl(), AUTH_CALLBACK_PATH),
+    redirectTo: buildAuthRedirectUrl(
+      getPublicAppBaseUrl(),
+      `${AUTH_CALLBACK_PATH}?mode=invite&next=${encodeURIComponent(buildUpdatePasswordRedirectPath('invite'))}`
+    ),
   });
 
   if (error) {

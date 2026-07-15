@@ -67,3 +67,28 @@ Nếu gửi thành công, hệ thống sẽ ghi vào `email_history`.
 - `{{amount}}`
 
 Ngoài ra hệ thống vẫn hỗ trợ cú pháp cũ dạng `[hoTen]`, `[customer_name]`...
+
+## Supabase Auth URL Configuration
+
+Production app base URL:
+
+- `https://erp.luminalfactory.com`
+
+Redirect URL cần có trong Supabase Auth URL Configuration:
+
+- `https://erp.luminalfactory.com/auth/callback`
+- `https://erp.luminalfactory.com/auth/update-password`
+
+Luồng chuẩn nên đặt `redirectTo` về callback:
+
+- Invite user: `https://erp.luminalfactory.com/auth/callback`
+- Reset password: `https://erp.luminalfactory.com/auth/callback`
+
+`/auth/update-password` vẫn nên nằm trong allow-list để tương thích link cũ và các template đang trỏ trực tiếp, nhưng route tạo session chuẩn là `/auth/callback`.
+
+Email template Supabase nên phân biệt:
+
+- Invite user: link mời dùng callback, type `invite` hoặc payload implicit invite của Supabase.
+- Reset password: link đặt lại dùng callback, type `recovery`.
+
+Không đưa access token hoặc refresh token vào query string mới trong template tùy chỉnh.

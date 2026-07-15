@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -10,8 +11,10 @@ import {
   Edit2,
   KeyRound,
   Mail,
+  MoreVertical,
   Search,
   ShieldOff,
+  UserRound,
   UserPlus,
   Users,
   X,
@@ -127,6 +130,7 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
   const [currentPage, setCurrentPage] = useState(1);
   const [formState, setFormState] = useState<EmployeeFormState | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [savingEmployee, setSavingEmployee] = useState(false);
   const [isPending, startTransition] = useTransition();
   const itemsPerPage = 10;
@@ -337,7 +341,12 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
                     return (
                       <tr key={employee.employeeId} className="hover:bg-slate-950/30">
                         <td className="p-4">
-                          <p className="font-bold text-slate-100">{employee.fullName}</p>
+                          <Link
+                            href={`/admin/employees/${employee.employeeId}`}
+                            className="font-bold text-slate-100 hover:text-blue-300"
+                          >
+                            {employee.fullName}
+                          </Link>
                           <p className="mt-1 text-[10px] text-slate-500">{employee.title || 'Chưa gán chức vụ'}</p>
                         </td>
                         <td className="p-4">
@@ -355,43 +364,73 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
                           </div>
                         </td>
                         <td className="p-4">
-                          <div className="flex flex-wrap justify-end gap-2">
-                            {capabilities.canEditEmployees && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => openEditForm(employee)}
-                                  className="inline-flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-[10px] font-bold text-blue-300 hover:bg-slate-800"
+                          <div className="relative flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenActionMenuId((current) =>
+                                  current === employee.employeeId ? null : employee.employeeId
+                                )
+                              }
+                              className="inline-flex items-center justify-center rounded-md border border-slate-800 bg-slate-950 p-2 text-slate-300 hover:bg-slate-800"
+                              aria-label="Mở thao tác nhân sự"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
+                            {openActionMenuId === employee.employeeId && (
+                              <div className="absolute right-0 top-9 z-20 w-64 rounded-lg border border-slate-800 bg-slate-950 p-2 shadow-2xl">
+                                <Link
+                                  href={`/admin/employees/${employee.employeeId}`}
+                                  className="flex items-center gap-2 rounded-md px-3 py-2 text-[11px] font-bold text-slate-200 hover:bg-slate-800"
                                 >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                  Sửa
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => confirmDeactivate(employee)}
-                                  className="inline-flex items-center gap-1 rounded-md border border-red-900/50 bg-red-950/20 px-2.5 py-1.5 text-[10px] font-bold text-red-300 hover:bg-red-950/40"
-                                >
-                                  <ShieldOff className="h-3.5 w-3.5" />
-                                  Vô hiệu hóa
-                                </button>
-                              </>
-                            )}
-                            {capabilities.canManageAccounts && accountAction && (
-                              <button
-                                type="button"
-                                disabled={!accountAction.path || accountAction.disabled || isPending || Boolean(activeActionKey)}
-                                onClick={() => {
-                                  if (!accountAction.path) {
-                                    if (employee.accountConnectionStatus === 'MISSING_EMAIL') openEditForm(employee);
-                                    return;
-                                  }
-                                  runAction(employee, accountAction.path, 'Đã gửi yêu cầu');
-                                }}
-                                className="inline-flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                <AccountIcon className="h-3.5 w-3.5" />
-                                {activeEmployeeAction ? 'Đang xử lý...' : accountAction.label}
-                              </button>
+                                  <UserRound className="h-3.5 w-3.5" />
+                                  Xem hồ sơ
+                                </Link>
+                                {capabilities.canEditEmployees && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        openEditForm(employee);
+                                      }}
+                                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold text-blue-300 hover:bg-slate-800"
+                                    >
+                                      <Edit2 className="h-3.5 w-3.5" />
+                                      Sửa nhanh
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        confirmDeactivate(employee);
+                                      }}
+                                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold text-red-300 hover:bg-red-950/40"
+                                    >
+                                      <ShieldOff className="h-3.5 w-3.5" />
+                                      Vô hiệu hóa
+                                    </button>
+                                  </>
+                                )}
+                                {capabilities.canManageAccounts && accountAction && (
+                                  <button
+                                    type="button"
+                                    disabled={!accountAction.path || accountAction.disabled || isPending || Boolean(activeActionKey)}
+                                    onClick={() => {
+                                      if (!accountAction.path) {
+                                        if (employee.accountConnectionStatus === 'MISSING_EMAIL') openEditForm(employee);
+                                        return;
+                                      }
+                                      setOpenActionMenuId(null);
+                                      runAction(employee, accountAction.path, 'Đã gửi yêu cầu');
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <AccountIcon className="h-3.5 w-3.5" />
+                                    {activeEmployeeAction ? 'Đang xử lý...' : accountAction.label}
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </td>

@@ -85,6 +85,46 @@ describe('employee admin list and account actions slice', () => {
     expect(clientSource).toMatch(/Gửi link đặt lại mật khẩu/);
   });
 
+  it('adds a refreshable employee detail route with a server DTO', () => {
+    const detailPage = source('app/admin/employees/[employeeId]/page.tsx');
+    const detailClient = source('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
+    const serviceSource = source('services/server/adminEmployeeData.ts');
+    const loadingSource = source('app/admin/employees/[employeeId]/loading.tsx');
+
+    expect(detailPage).not.toMatch(/['"]use client['"]/);
+    expect(detailPage).toMatch(/getAdminEmployeeDetailData/);
+    expect(detailPage).toMatch(/notFound\(\)/);
+    expect(detailClient).toMatch(/Tổng quan/);
+    expect(detailClient).toMatch(/Thông tin công việc/);
+    expect(detailClient).toMatch(/Tài khoản & phân quyền/);
+    expect(detailClient).toMatch(/Sắp triển khai/);
+    expect(loadingSource).toMatch(/animate-pulse/);
+    expect(serviceSource).toMatch(/EmployeeDetailDto/);
+    expect(serviceSource).toMatch(/requireAdminEmployeePermission\('EMPLOYEE_VIEW'\)/);
+    expect(serviceSource).toMatch(/hasPermission\(authContext, 'EMPLOYEE_MANAGE'\)/);
+    expect(serviceSource).toMatch(/hasPermission\(authContext, 'ACCOUNT_MANAGE'\)/);
+    expect(serviceSource).toMatch(/employee_workspace_access/);
+    expect(serviceSource).toMatch(/employee_permissions/);
+    expect(serviceSource).toMatch(/project_members/);
+  });
+
+  it('keeps sensitive employee detail fields out of the client DTO surface', () => {
+    const detailClient = source('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
+    const serviceSource = source('services/server/adminEmployeeData.ts');
+
+    expect(detailClient).not.toMatch(/auth_user_id|qr_token|bank_account_number|access_token|refresh_token|raw_user_meta_data/);
+    expect(serviceSource).not.toMatch(/qr_token|raw_user_meta_data|access_token|refresh_token|password/);
+  });
+
+  it('links the employee list to the detail page and keeps quick edit separate', () => {
+    const clientSource = source('app/admin/employees/AdminEmployeesClient.tsx');
+
+    expect(clientSource).toMatch(/href=\{`\/admin\/employees\/\$\{employee\.employeeId\}`\}/);
+    expect(clientSource).toMatch(/Xem hồ sơ/);
+    expect(clientSource).toMatch(/Sửa nhanh/);
+    expect(clientSource).toMatch(/MoreVertical/);
+  });
+
   it('gates employee mutations and account actions with separate permissions', () => {
     const actionSource = source('services/server/adminEmployeeActions.ts');
     const inviteRoute = source('app/api/admin/employees/[id]/invite/route.ts');
@@ -123,6 +163,8 @@ describe('employee admin list and account actions slice', () => {
 
     expect(inviteBody).toMatch(/inviteUserByEmail/);
     expect(inviteBody).not.toMatch(/resetPasswordForEmail/);
+    expect(inviteBody).toMatch(/mode=invite/);
+    expect(inviteBody).not.toMatch(/update-password['"`]/);
     expect(resetBody).toMatch(/resetPasswordForEmail/);
   });
 

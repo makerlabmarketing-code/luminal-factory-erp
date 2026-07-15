@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, KeyRound, Mail, RefreshCcw } from 'lucide-react';
 import { supabase } from '@/utils/supabase/client';
-import { ADMIN_DASHBOARD_PATH, validateNewPassword } from '@/utils/auth/flow';
+import { NO_WORKSPACE_PATH, validateNewPassword } from '@/utils/auth/flow';
 import {
   cleanUpdatePasswordUrl,
   resolveUpdatePasswordViewState,
@@ -21,6 +21,7 @@ export default function UpdatePasswordForm({ initialUrlState = {} }: UpdatePassw
   const router = useRouter();
   const initialError = initialUrlState.error;
   const initialErrorCode = initialUrlState.errorCode;
+  const mode = initialUrlState.mode === 'invite' ? 'invite' : 'recovery';
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -94,9 +95,20 @@ export default function UpdatePasswordForm({ initialUrlState = {} }: UpdatePassw
     setSuccess('Đặt mật khẩu thành công.');
     setSaving(false);
 
-    window.setTimeout(() => {
-      router.replace(ADMIN_DASHBOARD_PATH);
-      router.refresh();
+    window.setTimeout(async () => {
+      try {
+        const response = await fetch('/api/auth/workspaces', {
+          method: 'POST',
+          headers: { Accept: 'application/json' },
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const payload = (await response.json().catch(() => ({}))) as { redirectPath?: string };
+        router.replace(payload.redirectPath || NO_WORKSPACE_PATH);
+        router.refresh();
+      } catch (_error) {
+        router.replace(NO_WORKSPACE_PATH);
+      }
     }, 700);
   };
 
@@ -113,7 +125,9 @@ export default function UpdatePasswordForm({ initialUrlState = {} }: UpdatePassw
               <KeyRound className="w-5 h-5" />
             )}
           </div>
-          <h1 className="text-base font-bold">Đặt mật khẩu</h1>
+          <h1 className="text-base font-bold">
+            {mode === 'invite' ? 'Đặt mật khẩu lần đầu' : 'Đặt mật khẩu'}
+          </h1>
           {viewState.status === 'valid' && (
             <p className="text-xs text-slate-400">Mật khẩu cần có ít nhất 8 ký tự.</p>
           )}
@@ -132,7 +146,7 @@ export default function UpdatePasswordForm({ initialUrlState = {} }: UpdatePassw
               href={viewState.resendHref}
               className="w-full bg-blue-600 hover:bg-blue-700 font-bold text-xs p-3 rounded-xl transition flex items-center justify-center"
             >
-              Gửi lại hướng dẫn
+              {mode === 'invite' ? 'Quay lại đăng nhập' : 'Gửi lại hướng dẫn'}
             </Link>
             <Link
               href={viewState.loginHref}

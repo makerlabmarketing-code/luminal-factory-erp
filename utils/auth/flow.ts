@@ -3,12 +3,14 @@ export const UPDATE_PASSWORD_PATH = '/auth/update-password';
 export const LOGIN_ENTRY_PATH = '/admin/dashboard';
 export const ADMIN_DASHBOARD_PATH = '/admin/dashboard';
 export const STAFF_PORTAL_PATH = '/staff';
+export const NO_WORKSPACE_PATH = '/auth/no-workspace';
 
 const allowedRedirectPaths = new Set([
   AUTH_CALLBACK_PATH,
   UPDATE_PASSWORD_PATH,
   ADMIN_DASHBOARD_PATH,
   STAFF_PORTAL_PATH,
+  NO_WORKSPACE_PATH,
   '/',
 ]);
 
@@ -27,18 +29,31 @@ export type AuthCallbackAction =
       kind: 'code';
       code: string;
       redirectPath: string;
+      mode: AuthPasswordMode;
     }
   | {
       kind: 'otp';
       tokenHash: string;
       type: 'invite' | 'recovery';
       redirectPath: string;
+      mode: AuthPasswordMode;
+    }
+  | {
+      kind: 'session';
+      accessToken: string;
+      refreshToken: string;
+      redirectPath: string;
+      mode: AuthPasswordMode;
     }
   | {
       kind: 'error';
       redirectPath: string;
       message: string;
+      mode: AuthPasswordMode;
+      errorCode?: string;
     };
+
+export type AuthPasswordMode = 'invite' | 'recovery';
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
@@ -133,18 +148,40 @@ export function resolveWorkspaceDefaultPath({
   if (canAccessAdmin) return ADMIN_DASHBOARD_PATH;
   if (canAccessStaff) return STAFF_PORTAL_PATH;
 
-  return LOGIN_ENTRY_PATH;
+  return NO_WORKSPACE_PATH;
+}
+
+export function resolveAuthPasswordMode(value: string | null | undefined): AuthPasswordMode {
+  return value === 'invite' ? 'invite' : 'recovery';
+}
+
+export function buildUpdatePasswordRedirectPath(mode: AuthPasswordMode): string {
+  return `${UPDATE_PASSWORD_PATH}?mode=${mode}`;
+}
+
+export function mapAuthCallbackErrorMessage(mode: AuthPasswordMode, errorCode?: string | null): string {
+  if (mode === 'invite') return 'Liên kết mời đã hết hạn hoặc không hợp lệ.';
+  if (errorCode === 'otp_expired' || errorCode === 'access_denied') {
+    return 'Link đặt lại mật khẩu đã hết hạn hoặc không hợp lệ.';
+  }
+
+  return 'Link đặt lại mật khẩu đã hết hạn hoặc không hợp lệ.';
 }
 
 export function parseAuthCallbackAction(searchParams: URLSearchParams): AuthCallbackAction {
-  const fallbackPath = UPDATE_PASSWORD_PATH;
+  const type = searchParams.get('type');
+  const mode = resolveAuthPasswordMode(searchParams.get('mode') || type);
+  const fallbackPath = buildUpdatePasswordRedirectPath(mode);
   const redirectPath = resolveSafeRedirectPath(searchParams.get('next'), fallbackPath);
 
   if (searchParams.get('error')) {
+    const errorCode = searchParams.get('error_code') || searchParams.get('error') || undefined;
     return {
       kind: 'error',
       redirectPath: fallbackPath,
-      message: 'Link không hợp lệ hoặc đã hết hạn.',
+      message: mapAuthCallbackErrorMessage(mode, errorCode),
+      mode,
+      errorCode,
     };
   }
 
@@ -154,24 +191,38 @@ export function parseAuthCallbackAction(searchParams: URLSearchParams): AuthCall
       kind: 'code',
       code,
       redirectPath,
+      mode,
     };
   }
 
   const tokenHash = searchParams.get('token_hash');
-  const type = searchParams.get('type');
   if (tokenHash && (type === 'invite' || type === 'recovery')) {
     return {
       kind: 'otp',
       tokenHash,
       type,
       redirectPath,
+      mode: type,
+    };
+  }
+
+  const accessToken = searchParams.get('access_token');
+  const refreshToken = searchParams.get('refresh_token');
+  if (accessToken && refreshToken) {
+    return {
+      kind: 'session',
+      accessToken,
+      refreshToken,
+      redirectPath,
+      mode,
     };
   }
 
   return {
     kind: 'error',
     redirectPath: fallbackPath,
-    message: 'Link không hợp lệ hoặc đã hết hạn.',
+    message: mapAuthCallbackErrorMessage(mode),
+    mode,
   };
 }
 
@@ -181,7 +232,10 @@ export function buildAuthRedirectUrl(baseUrl: string, path = AUTH_CALLBACK_PATH)
 }
 
 export function buildPasswordRecoveryRedirectUrl(appBaseUrl = getPublicAppBaseUrl()): string {
-  return buildAuthRedirectUrl(buildAppBaseUrl(appBaseUrl), UPDATE_PASSWORD_PATH);
+  return buildAuthRedirectUrl(
+    buildAppBaseUrl(appBaseUrl),
+    `${AUTH_CALLBACK_PATH}?mode=recovery&next=${encodeURIComponent(buildUpdatePasswordRedirectPath('recovery'))}`
+  );
 }
 
 export function validateNewPassword(

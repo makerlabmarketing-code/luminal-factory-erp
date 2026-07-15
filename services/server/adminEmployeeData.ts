@@ -51,6 +51,9 @@ interface EmployeeRow {
   is_active?: boolean | null;
   auth_user_id?: string | null;
   branch_code?: string | null;
+  phone?: string | null;
+  hourly_rate?: number | string | null;
+  created_at?: string | null;
 }
 
 interface FacilityRow {
@@ -65,6 +68,23 @@ interface WorkspaceAccessRow {
   workspace: string | null;
   status: string | null;
   revoked_at?: string | null;
+}
+
+interface PermissionRow {
+  employee_id: number | string;
+  permission_code: string | null;
+  effect: string | null;
+  status: string | null;
+  revoked_at?: string | null;
+}
+
+interface ProjectMembershipRow {
+  project_id: number | string;
+  member_role: string | null;
+  status: string | null;
+  projects?: {
+    name?: string | null;
+  } | null;
 }
 
 interface AuthUserSummary {
@@ -84,6 +104,41 @@ export interface AdminEmployeeListData {
     canViewEmployees: boolean;
     canEditEmployees: boolean;
     canManageAccounts: boolean;
+  };
+}
+
+export interface EmployeePermissionSummary {
+  permissionCode: string;
+  effect: string;
+}
+
+export interface EmployeeProjectMembershipSummary {
+  projectId: string;
+  projectName: string;
+  memberRole: string;
+  status: string;
+}
+
+export interface EmployeeDetailDto {
+  employeeId: string;
+  fullName: string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  employmentStatus: string | null;
+  facility: string | null;
+  hourlyRate: number | string | null;
+  createdAt: string | null;
+  accountConnectionStatus: AccountConnectionStatus;
+  invitationStatus: InvitationStatus;
+  hasStaffWorkspace: boolean;
+  hasAdminWorkspace: boolean;
+  permissions: EmployeePermissionSummary[];
+  projectMemberships: EmployeeProjectMembershipSummary[];
+  capabilities: {
+    canEditEmployee: boolean;
+    canManageAccount: boolean;
+    canViewCompensation: boolean;
   };
 }
 
@@ -256,6 +311,107 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
       canViewEmployees: true,
       canEditEmployees,
       canManageAccounts,
+    },
+  };
+}
+
+export async function getAdminEmployeeDetailData(employeeId: string): Promise<EmployeeDetailDto> {
+  const authContext = await requireAdminEmployeePermission('EMPLOYEE_VIEW');
+  const [canEditEmployee, canManageAccount, canViewFinance] = await Promise.all([
+    hasPermission(authContext, 'EMPLOYEE_MANAGE'),
+    hasPermission(authContext, 'ACCOUNT_MANAGE'),
+    hasPermission(authContext, 'FINANCE_VIEW'),
+  ]);
+  const supabase = await createClient();
+
+  const [
+    { data: employee, error: employeeError },
+    { data: facilities },
+    { data: workspaceAccess },
+    { data: permissions },
+    { data: projectMemberships },
+  ] = await Promise.all([
+    supabase
+      .from('employees')
+      .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code, hourly_rate, created_at')
+      .eq('id', employeeId)
+      .maybeSingle(),
+    supabase.from('facilities').select('id, name, facility_name, code'),
+    supabase
+      .from('employee_workspace_access')
+      .select('employee_id, workspace, status, revoked_at')
+      .eq('employee_id', employeeId),
+    supabase
+      .from('employee_permissions')
+      .select('employee_id, permission_code, effect, status, revoked_at')
+      .eq('employee_id', employeeId),
+    supabase
+      .from('project_members')
+      .select('project_id, member_role, status, projects(name)')
+      .eq('employee_id', employeeId)
+      .limit(20),
+  ]);
+
+  if (employeeError) {
+    throw new AuthFlowError({
+      status: 500,
+      code: 'admin_verification_failed',
+      message: 'Không thể tải hồ sơ nhân sự.',
+      failureStage: 'permission_check',
+      safeDetails: {
+        supabase_error_code: employeeError.code ?? 'unknown',
+      },
+    });
+  }
+
+  if (!employee) {
+    throw new AuthFlowError({
+      status: 404,
+      code: 'employee_not_linked',
+      message: 'Không tìm thấy hồ sơ nhân sự.',
+      failureStage: 'employee_lookup',
+    });
+  }
+
+  const employeeRow = employee as EmployeeRow;
+  const workspaceRows = (workspaceAccess || []) as WorkspaceAccessRow[];
+  const authUsersById = await listAuthUsersById();
+  const authUser = employeeRow.auth_user_id ? authUsersById.get(employeeRow.auth_user_id) || null : null;
+  const status = resolveAccountStatus(employeeRow, authUser, workspaceRows);
+  const activeWorkspaceRows = workspaceRows.filter(
+    (row) => row.status === 'ACTIVE' && !row.revoked_at
+  );
+
+  return {
+    employeeId: String(employeeRow.id),
+    fullName: employeeRow.full_name || 'Chưa đặt tên',
+    title: employeeRow.title || null,
+    email: employeeRow.email || null,
+    phone: employeeRow.phone || null,
+    employmentStatus: employeeRow.status || null,
+    facility: resolveFacilityName(employeeRow, (facilities || []) as FacilityRow[]),
+    hourlyRate: canViewFinance || canEditEmployee ? employeeRow.hourly_rate ?? null : null,
+    createdAt: employeeRow.created_at || null,
+    accountConnectionStatus: status.accountConnectionStatus,
+    invitationStatus: status.invitationStatus,
+    hasStaffWorkspace: activeWorkspaceRows.some((row) => row.workspace === 'STAFF_WORKSPACE'),
+    hasAdminWorkspace: activeWorkspaceRows.some((row) => row.workspace === 'ADMIN_WORKSPACE'),
+    permissions: ((permissions || []) as PermissionRow[])
+      .filter((row) => row.status === 'ACTIVE' && !row.revoked_at && row.permission_code && row.effect)
+      .map((row) => ({
+        permissionCode: row.permission_code!,
+        effect: row.effect!,
+      })),
+    projectMemberships: ((projectMemberships || []) as ProjectMembershipRow[]).map((row) => ({
+      projectId: String(row.project_id),
+      projectName: row.projects?.name || `Dự án ${row.project_id}`,
+      memberRole: row.member_role || 'MEMBER',
+      status: row.status || 'ACTIVE',
+    })),
+    capabilities: {
+      canEditEmployee,
+      canManageAccount,
+      canViewCompensation: canViewFinance || canEditEmployee,
     },
   };
 }

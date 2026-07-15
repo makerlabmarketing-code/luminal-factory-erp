@@ -1,7 +1,10 @@
-import { ADMIN_DASHBOARD_PATH, UPDATE_PASSWORD_PATH } from './flow';
+import { ADMIN_DASHBOARD_PATH, UPDATE_PASSWORD_PATH, type AuthPasswordMode } from './flow';
 
 export const INVALID_RECOVERY_LINK_MESSAGE =
   'Link đặt lại mật khẩu đã hết hạn hoặc không hợp lệ.';
+export const INVALID_INVITE_LINK_MESSAGE =
+  'Liên kết mời đã hết hạn hoặc không hợp lệ.';
+export const UNVERIFIED_LINK_MESSAGE = 'Liên kết chưa được xác minh.';
 export const RESEND_PASSWORD_RECOVERY_PATH = '/auth/forgot-password';
 export const LOGIN_PATH = ADMIN_DASHBOARD_PATH;
 
@@ -10,6 +13,7 @@ export type RecoverySessionStatus = 'checking' | 'valid' | 'invalid';
 export interface UpdatePasswordUrlState {
   error?: string;
   errorCode?: string;
+  mode?: AuthPasswordMode;
 }
 
 export interface UpdatePasswordViewState {
@@ -34,15 +38,27 @@ export function resolveUpdatePasswordViewState(
   sessionStatus: RecoverySessionStatus
 ): UpdatePasswordViewState {
   const hasUrlError = hasInvalidRecoveryUrlState(urlState);
+  const mode = urlState.mode === 'invite' ? 'invite' : 'recovery';
 
-  if (hasUrlError || sessionStatus === 'invalid') {
+  if (hasUrlError) {
     return {
       status: 'invalid',
-      message: INVALID_RECOVERY_LINK_MESSAGE,
+      message: mode === 'invite' ? INVALID_INVITE_LINK_MESSAGE : INVALID_RECOVERY_LINK_MESSAGE,
       showForm: false,
       resendHref: RESEND_PASSWORD_RECOVERY_PATH,
       loginHref: LOGIN_PATH,
       shouldCleanUrl: hasUrlError,
+    };
+  }
+
+  if (sessionStatus === 'invalid') {
+    return {
+      status: 'invalid',
+      message: UNVERIFIED_LINK_MESSAGE,
+      showForm: false,
+      resendHref: mode === 'invite' ? LOGIN_PATH : RESEND_PASSWORD_RECOVERY_PATH,
+      loginHref: LOGIN_PATH,
+      shouldCleanUrl: false,
     };
   }
 
