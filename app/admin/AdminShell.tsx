@@ -13,6 +13,7 @@ import {
   Mail,
   MapPin,
   PiggyBank,
+  ShieldCheck,
   Users,
 } from 'lucide-react';
 import AdminLogoutButton from './AdminLogoutButton';
@@ -45,6 +46,7 @@ export default function AdminShell({
       groupTitle: 'Quản Lý Nhân Sự',
       items: [
         { name: 'Hồ Sơ Nhân Sự Sâu', path: '/admin/employees', icon: Users },
+        { name: 'Tài Khoản & Phân Quyền', path: '/admin/accounts', icon: ShieldCheck },
         { name: 'Danh Sách Cơ Sở & GPS', path: '/admin/facilities', icon: MapPin },
       ],
     },
