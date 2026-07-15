@@ -10,13 +10,13 @@ import {
   Edit2,
   KeyRound,
   Mail,
-  RefreshCcw,
   Search,
   ShieldOff,
   UserPlus,
   Users,
   X,
 } from 'lucide-react';
+import { ButtonLoadingState, useGlobalLoading } from '@/component/GlobalLoading';
 import { useNotification } from '@/component/NotificationContext';
 import type {
   AccountConnectionStatus,
@@ -120,11 +120,14 @@ async function parseActionResponse(response: Response): Promise<ApiActionRespons
 
 export default function AdminEmployeesClient({ initialData }: { initialData: AdminEmployeeListData }) {
   const { showToast, showConfirm } = useNotification();
+  const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const [formState, setFormState] = useState<EmployeeFormState | null>(null);
+  const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
+  const [savingEmployee, setSavingEmployee] = useState(false);
   const [isPending, startTransition] = useTransition();
   const itemsPerPage = 10;
   const { employees, capabilities } = initialData;
@@ -155,21 +158,32 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
   };
 
   const runAction = async (employee: EmployeeListItem, actionPath: string, successTitle: string) => {
-    const response = await fetch(`/api/admin/employees/${employee.employeeId}/${actionPath}`, {
-      method: 'POST',
-      headers: { Accept: 'application/json' },
-      credentials: 'include',
-      cache: 'no-store',
-    });
-    const result = await parseActionResponse(response);
+    const actionKey = `${employee.employeeId}:${actionPath}`;
+    if (activeActionKey) return;
 
-    if (!result.success) {
-      showToast('Không thành công', result.message || 'Không thể thực hiện thao tác.', 'error');
-      return;
+    setActiveActionKey(actionKey);
+    showGlobalLoading(actionPath.includes('invite') ? 'Đang gửi lời mời...' : 'Đang lưu thay đổi...');
+
+    try {
+      const response = await fetch(`/api/admin/employees/${employee.employeeId}/${actionPath}`, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const result = await parseActionResponse(response);
+
+      if (!result.success) {
+        showToast('Không thành công', result.message || 'Không thể thực hiện thao tác.', 'error');
+        return;
+      }
+
+      showToast(successTitle, result.message || 'Đã thực hiện thao tác.', 'success');
+      refreshPage();
+    } finally {
+      setActiveActionKey(null);
+      hideGlobalLoading();
     }
-
-    showToast(successTitle, result.message || 'Đã thực hiện thao tác.', 'success');
-    refreshPage();
   };
 
   const openCreateForm = () => {
@@ -188,31 +202,39 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
 
   const submitEmployeeForm = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!formState) return;
+    if (!formState || savingEmployee) return;
 
-    const response = await fetch(
-      formState.employeeId ? `/api/admin/employees/${formState.employeeId}` : '/api/admin/employees',
-      {
-        method: formState.employeeId ? 'PATCH' : 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        cache: 'no-store',
-        body: JSON.stringify(formState),
+    setSavingEmployee(true);
+    showGlobalLoading('Đang lưu thay đổi...');
+
+    try {
+      const response = await fetch(
+        formState.employeeId ? `/api/admin/employees/${formState.employeeId}` : '/api/admin/employees',
+        {
+          method: formState.employeeId ? 'PATCH' : 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          cache: 'no-store',
+          body: JSON.stringify(formState),
+        }
+      );
+      const result = await parseActionResponse(response);
+
+      if (!result.success) {
+        showToast('Không thành công', result.message || 'Không thể lưu hồ sơ nhân sự.', 'error');
+        return;
       }
-    );
-    const result = await parseActionResponse(response);
 
-    if (!result.success) {
-      showToast('Không thành công', result.message || 'Không thể lưu hồ sơ nhân sự.', 'error');
-      return;
+      setFormState(null);
+      showToast('Đã lưu', result.message || 'Đã lưu hồ sơ nhân sự.', 'success');
+      refreshPage();
+    } finally {
+      setSavingEmployee(false);
+      hideGlobalLoading();
     }
-
-    setFormState(null);
-    showToast('Đã lưu', result.message || 'Đã lưu hồ sơ nhân sự.', 'success');
-    refreshPage();
   };
 
   const confirmDeactivate = (employee: EmployeeListItem) => {
@@ -309,6 +331,8 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
                   currentData.map((employee) => {
                     const AccountIcon = accountActionFor(employee)?.icon || Mail;
                     const accountAction = accountActionFor(employee);
+                    const activeEmployeeAction =
+                      accountAction?.path && activeActionKey === `${employee.employeeId}:${accountAction.path}`;
 
                     return (
                       <tr key={employee.employeeId} className="hover:bg-slate-950/30">
@@ -355,7 +379,7 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
                             {capabilities.canManageAccounts && accountAction && (
                               <button
                                 type="button"
-                                disabled={!accountAction.path || accountAction.disabled || isPending}
+                                disabled={!accountAction.path || accountAction.disabled || isPending || Boolean(activeActionKey)}
                                 onClick={() => {
                                   if (!accountAction.path) {
                                     if (employee.accountConnectionStatus === 'MISSING_EMAIL') openEditForm(employee);
@@ -366,7 +390,7 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
                                 className="inline-flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 <AccountIcon className="h-3.5 w-3.5" />
-                                {accountAction.label}
+                                {activeEmployeeAction ? 'Đang xử lý...' : accountAction.label}
                               </button>
                             )}
                           </div>
@@ -424,8 +448,10 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
             </label>
             <div className="flex gap-2 border-t border-slate-800 pt-3">
               <button type="button" onClick={() => setFormState(null)} className="flex-1 rounded-lg border border-slate-800 bg-slate-950 p-3 font-bold text-slate-400 hover:bg-slate-800">Hủy</button>
-              <button type="submit" disabled={isPending} className="flex-1 rounded-lg bg-blue-600 p-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                {isPending ? <RefreshCcw className="mx-auto h-4 w-4 animate-spin" /> : 'Lưu'}
+              <button type="submit" disabled={savingEmployee || isPending} className="flex-1 rounded-lg bg-blue-600 p-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                <span className="inline-flex items-center justify-center gap-2">
+                  <ButtonLoadingState loading={savingEmployee || isPending} loadingText="Đang lưu..." idleText="Lưu" />
+                </span>
               </button>
             </div>
           </form>

@@ -29,6 +29,42 @@ const parseCurrency = (value: string) => {
   return Number(value.replace(/,/g, ''));
 };
 
+function LedgerSkeletonBlock({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse rounded-lg border border-slate-800 bg-slate-900 ${className}`} />;
+}
+
+function LedgerLoadingSkeleton() {
+  return (
+    <div className="space-y-6" aria-live="polite" aria-busy="true">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <LedgerSkeletonBlock className="h-28" />
+        <LedgerSkeletonBlock className="h-28" />
+        <LedgerSkeletonBlock className="h-28" />
+        <LedgerSkeletonBlock className="h-28" />
+      </div>
+      <LedgerSkeletonBlock className="h-40" />
+      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/40 px-5 py-3">
+          <div className="h-3 w-48 animate-pulse rounded bg-slate-800" />
+          <div className="h-8 w-64 animate-pulse rounded-xl bg-slate-800" />
+        </div>
+        <div className="space-y-3 p-5">
+          {[0, 1, 2, 3, 4].map((row) => (
+            <div key={row} className="grid grid-cols-5 gap-3">
+              <div className="h-4 animate-pulse rounded bg-slate-800" />
+              <div className="h-4 animate-pulse rounded bg-slate-800" />
+              <div className="h-4 animate-pulse rounded bg-slate-800" />
+              <div className="h-4 animate-pulse rounded bg-slate-800" />
+              <div className="h-4 animate-pulse rounded bg-slate-800" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="text-center text-xs font-bold text-slate-500">Đang tải dữ liệu...</p>
+    </div>
+  );
+}
+
 export default function AdminFinancialLedger() {
   const { showToast, showConfirm } = useNotification();
   const [ledger, setLedger] = useState<FinancialLedgerEntry[]>([]);
@@ -355,28 +391,32 @@ export default function AdminFinancialLedger() {
         </div>
       </div>
 
-      <LedgerMetrics 
-        totalGop={totalGop}
-        totalDoanhThu={totalDoanhThu}
-        totalChiPhi={totalChiPhi}
-        totalTreo={totalTreo}
-        totalRemainingBalance={totalRemainingBalance}
-        totalVonHienVat={totalVonHienVat}
-      />
+      {loading ? (
+        <LedgerLoadingSkeleton />
+      ) : loadError ? (
+        <div className="rounded-2xl border border-red-900/40 bg-red-950/20 p-8 text-center text-sm font-bold text-red-300">
+          Không tải được dữ liệu.
+        </div>
+      ) : (
+        <>
+          <LedgerMetrics 
+            totalGop={totalGop}
+            totalDoanhThu={totalDoanhThu}
+            totalChiPhi={totalChiPhi}
+            totalTreo={totalTreo}
+            totalRemainingBalance={totalRemainingBalance}
+            totalVonHienVat={totalVonHienVat}
+          />
 
-      <CapitalShareCard ledgerData={ledger} />
+          <CapitalShareCard ledgerData={ledger} />
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="px-5 py-3 border-b border-slate-800 bg-slate-950/40 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <span className="text-xs font-bold uppercase text-slate-400">Nhật Ký Hạch Toán Kỳ {selectedMonth}</span>
           <input type="text" placeholder="Tìm kiếm nội dung..." className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none w-full sm:w-64" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
 
-        {loadError ? (
-          <div className="p-8 text-center text-sm font-bold text-red-300">
-            Không tải được dữ liệu.
-          </div>
-        ) : filteredLedger.length === 0 ? (
+        {filteredLedger.length === 0 ? (
           <div className="p-8 text-center text-sm text-slate-500">
             Không có giao dịch trong kỳ đã chọn.
           </div>
@@ -402,7 +442,9 @@ export default function AdminFinancialLedger() {
             </div>
           </div>
         )}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* ================= MODAL THÊM MỚI ================= */}
       {showAddModal && (

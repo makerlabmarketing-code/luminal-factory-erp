@@ -3,7 +3,8 @@
 import { FormEvent, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { KeyRound, RefreshCcw } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
+import { ButtonLoadingState, useGlobalLoading } from '@/component/GlobalLoading';
 import { createClient } from '@/utils/supabase/client';
 import {
   ADMIN_LOGIN_STEP_MESSAGES,
@@ -20,6 +21,7 @@ interface AdminLoginFormProps {
 export default function AdminLoginForm({ message }: AdminLoginFormProps) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const { hideGlobalLoading, setGlobalLoadingMessage, showGlobalLoading } = useGlobalLoading();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(message || '');
@@ -35,6 +37,7 @@ export default function AdminLoginForm({ message }: AdminLoginFormProps) {
     setError('');
     setAuthStep(null);
     setAuthStepStatus(null);
+    showGlobalLoading('Đang đăng nhập...');
 
     const loginResult = await submitAdminLogin({
       auth: supabase.auth,
@@ -50,17 +53,24 @@ export default function AdminLoginForm({ message }: AdminLoginFormProps) {
     if (!loginResult.ok) {
       setError(loginResult.message);
       setChecking(false);
+      hideGlobalLoading();
       return;
     }
 
     try {
       setAuthStep('navigation_started');
+      setGlobalLoadingMessage(
+        loginResult.redirectPath.startsWith('/staff')
+          ? 'Đang mở khu vực nhân viên...'
+          : 'Đang mở khu vực quản trị...'
+      );
       router.replace(loginResult.redirectPath);
       router.refresh();
       navigateToAdminDashboard(loginResult.redirectPath);
     } catch {
       setError('Không thể chuyển tới bảng điều khiển. Vui lòng thử lại.');
       setChecking(false);
+      hideGlobalLoading();
     }
   };
 
@@ -105,14 +115,7 @@ export default function AdminLoginForm({ message }: AdminLoginFormProps) {
         </div>
 
         <button type="submit" disabled={checking} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 font-bold text-xs p-3 rounded-xl transition flex items-center justify-center gap-1">
-          {checking ? (
-            <>
-              <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
-              Đang đăng nhập...
-            </>
-          ) : (
-            'Đăng nhập'
-          )}
+          <ButtonLoadingState loading={checking} loadingText="Đang đăng nhập..." idleText="Đăng nhập" />
         </button>
 
         <Link href="/auth/forgot-password" className="block text-center text-xs text-slate-400 hover:text-slate-100">

@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { ArrowRight, BriefcaseBusiness, ShieldCheck } from 'lucide-react';
+import { LoadingLink, type GlobalLoadingMessage } from '@/component/GlobalLoading';
 
 const accountOptions = [
   {
@@ -8,6 +8,7 @@ const accountOptions = [
     description:
       'Truy cập dashboard quản trị, tài chính, nhân sự, cấu hình và toàn bộ dự án theo quyền.',
     href: '/admin/dashboard',
+    loadingMessage: 'Đang mở khu vực quản trị...' as GlobalLoadingMessage,
     icon: ShieldCheck,
     accent: 'text-blue-400',
     border: 'hover:border-blue-500/60',
@@ -18,6 +19,7 @@ const accountOptions = [
     description:
       'Xem công việc, dự án được giao, lịch làm, chấm công, thông báo và hồ sơ cá nhân.',
     href: '/staff',
+    loadingMessage: 'Đang mở khu vực nhân viên...' as GlobalLoadingMessage,
     icon: BriefcaseBusiness,
     accent: 'text-emerald-400',
     border: 'hover:border-emerald-500/60',
@@ -45,9 +47,10 @@ export default function GatewayPage() {
             const Icon = option.icon;
 
             return (
-              <Link
+              <LoadingLink
                 key={option.href}
                 href={option.href}
+                loadingMessage={option.loadingMessage}
                 className={`group flex min-h-56 flex-col justify-between rounded-lg border border-slate-800 bg-slate-900 p-6 transition ${option.border}`}
               >
                 <div className="space-y-4">
@@ -67,7 +70,7 @@ export default function GatewayPage() {
                   Tiếp tục
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
                 </div>
-              </Link>
+              </LoadingLink>
             );
           })}
         </section>

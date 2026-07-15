@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { LoadingLink } from '@/component/GlobalLoading';
 import {
   ArrowLeftRight,
   BriefcaseBusiness,
@@ -100,20 +101,22 @@ export default function AdminShell({
                 <ArrowLeftRight className="h-3.5 w-3.5" />
                 Chuyển khu vực
               </div>
-              <Link
+              <LoadingLink
                 href="/admin/dashboard"
+                loadingMessage="Đang mở khu vực quản trị..."
                 className="flex items-center gap-2 rounded-md px-2 py-2 text-xs font-bold text-blue-300 hover:bg-slate-900"
               >
                 <LayoutDashboard className="h-3.5 w-3.5" />
                 Chuyển sang khu vực quản trị
-              </Link>
-              <Link
+              </LoadingLink>
+              <LoadingLink
                 href="/staff"
+                loadingMessage="Đang mở khu vực nhân viên..."
                 className="flex items-center gap-2 rounded-md px-2 py-2 text-xs font-bold text-emerald-300 hover:bg-slate-900"
               >
                 <BriefcaseBusiness className="h-3.5 w-3.5" />
                 Chuyển sang khu vực nhân viên
-              </Link>
+              </LoadingLink>
             </div>
           )}
           <AdminLogoutButton />

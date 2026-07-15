@@ -50,7 +50,6 @@ interface EmployeeRow {
   status: string | null;
   is_active?: boolean | null;
   auth_user_id?: string | null;
-  branch?: string | null;
   branch_code?: string | null;
 }
 
@@ -98,7 +97,6 @@ function normalizeEmail(value?: string | null): string {
 
 function resolveFacilityName(employee: EmployeeRow, facilities: FacilityRow[]): string | null {
   const branchCode = normalizeText(employee.branch_code);
-  const branch = normalizeText(employee.branch);
 
   const matched = facilities.find((facility) => {
     const id = String(facility.id || '');
@@ -107,12 +105,11 @@ function resolveFacilityName(employee: EmployeeRow, facilities: FacilityRow[]): 
     const facilityName = normalizeText(facility.facility_name);
 
     return (
-      (branchCode && (branchCode === id || branchCode === code || branchCode === name || branchCode === facilityName)) ||
-      (branch && (branch === name || branch === facilityName || branch === code))
+      branchCode && (branchCode === id || branchCode === code || branchCode === name || branchCode === facilityName)
     );
   });
 
-  return matched?.facility_name || matched?.name || branch || branchCode || null;
+  return matched?.facility_name || matched?.name || branchCode || null;
 }
 
 function isAccessRevoked(employee: EmployeeRow, workspaceRows: WorkspaceAccessRow[]): boolean {
@@ -213,7 +210,7 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
     await Promise.all([
       supabase
         .from('employees')
-        .select('id, full_name, title, email, status, is_active, auth_user_id, branch, branch_code')
+        .select('id, full_name, title, email, status, is_active, auth_user_id, branch_code')
         .order('id', { ascending: false }),
       supabase.from('facilities').select('id, name, facility_name, code'),
       supabase

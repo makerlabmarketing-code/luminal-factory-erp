@@ -33,6 +33,30 @@ describe('employee admin list and account actions slice', () => {
     expect(serviceSource).toMatch(/permission_forbidden/);
   });
 
+  it('keeps current employee lookup on production-safe employee columns', () => {
+    const serverAuthSource = source('services/server/auth.ts');
+    const serviceSource = source('services/server/adminEmployeeData.ts');
+
+    expect(serverAuthSource).toMatch(/STAFF_EMPLOYEE_SELECT/);
+    expect(serverAuthSource).toMatch(/\.eq\('auth_user_id', user\.id\)/);
+    expect(serverAuthSource).toMatch(/\.maybeSingle\(\)/);
+    expect(serverAuthSource).not.toMatch(/STAFF_EMPLOYEE_SELECT =\n  '.*branch,/);
+    expect(serverAuthSource).not.toMatch(/STAFF_EMPLOYEE_SELECT =\n  '.*base_salary_per_hour/);
+    expect(serviceSource).not.toMatch(/select\('.*branch,/);
+  });
+
+  it('distinguishes employee lookup database errors from authorization denial', () => {
+    const serverAuthSource = source('services/server/auth.ts');
+    const lookupErrorStart = serverAuthSource.indexOf('if (employeeError)');
+    const lookupErrorEnd = serverAuthSource.indexOf('if (!employee)', lookupErrorStart);
+    const lookupErrorBlock = serverAuthSource.slice(lookupErrorStart, lookupErrorEnd);
+
+    expect(lookupErrorBlock).toMatch(/reason: 'database_error'/);
+    expect(lookupErrorBlock).toMatch(/failureStage: 'employee_lookup'/);
+    expect(lookupErrorBlock).toMatch(/supabase_error_code/);
+    expect(lookupErrorBlock).not.toMatch(/permission_forbidden|workspace_forbidden/);
+  });
+
   it('keeps Staff Workspace profile reads on the current employee only', () => {
     const staffPortalData = source('services/server/staffPortalData.ts');
     const staffProfileRoute = source('app/api/staff/profile/route.ts');

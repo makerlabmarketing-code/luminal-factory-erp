@@ -100,7 +100,7 @@ type AuthContextLookupResult =
     };
 
 export const STAFF_EMPLOYEE_SELECT =
-  'id, auth_user_id, full_name, email, title, status, role, is_manager, is_active, branch, branch_code, phone, bank_name, bank_account_number, hourly_rate, base_salary_per_hour';
+  'id, auth_user_id, full_name, email, title, status, role, is_manager, is_active, branch_code, phone, bank_name, bank_account_number, hourly_rate';
 
 export const ADMIN_EMPLOYEE_AUTH_SELECT =
   'id, auth_user_id, role, status, is_active';
@@ -266,7 +266,9 @@ export async function requireWorkspaceAccess(
   workspaceCode: WorkspaceCode,
   options: { allowLegacyAdminFallback?: boolean } = {}
 ): Promise<AuthContext> {
-  const authContext = await requireAuthenticatedEmployee();
+  const authContext = await requireAuthenticatedEmployeeWithSelect(
+    workspaceCode === 'ADMIN_WORKSPACE' ? ADMIN_EMPLOYEE_AUTH_SELECT : STAFF_EMPLOYEE_SELECT
+  );
   const workspaceResult = await lookupWorkspaceAccess(authContext, workspaceCode);
 
   if (!workspaceResult.ok) {
@@ -454,7 +456,11 @@ export async function getServerAdminAuthContext(): Promise<AuthContext | null> {
 }
 
 export async function requireAuthenticatedEmployee(): Promise<AuthContext> {
-  const result = await getServerAuthContextLookup();
+  return requireAuthenticatedEmployeeWithSelect(STAFF_EMPLOYEE_SELECT);
+}
+
+async function requireAuthenticatedEmployeeWithSelect(employeeSelect: string): Promise<AuthContext> {
+  const result = await getServerAuthContextLookup(employeeSelect);
 
   if (!result.ok) {
     if (result.reason === 'employee_not_linked') {
