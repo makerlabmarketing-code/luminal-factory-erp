@@ -41,7 +41,15 @@ export type AuthFlowErrorCode =
   | 'payload_validation_failed'
   | 'project_already_exists'
   | 'project_duplicate_check_failed'
-  | 'project_insert_failed';
+  | 'project_insert_failed'
+  | 'phase_unauthenticated'
+  | 'phase_permission_denied'
+  | 'project_not_found'
+  | 'phase_not_found'
+  | 'project_cancelled'
+  | 'phase_project_mismatch'
+  | 'phase_invalid_action'
+  | 'phase_authorization_failed';
 
 export type AuthFailureStage =
   | 'auth_get_user'

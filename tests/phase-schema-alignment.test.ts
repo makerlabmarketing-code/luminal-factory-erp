@@ -31,7 +31,7 @@ describe('phase schema alignment', () => {
     expect(repository).toMatch(/phaseName: params\.phaseName/);
     expect(repository).toMatch(/orderIndex: params\.orderIndex/);
     expect(phaseMutations).toMatch(/const CREATE_PHASE_KEYS = new Set\(\['phaseName', 'orderIndex'\]\)/);
-    expect(phaseMutations).toMatch(/assertKnownFields\(body\)/);
+    expect(phaseMutations).toMatch(/assertKnownFields\(body, CREATE_PHASE_KEYS\)/);
     expect(phaseMutations).toMatch(/status:\s*422/);
   });
 
@@ -43,9 +43,10 @@ describe('phase schema alignment', () => {
     expect(route).toMatch(/createPhase/);
     expect(listRoute).toMatch(/listPhases/);
     expect(phaseMutations).toMatch(/import 'server-only'/);
-    expect(phaseMutations).toMatch(/requireWorkspaceAccess\('ADMIN_WORKSPACE'\)/);
-    expect(phaseMutations).toMatch(/hasPermission\(authContext, 'PROJECT_MANAGE'\)/);
-    expect(phaseMutations).toMatch(/hasPermission\(authContext, 'PROJECT_VIEW'\)/);
+    expect(phaseMutations).toMatch(/requirePhaseMutationAccess/);
+    expect(phaseMutations).toMatch(/PHASE_CREATE/);
+    expect(phaseMutations).toMatch(/PHASE_REORDER/);
+    expect(phaseMutations).toMatch(/PHASE_VIEW/);
     expect(phaseMutations).toMatch(/createSupabaseAdminClient/);
   });
 

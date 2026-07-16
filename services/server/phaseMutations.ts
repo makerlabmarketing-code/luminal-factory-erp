@@ -1,11 +1,9 @@
 import 'server-only';
 
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
-import {
-  AuthFlowError,
-  hasPermission,
-  requireWorkspaceAccess,
-} from '@/services/server/auth';
+import { AuthFlowError } from '@/services/server/auth';
+import { PhaseAction } from '@/services/server/phaseAuthorizationCore';
+import { requirePhaseMutationAccess } from '@/services/server/phaseAuthorization';
 
 type PhaseMutationBody = Record<string, unknown>;
 
@@ -32,61 +30,32 @@ const LIST_PHASE_KEYS = new Set(['projectIds']);
 function phaseMutationError({
   status,
   message,
-  failureStage,
   safeDetails,
 }: {
   status: number;
   message: string;
-  failureStage: 'workspace_access' | 'permission_check' | 'unknown';
   safeDetails?: Record<string, boolean | number | string | null>;
 }) {
   return new AuthFlowError({
     status,
     code:
-      status === 403
-        ? 'permission_forbidden'
-        : 'admin_verification_failed',
+      status === 422
+        ? 'phase_invalid_action'
+        : status === 403
+          ? 'phase_permission_denied'
+          : 'phase_authorization_failed',
     message,
-    failureStage,
+    failureStage: status === 403 ? 'permission_check' : 'unknown',
     safeDetails,
   });
 }
 
-function assertKnownFields(body: PhaseMutationBody) {
-  const unknownKeys = Object.keys(body).filter((key) => !CREATE_PHASE_KEYS.has(key));
+function assertKnownFields(body: PhaseMutationBody, allowedKeys: Set<string>) {
+  const unknownKeys = Object.keys(body).filter((key) => !allowedKeys.has(key));
   if (unknownKeys.length > 0) {
     throw phaseMutationError({
       status: 422,
       message: 'Dữ liệu giai đoạn có trường không được hỗ trợ.',
-      failureStage: 'unknown',
-      safeDetails: {
-        rejected_field_count: unknownKeys.length,
-      },
-    });
-  }
-}
-
-function assertKnownUpdateFields(body: PhaseMutationBody) {
-  const unknownKeys = Object.keys(body).filter((key) => !UPDATE_PHASE_KEYS.has(key));
-  if (unknownKeys.length > 0) {
-    throw phaseMutationError({
-      status: 422,
-      message: 'Dữ liệu giai đoạn có trường không được hỗ trợ.',
-      failureStage: 'unknown',
-      safeDetails: {
-        rejected_field_count: unknownKeys.length,
-      },
-    });
-  }
-}
-
-function assertKnownListFields(body: PhaseMutationBody) {
-  const unknownKeys = Object.keys(body).filter((key) => !LIST_PHASE_KEYS.has(key));
-  if (unknownKeys.length > 0) {
-    throw phaseMutationError({
-      status: 422,
-      message: 'Dữ liệu truy vấn giai đoạn có trường không được hỗ trợ.',
-      failureStage: 'unknown',
       safeDetails: {
         rejected_field_count: unknownKeys.length,
       },
@@ -100,7 +69,6 @@ function numericProjectId(rawProjectId: string): number {
     throw phaseMutationError({
       status: 422,
       message: 'Mã dự án không hợp lệ.',
-      failureStage: 'unknown',
     });
   }
 
@@ -113,7 +81,6 @@ function numericPhaseId(rawPhaseId: string): number {
     throw phaseMutationError({
       status: 422,
       message: 'Mã giai đoạn không hợp lệ.',
-      failureStage: 'unknown',
     });
   }
 
@@ -125,7 +92,6 @@ function requiredPhaseName(body: PhaseMutationBody): string {
     throw phaseMutationError({
       status: 422,
       message: 'Vui lòng nhập tên giai đoạn.',
-      failureStage: 'unknown',
       safeDetails: {
         field: 'phaseName',
       },
@@ -137,7 +103,6 @@ function requiredPhaseName(body: PhaseMutationBody): string {
     throw phaseMutationError({
       status: 422,
       message: 'Vui lòng nhập tên giai đoạn.',
-      failureStage: 'unknown',
       safeDetails: {
         field: 'phaseName',
       },
@@ -153,7 +118,6 @@ function requiredOrderIndex(body: PhaseMutationBody): number {
     throw phaseMutationError({
       status: 422,
       message: 'Thứ tự giai đoạn không hợp lệ.',
-      failureStage: 'unknown',
       safeDetails: {
         field: 'orderIndex',
       },
@@ -163,75 +127,25 @@ function requiredOrderIndex(body: PhaseMutationBody): number {
   return orderIndex;
 }
 
-async function requirePhaseManageAccess() {
-  const authContext = await requireWorkspaceAccess('ADMIN_WORKSPACE');
-  const canManageProjects = await hasPermission(authContext, 'PROJECT_MANAGE');
+function phaseUpdateAction(body: PhaseMutationBody): PhaseAction {
+  if (body.orderIndex !== undefined) return 'PHASE_REORDER';
+  if (body.phaseName !== undefined) return 'PHASE_EDIT';
 
-  if (!canManageProjects) {
-    throw phaseMutationError({
-      status: 403,
-      message: 'Bạn không có quyền quản lý giai đoạn.',
-      failureStage: 'permission_check',
-      safeDetails: {
-        permission: 'PROJECT_MANAGE',
-      },
-    });
-  }
-}
-
-async function requirePhaseReadAccess() {
-  const authContext = await requireWorkspaceAccess('ADMIN_WORKSPACE');
-  const canViewProjects = await hasPermission(authContext, 'PROJECT_VIEW');
-
-  if (!canViewProjects) {
-    throw phaseMutationError({
-      status: 403,
-      message: 'Bạn không có quyền xem giai đoạn.',
-      failureStage: 'permission_check',
-      safeDetails: {
-        permission: 'PROJECT_VIEW',
-      },
-    });
-  }
+  return 'PHASE_EDIT';
 }
 
 export async function createPhase(
   rawProjectId: string,
   body: PhaseMutationBody
 ): Promise<PhaseMutationResult> {
-  assertKnownFields(body);
-  await requirePhaseManageAccess();
+  assertKnownFields(body, CREATE_PHASE_KEYS);
 
   const projectId = numericProjectId(rawProjectId);
   const phaseName = requiredPhaseName(body);
   const orderIndex = requiredOrderIndex(body);
+  await requirePhaseMutationAccess({ projectId, action: 'PHASE_CREATE' });
+
   const supabase = createSupabaseAdminClient();
-
-  const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .maybeSingle();
-
-  if (projectError) {
-    throw phaseMutationError({
-      status: 500,
-      message: 'Không thể kiểm tra dự án.',
-      failureStage: 'unknown',
-      safeDetails: {
-        supabase_error_code: projectError.code ?? 'unknown',
-      },
-    });
-  }
-
-  if (!project) {
-    throw phaseMutationError({
-      status: 404,
-      message: 'Không tìm thấy dự án.',
-      failureStage: 'unknown',
-    });
-  }
-
   const { data, error } = await supabase
     .from('phases')
     .insert([{ project_id: projectId, name: phaseName, order_index: orderIndex }])
@@ -242,7 +156,6 @@ export async function createPhase(
     throw phaseMutationError({
       status: 500,
       message: 'Không thể lưu giai đoạn.',
-      failureStage: 'unknown',
       safeDetails: {
         supabase_error_code: error?.code ?? 'unknown',
       },
@@ -260,11 +173,13 @@ export async function updatePhase(
   rawPhaseId: string,
   body: PhaseMutationBody
 ): Promise<PhaseMutationResult> {
-  assertKnownUpdateFields(body);
-  await requirePhaseManageAccess();
+  assertKnownFields(body, UPDATE_PHASE_KEYS);
 
   const projectId = numericProjectId(rawProjectId);
   const phaseId = numericPhaseId(rawPhaseId);
+  const action = phaseUpdateAction(body);
+  await requirePhaseMutationAccess({ projectId, phaseId, action });
+
   const payload: Record<string, string | number> = {};
 
   if (body.phaseName !== undefined) {
@@ -283,32 +198,6 @@ export async function updatePhase(
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data: phase, error: phaseError } = await supabase
-    .from('phases')
-    .select('id, project_id')
-    .eq('id', phaseId)
-    .eq('project_id', projectId)
-    .maybeSingle();
-
-  if (phaseError) {
-    throw phaseMutationError({
-      status: 500,
-      message: 'Không thể kiểm tra giai đoạn.',
-      failureStage: 'unknown',
-      safeDetails: {
-        supabase_error_code: phaseError.code ?? 'unknown',
-      },
-    });
-  }
-
-  if (!phase) {
-    throw phaseMutationError({
-      status: 404,
-      message: 'Không tìm thấy giai đoạn.',
-      failureStage: 'unknown',
-    });
-  }
-
   const { error } = await supabase
     .from('phases')
     .update(payload)
@@ -319,7 +208,6 @@ export async function updatePhase(
     throw phaseMutationError({
       status: 500,
       message: 'Không thể lưu giai đoạn.',
-      failureStage: 'unknown',
       safeDetails: {
         supabase_error_code: error.code ?? 'unknown',
       },
@@ -333,14 +221,12 @@ export async function updatePhase(
 }
 
 export async function listPhases(body: PhaseMutationBody): Promise<PhaseListResult> {
-  assertKnownListFields(body);
-  await requirePhaseReadAccess();
+  assertKnownFields(body, LIST_PHASE_KEYS);
 
   if (!Array.isArray(body.projectIds)) {
     throw phaseMutationError({
       status: 422,
       message: 'Danh sách dự án không hợp lệ.',
-      failureStage: 'unknown',
       safeDetails: {
         field: 'projectIds',
       },
@@ -358,6 +244,12 @@ export async function listPhases(body: PhaseMutationBody): Promise<PhaseListResu
     };
   }
 
+  await Promise.all(
+    projectIds.map((projectId) =>
+      requirePhaseMutationAccess({ projectId, action: 'PHASE_VIEW' })
+    )
+  );
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from('phases')
@@ -369,7 +261,6 @@ export async function listPhases(body: PhaseMutationBody): Promise<PhaseListResu
     throw phaseMutationError({
       status: 500,
       message: 'Không thể tải giai đoạn.',
-      failureStage: 'unknown',
       safeDetails: {
         supabase_error_code: error.code ?? 'unknown',
       },
