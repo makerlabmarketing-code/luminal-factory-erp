@@ -90,7 +90,7 @@ export function normalizeTaskRow(row: GenericRow): WorkflowTask | null {
 }
 
 async function tryUpdateById(
-  table: 'projects' | 'phases' | 'tasks',
+  table: 'phases' | 'tasks',
   id: number,
   payloads: GenericRow[]
 ): Promise<void> {
@@ -103,6 +103,38 @@ async function tryUpdateById(
   }
 
   throw lastError || new Error(`Khong cap nhat duoc bang ${table}.`);
+}
+
+async function requestProjectMutation<TResponse>(
+  path: string,
+  init: RequestInit
+): Promise<TResponse> {
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+    },
+  });
+  const payload = (await response.json().catch(() => null)) as TResponse | {
+    message?: string;
+  } | null;
+
+  if (!response.ok) {
+    const message =
+      payload &&
+      typeof payload === 'object' &&
+      'message' in payload &&
+      typeof payload.message === 'string'
+        ? payload.message
+        : null;
+
+    throw new Error(
+      message || 'Khong the cap nhat du an.'
+    );
+  }
+
+  return payload as TResponse;
 }
 
 export class WorkflowRepository {
@@ -151,36 +183,19 @@ export class WorkflowRepository {
     projectName: string;
     projectDeadline: string;
   }): Promise<number> {
-    const payloads: GenericRow[] = [
+    const result = await requestProjectMutation<{ projectId: number }>(
+      '/api/admin/projects',
       {
-        name: params.projectName.trim(),
-        project_deadline: params.projectDeadline,
-        drive_link: '',
-      },
-      {
-        project_name: params.projectName.trim(),
-        deadline: params.projectDeadline,
-        project_drive_link: '',
-      },
-      {
-        title: params.projectName.trim(),
-        due_date: params.projectDeadline,
-        google_drive_link: '',
-      },
-    ];
-
-    let lastError: Error | null = null;
-
-    for (const payload of payloads) {
-      const { data, error } = await supabase.from('projects').insert([payload]).select('*').single();
-      if (!error && data) {
-        const project = normalizeProjectRow(data as GenericRow);
-        if (project) return project.id;
+        method: 'POST',
+        body: JSON.stringify({
+          projectName: params.projectName.trim(),
+          targetDate: params.projectDeadline,
+          status: 'PROCESSING',
+        }),
       }
-      if (error) lastError = error;
-    }
+    );
 
-    throw lastError || new Error('Khong tao duoc du an.');
+    return result.projectId;
   }
 
   async insertPhase(params: {
@@ -267,11 +282,10 @@ export class WorkflowRepository {
   }
 
   async updateProjectDriveLink(projectId: number, driveLink: string): Promise<void> {
-    await tryUpdateById('projects', projectId, [
-      { drive_link: driveLink },
-      { project_drive_link: driveLink },
-      { google_drive_link: driveLink },
-    ]);
+    await requestProjectMutation(`/api/admin/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ driveLink }),
+    });
   }
 
   async updateTaskField(params: {
@@ -312,8 +326,9 @@ export class WorkflowRepository {
   }
 
   async deleteProject(projectId: number): Promise<void> {
-    const { error } = await supabase.from('projects').delete().eq('id', projectId);
-    if (error) throw error;
+    await requestProjectMutation(`/api/admin/projects/${projectId}/archive`, {
+      method: 'POST',
+    });
   }
 }
 
