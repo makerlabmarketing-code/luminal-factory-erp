@@ -7,6 +7,15 @@ import type {
 } from '@/lib/types/workflow';
 import { workflowRepository } from '@/services/repositories/workflowRepository';
 
+export interface WorkflowProjectCreateResult {
+  success: true;
+  projectCreated: boolean;
+  projectId: number;
+  phasesCreated: number;
+  tasksCreated: number;
+  warnings: string[];
+}
+
 function toWorkflowSetting(project: WorkflowProject, phase: WorkflowPhase): WorkflowSetting {
   const orderIndex = phase.order_index ?? 0;
 
@@ -34,7 +43,7 @@ function toWorkflowSetting(project: WorkflowProject, phase: WorkflowPhase): Work
         id: task.id,
         name: task.name || '',
         assignee: task.assignee_name || task.assignee || '',
-        assignee_id: task.assignee_id ?? null,
+        assignee_id: null,
         assignee_name: task.assignee_name || task.assignee || '',
         deadline: task.deadline || '',
         note: task.note || '',
@@ -64,8 +73,8 @@ function attachTasksToPhases(
 function toLegacyWorkflowSetting(
   task: Awaited<ReturnType<typeof workflowRepository.listLegacyTasks>>[number]
 ): WorkflowSetting {
-  const projectName = task.project_name || 'Dự án legacy';
-  const phaseName = task.current_phase || task.status || 'Legacy';
+  const projectName = task.projectName || task.project_name || 'Dự án legacy';
+  const phaseName = task.currentPhaseText || task.current_phase || task.status || 'Legacy';
 
   return {
     id: `legacy-task-${task.id}`,
@@ -76,19 +85,26 @@ function toLegacyWorkflowSetting(
     param_type: task.deadline || '',
     description: JSON.stringify({
       project_drive_link: '',
-      project_deadline: task.deadline || '',
+      project_deadline: task.estimationDate || task.deadline || '',
       stage_name: phaseName,
       stage_type: 'LEGACY_TASK',
       stage_owner: task.assignee_name || task.assignee || '',
-      stage_deadline: task.deadline || '',
+      stage_deadline: task.estimationDate || task.deadline || '',
       tasks_list: [{
         id: task.id,
-        name: task.name || projectName,
+        name: task.projectName || task.name || projectName,
+        projectName: task.projectName || projectName,
         assignee: task.assignee_name || task.assignee || '',
         assignee_id: null,
         assignee_name: task.assignee_name || task.assignee || '',
-        deadline: task.deadline || '',
-        note: task.note || '',
+        assignedToText: task.assignedToText || null,
+        packerAssignedText: task.packerAssignedText || null,
+        currentPhaseText: task.currentPhaseText || null,
+        estimationDate: task.estimationDate || null,
+        issueNote: task.issueNote || null,
+        createdAt: task.createdAt || null,
+        deadline: task.estimationDate || task.deadline || '',
+        note: task.issueNote || task.note || '',
         status: task.status || 'TODO',
       }],
     }),
@@ -98,74 +114,75 @@ function toLegacyWorkflowSetting(
 export async function getWorkflowItems(): Promise<WorkflowSetting[]> {
   const projects = await workflowRepository.listProjects();
   const projectIds = projects.map((project) => project.id);
-  const phases = await workflowRepository.listPhasesByProjectIds(projectIds);
+  const [phases, legacyTasks] = await Promise.all([
+    workflowRepository.listPhasesByProjectIds(projectIds),
+    workflowRepository.listLegacyTasks(),
+  ]);
 
   if (phases.length === 0) {
-    const legacyTasks = await workflowRepository.listLegacyTasks();
     return legacyTasks.map(toLegacyWorkflowSetting);
   }
 
-  const phaseIds = phases.map((phase) => phase.id);
-  const tasks = await workflowRepository.listTasksByPhaseIds(phaseIds);
-
-  const tasksByPhaseId = tasks.reduce<Record<number, typeof tasks>>((groups, task) => {
-    if (typeof task.phase_id !== 'number') {
-      return groups;
-    }
-
-    if (!groups[task.phase_id]) groups[task.phase_id] = [];
-    groups[task.phase_id].push(task);
-    return groups;
-  }, {});
-
   const enrichedPhases = phases.map((phase) => ({
     ...phase,
-    tasks: tasksByPhaseId[phase.id] || [],
+    tasks: [],
   }));
 
   const sortedPhases = attachTasksToPhases(projects, enrichedPhases);
   const projectMap = new Map(projects.map((project) => [project.id, project]));
 
-  return sortedPhases
+  const phaseSettings = sortedPhases
     .map((phase) => {
       const project = projectMap.get(phase.project_id);
       if (!project) return null;
       return toWorkflowSetting(project, phase);
     })
     .filter((item): item is WorkflowSetting => item !== null);
+
+  return [
+    ...phaseSettings,
+    ...legacyTasks.map(toLegacyWorkflowSetting),
+  ];
 }
 
 export async function createWorkflowProject(
   params: WorkflowProjectInsertInput
-): Promise<void> {
+): Promise<WorkflowProjectCreateResult> {
   const projectId = await workflowRepository.insertProject({
     projectName: params.projectName,
     projectDeadline: params.projectDeadline,
   });
 
+  let phasesCreated = 0;
+  const warnings: string[] = [];
+
   for (let index = 0; index < params.phases.length; index += 1) {
     const phase: WorkflowPhaseFormInput = params.phases[index];
-    const phaseId = await workflowRepository.insertPhase({
-      projectId,
-      phaseName: phase.name?.trim() || `Giai doan ${index + 1}`,
-      orderIndex: index,
-    });
+    try {
+      await workflowRepository.insertPhase({
+        projectId,
+        phaseName: phase.name?.trim() || `Giai doan ${index + 1}`,
+        orderIndex: index,
+      });
+      phasesCreated += 1;
+    } catch {
+      warnings.push('Không thể tạo giai đoạn.');
+      break;
+    }
 
-    const tasksToInsert = (phase.tasks || [])
-      .filter((task) => task.name?.trim())
-      .map((task) => ({
-        phase_id: phaseId,
-        name: task.name?.trim() || '',
-        assignee_id: task.assignee_id ?? null,
-        assignee_name: task.assignee_name || task.assignee || '',
-        assignee: task.assignee_name || task.assignee || '',
-        deadline: task.deadline || null,
-        note: task.note?.trim() || '',
-        status: task.status || 'TODO',
-      }));
-
-    await workflowRepository.insertTasks(tasksToInsert);
+    if ((phase.tasks || []).some((task) => task.name?.trim())) {
+      warnings.push('Không thể tạo công việc.');
+    }
   }
+
+  return {
+    success: true,
+    projectCreated: true,
+    projectId,
+    phasesCreated,
+    tasksCreated: 0,
+    warnings: Array.from(new Set(warnings)),
+  };
 }
 
 export async function updateWorkflowPhaseStatus(phaseId: number, status: string): Promise<void> {

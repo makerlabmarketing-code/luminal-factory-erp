@@ -361,7 +361,7 @@ export default function AdminProjectManagement() {
         })),
       }));
 
-      await createWorkflowProject({
+      const result = await createWorkflowProject({
         projectName: projectName.trim(),
         projectDeadline: targetDate,
         phases: stages,
@@ -374,7 +374,11 @@ export default function AdminProjectManagement() {
       setTargetDate('');
       setStageOwner('');
       await loadData();
-      showToast('Created', 'Project colorway pipeline is ready to track.', 'success');
+      if (result.warnings.length > 0) {
+        showToast('Cần bổ sung', 'Dự án đã được tạo nhưng chưa thể khởi tạo đầy đủ giai đoạn/công việc mẫu.', 'info');
+      } else {
+        showToast('Created', 'Project colorway pipeline is ready to track.', 'success');
+      }
     } catch (error) {
       showToast('Lỗi lưu trữ', projectCreateErrorMessage(error), 'error');
     } finally {

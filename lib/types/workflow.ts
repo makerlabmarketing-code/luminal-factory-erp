@@ -4,9 +4,16 @@ export interface WorkflowTask {
   id?: number;
   phase_id?: number | null;
   name?: string;
+  projectName?: string | null;
   assignee?: string;
   assignee_id?: number | string | null;
   assignee_name?: string;
+  assignedToText?: string | null;
+  packerAssignedText?: string | null;
+  currentPhaseText?: string | null;
+  estimationDate?: string | null;
+  issueNote?: string | null;
+  createdAt?: string | null;
   status?: WorkflowTaskStatus;
   deadline?: string;
   note?: string;

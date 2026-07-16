@@ -33,18 +33,38 @@ describe('task load schema alignment', () => {
 
     expect(repository).toMatch(/const assignedToText = pickFirstText\(row, \['assigned_to'\]\)/);
     expect(repository).toMatch(/const packerAssignedText = pickFirstText\(row, \['packer_assigned'\]\)/);
+    expect(repository).toMatch(/const currentPhaseText = pickFirstText\(row, \['current_phase'\]\)/);
+    expect(repository).toMatch(/const estimationDate = pickFirstText\(row, \['estimation_date'\]\) \|\| null/);
+    expect(repository).toMatch(/const issueNote = pickFirstText\(row, \['issue_note'\]\) \|\| null/);
+    expect(repository).toMatch(/const createdAt = pickFirstText\(row, \['created_at'\]\) \|\| null/);
+    expect(repository).toMatch(/const projectName = pickFirstText\(row, \['project_name'\]\) \|\| null/);
     expect(repository).toMatch(/const assigneeName = assignedToText \|\| packerAssignedText/);
     expect(repository).toMatch(/phase_id: null/);
     expect(repository).toMatch(/assignee_id: null/);
+    expect(repository).toMatch(/projectName,/);
+    expect(repository).toMatch(/estimationDate,/);
+    expect(repository).toMatch(/issueNote,/);
+    expect(repository).toMatch(/createdAt,/);
   });
 
   it('keeps orphan and partially empty task rows mappable', () => {
     const repository = source('services/repositories/workflowRepository.ts');
 
     expect(repository).toMatch(/if \(id === null\) return null/);
-    expect(repository).toMatch(/project_name: pickFirstText\(row as GenericRow, \['project_name'\]\)/);
-    expect(repository).toMatch(/status: pickFirstText\(row, \['current_phase', 'status', 'task_status', 'value'\]\) \|\| 'TODO'/);
-    expect(repository).toMatch(/name: pickFirstText\(row, \['task_name', 'name', 'project_name'\]\) \|\| `Task \$\{id\}`/);
+    expect(repository).toMatch(/project_name: task\.projectName \|\| ''/);
+    expect(repository).toMatch(/const currentPhaseText = pickFirstText\(row, \['current_phase'\]\)/);
+    expect(repository).toMatch(/status: currentPhaseText \|\| 'TODO'/);
+    expect(repository).toMatch(/name: projectName \|\| `Task \$\{id\}`/);
+  });
+
+  it('does not read legacy tasks through a fake phase relation', () => {
+    const repository = source('services/repositories/workflowRepository.ts');
+    const workflowService = source('services/workflowService.ts');
+
+    expect(repository).toMatch(/async listTasksByPhaseIds\(phaseIds: number\[\]\): Promise<WorkflowTask\[\]> \{\s*void phaseIds;\s*return \[\];\s*\}/);
+    expect(repository).not.toMatch(/\.from\('tasks'\)[\s\S]{0,400}\.in\('phase_id'/);
+    expect(workflowService).not.toMatch(/listTasksByPhaseIds/);
+    expect(workflowService).not.toMatch(/tasksByPhaseId/);
   });
 
   it('does not turn task load failures into an empty list or expose raw database text', () => {

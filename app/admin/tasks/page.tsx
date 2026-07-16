@@ -127,7 +127,7 @@ export default function AdminTaskWorkflowDashboard() {
 
     setIsCreatingProject(true);
     try {
-      await createWorkflowProject({
+      const result = await createWorkflowProject({
         projectName: newProjectName,
         projectDeadline,
         phases: formPhases.map((phase) => {
@@ -156,7 +156,11 @@ export default function AdminTaskWorkflowDashboard() {
 
       setShowAddModal(false);
       await loadData();
-      showToast('Thành công', 'Đã khởi tạo dự án gọn gàng!', 'success');
+      if (result.warnings.length > 0) {
+        showToast('Cần bổ sung', 'Dự án đã được tạo nhưng chưa thể khởi tạo đầy đủ giai đoạn/công việc mẫu.', 'info');
+      } else {
+        showToast('Thành công', 'Đã khởi tạo dự án gọn gàng!', 'success');
+      }
     } catch (error) {
       showToast('Lỗi Lưu Trữ', projectCreateErrorMessage(error), 'error');
     } finally {

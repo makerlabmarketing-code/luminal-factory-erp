@@ -97,22 +97,34 @@ export function normalizePhaseRow(row: GenericRow): WorkflowPhase | null {
 
 export function normalizeTaskRow(row: GenericRow): WorkflowTask | null {
   const id = pickFirstNumber(row, ['id']);
-  const phaseId = pickFirstNumber(row, ['phase_id']);
-  if (id === null || phaseId === null) return null;
+  if (id === null) return null;
 
-  const assigneeId = pickFirstNumber(row, ['assignee_id']);
-  const assigneeName = pickFirstText(row, ['assignee_name', 'employee_name', 'assignee', 'assigned_to']);
+  const assignedToText = pickFirstText(row, ['assigned_to']);
+  const packerAssignedText = pickFirstText(row, ['packer_assigned']);
+  const currentPhaseText = pickFirstText(row, ['current_phase']);
+  const estimationDate = pickFirstText(row, ['estimation_date']) || null;
+  const issueNote = pickFirstText(row, ['issue_note']) || null;
+  const createdAt = pickFirstText(row, ['created_at']) || null;
+  const projectName = pickFirstText(row, ['project_name']) || null;
+  const assigneeName = assignedToText || packerAssignedText;
 
   return {
     id,
-    phase_id: phaseId,
-    name: pickFirstText(row, ['name', 'task_name', 'title']),
-    assignee_id: assigneeId,
+    phase_id: null,
+    name: projectName || '',
+    projectName,
+    assignee_id: null,
     assignee_name: assigneeName,
-    assignee: assigneeName || (assigneeId !== null ? String(assigneeId) : ''),
-    deadline: pickFirstText(row, ['deadline', 'due_date']),
-    note: pickFirstText(row, ['note', 'description', 'remarks']),
-    status: pickFirstText(row, ['status', 'task_status', 'value']) || 'TODO',
+    assignee: assigneeName,
+    assignedToText,
+    packerAssignedText,
+    currentPhaseText,
+    estimationDate,
+    issueNote,
+    createdAt,
+    deadline: estimationDate || '',
+    note: issueNote || '',
+    status: currentPhaseText || 'TODO',
   };
 }
 
@@ -122,18 +134,30 @@ export function normalizeLegacyTaskRow(row: GenericRow): WorkflowTask | null {
 
   const assignedToText = pickFirstText(row, ['assigned_to']);
   const packerAssignedText = pickFirstText(row, ['packer_assigned']);
+  const currentPhaseText = pickFirstText(row, ['current_phase']);
+  const estimationDate = pickFirstText(row, ['estimation_date']) || null;
+  const issueNote = pickFirstText(row, ['issue_note']) || null;
+  const createdAt = pickFirstText(row, ['created_at']) || null;
+  const projectName = pickFirstText(row, ['project_name']) || null;
   const assigneeName = assignedToText || packerAssignedText;
 
   return {
     id,
     phase_id: null,
-    name: pickFirstText(row, ['task_name', 'name', 'project_name']) || `Task ${id}`,
+    name: projectName || `Task ${id}`,
+    projectName,
     assignee_id: null,
     assignee_name: assigneeName,
     assignee: assigneeName,
-    deadline: pickFirstText(row, ['estimation_date', 'deadline', 'due_date']),
-    note: pickFirstText(row, ['issue_note', 'note', 'description', 'remarks']),
-    status: pickFirstText(row, ['current_phase', 'status', 'task_status', 'value']) || 'TODO',
+    assignedToText,
+    packerAssignedText,
+    currentPhaseText,
+    estimationDate,
+    issueNote,
+    createdAt,
+    deadline: estimationDate || '',
+    note: issueNote || '',
+    status: currentPhaseText || 'TODO',
   };
 }
 
@@ -223,19 +247,8 @@ export class WorkflowRepository {
   }
 
   async listTasksByPhaseIds(phaseIds: number[]): Promise<WorkflowTask[]> {
-    if (phaseIds.length === 0) return [];
-
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .in('phase_id', phaseIds)
-      .order('id', { ascending: true });
-
-    if (error) throw error;
-
-    return (data || [])
-      .map((row) => normalizeTaskRow(row as GenericRow))
-      .filter((row): row is WorkflowTask => row !== null);
+    void phaseIds;
+    return [];
   }
 
   async listLegacyTasks(): Promise<LegacyWorkflowTask[]> {
@@ -254,8 +267,8 @@ export class WorkflowRepository {
 
       tasks.push({
         ...task,
-        project_name: pickFirstText(row as GenericRow, ['project_name']),
-        current_phase: pickFirstText(row as GenericRow, ['current_phase']),
+        project_name: task.projectName || '',
+        current_phase: task.currentPhaseText || '',
       });
     }
 
@@ -303,21 +316,21 @@ export class WorkflowRepository {
   async insertTasks(tasks: GenericRow[]): Promise<void> {
     if (tasks.length === 0) return;
 
-    const { error } = await supabase.from('tasks').insert(tasks);
-    if (!error) return;
+    const legacyTasks = tasks
+      .map((task) => ({
+        project_name: pickFirstText(task, ['project_name']),
+        assigned_to: pickFirstText(task, ['assigned_to', 'assignee_name', 'assignee']),
+        current_phase: pickFirstText(task, ['current_phase', 'status']) || 'IN_PROG',
+        estimation_date: pickFirstText(task, ['estimation_date', 'deadline']) || null,
+        issue_note: pickFirstText(task, ['issue_note', 'note']) || null,
+        packer_assigned: pickFirstText(task, ['packer_assigned']) || null,
+      }))
+      .filter((task) => task.project_name && task.assigned_to);
 
-    const fallbackTasks = tasks.map((task) => ({
-      phase_id: task.phase_id,
-      task_name: task.name,
-      assignee_id: task.assignee_id,
-      assignee_name: task.assignee_name,
-      due_date: task.deadline,
-      description: task.note,
-      task_status: task.status,
-    }));
+    if (legacyTasks.length === 0) return;
 
-    const { error: fallbackError } = await supabase.from('tasks').insert(fallbackTasks);
-    if (fallbackError) throw fallbackError;
+    const { error } = await supabase.from('tasks').insert(legacyTasks);
+    if (error) throw error;
   }
 
   async updatePhaseStatus(phaseId: number, status: string): Promise<void> {
@@ -339,15 +352,18 @@ export class WorkflowRepository {
     value: string | number | null;
   }): Promise<void> {
     const payloadsByField: Record<string, GenericRow[]> = {
-      assignee: [{ assignee: params.value }, { assignee_name: params.value }],
-      assignee_id: [{ assignee_id: params.value }],
-      assignee_name: [{ assignee_name: params.value }, { assignee: params.value }, { employee_name: params.value }],
-      deadline: [{ deadline: params.value }, { due_date: params.value }],
-      note: [{ note: params.value }, { description: params.value }, { remarks: params.value }],
-      status: [{ status: params.value }, { task_status: params.value }, { value: params.value }],
+      assignee: [{ assigned_to: params.value || '' }],
+      assignee_id: [],
+      assignee_name: [{ assigned_to: params.value || '' }],
+      deadline: [{ estimation_date: params.value || null }],
+      note: [{ issue_note: params.value || null }],
+      status: [{ current_phase: params.value || 'IN_PROG' }],
     };
 
-    await tryUpdateById('tasks', params.taskId, payloadsByField[params.field] || [{ [params.field]: params.value }]);
+    const payloads = payloadsByField[params.field] || [{ [params.field]: params.value }];
+    if (payloads.length === 0) return;
+
+    await tryUpdateById('tasks', params.taskId, payloads);
   }
 
   async updateTask(params: {
@@ -358,14 +374,9 @@ export class WorkflowRepository {
   }): Promise<void> {
     await tryUpdateById('tasks', params.taskId, [
       {
-        status: params.status,
-        deadline: params.deadline || null,
-        note: params.note,
-      },
-      {
-        task_status: params.status,
-        due_date: params.deadline || null,
-        description: params.note,
+        current_phase: params.status || 'IN_PROG',
+        estimation_date: params.deadline || null,
+        issue_note: params.note,
       },
     ]);
   }
