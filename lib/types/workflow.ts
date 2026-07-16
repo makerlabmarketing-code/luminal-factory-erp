@@ -5,10 +5,16 @@ export interface WorkflowTask {
   phase_id?: number | null;
   name?: string;
   projectName?: string | null;
+  assignedEmployee?: {
+    fullName?: string | null;
+  } | null;
   assignee?: string;
   assignee_id?: number | string | null;
   assignee_name?: string;
   assignedToText?: string | null;
+  packerEmployee?: {
+    fullName?: string | null;
+  } | null;
   packerAssignedText?: string | null;
   currentPhaseText?: string | null;
   estimationDate?: string | null;
