@@ -149,16 +149,6 @@ export async function createWorkflowProject(
       projectId,
       phaseName: phase.name?.trim() || `Giai doan ${index + 1}`,
       orderIndex: index,
-      status: index === 0 ? 'DOING' : 'TODO',
-      colorwayName: phase.colorway_name?.trim(),
-      colorwayCode: phase.colorway_code?.trim(),
-      stageType: phase.stage_type?.trim(),
-      stageOwner: phase.stage_owner?.trim(),
-      plannedStartDate: phase.planned_start_date,
-      plannedEndDate: phase.planned_end_date,
-      progress: phase.progress,
-      nextAction: phase.next_action?.trim(),
-      requiredReview: phase.required_review,
     });
 
     const tasksToInsert = (phase.tasks || [])

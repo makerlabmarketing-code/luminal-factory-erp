@@ -137,8 +137,8 @@ export default function AdminTaskWorkflowDashboard() {
       setShowAddModal(false);
       await loadData();
       showToast('Thành công', 'Đã khởi tạo dự án gọn gàng!', 'success');
-    } catch (err: any) {
-      showToast('Lỗi Lưu Trữ', err.message, 'error');
+    } catch {
+      showToast('Lỗi Lưu Trữ', 'Không thể lưu giai đoạn.', 'error');
     }
   };
 
@@ -154,7 +154,7 @@ export default function AdminTaskWorkflowDashboard() {
       
       const tList = await getWorkflowItems();
       setTasks(tList);
-    } catch (e: any) { showToast('Lỗi', e.message, 'error'); }
+    } catch { showToast('Lỗi', 'Không thể lưu giai đoạn.', 'error'); }
   };
 
   const handleSaveDriveLinkToDB = async () => {

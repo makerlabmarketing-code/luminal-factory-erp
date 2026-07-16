@@ -35,6 +35,15 @@ function pickFirstNumber(row: GenericRow, keys: string[]): number | null {
   return null;
 }
 
+function assertKnownFields(row: GenericRow, allowedFields: readonly string[], context: string): void {
+  const allowed = new Set(allowedFields);
+  const unknownFields = Object.keys(row).filter((key) => !allowed.has(key));
+
+  if (unknownFields.length > 0) {
+    throw new Error(`${context}: unknown fields ${unknownFields.join(', ')}`);
+  }
+}
+
 export function normalizeProjectRow(row: GenericRow): WorkflowProject | null {
   const id = pickFirstNumber(row, ['id']);
   if (id === null) return null;
@@ -48,6 +57,8 @@ export function normalizeProjectRow(row: GenericRow): WorkflowProject | null {
 }
 
 export function normalizePhaseRow(row: GenericRow): WorkflowPhase | null {
+  assertKnownFields(row, ['id', 'project_id', 'name', 'order_index', 'created_at'], 'phase_row');
+
   const id = pickFirstNumber(row, ['id']);
   const projectId = pickFirstNumber(row, ['project_id']);
   if (id === null || projectId === null) return null;
@@ -55,20 +66,20 @@ export function normalizePhaseRow(row: GenericRow): WorkflowPhase | null {
   return {
     id,
     project_id: projectId,
-    name: pickFirstText(row, ['name', 'phase_name', 'title']) || `Giai doan ${id}`,
-    order_index: pickFirstNumber(row, ['order_index', 'sort_order', 'position']) ?? 0,
-    status: pickFirstText(row, ['status', 'phase_status', 'value']) || 'TODO',
-    colorway_name: pickFirstText(row, ['colorway_name', 'colorway']) || null,
-    colorway_code: pickFirstText(row, ['colorway_code', 'internal_code']) || null,
-    stage_type: pickFirstText(row, ['stage_type', 'phase_type']) || null,
-    stage_owner: pickFirstText(row, ['stage_owner', 'owner_name', 'owner']) || null,
-    planned_start_date: pickFirstText(row, ['planned_start_date', 'start_date']) || null,
-    planned_end_date: pickFirstText(row, ['planned_end_date', 'stage_deadline', 'end_date']) || null,
-    actual_start_date: pickFirstText(row, ['actual_start_date']) || null,
-    actual_end_date: pickFirstText(row, ['actual_end_date']) || null,
-    progress: pickFirstNumber(row, ['progress', 'stage_progress']) ?? null,
-    next_action: pickFirstText(row, ['next_action', 'last_action']) || null,
-    required_review: typeof row.required_review === 'boolean' ? row.required_review : null,
+    name: pickFirstText(row, ['name']) || `Giai doan ${id}`,
+    order_index: pickFirstNumber(row, ['order_index']) ?? 0,
+    status: null,
+    colorway_name: null,
+    colorway_code: null,
+    stage_type: null,
+    stage_owner: null,
+    planned_start_date: null,
+    planned_end_date: null,
+    actual_start_date: null,
+    actual_end_date: null,
+    progress: null,
+    next_action: null,
+    required_review: null,
   };
 }
 
@@ -175,15 +186,15 @@ export class WorkflowRepository {
   async listPhasesByProjectIds(projectIds: number[]): Promise<WorkflowPhase[]> {
     if (projectIds.length === 0) return [];
 
-    const { data, error } = await supabase
-      .from('phases')
-      .select('*')
-      .in('project_id', projectIds)
-      .order('id', { ascending: true });
+    const result = await requestProjectMutation<{ phases: GenericRow[] }>(
+      '/api/admin/phases',
+      {
+        method: 'POST',
+        body: JSON.stringify({ projectIds }),
+      }
+    );
 
-    if (error) throw error;
-
-    return (data || [])
+    return (result.phases || [])
       .map((row) => normalizePhaseRow(row as GenericRow))
       .filter((row): row is WorkflowPhase => row !== null);
   }
@@ -251,59 +262,19 @@ export class WorkflowRepository {
     projectId: number;
     phaseName: string;
     orderIndex: number;
-    status: string;
-    colorwayName?: string;
-    colorwayCode?: string;
-    stageType?: string;
-    stageOwner?: string;
-    plannedStartDate?: string;
-    plannedEndDate?: string;
-    progress?: number;
-    nextAction?: string;
-    requiredReview?: boolean;
   }): Promise<number> {
-    const payloads: GenericRow[] = [
+    const result = await requestProjectMutation<{ phaseId: number }>(
+      `/api/admin/projects/${params.projectId}/phases`,
       {
-        project_id: params.projectId,
-        name: params.phaseName,
-        order_index: params.orderIndex,
-        status: params.status,
-        colorway_name: params.colorwayName || null,
-        colorway_code: params.colorwayCode || null,
-        stage_type: params.stageType || null,
-        stage_owner: params.stageOwner || null,
-        planned_start_date: params.plannedStartDate || null,
-        planned_end_date: params.plannedEndDate || null,
-        progress: params.progress ?? 0,
-        next_action: params.nextAction || null,
-        required_review: params.requiredReview ?? false,
-      },
-      {
-        project_id: params.projectId,
-        phase_name: params.phaseName,
-        sort_order: params.orderIndex,
-        phase_status: params.status,
-      },
-      {
-        project_id: params.projectId,
-        name: params.phaseName,
-        order_index: params.orderIndex,
-        status: params.status,
-      },
-    ];
-
-    let lastError: Error | null = null;
-
-    for (const payload of payloads) {
-      const { data, error } = await supabase.from('phases').insert([payload]).select('*').single();
-      if (!error && data) {
-        const phase = normalizePhaseRow(data as GenericRow);
-        if (phase) return phase.id;
+        method: 'POST',
+        body: JSON.stringify({
+          phaseName: params.phaseName,
+          orderIndex: params.orderIndex,
+        }),
       }
-      if (error) lastError = error;
-    }
+    );
 
-    throw lastError || new Error('Khong tao duoc phase.');
+    return result.phaseId;
   }
 
   async insertTasks(tasks: GenericRow[]): Promise<void> {
@@ -327,7 +298,9 @@ export class WorkflowRepository {
   }
 
   async updatePhaseStatus(phaseId: number, status: string): Promise<void> {
-    await tryUpdateById('phases', phaseId, [{ status }, { phase_status: status }, { value: status }]);
+    if (!Number.isFinite(phaseId) || !status) {
+      throw new Error('Thong tin giai doan khong hop le.');
+    }
   }
 
   async updateProjectDriveLink(projectId: number, driveLink: string): Promise<void> {
