@@ -22,6 +22,10 @@ export interface WorkflowTask {
 export interface WorkflowDescription {
   project_drive_link?: string;
   project_deadline?: string;
+  project_created_at?: string | null;
+  project_status?: string | null;
+  phase_created_at?: string | null;
+  phase_order_index?: number | null;
   colorway_name?: string;
   colorway_code?: string;
   target_release_date?: string;
@@ -54,6 +58,8 @@ export interface EditableWorkflowTask {
 export interface WorkflowProject {
   id: number;
   name: string;
+  status?: string | null;
+  created_at?: string | null;
   project_deadline?: string | null;
   drive_link?: string | null;
   phases?: WorkflowPhase[];
@@ -64,6 +70,7 @@ export interface WorkflowPhase {
   project_id: number;
   name: string;
   order_index?: number | null;
+  created_at?: string | null;
   status?: string | null;
   colorway_name?: string | null;
   colorway_code?: string | null;
@@ -87,6 +94,7 @@ export interface WorkflowProjectInsertInput {
   projectName: string;
   projectDeadline: string;
   phases: WorkflowPhaseFormInput[];
+  createTemplateTasks?: boolean;
 }
 
 export interface WorkflowPhaseFormInput {

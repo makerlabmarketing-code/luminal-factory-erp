@@ -13,14 +13,12 @@ import {
   RefreshCcw,
   Search,
   ShieldAlert,
-  Trash2,
+  Archive,
   User,
   X,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
-import type { Employee } from '@/lib/types/employee';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
-import { getActiveEmployees } from '@/services/employeeService';
 import {
   createWorkflowProject,
   deleteWorkflowProject,
@@ -285,7 +283,6 @@ function initialDeadline(baseDate: string, index: number, total: number) {
 export default function AdminProjectManagement() {
   const { showToast, showConfirm } = useNotification();
   const [items, setItems] = useState<WorkflowSetting[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<string>('');
@@ -296,13 +293,13 @@ export default function AdminProjectManagement() {
   const [targetDate, setTargetDate] = useState('');
   const [stageOwner, setStageOwner] = useState('');
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [creationStage, setCreationStage] = useState('');
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [workflowItems, activeEmployees] = await Promise.all([getWorkflowItems(), getActiveEmployees()]);
+      const workflowItems = await getWorkflowItems();
       setItems(workflowItems);
-      setEmployees(activeEmployees);
     } catch (error: any) {
       showToast('Load failed', error.message || 'Cannot load project workflow.', 'error');
     } finally {
@@ -342,6 +339,7 @@ export default function AdminProjectManagement() {
     if (!targetDate) return showToast('Missing data', 'Please choose target release date.', 'error');
 
     setIsCreatingProject(true);
+    setCreationStage('Đang tạo dự án...');
     try {
       const stages = PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage, index, allStages) => ({
         name: stage.name,
@@ -361,12 +359,14 @@ export default function AdminProjectManagement() {
         })),
       }));
 
+      setCreationStage('Đang tạo các giai đoạn...');
       const result = await createWorkflowProject({
         projectName: projectName.trim(),
         projectDeadline: targetDate,
         phases: stages,
       });
 
+      setCreationStage('Đang hoàn tất...');
       setShowAddModal(false);
       setProjectName('');
       setColorwayName('');
@@ -375,26 +375,27 @@ export default function AdminProjectManagement() {
       setStageOwner('');
       await loadData();
       if (result.warnings.length > 0) {
-        showToast('Cần bổ sung', 'Dự án đã được tạo nhưng chưa thể khởi tạo đầy đủ giai đoạn/công việc mẫu.', 'info');
+        showToast('Dự án đã được tạo.', 'Một số công việc mẫu chưa thể khởi tạo.', 'info');
       } else {
-        showToast('Created', 'Project colorway pipeline is ready to track.', 'success');
+        showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success');
       }
     } catch (error) {
-      showToast('Lỗi lưu trữ', projectCreateErrorMessage(error), 'error');
+      showToast('Không thể tạo dự án.', projectCreateErrorMessage(error), 'error');
     } finally {
       setIsCreatingProject(false);
+      setCreationStage('');
     }
   };
 
   const handleDeleteProject = (project: ProjectRecord) => {
     if (!project.id) return;
-    showConfirm('Delete project', `Delete all workflow data for ${project.name}?`, async () => {
+    showConfirm('Lưu trữ dự án', `Dự án ${project.name} sẽ được chuyển vào mục lưu trữ.`, async () => {
       try {
         await deleteWorkflowProject(project.id as number);
         await loadData();
-        showToast('Deleted', 'Project workflow removed.', 'info');
+        showToast('Đã lưu trữ dự án.', 'Dự án không bị xóa khỏi dữ liệu.', 'info');
       } catch (error: any) {
-        showToast('Delete failed', error.message || 'Cannot delete project.', 'error');
+        showToast('Không thể lưu trữ dự án.', error.message || 'Vui lòng thử lại sau.', 'error');
       }
     });
   };
@@ -489,7 +490,7 @@ export default function AdminProjectManagement() {
                       <td className="p-4 text-slate-300 max-w-xs truncate">{project.nextAction}</td>
                       <td className="p-4 text-center" onClick={(event) => event.stopPropagation()}>
                         <button onClick={() => handleDeleteProject(project)} className="text-slate-500 hover:text-red-300">
-                          <Trash2 className="w-4 h-4" />
+                          <Archive className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>
@@ -585,7 +586,7 @@ export default function AdminProjectManagement() {
                 <h3 className="text-sm font-black text-slate-100">Create colorway pipeline</h3>
                 <p className="text-[11px] text-slate-400">Uses Standard Artisan Keycap Pipeline.</p>
               </div>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white">
+              <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -609,12 +610,12 @@ export default function AdminProjectManagement() {
               </label>
               <label className="space-y-1 md:col-span-2">
                 <span className="text-[11px] text-slate-400 font-bold">Default stage owner</span>
-                <select value={stageOwner} onChange={(event) => setStageOwner(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100">
-                  <option value="">Assign later</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.full_name}>{employee.full_name}</option>
-                  ))}
-                </select>
+                <input
+                  value={stageOwner}
+                  onChange={(event) => setStageOwner(event.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100"
+                  placeholder="Nhập tên người phụ trách nếu cần"
+                />
               </label>
             </div>
 
@@ -628,9 +629,23 @@ export default function AdminProjectManagement() {
             </div>
 
             <div className="flex gap-2 border-t border-slate-800 pt-3">
-              <button onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg p-2 text-xs font-bold">Cancel</button>
+              <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg p-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40">Cancel</button>
               <button disabled={isCreatingProject} onClick={handleCreateProject} className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg p-2 text-xs font-black">{isCreatingProject ? 'Đang lưu...' : 'Create Pipeline'}</button>
             </div>
+          </div>
+        </div>
+      )}
+      {isCreatingProject && (
+        <div
+          className="fixed inset-0 z-[99998] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          aria-busy="true"
+          aria-modal="true"
+          role="dialog"
+        >
+          <div className="w-full max-w-sm rounded-xl border border-slate-700 bg-slate-900 p-5 text-center shadow-2xl">
+            <RefreshCcw className="mx-auto h-6 w-6 animate-spin text-cyan-300" />
+            <h3 className="mt-3 text-sm font-black text-slate-100">Đang khởi tạo dự án</h3>
+            <p className="mt-1 text-xs text-slate-400">{creationStage || 'Đang hoàn tất...'}</p>
           </div>
         </div>
       )}

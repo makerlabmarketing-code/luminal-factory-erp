@@ -2,25 +2,18 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useNotification } from '@/component/NotificationContext';
-import type { Employee } from '@/lib/types/employee';
 import type {
   WorkflowDescription,
   WorkflowSetting,
   WorkflowTask,
 } from '@/lib/types/workflow';
-import { ClipboardList, Plus, Trash2, Search, ChevronLeft, ChevronRight, X, Layers, Eye, Calendar, Save, ExternalLink, Activity, CheckSquare, RefreshCcw } from 'lucide-react';
-import {
-  findEmployeeByIdentifier,
-  findEmployeeByName,
-  getActiveEmployees,
-} from '@/services/employeeService';
+import { ClipboardList, Plus, Trash2, Search, ChevronLeft, ChevronRight, X, Layers, Eye, Calendar, Save, ExternalLink, Activity, CheckSquare, RefreshCcw, Archive, Pencil } from 'lucide-react';
 import {
   createWorkflowProject,
   deleteWorkflowProject,
   getWorkflowItems,
-  updateWorkflowPhaseStatus,
+  updateWorkflowPhase,
   updateWorkflowProjectDriveLink,
-  updateWorkflowTaskField,
 } from '@/services/workflowService';
 
 interface WorkflowFormTask extends WorkflowTask {
@@ -49,10 +42,28 @@ function projectCreateErrorMessage(error: unknown): string {
   return 'Không thể tạo dự án.';
 }
 
+function parseWorkflowDescription(raw?: string | null): WorkflowDescription {
+  try {
+    return JSON.parse(raw || '{}') as WorkflowDescription;
+  } catch {
+    return {};
+  }
+}
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return 'Chưa có dữ liệu';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString('vi-VN', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
+
 export default function AdminTaskWorkflowDashboard() {
   const { showToast, showConfirm } = useNotification();
   const [tasks, setTasks] = useState<WorkflowSetting[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,20 +75,21 @@ export default function AdminTaskWorkflowDashboard() {
   const [projectDeadline, setProjectDeadline] = useState('');
   const [formPhases, setFormPhases] = useState<WorkflowFormPhase[]>([]);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [creationStage, setCreationStage] = useState('');
 
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [activeProjectName, setActiveProjectName] = useState('');
   const [activeProjectPhases, setActiveProjectPhases] = useState<WorkflowSetting[]>([]);
   const [driveLinkInput, setDriveLinkInput] = useState(''); 
+  const [editingPhaseId, setEditingPhaseId] = useState<number | null>(null);
+  const [editingPhaseName, setEditingPhaseName] = useState('');
+  const [editingPhaseOrder, setEditingPhaseOrder] = useState('');
 
   const loadData = async () => {
     setLoading(true);
     try {
       const tList = await getWorkflowItems();
       setTasks(tList || []);
-
-      const emps = await getActiveEmployees();
-      setEmployees(emps || []);
     } catch {
       showToast('Lỗi tải dữ liệu', 'Không thể tải dữ liệu công việc.', 'error');
     }
@@ -126,26 +138,21 @@ export default function AdminTaskWorkflowDashboard() {
     if (!projectDeadline) return showToast('Thiếu thời hạn', 'Vui lòng chọn ngày hạn dự án!', 'error');
 
     setIsCreatingProject(true);
+    setCreationStage('Đang tạo dự án...');
     try {
+      setCreationStage('Đang tạo các giai đoạn...');
       const result = await createWorkflowProject({
         projectName: newProjectName,
         projectDeadline,
         phases: formPhases.map((phase) => {
           const validTasks = phase.tasks
             .filter((task) => task.name?.trim() !== '')
-            .map((task) => {
-              const matchedEmployee = findEmployeeByIdentifier(employees, task.assignee_id);
-
-              return {
-                name: task.name?.trim(),
-                assignee_id: matchedEmployee?.id || null,
-                assignee_name: matchedEmployee?.full_name || '',
-                assignee: matchedEmployee?.full_name || '',
-                deadline: task.deadline,
-                note: task.note?.trim() || '',
-                status: task.status || 'TODO',
-              };
-            });
+            .map((task) => ({
+              name: task.name?.trim(),
+              deadline: task.deadline,
+              note: task.note?.trim() || '',
+              status: task.status || 'TODO',
+            }));
 
           return {
             name: phase.name,
@@ -154,33 +161,64 @@ export default function AdminTaskWorkflowDashboard() {
         }),
       });
 
+      setCreationStage('Đang hoàn tất...');
       setShowAddModal(false);
       await loadData();
       if (result.warnings.length > 0) {
-        showToast('Cần bổ sung', 'Dự án đã được tạo nhưng chưa thể khởi tạo đầy đủ giai đoạn/công việc mẫu.', 'info');
+        showToast(
+          'Dự án đã được tạo.',
+          'Một số công việc mẫu chưa thể khởi tạo.',
+          'info',
+          {
+            actionLabel: 'Xem chi tiết',
+            onAction: () => {
+              setActiveProjectName(result.project.name);
+              setShowDetailModal(true);
+            },
+          }
+        );
       } else {
-        showToast('Thành công', 'Đã khởi tạo dự án gọn gàng!', 'success');
+        showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success');
       }
     } catch (error) {
-      showToast('Lỗi Lưu Trữ', projectCreateErrorMessage(error), 'error');
+      showToast('Không thể tạo dự án.', projectCreateErrorMessage(error), 'error');
     } finally {
       setIsCreatingProject(false);
+      setCreationStage('');
     }
   };
 
-  const handleUpdatePhaseStatus = async (taskKey: string, newStatus: string) => {
-    try {
-      const targetPhase = activeProjectPhases.find(p => p.key === taskKey);
-      if (!targetPhase?.phase_id) throw new Error('Khong tim thay phase can cap nhat.');
+  const handleStartEditPhase = (phase: WorkflowSetting) => {
+    const description = parseWorkflowDescription(phase.description);
+    const phaseName = description.stage_name || phase.config_name?.split(' - ')[1] || '';
+    setEditingPhaseId(typeof phase.phase_id === 'number' ? phase.phase_id : null);
+    setEditingPhaseName(phaseName);
+    setEditingPhaseOrder(String(description.phase_order_index ?? ''));
+  };
 
-      await updateWorkflowPhaseStatus(targetPhase.phase_id, newStatus);
-      
-      setActiveProjectPhases(prev => prev.map(p => p.key === taskKey ? { ...p, value: newStatus } : p));
-      showToast('Đã cập nhật', 'Trạng thái giai đoạn thay đổi thành công!', 'success');
-      
+  const handleSavePhaseEdit = async (phase: WorkflowSetting) => {
+    try {
+      if (!phase.project_id || !phase.phase_id) throw new Error('Không tìm thấy giai đoạn cần lưu.');
+      const orderIndex = Number(editingPhaseOrder);
+
+      await updateWorkflowPhase({
+        projectId: phase.project_id,
+        phaseId: phase.phase_id,
+        phaseName: editingPhaseName,
+        orderIndex: Number.isInteger(orderIndex) && orderIndex >= 0 ? orderIndex : undefined,
+      });
+
+      setEditingPhaseId(null);
+      showToast('Đã lưu giai đoạn.', 'Tên hoặc thứ tự giai đoạn đã được cập nhật.', 'success');
       const tList = await getWorkflowItems();
       setTasks(tList);
-    } catch { showToast('Lỗi', 'Không thể lưu giai đoạn.', 'error'); }
+      if (activeProjectName) {
+        const refreshed = tList.filter((item) => item.config_name?.split(' - ')[0] === activeProjectName);
+        setActiveProjectPhases(refreshed);
+      }
+    } catch {
+      showToast('Không thể lưu giai đoạn.', 'Vui lòng thử lại sau.', 'error');
+    }
   };
 
   const handleSaveDriveLinkToDB = async () => {
@@ -197,71 +235,21 @@ export default function AdminTaskWorkflowDashboard() {
       showToast('Thành công', 'Đã lưu link Google Drive tổng!', 'success');
       loadData();
       setShowDetailModal(false);
-    } catch (e: any) { showToast('Lỗi', e.message, 'error'); }
-  };
-
-  const handleUpdateNestedTaskInline = async (
-    phaseKey: string,
-    rawDescription: string | null | undefined,
-    taskIdx: number,
-    field: 'assignee_id' | 'deadline' | 'note' | 'status',
-    value: string
-  ) => {
-    try {
-      let currentJSON: WorkflowDescription = { project_drive_link: '', project_deadline: '', tasks_list: [] };
-      try { currentJSON = JSON.parse(rawDescription || '{}') as WorkflowDescription; } catch {}
-      const taskId = currentJSON.tasks_list?.[taskIdx]?.id;
-      if (!taskId) throw new Error('Khong tim thay dau viec can cap nhat.');
-
-      const currentTask = currentJSON.tasks_list?.[taskIdx];
-      if (!currentTask) throw new Error('Khong tim thay dau viec can cap nhat.');
-
-      if (field === 'assignee_id') {
-        const matchedEmployee = findEmployeeByIdentifier(employees, value);
-        currentTask.assignee_id = matchedEmployee?.id || null;
-        currentTask.assignee_name = matchedEmployee?.full_name || '';
-        currentTask.assignee = matchedEmployee?.full_name || '';
-
-        await updateWorkflowTaskField({
-          taskId,
-          field: 'assignee_id',
-          value: currentTask.assignee_id || null,
-        });
-        await updateWorkflowTaskField({
-          taskId,
-          field: 'assignee_name',
-          value: currentTask.assignee_name || '',
-        });
-      } else {
-        currentTask[field] = value;
-        await updateWorkflowTaskField({
-          taskId,
-          field,
-          value,
-        });
-      }
-
-      const updatedDescription = JSON.stringify(currentJSON);
-      
-      setActiveProjectPhases(prev => prev.map(p => p.key === phaseKey ? { ...p, description: updatedDescription } : p));
-      
-      const updatedList = await getWorkflowItems();
-      setTasks(updatedList);
-    } catch (e: any) { showToast('Lỗi', e.message, 'error'); }
+    } catch { showToast('Không thể cập nhật dự án.', 'Vui lòng thử lại sau.', 'error'); }
   };
 
   const handleDeleteProjectGroup = (configNamePrefix?: string | null) => {
     if (!configNamePrefix) return;
     const shortName = configNamePrefix.split(' - ')[0]; 
-    showConfirm('Xóa dự án', `Sếp có chắc chắn xóa toàn bộ dự án [${shortName}]?`, async () => {
+    showConfirm('Lưu trữ dự án', `Dự án [${shortName}] sẽ được chuyển vào mục lưu trữ.`, async () => {
       try {
         const targetProjectId = tasks.find(t => t.config_name?.split(' - ')[0] === shortName)?.project_id;
-        if (!targetProjectId) throw new Error('Khong tim thay du an can xoa.');
+        if (!targetProjectId) throw new Error('Không tìm thấy dự án cần lưu trữ.');
 
         await deleteWorkflowProject(targetProjectId);
-        showToast('Đã xóa', 'Dự án đã được dọn sạch.', 'info');
+        showToast('Đã lưu trữ dự án.', 'Dự án không bị xóa khỏi dữ liệu.', 'info');
         loadData();
-      } catch (e: any) { showToast('Lỗi', e.message, 'error'); }
+      } catch { showToast('Không thể lưu trữ dự án.', 'Vui lòng thử lại sau.', 'error'); }
     });
   };
 
@@ -393,7 +381,7 @@ export default function AdminTaskWorkflowDashboard() {
                       </button>
                     </td>
                     <td className="p-4 text-center">
-                      <button onClick={() => handleDeleteProjectGroup(projectPhases[0]?.config_name || '')} className="text-slate-600 hover:text-red-400 transition cursor-pointer"><Trash2 className="w-3.5 h-3.5"/></button>
+                      <button aria-label="Lưu trữ dự án" onClick={() => handleDeleteProjectGroup(projectPhases[0]?.config_name || '')} className="text-slate-600 hover:text-amber-400 transition cursor-pointer"><Archive className="w-3.5 h-3.5"/></button>
                     </td>
                   </tr>
                 );
@@ -412,7 +400,22 @@ export default function AdminTaskWorkflowDashboard() {
         </div>
       </div>
 
-      {/* POPUP CHI TIẾT CÁC PHASE & TASK BÊN TRONG */}
+      {isCreatingProject && (
+        <div
+          className="fixed inset-0 z-[99998] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          aria-busy="true"
+          aria-modal="true"
+          role="dialog"
+        >
+          <div className="w-full max-w-sm rounded-xl border border-slate-700 bg-slate-900 p-5 text-center shadow-2xl">
+            <RefreshCcw className="mx-auto h-6 w-6 animate-spin text-purple-300" />
+            <h3 className="mt-3 text-sm font-black text-slate-100">Đang khởi tạo dự án</h3>
+            <p className="mt-1 text-xs text-slate-400">{creationStage || 'Đang hoàn tất...'}</p>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP CHI TIẾT DỮ LIỆU THẬT CỦA DỰ ÁN */}
       {showDetailModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl space-y-4 my-auto relative shadow-2xl">
@@ -421,6 +424,25 @@ export default function AdminTaskWorkflowDashboard() {
                 <h3 className="font-black text-sm text-slate-100 uppercase">Dự án: {activeProjectName}</h3>
               </div>
               <button onClick={() => setShowDetailModal(false)} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-[11px]">
+              <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
+                <p className="text-slate-500 font-bold">Mã dự án</p>
+                <p className="text-slate-200 font-mono">{activeProjectPhases[0]?.project_id || 'Chưa có dữ liệu'}</p>
+              </div>
+              <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
+                <p className="text-slate-500 font-bold">Ngày tạo</p>
+                <p className="text-slate-200">{formatDateTime(parseWorkflowDescription(activeProjectPhases[0]?.description).project_created_at)}</p>
+              </div>
+              <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
+                <p className="text-slate-500 font-bold">Trạng thái DB</p>
+                <p className="text-slate-200">{parseWorkflowDescription(activeProjectPhases[0]?.description).project_status || 'Chưa có dữ liệu'}</p>
+              </div>
+              <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
+                <p className="text-slate-500 font-bold">Số giai đoạn</p>
+                <p className="text-slate-200 font-mono">{activeProjectPhases.length}</p>
+              </div>
             </div>
 
             <div className="bg-slate-950 border border-slate-850 p-3 rounded-xl space-y-2">
@@ -433,56 +455,53 @@ export default function AdminTaskWorkflowDashboard() {
 
             <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
               {activeProjectPhases.map((phase, pIdx) => {
-                let currentJSON: WorkflowDescription = { tasks_list: [] };
-                try { currentJSON = JSON.parse(phase.description || '{}') as WorkflowDescription; } catch {}
+                const currentJSON = parseWorkflowDescription(phase.description);
+                const isEditing = editingPhaseId === phase.phase_id;
+                const phaseName = currentJSON.stage_name || phase.config_name?.split(' - ')[1] || `Giai đoạn ${pIdx + 1}`;
 
                 return (
                   <div key={phase.key} className="bg-slate-950 p-3 border border-slate-850 rounded-xl space-y-2.5">
-                    <div className="flex justify-between items-center border-b border-slate-850 pb-1.5">
-                      <span className="font-bold text-xs text-purple-400">Giai đoạn {pIdx + 1}: {phase.config_name?.split(' - ')[1]}</span>
-                      <select 
-                        className={`text-[10px] font-black rounded-md p-1 focus:outline-none cursor-pointer ${
-                          phase.value === 'DONE' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-blue-950 text-blue-400 border border-blue-800'
-                        }`}
-                        value={phase.value || 'TODO'}
-                        onChange={(e) => handleUpdatePhaseStatus(phase.key, e.target.value)}
-                      >
-                        <option value="TODO">⚪ CHỜ SẮP XẾP</option>
-                        <option value="DOING">⚡ ĐANG CHẠY</option>
-                        <option value="DONE">✓ HOÀN THÀNH</option>
-                      </select>
+                    <div className="flex flex-col gap-3 border-b border-slate-850 pb-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <span className="font-bold text-xs text-purple-400">Giai đoạn {pIdx + 1}: {phaseName}</span>
+                        <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-slate-500">
+                          <span>Mã: {phase.phase_id}</span>
+                          <span>Thứ tự: {currentJSON.phase_order_index ?? pIdx}</span>
+                          <span>Ngày tạo: {formatDateTime(currentJSON.phase_created_at)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded border border-slate-700 px-2 py-1 text-[10px] text-slate-400">Trạng thái: Chưa hỗ trợ lưu</span>
+                        <button type="button" onClick={() => handleStartEditPhase(phase)} className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-[10px] font-bold text-slate-300 hover:text-white">
+                          <Pencil className="h-3 w-3" /> Sửa
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      {currentJSON.tasks_list?.map((task: WorkflowTask, tIdx: number) => (
-                        <div key={tIdx} className="bg-slate-900 border border-slate-850 p-3 rounded-xl grid grid-cols-1 md:grid-cols-4 gap-3 items-center text-[11px]">
-                          <div className="md:col-span-2 space-y-1">
-                            <p className="font-bold text-slate-200">⚙️ {task.name}</p>
-                            <input type="text" className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1 text-[10px] text-slate-300 focus:outline-none" placeholder="Ghi chú công việc..." value={task.note || ''} onChange={(e) => handleUpdateNestedTaskInline(phase.key, phase.description, tIdx, 'note', e.target.value)} />
-                          </div>
-                          <div className="space-y-1">
-                            <select
-                              className="w-full bg-slate-950 border border-slate-800 rounded p-1 text-slate-300 cursor-pointer"
-                              value={task.assignee_id || findEmployeeByName(employees, task.assignee_name || task.assignee)?.id || ''}
-                              onChange={(e) => handleUpdateNestedTaskInline(phase.key, phase.description, tIdx, 'assignee_id', e.target.value)}
-                            >
-                              <option value="">Gán thợ...</option>
-                              {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.full_name}</option>)}
-                            </select>
-                            <input type="datetime-local" className="w-full bg-slate-950 border border-slate-800 rounded p-1 text-amber-400 text-[10px] cursor-pointer" value={task.deadline || ''} onChange={(e) => handleUpdateNestedTaskInline(phase.key, phase.description, tIdx, 'deadline', e.target.value)} />
-                          </div>
-                          <select 
-                            className="w-full bg-slate-950 border border-slate-850 p-1.5 rounded font-bold text-center text-[10px] cursor-pointer" 
-                            value={task.status || 'TODO'} 
-                            onChange={(e) => handleUpdateNestedTaskInline(phase.key, phase.description, tIdx, 'status', e.target.value)}
-                          >
-                            <option value="TODO">⏳ CHỜ LÀM</option>
-                            <option value="DOING">⚡ ĐANG LÀM</option>
-                            <option value="DONE">✓ ĐÃ XONG</option>
-                          </select>
+                    {isEditing && (
+                      <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-800 bg-slate-900 p-3 sm:grid-cols-[1fr_120px_auto]">
+                        <input
+                          className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none"
+                          value={editingPhaseName}
+                          onChange={(event) => setEditingPhaseName(event.target.value)}
+                          placeholder="Tên giai đoạn"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none"
+                          value={editingPhaseOrder}
+                          onChange={(event) => setEditingPhaseOrder(event.target.value)}
+                          placeholder="Thứ tự"
+                        />
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => handleSavePhaseEdit(phase)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Lưu</button>
+                          <button type="button" onClick={() => setEditingPhaseId(null)} className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
+
+                    <p className="text-[11px] text-slate-500">Công việc mẫu: Chưa hỗ trợ khởi tạo trong schema hiện tại.</p>
                   </div>
                 );
               })}
@@ -497,7 +516,7 @@ export default function AdminTaskWorkflowDashboard() {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-3xl space-y-4 my-auto relative shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-2">
               <span className="font-bold text-purple-400 uppercase text-xs flex items-center gap-1"><Plus className="w-4 h-4"/>Tạo lệnh sản xuất mới</span>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
+              <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-950 p-3 rounded-xl border border-slate-850">
@@ -525,7 +544,6 @@ export default function AdminTaskWorkflowDashboard() {
                     {p.tasks?.map((t: WorkflowFormTask, tIdx: number) => (
                       <div key={tIdx} className="flex flex-col sm:flex-row gap-2 p-2 bg-slate-950 rounded-lg border border-slate-850 items-center">
                         <input type="text" className="flex-1 bg-slate-900 border border-slate-800 p-1.5 rounded text-slate-200 focus:outline-none text-xs" placeholder="Tên công việc con..." value={t.name} onChange={(e) => { const n = [...formPhases]; n[pIdx].tasks[tIdx].name = e.target.value; setFormPhases(n); }} />
-                        <select className="bg-slate-900 border border-slate-800 p-1.5 rounded text-slate-400 focus:outline-none text-xs cursor-pointer" value={t.assignee_id || ''} onChange={(e) => { const n = [...formPhases]; n[pIdx].tasks[tIdx].assignee_id = e.target.value; setFormPhases(n); }}><option value="">Gán thợ...</option>{employees.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select>
                         <input type="datetime-local" className="bg-slate-900 border border-slate-800 p-1.5 rounded text-amber-400 font-mono text-xs cursor-pointer" value={t.deadline} onChange={(e) => { const n = [...formPhases]; n[pIdx].tasks[tIdx].deadline = e.target.value; setFormPhases(n); }} />
                         <button type="button" onClick={() => handleRemoveTaskInForm(pIdx, tIdx)} className="text-slate-500 hover:text-red-400 cursor-pointer"><Trash2 className="w-4 h-4"/></button>
                       </div>
@@ -538,7 +556,7 @@ export default function AdminTaskWorkflowDashboard() {
             </div>
 
             <div className="pt-2 border-t border-slate-800 flex gap-2">
-              <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 p-2.5 rounded-xl font-bold text-slate-400">Hủy</button>
+              <button type="button" disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 p-2.5 rounded-xl font-bold text-slate-400 disabled:cursor-not-allowed disabled:opacity-40">Hủy</button>
               <button type="button" disabled={isCreatingProject} onClick={handleCreateProject} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black p-2.5 rounded-xl uppercase text-xs cursor-pointer">{isCreatingProject ? 'Đang lưu...' : '🚀 Phát lệnh sản xuất'}</button>
             </div>
           </div>

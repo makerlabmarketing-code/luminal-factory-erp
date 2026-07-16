@@ -26,6 +26,7 @@ interface PhaseListResult {
 }
 
 const CREATE_PHASE_KEYS = new Set(['phaseName', 'orderIndex']);
+const UPDATE_PHASE_KEYS = new Set(['phaseName', 'orderIndex']);
 const LIST_PHASE_KEYS = new Set(['projectIds']);
 
 function phaseMutationError({
@@ -65,6 +66,20 @@ function assertKnownFields(body: PhaseMutationBody) {
   }
 }
 
+function assertKnownUpdateFields(body: PhaseMutationBody) {
+  const unknownKeys = Object.keys(body).filter((key) => !UPDATE_PHASE_KEYS.has(key));
+  if (unknownKeys.length > 0) {
+    throw phaseMutationError({
+      status: 422,
+      message: 'Dữ liệu giai đoạn có trường không được hỗ trợ.',
+      failureStage: 'unknown',
+      safeDetails: {
+        rejected_field_count: unknownKeys.length,
+      },
+    });
+  }
+}
+
 function assertKnownListFields(body: PhaseMutationBody) {
   const unknownKeys = Object.keys(body).filter((key) => !LIST_PHASE_KEYS.has(key));
   if (unknownKeys.length > 0) {
@@ -90,6 +105,19 @@ function numericProjectId(rawProjectId: string): number {
   }
 
   return projectId;
+}
+
+function numericPhaseId(rawPhaseId: string): number {
+  const phaseId = Number(rawPhaseId);
+  if (!Number.isInteger(phaseId) || phaseId <= 0) {
+    throw phaseMutationError({
+      status: 422,
+      message: 'Mã giai đoạn không hợp lệ.',
+      failureStage: 'unknown',
+    });
+  }
+
+  return phaseId;
 }
 
 function requiredPhaseName(body: PhaseMutationBody): string {
@@ -224,6 +252,83 @@ export async function createPhase(
   return {
     success: true,
     phaseId: Number(data.id),
+  };
+}
+
+export async function updatePhase(
+  rawProjectId: string,
+  rawPhaseId: string,
+  body: PhaseMutationBody
+): Promise<PhaseMutationResult> {
+  assertKnownUpdateFields(body);
+  await requirePhaseManageAccess();
+
+  const projectId = numericProjectId(rawProjectId);
+  const phaseId = numericPhaseId(rawPhaseId);
+  const payload: Record<string, string | number> = {};
+
+  if (body.phaseName !== undefined) {
+    payload.name = requiredPhaseName(body);
+  }
+
+  if (body.orderIndex !== undefined) {
+    payload.order_index = requiredOrderIndex(body);
+  }
+
+  if (Object.keys(payload).length === 0) {
+    return {
+      success: true,
+      phaseId,
+    };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: phase, error: phaseError } = await supabase
+    .from('phases')
+    .select('id, project_id')
+    .eq('id', phaseId)
+    .eq('project_id', projectId)
+    .maybeSingle();
+
+  if (phaseError) {
+    throw phaseMutationError({
+      status: 500,
+      message: 'Không thể kiểm tra giai đoạn.',
+      failureStage: 'unknown',
+      safeDetails: {
+        supabase_error_code: phaseError.code ?? 'unknown',
+      },
+    });
+  }
+
+  if (!phase) {
+    throw phaseMutationError({
+      status: 404,
+      message: 'Không tìm thấy giai đoạn.',
+      failureStage: 'unknown',
+    });
+  }
+
+  const { error } = await supabase
+    .from('phases')
+    .update(payload)
+    .eq('id', phaseId)
+    .eq('project_id', projectId);
+
+  if (error) {
+    throw phaseMutationError({
+      status: 500,
+      message: 'Không thể lưu giai đoạn.',
+      failureStage: 'unknown',
+      safeDetails: {
+        supabase_error_code: error.code ?? 'unknown',
+      },
+    });
+  }
+
+  return {
+    success: true,
+    phaseId,
   };
 }
 

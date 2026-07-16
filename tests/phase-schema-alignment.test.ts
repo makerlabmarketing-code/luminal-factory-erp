@@ -54,14 +54,14 @@ describe('phase schema alignment', () => {
 
     expect(taskPage).toMatch(/Không thể lưu giai đoạn\./);
     expect(taskPage).not.toMatch(/Lỗi Lưu Trữ', err\.message/);
-    expect(taskPage).toMatch(/catch\s*\{\s*showToast\('Lỗi', 'Không thể lưu giai đoạn\.', 'error'\);\s*\}\n\s*\};\n\n\s*const handleSaveDriveLinkToDB/);
+    expect(taskPage).toMatch(/catch\s*\{\s*showToast\('Không thể lưu giai đoạn\.', 'Vui lòng thử lại sau\.', 'error'\);\s*\}/);
   });
 
   it('keeps form state available for retry when phase save fails', () => {
     const taskPage = source('app/admin/tasks/page.tsx');
 
     expect(taskPage).toMatch(/setShowAddModal\(false\)/);
-    expect(taskPage).toMatch(/catch \(error\)\s*\{\s*showToast\('Lỗi Lưu Trữ', projectCreateErrorMessage\(error\), 'error'\);?\s*\}/);
+    expect(taskPage).toMatch(/catch \(error\)\s*\{\s*showToast\('Không thể tạo dự án\.', projectCreateErrorMessage\(error\), 'error'\);?\s*\}/);
     expect(taskPage).toMatch(/message\.includes\('giai đoạn'\)\) return 'Không thể lưu giai đoạn\.'/);
     expect(taskPage).not.toMatch(/catch\s*\{[^}]*setShowAddModal\(false\)/);
   });

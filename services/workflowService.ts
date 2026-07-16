@@ -7,13 +7,25 @@ import type {
 } from '@/lib/types/workflow';
 import { workflowRepository } from '@/services/repositories/workflowRepository';
 
+export interface WorkflowWarning {
+  code: 'phase_create_failed' | 'task_template_partial_failed';
+  message: string;
+  stage: 'phase_create' | 'task_template';
+}
+
 export interface WorkflowProjectCreateResult {
   success: true;
-  projectCreated: boolean;
+  project: {
+    id: number;
+    name: string;
+  };
+  projectCreated: true;
   projectId: number;
   phasesCreated: number;
   tasksCreated: number;
-  warnings: string[];
+  expectedPhases: number;
+  expectedTasks: number;
+  warnings: WorkflowWarning[];
 }
 
 function toWorkflowSetting(project: WorkflowProject, phase: WorkflowPhase): WorkflowSetting {
@@ -24,13 +36,17 @@ function toWorkflowSetting(project: WorkflowProject, phase: WorkflowPhase): Work
     key: `PROJECT_${project.id}_PHASE_${String(orderIndex).padStart(3, '0')}_${phase.id}`,
     project_id: project.id,
     phase_id: phase.id,
-    value: phase.status || (orderIndex === 0 ? 'DOING' : 'TODO'),
+    value: phase.status || null,
     group_name: 'PRODUCTION_WORKFLOW',
     config_name: `${project.name} - ${phase.name}`,
     param_type: project.project_deadline || '',
     description: JSON.stringify({
       project_drive_link: project.drive_link || '',
       project_deadline: project.project_deadline || '',
+      project_created_at: project.created_at || null,
+      project_status: project.status || null,
+      phase_created_at: phase.created_at || null,
+      phase_order_index: phase.order_index ?? null,
       colorway_name: phase.colorway_name || '',
       colorway_code: phase.colorway_code || '',
       target_release_date: project.project_deadline || '',
@@ -148,13 +164,21 @@ export async function getWorkflowItems(): Promise<WorkflowSetting[]> {
 export async function createWorkflowProject(
   params: WorkflowProjectInsertInput
 ): Promise<WorkflowProjectCreateResult> {
+  const expectedPhases = params.phases.length;
+  const expectedTasks = params.createTemplateTasks
+    ? params.phases.reduce((sum, phase) => (
+      sum + (phase.tasks || []).filter((task) => task.name?.trim()).length
+    ), 0)
+    : 0;
+
   const projectId = await workflowRepository.insertProject({
     projectName: params.projectName,
     projectDeadline: params.projectDeadline,
   });
 
   let phasesCreated = 0;
-  const warnings: string[] = [];
+  let tasksCreated = 0;
+  const warnings: WorkflowWarning[] = [];
 
   for (let index = 0; index < params.phases.length; index += 1) {
     const phase: WorkflowPhaseFormInput = params.phases[index];
@@ -166,27 +190,50 @@ export async function createWorkflowProject(
       });
       phasesCreated += 1;
     } catch {
-      warnings.push('Không thể tạo giai đoạn.');
+      warnings.push({
+        code: 'phase_create_failed',
+        message: 'Không thể tạo giai đoạn.',
+        stage: 'phase_create',
+      });
       break;
     }
 
-    if ((phase.tasks || []).some((task) => task.name?.trim())) {
-      warnings.push('Không thể tạo công việc.');
+    if (params.createTemplateTasks && (phase.tasks || []).some((task) => task.name?.trim())) {
+      warnings.push({
+        code: 'task_template_partial_failed',
+        message: 'Dự án đã được tạo, nhưng một số công việc mẫu chưa được khởi tạo.',
+        stage: 'task_template',
+      });
     }
   }
 
   return {
     success: true,
+    project: {
+      id: projectId,
+      name: params.projectName.trim(),
+    },
     projectCreated: true,
     projectId,
     phasesCreated,
-    tasksCreated: 0,
-    warnings: Array.from(new Set(warnings)),
+    tasksCreated,
+    expectedPhases,
+    expectedTasks,
+    warnings,
   };
 }
 
 export async function updateWorkflowPhaseStatus(phaseId: number, status: string): Promise<void> {
   await workflowRepository.updatePhaseStatus(phaseId, status);
+}
+
+export async function updateWorkflowPhase(params: {
+  projectId: number;
+  phaseId: number;
+  phaseName?: string;
+  orderIndex?: number;
+}): Promise<void> {
+  await workflowRepository.updatePhase(params);
 }
 
 export async function updateWorkflowProjectDriveLink(params: {

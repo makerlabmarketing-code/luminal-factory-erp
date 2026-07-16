@@ -13,10 +13,13 @@ describe('project creation orchestration and legacy task alignment', () => {
     const service = source('services/workflowService.ts');
 
     expect(service).toMatch(/export interface WorkflowProjectCreateResult/);
+    expect(service).toMatch(/project:\s*\{\s*id: number;\s*name: string;\s*\}/);
     expect(service).toMatch(/projectCreated: true/);
+    expect(service).toMatch(/expectedPhases/);
+    expect(service).toMatch(/expectedTasks/);
     expect(service).toMatch(/phasesCreated/);
-    expect(service).toMatch(/tasksCreated: 0/);
-    expect(service).toMatch(/warnings: Array\.from\(new Set\(warnings\)\)/);
+    expect(service).toMatch(/tasksCreated/);
+    expect(service).toMatch(/warnings: WorkflowWarning\[\]/);
   });
 
   it('does not create template tasks against the legacy tasks table during project create', () => {
@@ -28,7 +31,19 @@ describe('project creation orchestration and legacy task alignment', () => {
 
     expect(createWorkflowProjectBody).not.toMatch(/insertTasks/);
     expect(createWorkflowProjectBody).not.toMatch(/assignee_id: task\.assignee_id/);
-    expect(createWorkflowProjectBody).toMatch(/warnings\.push\('Không thể tạo công việc\.'\)/);
+    expect(createWorkflowProjectBody).toMatch(/params\.createTemplateTasks && \(phase\.tasks \|\| \[\]\)\.some/);
+    expect(createWorkflowProjectBody).toMatch(/code: 'task_template_partial_failed'/);
+  });
+
+  it('does not warn when optional template tasks are present but not requested', () => {
+    const service = source('services/workflowService.ts');
+    const createWorkflowProjectBody = service.slice(
+      service.indexOf('export async function createWorkflowProject'),
+      service.indexOf('export async function updateWorkflowPhaseStatus')
+    );
+
+    expect(createWorkflowProjectBody).toMatch(/const expectedTasks = params\.createTemplateTasks/);
+    expect(createWorkflowProjectBody).not.toMatch(/if \(\(phase\.tasks \|\| \[\]\)\.some/);
   });
 
   it('keeps legacy task insert payload limited to live task columns', () => {
@@ -52,7 +67,8 @@ describe('project creation orchestration and legacy task alignment', () => {
     const projectPage = source('app/admin/projects/page.tsx');
 
     for (const page of [taskPage, projectPage]) {
-      expect(page).toMatch(/Dự án đã được tạo nhưng chưa thể khởi tạo đầy đủ giai đoạn\/công việc mẫu\./);
+      expect(page).toMatch(/Một số công việc mẫu chưa thể khởi tạo\./);
+      expect(page).toMatch(/Tạo dự án thành công\./);
       expect(page).toMatch(/setShowAddModal\(false\)/);
       expect(page).toMatch(/await loadData\(\)/);
     }

@@ -63,8 +63,10 @@ export function normalizeProjectRow(row: GenericRow): WorkflowProject | null {
   return {
     id,
     name: pickFirstText(row, ['name', 'project_name', 'title']) || `Project ${id}`,
+    status: pickFirstText(row, ['status']) || null,
+    created_at: pickFirstText(row, ['created_at']) || null,
     project_deadline: pickFirstText(row, ['project_deadline', 'deadline', 'due_date']) || null,
-    drive_link: pickFirstText(row, ['drive_link', 'project_drive_link', 'google_drive_link']) || null,
+    drive_link: pickFirstText(row, ['drive_url', 'drive_link', 'project_drive_link', 'google_drive_link']) || null,
   };
 }
 
@@ -80,6 +82,7 @@ export function normalizePhaseRow(row: GenericRow): WorkflowPhase | null {
     project_id: projectId,
     name: pickFirstText(row, ['name']) || `Giai doan ${id}`,
     order_index: pickFirstNumber(row, ['order_index']) ?? 0,
+    created_at: pickFirstText(row, ['created_at']) || null,
     status: null,
     colorway_name: null,
     colorway_code: null,
@@ -222,7 +225,8 @@ async function requestProjectMutation<TResponse>(
 
 export class WorkflowRepository {
   async listProjects(): Promise<WorkflowProject[]> {
-    const { data, error } = await supabase.from('projects').select('*').order('id', { ascending: false });
+    const { data, error } = await supabase.from('projects').select('id, project_name, drive_url, status, created_at')
+      .order('id', { ascending: false });
     if (error) throw error;
 
     return (data || [])
@@ -311,6 +315,24 @@ export class WorkflowRepository {
     );
 
     return result.phaseId;
+  }
+
+  async updatePhase(params: {
+    projectId: number;
+    phaseId: number;
+    phaseName?: string;
+    orderIndex?: number;
+  }): Promise<void> {
+    await requestProjectMutation(
+      `/api/admin/projects/${params.projectId}/phases/${params.phaseId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({
+          ...(params.phaseName !== undefined ? { phaseName: params.phaseName } : {}),
+          ...(params.orderIndex !== undefined ? { orderIndex: params.orderIndex } : {}),
+        }),
+      }
+    );
   }
 
   async insertTasks(tasks: GenericRow[]): Promise<void> {
