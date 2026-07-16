@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthFlowError } from '@/services/server/auth';
-import { archiveProject } from '@/services/server/projectMutations';
+import { cancelProject } from '@/services/server/projectMutations';
 
 function jsonNoStore(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
@@ -26,8 +26,8 @@ function toErrorResponse(error: unknown) {
   return jsonNoStore(
     {
       success: false,
-      message: 'Không thể lưu trữ dự án.',
-      code: 'project_archive_failed',
+      message: 'Không thể hủy dự án.',
+      code: 'project_cancel_failed',
       failure_stage: 'unknown',
     },
     { status: 500 }
@@ -39,7 +39,7 @@ export async function POST(
   { params }: { params: { projectId: string } }
 ) {
   try {
-    return jsonNoStore(await archiveProject(params.projectId));
+    return jsonNoStore(await cancelProject(params.projectId));
   } catch (error) {
     return toErrorResponse(error);
   }

@@ -260,6 +260,6 @@ export async function updateWorkflowTask(params: {
   await workflowRepository.updateTask(params);
 }
 
-export async function deleteWorkflowProject(projectId: number): Promise<void> {
+export async function cancelWorkflowProject(projectId: number): Promise<void> {
   await workflowRepository.deleteProject(projectId);
 }

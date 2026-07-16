@@ -1,6 +1,8 @@
 // app/admin/tasks/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useNotification } from '@/component/NotificationContext';
 import type {
   WorkflowDescription,
@@ -9,8 +11,8 @@ import type {
 } from '@/lib/types/workflow';
 import { ClipboardList, Plus, Trash2, Search, ChevronLeft, ChevronRight, X, Layers, Eye, Calendar, Save, ExternalLink, Activity, CheckSquare, RefreshCcw, Archive, Pencil } from 'lucide-react';
 import {
+  cancelWorkflowProject,
   createWorkflowProject,
-  deleteWorkflowProject,
   getWorkflowItems,
   updateWorkflowPhase,
   updateWorkflowProjectDriveLink,
@@ -63,6 +65,7 @@ function formatDateTime(value?: string | null): string {
 
 export default function AdminTaskWorkflowDashboard() {
   const { showToast, showConfirm } = useNotification();
+  const router = useRouter();
   const [tasks, setTasks] = useState<WorkflowSetting[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -172,13 +175,15 @@ export default function AdminTaskWorkflowDashboard() {
           {
             actionLabel: 'Xem chi tiết',
             onAction: () => {
-              setActiveProjectName(result.project.name);
-              setShowDetailModal(true);
+              router.push(`/admin/projects/${result.project.id}`);
             },
           }
         );
       } else {
-        showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success');
+        showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success', {
+          actionLabel: 'Xem chi tiết',
+          onAction: () => router.push(`/admin/projects/${result.project.id}`),
+        });
       }
     } catch (error) {
       showToast('Không thể tạo dự án.', projectCreateErrorMessage(error), 'error');
@@ -238,18 +243,18 @@ export default function AdminTaskWorkflowDashboard() {
     } catch { showToast('Không thể cập nhật dự án.', 'Vui lòng thử lại sau.', 'error'); }
   };
 
-  const handleDeleteProjectGroup = (configNamePrefix?: string | null) => {
+  const handleCancelProjectGroup = (configNamePrefix?: string | null) => {
     if (!configNamePrefix) return;
     const shortName = configNamePrefix.split(' - ')[0]; 
-    showConfirm('Lưu trữ dự án', `Dự án [${shortName}] sẽ được chuyển vào mục lưu trữ.`, async () => {
+    showConfirm('Hủy dự án', `Dự án [${shortName}] sẽ được đánh dấu hủy và giữ lại lịch sử.`, async () => {
       try {
         const targetProjectId = tasks.find(t => t.config_name?.split(' - ')[0] === shortName)?.project_id;
-        if (!targetProjectId) throw new Error('Không tìm thấy dự án cần lưu trữ.');
+        if (!targetProjectId) throw new Error('Không tìm thấy dự án cần hủy.');
 
-        await deleteWorkflowProject(targetProjectId);
-        showToast('Đã lưu trữ dự án.', 'Dự án không bị xóa khỏi dữ liệu.', 'info');
+        await cancelWorkflowProject(targetProjectId);
+        showToast('Đã hủy dự án.', 'Dự án không bị xóa khỏi dữ liệu.', 'info');
         loadData();
-      } catch { showToast('Không thể lưu trữ dự án.', 'Vui lòng thử lại sau.', 'error'); }
+      } catch { showToast('Không thể hủy dự án.', 'Vui lòng thử lại sau.', 'error'); }
     });
   };
 
@@ -358,7 +363,13 @@ export default function AdminTaskWorkflowDashboard() {
                 return (
                   <tr key={pName} className="hover:bg-slate-950/20 transition">
                     <td className="p-4">
-                      <p className="font-black text-slate-100 text-sm">📦 {pName}</p>
+                      {projectPhases[0]?.project_id ? (
+                        <Link href={`/admin/projects/${projectPhases[0].project_id}`} className="font-black text-slate-100 text-sm hover:text-purple-300">
+                          📦 {pName}
+                        </Link>
+                      ) : (
+                        <p className="font-black text-slate-100 text-sm">📦 {pName}</p>
+                      )}
                     </td>
                     <td className="p-4 text-center font-mono text-amber-400 font-bold">
                       <span className="bg-amber-950/20 border border-amber-900/20 px-2 py-1 rounded-lg inline-flex items-center gap-1">
@@ -376,12 +387,12 @@ export default function AdminTaskWorkflowDashboard() {
                       <span className="bg-slate-950 border border-slate-800 px-2 py-0.5 rounded-md text-purple-400 font-bold font-mono">{totalPhases} Phase</span>
                     </td>
                     <td className="p-4 text-center">
-                      <button onClick={() => { setActiveProjectName(pName); setActiveProjectPhases(projectPhases); setDriveLinkInput(driveLink); setShowDetailModal(true); }} className="bg-slate-950 border border-slate-800 hover:border-blue-500 text-blue-400 font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition inline-flex items-center gap-1 cursor-pointer">
+                      <Link href={projectPhases[0]?.project_id ? `/admin/projects/${projectPhases[0].project_id}` : '#'} className="bg-slate-950 border border-slate-800 hover:border-blue-500 text-blue-400 font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition inline-flex items-center gap-1 cursor-pointer">
                         <Eye className="w-3.5 h-3.5" /> Quản lý chi tiết
-                      </button>
+                      </Link>
                     </td>
                     <td className="p-4 text-center">
-                      <button aria-label="Lưu trữ dự án" onClick={() => handleDeleteProjectGroup(projectPhases[0]?.config_name || '')} className="text-slate-600 hover:text-amber-400 transition cursor-pointer"><Archive className="w-3.5 h-3.5"/></button>
+                      <button aria-label="Hủy dự án" onClick={() => handleCancelProjectGroup(projectPhases[0]?.config_name || '')} className="text-slate-600 hover:text-amber-400 transition cursor-pointer"><Archive className="w-3.5 h-3.5"/></button>
                     </td>
                   </tr>
                 );

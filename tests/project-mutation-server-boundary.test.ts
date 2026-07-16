@@ -16,7 +16,7 @@ describe('project mutation server boundary', () => {
 
     expect(listRoute).toMatch(/createProject/);
     expect(detailRoute).toMatch(/updateProject/);
-    expect(archiveRoute).toMatch(/archiveProject/);
+    expect(archiveRoute).toMatch(/cancelProject/);
     expect(`${listRoute}${detailRoute}${archiveRoute}`).not.toMatch(/actor_employee_id|body\.actor|body\.role|body\.permission/);
   });
 
@@ -57,11 +57,11 @@ describe('project mutation server boundary', () => {
     expect(service).toMatch(/PROJECT_MANAGER_FIELDS/);
   });
 
-  it('archives projects without hard delete', () => {
+  it('cancels projects without hard delete', () => {
     const service = source('services/server/projectMutations.ts');
     const repository = source('services/repositories/workflowRepository.ts');
 
-    expect(service).toMatch(/status: 'ARCHIVED'/);
+    expect(service).toMatch(/status: 'CANCELLED'/);
     expect(service).not.toMatch(/\.delete\(\)/);
     expect(repository).not.toMatch(/\.delete\(\)/);
   });

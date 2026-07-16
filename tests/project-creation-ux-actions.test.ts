@@ -40,6 +40,7 @@ describe('project creation UX, detail actions, and request cleanup', () => {
 
   it('renders project detail from live project and phase fields only', () => {
     const taskPage = source('app/admin/tasks/page.tsx');
+    const detailPage = source('app/admin/projects/[projectId]/page.tsx');
     const service = source('services/workflowService.ts');
     const repository = source('services/repositories/workflowRepository.ts');
 
@@ -48,7 +49,15 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(service).toMatch(/phase_created_at/);
     expect(service).toMatch(/phase_order_index/);
     expect(taskPage).toMatch(/Trạng thái: Chưa hỗ trợ lưu/);
+    expect(detailPage).toMatch(/Timeline giai đoạn/);
+    expect(detailPage).toMatch(/notFound\(\)/);
     expect(taskPage).not.toMatch(/handleUpdatePhaseStatus/);
+  });
+
+  it('links project names from the task list to the detail page', () => {
+    const taskPage = source('app/admin/tasks/page.tsx');
+
+    expect(taskPage).toMatch(/href=\{`\/admin\/projects\/\$\{projectPhases\[0\]\.project_id\}`\}/);
   });
 
   it('updates phase name and order through the server PATCH route without status payloads', () => {
@@ -63,15 +72,40 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(repository).not.toMatch(/phaseStatus|status: params\.status/);
   });
 
-  it('archives projects through the server route and does not hard delete', () => {
+  it('cancels projects through the server route and does not hard delete', () => {
     const repository = source('services/repositories/workflowRepository.ts');
     const taskPage = source('app/admin/tasks/page.tsx');
     const projectPage = source('app/admin/projects/page.tsx');
+    const detailPage = source('app/admin/projects/[projectId]/page.tsx');
+    const service = source('services/server/projectMutations.ts');
 
     expect(repository).toMatch(/\/api\/admin\/projects\/\$\{projectId\}\/archive/);
     expect(repository).not.toMatch(/from\('projects'\)\.delete/);
-    expect(taskPage).toMatch(/Lưu trữ dự án/);
-    expect(projectPage).toMatch(/Lưu trữ dự án/);
+    expect(service).toMatch(/CANCELLED/);
+    expect(taskPage).toMatch(/Hủy dự án/);
+    expect(projectPage).toMatch(/Hủy dự án/);
+    expect(detailPage).toMatch(/Hủy dự án/);
+  });
+
+  it('restores legacy assignee and task detail display on project detail', () => {
+    const detailPage = source('app/admin/projects/[projectId]/page.tsx');
+
+    expect(detailPage).toMatch(/assignedToText/);
+    expect(detailPage).toMatch(/packerAssignedText/);
+    expect(detailPage).toMatch(/currentPhaseText/);
+    expect(detailPage).toMatch(/issueNote/);
+    expect(detailPage).toMatch(/Công việc legacy/);
+  });
+
+  it('keeps later slice schema as a proposal draft only', () => {
+    const draft = source('supabase/drafts/20260716_project_detail_phase_workflow_template_proposal.sql');
+
+    expect(draft).toMatch(/Proposal draft only/);
+    expect(draft).toMatch(/phase_templates/);
+    expect(draft).toMatch(/task_comments/);
+    expect(draft).toMatch(/project_activity/);
+    expect(draft).not.toMatch(/^alter table/m);
+    expect(draft).not.toMatch(/^create table/m);
   });
 
   it('keeps raw database errors out of the project creation UX', () => {

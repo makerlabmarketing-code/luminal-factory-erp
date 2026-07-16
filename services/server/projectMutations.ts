@@ -79,6 +79,7 @@ const VALID_PROJECT_STATUSES = new Set([
   'ON_HOLD',
   'COMPLETED',
   'ARCHIVED',
+  'CANCELLED',
 ]);
 
 function mutationError({
@@ -445,10 +446,10 @@ export async function updateProject(
 
   const projectId = numericProjectId(rawProjectId);
   const project = await loadProject(projectId);
-  if (project.status === 'ARCHIVED') {
+  if (project.status === 'ARCHIVED' || project.status === 'CANCELLED') {
     throw mutationError({
       status: 409,
-      message: 'Dự án đã lưu trữ, không thể cập nhật trực tiếp.',
+      message: 'Dự án đã đóng, không thể cập nhật trực tiếp.',
       failureStage: 'unknown',
     });
   }
@@ -487,10 +488,10 @@ export async function updateProject(
   return { success: true, projectId };
 }
 
-export async function archiveProject(rawProjectId: string): Promise<ProjectMutationResult> {
+export async function cancelProject(rawProjectId: string): Promise<ProjectMutationResult> {
   const projectId = numericProjectId(rawProjectId);
   const project = await loadProject(projectId);
-  if (project.status === 'ARCHIVED') {
+  if (project.status === 'CANCELLED') {
     return {
       success: true,
       projectId,
@@ -498,12 +499,12 @@ export async function archiveProject(rawProjectId: string): Promise<ProjectMutat
     };
   }
 
-  await assertProjectMutationAccess(projectId, { status: 'ARCHIVED' });
+  await assertProjectMutationAccess(projectId, { status: 'CANCELLED' });
 
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase
     .from('projects')
-    .update({ status: 'ARCHIVED' })
+    .update({ status: 'CANCELLED' })
     .eq('id', projectId);
 
   if (error) {

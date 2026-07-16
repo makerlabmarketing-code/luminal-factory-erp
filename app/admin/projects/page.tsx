@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Activity,
   AlertTriangle,
@@ -20,8 +21,8 @@ import {
 import { useNotification } from '@/component/NotificationContext';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
 import {
+  cancelWorkflowProject,
   createWorkflowProject,
-  deleteWorkflowProject,
   getWorkflowItems,
 } from '@/services/workflowService';
 
@@ -282,6 +283,7 @@ function initialDeadline(baseDate: string, index: number, total: number) {
 
 export default function AdminProjectManagement() {
   const { showToast, showConfirm } = useNotification();
+  const router = useRouter();
   const [items, setItems] = useState<WorkflowSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -375,9 +377,15 @@ export default function AdminProjectManagement() {
       setStageOwner('');
       await loadData();
       if (result.warnings.length > 0) {
-        showToast('Dự án đã được tạo.', 'Một số công việc mẫu chưa thể khởi tạo.', 'info');
+        showToast('Dự án đã được tạo.', 'Một số công việc mẫu chưa thể khởi tạo.', 'info', {
+          actionLabel: 'Xem chi tiết',
+          onAction: () => router.push(`/admin/projects/${result.project.id}`),
+        });
       } else {
-        showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success');
+        showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success', {
+          actionLabel: 'Xem chi tiết',
+          onAction: () => router.push(`/admin/projects/${result.project.id}`),
+        });
       }
     } catch (error) {
       showToast('Không thể tạo dự án.', projectCreateErrorMessage(error), 'error');
@@ -387,15 +395,15 @@ export default function AdminProjectManagement() {
     }
   };
 
-  const handleDeleteProject = (project: ProjectRecord) => {
+  const handleCancelProject = (project: ProjectRecord) => {
     if (!project.id) return;
-    showConfirm('Lưu trữ dự án', `Dự án ${project.name} sẽ được chuyển vào mục lưu trữ.`, async () => {
+    showConfirm('Hủy dự án', `Dự án ${project.name} sẽ được đánh dấu hủy và giữ lại lịch sử.`, async () => {
       try {
-        await deleteWorkflowProject(project.id as number);
+        await cancelWorkflowProject(project.id as number);
         await loadData();
-        showToast('Đã lưu trữ dự án.', 'Dự án không bị xóa khỏi dữ liệu.', 'info');
+        showToast('Đã hủy dự án.', 'Dự án không bị xóa khỏi dữ liệu.', 'info');
       } catch (error: any) {
-        showToast('Không thể lưu trữ dự án.', error.message || 'Vui lòng thử lại sau.', 'error');
+        showToast('Không thể hủy dự án.', error.message || 'Vui lòng thử lại sau.', 'error');
       }
     });
   };
@@ -489,7 +497,7 @@ export default function AdminProjectManagement() {
                       <td className="p-4 text-amber-300 font-mono">{project.targetDate || '-'}</td>
                       <td className="p-4 text-slate-300 max-w-xs truncate">{project.nextAction}</td>
                       <td className="p-4 text-center" onClick={(event) => event.stopPropagation()}>
-                        <button onClick={() => handleDeleteProject(project)} className="text-slate-500 hover:text-red-300">
+                        <button onClick={() => handleCancelProject(project)} className="text-slate-500 hover:text-red-300">
                           <Archive className="w-4 h-4" />
                         </button>
                       </td>
