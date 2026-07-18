@@ -24,9 +24,9 @@ export interface ProjectMembershipRoleRow {
 }
 
 export class PhaseAuthorizationModelError extends Error {
-  code: 'duplicate_active_membership';
+  code: 'duplicate_active_membership' | 'invalid_active_membership_role';
 
-  constructor(code: 'duplicate_active_membership', message: string) {
+  constructor(code: 'duplicate_active_membership' | 'invalid_active_membership_role', message: string) {
     super(message);
     this.name = 'PhaseAuthorizationModelError';
     this.code = code;
@@ -107,10 +107,17 @@ export function isCancelledProjectStatus(status?: string | null): boolean {
 export function resolveSingleActiveProjectRole(
   rows: readonly ProjectMembershipRoleRow[]
 ): ProjectRoleCode | null {
-  const activeRoles = rows
-    .filter((row) => String(row.status || '').trim().toUpperCase() === 'ACTIVE')
-    .map((row) => row.role_code)
-    .filter(isProjectRoleCode);
+  const activeRows = rows.filter(
+    (row) => String(row.status || '').trim().toUpperCase() === 'ACTIVE'
+  );
+  const activeRoles = activeRows.map((row) => row.role_code);
+
+  if (activeRoles.some((role) => !isProjectRoleCode(role))) {
+    throw new PhaseAuthorizationModelError(
+      'invalid_active_membership_role',
+      'An ACTIVE project membership row has an invalid project role.'
+    );
+  }
 
   if (activeRoles.length > 1) {
     throw new PhaseAuthorizationModelError(
@@ -119,5 +126,5 @@ export function resolveSingleActiveProjectRole(
     );
   }
 
-  return activeRoles[0] || null;
+  return (activeRoles[0] as ProjectRoleCode | undefined) ?? null;
 }

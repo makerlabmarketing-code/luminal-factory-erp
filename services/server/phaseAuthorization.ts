@@ -34,6 +34,12 @@ interface ProjectMembershipRow {
   status?: string | null;
 }
 
+interface AssignableEmployeeRow {
+  id: number;
+  status?: string | null;
+  is_active?: boolean | null;
+}
+
 export interface PhaseAuthorizationContext {
   action: PhaseAction;
   actorEmployeeId: number;
@@ -255,14 +261,119 @@ async function loadProjectRole(
   }
 }
 
+function isActiveAssignableEmployee(employee: AssignableEmployeeRow): boolean {
+  return (
+    String(employee.status || '').trim().toUpperCase() === 'ACTIVE' &&
+    employee.is_active !== false
+  );
+}
+
+async function assertAssignableProjectMember(
+  projectId: number,
+  targetAssigneeEmployeeId: number
+) {
+  if (!Number.isInteger(targetAssigneeEmployeeId) || targetAssigneeEmployeeId <= 0) {
+    throw phaseAuthorizationError({
+      status: 422,
+      code: 'phase_invalid_action',
+      message: 'NhÃ¢n sá»± Ä‘Æ°á»£c giao khÃ´ng há»£p lá»‡.',
+    });
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: employee, error: employeeError } = await supabase
+    .from('employees')
+    .select('id, status, is_active')
+    .eq('id', targetAssigneeEmployeeId)
+    .maybeSingle();
+
+  if (employeeError) {
+    throw phaseAuthorizationError({
+      status: 500,
+      code: 'phase_authorization_failed',
+      message: 'KhÃ´ng thá»ƒ xÃ¡c minh nhÃ¢n sá»± Ä‘Æ°á»£c giao.',
+      safeDetails: {
+        supabase_error_code: employeeError.code ?? 'unknown',
+      },
+    });
+  }
+
+  if (!employee || !isActiveAssignableEmployee(employee as AssignableEmployeeRow)) {
+    throw phaseAuthorizationError({
+      status: 403,
+      code: 'phase_permission_denied',
+      message: 'NhÃ¢n sá»± Ä‘Æ°á»£c giao khÃ´ng cÃ³ quyá»n trong dá»± Ã¡n.',
+      safeDetails: {
+        assignee_active_project_member: false,
+      },
+    });
+  }
+
+  const { data: memberships, error: membershipError } = await supabase
+    .from('project_members')
+    .select('role_code, status')
+    .eq('project_id', projectId)
+    .eq('employee_id', targetAssigneeEmployeeId)
+    .eq('status', 'ACTIVE');
+
+  if (membershipError) {
+    throw phaseAuthorizationError({
+      status: 500,
+      code: 'phase_authorization_failed',
+      message: 'KhÃ´ng thá»ƒ xÃ¡c minh nhÃ¢n sá»± trong dá»± Ã¡n.',
+      safeDetails: {
+        supabase_error_code: membershipError.code ?? 'unknown',
+      },
+    });
+  }
+
+  try {
+    const projectRole = resolveSingleActiveProjectRole(
+      (memberships || []) as ProjectMembershipRow[]
+    );
+
+    if (projectRole) return;
+  } catch (error) {
+    if (error instanceof PhaseAuthorizationModelError) {
+      console.warn('[phase-authorization]', {
+        code: error.code,
+        project_id: projectId,
+        target_assignee_employee_id: targetAssigneeEmployeeId,
+      });
+
+      throw phaseAuthorizationError({
+        status: 500,
+        code: 'phase_authorization_failed',
+        message: 'KhÃ´ng thá»ƒ xÃ¡c minh nhÃ¢n sá»± trong dá»± Ã¡n.',
+        safeDetails: {
+          assignee_membership_model_error: true,
+        },
+      });
+    }
+
+    throw error;
+  }
+
+  throw phaseAuthorizationError({
+    status: 403,
+    code: 'phase_permission_denied',
+    message: 'NhÃ¢n sá»± Ä‘Æ°á»£c giao khÃ´ng cÃ³ quyá»n trong dá»± Ã¡n.',
+    safeDetails: {
+      assignee_active_project_member: false,
+    },
+  });
+}
+
 export async function requirePhaseMutationAccess({
   projectId,
   phaseId,
   action,
+  targetAssigneeEmployeeId,
 }: {
   projectId: number;
   phaseId?: number;
   action: PhaseAction;
+  targetAssigneeEmployeeId?: number;
 }): Promise<PhaseAuthorizationContext> {
   if (!isPhaseAction(action)) {
     throw phaseAuthorizationError({
@@ -289,6 +400,10 @@ export async function requirePhaseMutationAccess({
   }
 
   if (await hasGlobalPhaseAccess(authContext, action)) {
+    if (action === 'PHASE_ASSIGN' && targetAssigneeEmployeeId !== undefined) {
+      await assertAssignableProjectMember(projectId, targetAssigneeEmployeeId);
+    }
+
     return {
       action,
       actorEmployeeId: employeeId,
@@ -309,6 +424,10 @@ export async function requirePhaseMutationAccess({
         project_role: projectRole ?? 'none',
       },
     });
+  }
+
+  if (action === 'PHASE_ASSIGN' && targetAssigneeEmployeeId !== undefined) {
+    await assertAssignableProjectMember(projectId, targetAssigneeEmployeeId);
   }
 
   return {

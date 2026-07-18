@@ -75,6 +75,13 @@ describe('phase mutation membership authorization', () => {
       { role_code: 'PROJECT_OWNER', status: 'ACTIVE' },
       { role_code: 'PROJECT_MANAGER', status: 'ACTIVE' },
     ])).toThrow(PhaseAuthorizationModelError);
+    expect(() => resolveSingleActiveProjectRole([
+      { role_code: 'PROJECT_MANAGER', status: 'ACTIVE' },
+      { role_code: 'PROJECT_MANAGER', status: 'ACTIVE' },
+    ])).toThrow(PhaseAuthorizationModelError);
+    expect(() => resolveSingleActiveProjectRole([
+      { role_code: 'LEGACY_MANAGER', status: 'ACTIVE' },
+    ])).toThrow(PhaseAuthorizationModelError);
   });
 
   it('treats CANCELLED projects as closed for mutation authorization', () => {
@@ -100,6 +107,7 @@ describe('phase mutation membership authorization', () => {
     expect(authorization).toMatch(/hasWorkspaceAccess\(authContext, 'ADMIN_WORKSPACE'\)/);
     expect(authorization).toMatch(/hasPermission\(authContext, 'PROJECT_MANAGE'\)/);
     expect(authorization).toMatch(/from\('project_members'\)/);
+    expect(authorization).toMatch(/resolveSingleActiveProjectRole/);
   });
 
   it('checks project, phase ownership, cancellation, and membership before mutation', () => {
@@ -121,6 +129,19 @@ describe('phase mutation membership authorization', () => {
     expect(service).toMatch(/\.eq\('id', phaseId\)\s*\.eq\('project_id', projectId\)/);
   });
 
+  it('keeps future assignment authorization tied to active employees and active project membership', () => {
+    const authorization = source('services/server/phaseAuthorization.ts');
+
+    expect(authorization).toMatch(/targetAssigneeEmployeeId\?: number/);
+    expect(authorization).toMatch(/action === 'PHASE_ASSIGN'/);
+    expect(authorization).toMatch(/assertAssignableProjectMember\(projectId, targetAssigneeEmployeeId\)/);
+    expect(authorization).toMatch(/from\('employees'\)\s*\.select\('id, status, is_active'\)/);
+    expect(authorization).toMatch(/isActiveAssignableEmployee/);
+    expect(authorization).toMatch(/from\('project_members'\)\s*\.select\('role_code, status'\)/);
+    expect(authorization).toMatch(/assignee_active_project_member/);
+    expect(authorization).not.toMatch(/email.*targetAssignee|full_name.*targetAssignee|assigned_to.*targetAssignee/);
+  });
+
   it('rejects client-supplied authority and cross-project identifiers in phase payloads', () => {
     const service = source('services/server/phaseMutations.ts');
 
@@ -128,7 +149,7 @@ describe('phase mutation membership authorization', () => {
     expect(service).toMatch(/const UPDATE_PHASE_KEYS = new Set\(\['phaseName', 'orderIndex'\]\)/);
     expect(service).toMatch(/assertKnownFields\(body, CREATE_PHASE_KEYS\)/);
     expect(service).toMatch(/assertKnownFields\(body, UPDATE_PHASE_KEYS\)/);
-    expect(service).not.toMatch(/body\.projectId(?!s)|body\.phaseId|body\.actorEmployeeId|body\.role|body\.permission/);
+    expect(service).not.toMatch(/body\.projectId(?!s)|body\.phaseId|body\.actorEmployeeId|body\.role|body\.permission|body\.membershipId/);
   });
 
   it('keeps raw database errors out of route responses', () => {
@@ -137,8 +158,7 @@ describe('phase mutation membership authorization', () => {
     const listRoute = source('app/api/admin/phases/route.ts');
     const routeSource = `${createRoute}\n${updateRoute}\n${listRoute}`;
 
-    expect(routeSource).toMatch(/supabase_error_code/);
-    expect(routeSource).not.toMatch(/supabase_error_message|supabase_error_hint|supabase_error_details/);
+    expect(routeSource).not.toMatch(/supabase_error_code|supabase_error_message|supabase_error_hint|supabase_error_details/);
   });
 
   it('keeps browser phase mutations out of the workflow repository and preserves legacy task flow', () => {

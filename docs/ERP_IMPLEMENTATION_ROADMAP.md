@@ -415,3 +415,28 @@ Checklist live verification còn lại:
 
 Tạm dừng và chờ người vận hành deploy bản sửa session/navigation rồi test lại.
 Batch 3D1 vẫn chưa bắt đầu.
+# 2026-07-19 Phase Mutation Membership Authorization Update
+
+Status: Hoan thanh, cho deploy.
+
+Scope completed:
+
+- `requirePhaseMutationAccess` remains the single server-side authorization helper for phase create/update/list and future phase actions.
+- Actor identity is derived from the authenticated session, not from client payload.
+- Global `ADMIN_WORKSPACE` + `PROJECT_MANAGE` remains allowed.
+- `PROJECT_OWNER` and `PROJECT_MANAGER` remain allowed for phase mutations.
+- `CREATIVE_LEAD` and `CONTRIBUTOR` remain view-only in this slice.
+- Duplicate ACTIVE project membership and invalid ACTIVE role codes now fail closed.
+- Future `PHASE_ASSIGN` has a target employee guard requiring ACTIVE employee and ACTIVE project membership.
+- Phase API error responses no longer expose raw Supabase/DB error fields.
+
+Validation passed:
+
+- `npm.cmd test`
+- `npm.cmd run lint`
+- `npx.cmd tsc --noEmit`
+- `npm.cmd run build`
+
+No SQL, migration, live data mutation, commit, push, or deploy was run.
+
+Phase Workflow Foundation Migration remains cho duyet.
