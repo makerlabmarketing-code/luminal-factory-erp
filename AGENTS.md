@@ -343,3 +343,17 @@ Preserve existing working behaviour.
 Improve one seam at a time.
 
 Minimize regression risk.
+
+## Working Mode
+
+Default working mode is:
+
+- Read AGENTS.md.
+- Load the ERP skill.
+- Load only the minimum required references.
+- Read SETUP-CODEX-ERP.md when the task belongs to an implementation phase or roadmap.
+- Continue the active roadmap automatically.
+- Stop only at approval gates.
+- Update roadmap, documentation and handoff after every completed phase.
+- Run repository validation before considering a phase complete.
+- Prefer completing the current workstream before starting unrelated work.
