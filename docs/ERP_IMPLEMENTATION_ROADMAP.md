@@ -440,3 +440,18 @@ Validation passed:
 No SQL, migration, live data mutation, commit, push, or deploy was run.
 
 Phase Workflow Foundation Migration remains cho duyet.
+
+## 2026-07-20 Project Membership Management Completion
+
+- Project Membership Management completion branch centralizes role/capability checks in a server-owned helper, adds list/add/change/revoke server routes, and exposes Project Detail membership UI without hard delete or client-side role inference.
+- Attendance boundary remains COMPLETE: Staff Attendance stays behind authenticated ACTIVE employee + `STAFF_WORKSPACE` + attendance state only, with no `project_members`, project, phase, task, `PROJECT_VIEW`, or `PROJECT_MANAGE` dependency.
+- Task Assignment Foundation is deferred to a separate approved migration package; this branch only documents the handoff and does not run SQL.
+
+## 2026-07-20 Task Assignment Foundation Application Prep
+
+- Target phase: Phase 2 Task Assignment Foundation.
+- Application-only scope prepared: shared task assignment DTOs, payload validation, server route contracts, server migration gate and feature flag boundary.
+- Draft migration package prepared only under `supabase/drafts/`: forward SQL, rollback SQL, validation SQL and backfill strategy.
+- Runtime remains disabled by default through `TASK_ASSIGNMENT_FOUNDATION_ENABLED !== 'true'`; APIs return a sanitized migration-required conflict after server authorization instead of touching missing schema.
+- Database impact: draft only. No SQL executed, no migration applied, no backfill, no live task reassignment and no production mutation.
+- Exit status: `LIVE_APPROVAL_REQUIRED` before enabling Phase 2 writes or continuing to Phase 3 Project Workflow.

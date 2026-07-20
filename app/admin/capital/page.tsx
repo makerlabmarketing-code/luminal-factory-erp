@@ -3,19 +3,27 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase/client';
 import { useNotification } from '@/component/NotificationContext';
-import MonthPicker from '@/component/MonthPicker'; 
+import MonthPicker from '@/component/MonthPicker';
 import LedgerMetrics from './components/LedgerMetrics';
-import LedgerTable from './components/LedgerTable'; 
+import LedgerTable from './components/LedgerTable';
 import CapitalShareCard from './components/CapitalShareCard';
 import type { ExpensePaymentSourceOption, FinancialLedgerEntry } from '@/lib/types/finance';
+import {
+  CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME,
+  DEFAULT_CAPITAL_CONTRIBUTION_TYPES,
+  DEFAULT_FINANCIAL_TRANSACTION_TYPES,
+  FINANCIAL_TRANSACTION_TYPE_METADATA_NAME,
+  normalizeSystemMetadataOptions,
+  type SystemMetadataOption,
+} from '@/lib/system-metadata-defaults';
 import {
   isValidReportingPeriod,
   monthInputFromReportingPeriod,
   reportingPeriodFromMonthInput,
   summarizeFinancialLedger,
 } from '@/services/financialReportingService';
-import { 
-  PiggyBank, Plus, X, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight 
+import {
+  PiggyBank, Plus, X, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const formatCurrency = (value: string) => {
@@ -128,21 +136,21 @@ export default function AdminFinancialLedger() {
   const { showToast, showConfirm } = useNotification();
   const [ledger, setLedger] = useState<FinancialLedgerEntry[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
-  const [transactionTypes, setTransactionTypes] = useState<Array<{ code: string; label: string }>>([]); 
-  const [contributionTypes, setContributionTypes] = useState<Array<{ code: string; label: string }>>([]); 
+  const [transactionTypes, setTransactionTypes] = useState<SystemMetadataOption[]>(() => [...DEFAULT_FINANCIAL_TRANSACTION_TYPES]);
+  const [contributionTypes, setContributionTypes] = useState<SystemMetadataOption[]>(() => [...DEFAULT_CAPITAL_CONTRIBUTION_TYPES]);
   const [expensePaymentSources, setExpensePaymentSources] = useState<ExpensePaymentSourceOption[]>([]);
   const [expenseSourcesLoading, setExpenseSourcesLoading] = useState(true);
   const [expenseSourcesError, setExpenseSourcesError] = useState('');
-  const [companyBankCode, setCompanyBankCode] = useState<string>('MB'); 
-  const [companyBankAccount, setCompanyBankAccount] = useState<string>(''); 
+  const [companyBankCode, setCompanyBankCode] = useState<string>('MB');
+  const [companyBankAccount, setCompanyBankAccount] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  
+
   const [monthInput, setMonthInput] = useState(() => {
-    const d = new Date(); 
+    const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const selectedMonth = reportingPeriodFromMonthInput(monthInput); 
+  const selectedMonth = reportingPeriodFromMonthInput(monthInput);
 
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -183,7 +191,7 @@ export default function AdminFinancialLedger() {
   // Pagination & Search
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(8); 
+  const [itemsPerPage] = useState(8);
 
   const loadData = async () => {
     setLoading(true);
@@ -208,18 +216,20 @@ export default function AdminFinancialLedger() {
       );
       setExpenseSourcesLoading(false);
 
-      const { data: meta, error: metadataError } = await supabase.from('system_metadata').select('data').eq('name', 'Danh mục Nghiệp vụ').maybeSingle();
+      const { data: meta, error: metadataError } = await supabase.from('system_metadata').select('data').eq('name', FINANCIAL_TRANSACTION_TYPE_METADATA_NAME).maybeSingle();
       if (metadataError) throw metadataError;
-      if (meta && meta.data) {
-        setTransactionTypes(meta.data);
-        if (meta.data.length > 0 && !type) setType(meta.data[0].code);
+      const normalizedTransactionTypes = normalizeSystemMetadataOptions(meta?.data, DEFAULT_FINANCIAL_TRANSACTION_TYPES);
+      setTransactionTypes(normalizedTransactionTypes);
+      if (!normalizedTransactionTypes.some((option) => option.code === type)) {
+        setType(normalizedTransactionTypes[0]?.code || 'CHI_PHI');
       }
 
-      const { data: contribMeta, error: contributionMetadataError } = await supabase.from('system_metadata').select('data').eq('name', 'Danh mục Hình thức Góp vốn').maybeSingle();
+      const { data: contribMeta, error: contributionMetadataError } = await supabase.from('system_metadata').select('data').eq('name', CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME).maybeSingle();
       if (contributionMetadataError) throw contributionMetadataError;
-      if (contribMeta && contribMeta.data) {
-        setContributionTypes(contribMeta.data);
-        if (!subType && contribMeta.data.length > 0) setSubType(contribMeta.data[0].code);
+      const normalizedContributionTypes = normalizeSystemMetadataOptions(contribMeta?.data, DEFAULT_CAPITAL_CONTRIBUTION_TYPES);
+      setContributionTypes(normalizedContributionTypes);
+      if (!normalizedContributionTypes.some((option) => option.code === subType)) {
+        setSubType((normalizedContributionTypes[0]?.code as 'TIEN_MAT' | 'HIEN_VAT' | undefined) || 'TIEN_MAT');
       }
 
       const financeConfigResponse = await fetch('/api/admin/finance/config', {
@@ -252,8 +262,8 @@ export default function AdminFinancialLedger() {
       if (ledgerError) throw ledgerError;
 
       setLedger((ledgers || []) as FinancialLedgerEntry[]);
-    } catch (e) { 
-      console.error(e); 
+    } catch (e) {
+      console.error(e);
       setLoadError('Không tải được dữ liệu.');
       setExpenseSourcesLoading(false);
       setExpenseSourcesError('Không tải được danh sách nguồn chi trả.');
@@ -263,9 +273,9 @@ export default function AdminFinancialLedger() {
     }
   };
 
-  useEffect(() => { 
+  useEffect(() => {
     setCurrentPage(1);
-    loadData(); 
+    loadData();
   }, [selectedMonth]);
 
   useEffect(() => {
@@ -273,7 +283,7 @@ export default function AdminFinancialLedger() {
   }, [monthInput]);
 
   // Tìm kiếm dữ liệu
-  const filteredLedger = ledger.filter(l => 
+  const filteredLedger = ledger.filter(l =>
     (l.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (l.requested_by || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -286,18 +296,18 @@ export default function AdminFinancialLedger() {
   filteredLedger.forEach(l => {
     // Bỏ qua dòng con
     if (l.type === 'VON_GOP' && l.category?.startsWith('[Đối ứng]')) return;
-    
+
     // Tìm đối ứng cho dòng hiện tại
     const cIndex = remainingChildren.findIndex(
       c => c.category === `[Đối ứng] Vốn hiện vật: ${l.category}` && c.requested_by === l.requested_by
     );
-    
+
     let linkedChild = null;
     if (cIndex > -1) {
       linkedChild = remainingChildren[cIndex];
       remainingChildren.splice(cIndex, 1);
     }
-    
+
     mainRecords.push({ ...l, linkedChild }); // Nhúng luôn data con vào data cha
   });
 
@@ -314,7 +324,7 @@ export default function AdminFinancialLedger() {
       showToast('Thiếu số liệu', 'Vui lòng điền đủ nội dung khoản mục và giá tiền!', 'error');
       return;
     }
-    
+
     const targetPeriod = reportingPeriodFromMonthInput(formMonthInput);
     if (!isValidReportingPeriod(targetPeriod)) {
       showToast('Kỳ báo cáo không hợp lệ', 'Vui lòng chọn kỳ báo cáo hợp lệ.', 'error');
@@ -333,8 +343,8 @@ export default function AdminFinancialLedger() {
         ]);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('financial_ledger').insert([{ 
-          type, sub_type: type === 'VON_GOP' ? subType : null, category: category.trim(), amount: numericAmount, requested_by: insertReporter, month_period: targetPeriod, is_paid: isPaid 
+        const { error } = await supabase.from('financial_ledger').insert([{
+          type, sub_type: type === 'VON_GOP' ? subType : null, category: category.trim(), amount: numericAmount, requested_by: insertReporter, month_period: targetPeriod, is_paid: isPaid
         }]);
         if (error) throw error;
       }
@@ -360,7 +370,7 @@ export default function AdminFinancialLedger() {
     setEditMonthInput(monthInputFromReportingPeriod(item.month_period || selectedMonth));
     setEditSubType(item.sub_type === 'HIEN_VAT' ? 'HIEN_VAT' : 'TIEN_MAT');
 
-    const hasLink = ledger.some(l => 
+    const hasLink = ledger.some(l =>
       l.type === 'VON_GOP' && l.category === `[Đối ứng] Vốn hiện vật: ${item.category}` && l.requested_by === item.requested_by
     );
     // Khởi tạo nguồn chi trả cũ
@@ -382,7 +392,7 @@ export default function AdminFinancialLedger() {
 
     const originalItem = ledger.find(l => l.id === editingId);
     if (!originalItem) return;
-    
+
     const originalLinkedCategory = `[Đối ứng] Vốn hiện vật: ${originalItem.category}`;
     const newLinkedCategory = `[Đối ứng] Vốn hiện vật: ${editCategory.trim()}`;
     const selectedPaymentSource = findPaymentSourceOption(expensePaymentSources, editExpenseSource);
@@ -406,7 +416,7 @@ export default function AdminFinancialLedger() {
         type: editType, sub_type: editType === 'VON_GOP' ? editSubType : null, category: editCategory.trim(), amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod, is_paid: isSelfPaidExpense ? true : editIsPaid
       }).eq('id', editingId);
 
-      setShowEditModal(false); setEditingId(null); 
+      setShowEditModal(false); setEditingId(null);
       if (targetPeriod === selectedMonth) loadData();
       else setMonthInput(editMonthInput);
       showToast('Thành công', 'Đã cập nhật sửa đổi dữ liệu hạch toán đồng bộ.', 'success');
@@ -502,7 +512,7 @@ export default function AdminFinancialLedger() {
         </div>
       ) : (
         <>
-          <LedgerMetrics 
+          <LedgerMetrics
             totalGop={totalGop}
             totalDoanhThu={totalDoanhThu}
             totalChiPhi={totalChiPhi}
@@ -524,7 +534,7 @@ export default function AdminFinancialLedger() {
             Không có giao dịch trong kỳ đã chọn.
           </div>
         ) : (
-          <LedgerTable 
+          <LedgerTable
             data={currentLedgerData}
             onTogglePaid={handleTogglePaid}
             onOpenEdit={handleOpenEdit}
@@ -532,7 +542,7 @@ export default function AdminFinancialLedger() {
             onGenerateQr={handleGenerateVietQR}
           />
         )}
-        
+
         {filteredLedger.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-3 bg-slate-950 border-t border-slate-800">
             <span className="text-xs text-slate-500 mb-3 sm:mb-0">Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredLedger.length)} trong tổng số {filteredLedger.length} bản ghi</span>
@@ -561,9 +571,9 @@ export default function AdminFinancialLedger() {
               </div>
               <div>
                 <label className="text-slate-400">Nghiệp vụ hạch toán chính:</label>
-                <select 
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" 
-                  value={type} 
+                <select
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200"
+                  value={type}
                   onChange={e => {
                     const val = e.target.value;
                     setType(val);
@@ -572,7 +582,7 @@ export default function AdminFinancialLedger() {
                     if (val !== 'VON_GOP') setSubType('TIEN_MAT');
                   }}
                 >
-                  {transactionTypes.map((t: any) => <option key={t.code} value={t.code}>{t.label}</option>)}
+                  {transactionTypes.map((t) => <option key={t.code} value={t.code}>{t.label}</option>)}
                 </select>
               </div>
 
@@ -608,7 +618,7 @@ export default function AdminFinancialLedger() {
                   <label className="text-slate-400">Phân loại danh mục nguồn vốn:</label>
                   <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" value={subType} onChange={e => setSubType(e.target.value as 'TIEN_MAT' | 'HIEN_VAT')}>
                     {contributionTypes.length > 0 ? (
-                      contributionTypes.map((c: any) => <option key={c.code} value={c.code}>{c.label}</option>)
+                      contributionTypes.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)
                     ) : (
                       <>
                         <option value="TIEN_MAT">🏢 Góp vốn chung (Vào két quỹ)</option>
@@ -650,18 +660,18 @@ export default function AdminFinancialLedger() {
               </div>
               <div>
                 <label className="text-slate-400">Nghiệp vụ hạch toán chính:</label>
-                <select 
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" 
-                  value={editType} 
+                <select
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200"
+                  value={editType}
                   onChange={e => {
                     const val = e.target.value;
                     setEditType(val);
                     // LÀM SẠCH NGAY KHI ĐỔI LOẠI
-                    if (val !== 'CHI_PHI') setEditExpenseSource(COMMON_FUND_SOURCE_ID); 
+                    if (val !== 'CHI_PHI') setEditExpenseSource(COMMON_FUND_SOURCE_ID);
                     if (val !== 'VON_GOP') setEditSubType('TIEN_MAT');
                   }}
                 >
-                  {transactionTypes.map((t: any) => <option key={t.code} value={t.code}>{t.label}</option>)}
+                  {transactionTypes.map((t) => <option key={t.code} value={t.code}>{t.label}</option>)}
                 </select>
               </div>
 
@@ -694,7 +704,7 @@ export default function AdminFinancialLedger() {
                   <label className="text-slate-400">Phân loại danh mục nguồn vốn:</label>
                   <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" value={editSubType} onChange={e => setEditSubType(e.target.value as 'TIEN_MAT' | 'HIEN_VAT')}>
                     {contributionTypes.length > 0 ? (
-                      contributionTypes.map((c: any) => <option key={c.code} value={c.code}>{c.label}</option>)
+                      contributionTypes.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)
                     ) : (
                       <>
                         <option value="TIEN_MAT">🏢 Góp vốn chung (Vào két quỹ)</option>
@@ -709,9 +719,9 @@ export default function AdminFinancialLedger() {
               <div><label className="text-slate-400">Số tiền sửa (VND):</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 font-mono text-amber-400 font-bold focus:outline-none" value={editAmount} onChange={e => setEditAmount(formatCurrency(e.target.value))} /></div>
               <div className="animate-fadeIn">
                 <label className="text-slate-400">Nhân sự thực hiện:</label>
-                <select 
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" 
-                  value={editReporter} 
+                <select
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200"
+                  value={editReporter}
                   onChange={e => setEditReporter(e.target.value)}
                 >
                   <option value="Admin (Hệ thống)">Admin (Hệ thống)</option>

@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase/client';
 import { useNotification } from '@/component/NotificationContext';
 import { Database, Plus, Trash2, Save, RefreshCcw, Layers, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { DEFAULT_SYSTEM_METADATA_CATEGORIES, type SystemMetadataCategory, type SystemMetadataRow, type SystemMetadataValue } from '@/lib/system-metadata-defaults';
 
 export default function MetadataManagement() {
   const { showToast, showConfirm } = useNotification();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<SystemMetadataCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  const [selectedCatId, setSelectedCatId] = useState<string>(''); 
-  const [subSearchTerm, setSubSearchTerm] = useState<string>(''); 
+
+  const [selectedCatId, setSelectedCatId] = useState<string>('');
+  const [subSearchTerm, setSubSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [pageInput, setPageInput] = useState('1');
@@ -22,9 +23,10 @@ export default function MetadataManagement() {
     setLoading(true);
     try {
       const { data } = await supabase.from('system_metadata').select('*').order('id', { ascending: true });
-      setCategories(data || []);
-      if (data && data.length > 0 && !selectedCatId) {
-        setSelectedCatId(data[0].id.toString());
+      const loadedCategories = (data && data.length > 0 ? data : DEFAULT_SYSTEM_METADATA_CATEGORIES) as SystemMetadataCategory[];
+      setCategories(loadedCategories);
+      if (loadedCategories.length > 0 && !selectedCatId) {
+        setSelectedCatId(loadedCategories[0].id.toString());
       }
     } catch (e) {
       console.error(e);
@@ -43,15 +45,16 @@ export default function MetadataManagement() {
   };
 
   const activeCategory = categories.find(c => c.id === Number(selectedCatId));
+  const isFallbackCategory = Boolean(activeCategory?.isFallback);
   const activeData = activeCategory ? activeCategory.data || [] : [];
 
-  const rowsWithGlobalIndex = activeData.map((row: any, index: number) => ({
+  const rowsWithGlobalIndex: Array<SystemMetadataRow & { __globalIndex: number }> = activeData.map((row: SystemMetadataRow, index: number) => ({
     ...row,
     __globalIndex: index
   }));
 
-  const filteredRows = rowsWithGlobalIndex.filter((row: any) => {
-    return Object.keys(row).some((key: string) => { 
+  const filteredRows = rowsWithGlobalIndex.filter((row) => {
+    return Object.keys(row).some((key: string) => {
       if (key === '__globalIndex') return false;
       return String(row[key]).toLowerCase().includes(subSearchTerm.toLowerCase());
     });
@@ -60,9 +63,14 @@ export default function MetadataManagement() {
   const totalPages = Math.ceil(filteredRows.length / itemsPerPage) || 1;
   const paginatedRows = filteredRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const tableHeaders = activeData.length > 0 
-    ? Object.keys(activeData[0]).filter(k => k !== '__globalIndex') 
+  const tableHeaders = activeData.length > 0
+    ? Object.keys(activeData[0]).filter(k => k !== '__globalIndex')
     : [];
+
+  const getInputValue = (row: SystemMetadataRow, key: string): string | number => {
+    const value = row[key];
+    return typeof value === 'number' ? value : String(value ?? '');
+  };
 
   const handleCreateCategory = async () => {
     if (!newCatName.trim()) return showToast('Thiếu thông tin', 'Sếp vui lòng nhập tên danh mục lớn!', 'error');
@@ -74,7 +82,7 @@ export default function MetadataManagement() {
   };
 
   const handleDeleteCategory = () => {
-    if (!activeCategory) return;
+    if (!activeCategory || isFallbackCategory) return;
     // 🔥 ĐÃ VÁ: Thay confirm() trình duyệt bằng hộp thoại Confirm Modal bo góc
     showConfirm('Xóa danh mục lớn', `Sếp có chắc chắn muốn xóa vĩnh viễn danh mục lớn [${activeCategory.name}] cùng toàn bộ thuộc tính con không?`, async () => {
       await supabase.from('system_metadata').delete().eq('id', activeCategory.id);
@@ -84,16 +92,16 @@ export default function MetadataManagement() {
   };
 
   const handleAddRow = () => {
-    if (!activeCategory) return;
-    let newRow = {};
+    if (!activeCategory || isFallbackCategory) return;
+    let newRow: SystemMetadataRow = {};
     const nameLower = activeCategory.name.toLowerCase();
-    
+
     if (nameLower.includes('cấp bậc & lương')) {
       newRow = { level: 'Bậc mới', rate: 30000 };
     } else if (nameLower.includes('vị trí & cấp bậc')) {
       newRow = { title: 'Vị trí mới', level: 'A1' };
     } else {
-      newRow = tableHeaders.length > 0 
+      newRow = tableHeaders.length > 0
         ? tableHeaders.reduce((acc, currentKey) => ({ ...acc, [currentKey]: currentKey === 'rate' ? 0 : 'Nhập dữ liệu' }), {})
         : { key: 'Nhãn', value: 'Giá trị' };
     }
@@ -103,19 +111,19 @@ export default function MetadataManagement() {
     setTimeout(() => { setCurrentPage(Math.ceil(updatedData.length / itemsPerPage) || 1); }, 50);
   };
 
-  const handleUpdateRowValue = (globalIndex: number, field: string, value: any) => {
-    if (!activeCategory) return;
+  const handleUpdateRowValue = (globalIndex: number, field: string, value: SystemMetadataValue) => {
+    if (!activeCategory || isFallbackCategory) return;
     const newData = [...activeCategory.data];
     newData[globalIndex] = { ...newData[globalIndex], [field]: field === 'rate' ? Number(value) : value };
     setCategories(categories.map(c => c.id === activeCategory.id ? { ...c, data: newData } : c));
   };
 
   const handleRemoveRow = (globalIndex: number) => {
-    if (!activeCategory) return;
-    
+    if (!activeCategory || isFallbackCategory) return;
+
     const newData = [...activeCategory.data];
     newData.splice(globalIndex, 1);
-    
+
     setCategories(categories.map(c => c.id === activeCategory.id ? { ...c, data: newData } : c));
     const maxPage = Math.ceil(newData.length / itemsPerPage) || 1;
     if (currentPage > maxPage) setCurrentPage(maxPage);
@@ -123,6 +131,10 @@ export default function MetadataManagement() {
 
   const handleSaveCategory = async () => {
     if (!activeCategory) return;
+    if (isFallbackCategory) {
+      showToast('Cần tạo danh mục DB', 'Danh mục mặc định chỉ dùng để chống trống dropdown. Hãy tạo danh mục lớn trong DB trước khi lưu.', 'info');
+      return;
+    }
     await supabase.from('system_metadata').update({ data: activeCategory.data }).eq('id', activeCategory.id);
     // 🔥 ĐÃ VÁ: Chuyển sang Popup Toast
     showToast('Đồng bộ thành công', `✨ Đã cập nhật và lưu trữ danh mục [${activeCategory.name}] lên Cloud!`, 'success');
@@ -130,7 +142,7 @@ export default function MetadataManagement() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 text-slate-100 bg-slate-950 min-h-screen font-sans">
-      
+
       {/* HEADER TỔNG */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 gap-4">
         <div className="flex items-center gap-2">
@@ -154,17 +166,21 @@ export default function MetadataManagement() {
             <select className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-purple-300 font-black focus:outline-none w-full md:w-64 cursor-pointer" value={selectedCatId} onChange={(e) => handleCategoryFilterChange(e.target.value)}>
               {categories.map(c => <option key={c.id} value={c.id}>📁 {c.name} ({c.data?.length || 0})</option>)}
             </select>
-            {activeCategory && (
+            {activeCategory && !isFallbackCategory && (
               <button onClick={handleDeleteCategory} className="p-2 bg-slate-950 border border-red-900/30 text-red-400 hover:bg-red-950/20 rounded-xl text-[10px] font-bold transition">Xóa danh mục lớn</button>
             )}
           </div>
+
+          {isFallbackCategory && (
+            <p className="text-[10px] font-bold text-amber-300">Đang hiển thị danh mục mặc định vì DB chưa có dữ liệu.</p>
+          )}
 
           <div className="flex items-center gap-3 w-full md:w-auto justify-end">
             <div className="relative w-full md:w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
               <input type="text" placeholder="Tìm nội dung con..." className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none" value={subSearchTerm} onChange={(e) => { setSubSearchTerm(e.target.value); setCurrentPage(1); setPageInput('1'); }} />
             </div>
-            <button onClick={handleSaveCategory} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center gap-1 transition shrink-0"><Save className="w-3.5 h-3.5" /> Lưu bảng</button>
+            <button onClick={handleSaveCategory} disabled={isFallbackCategory} title={isFallbackCategory ? 'Danh mục mặc định chỉ hiển thị khi DB chưa có dữ liệu.' : undefined} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center gap-1 transition shrink-0"><Save className="w-3.5 h-3.5" /> Lưu bảng</button>
           </div>
         </div>
 
@@ -179,20 +195,21 @@ export default function MetadataManagement() {
             <tbody className="divide-y divide-slate-800/50">
             {paginatedRows.length === 0 ? (
               <tr><td colSpan={tableHeaders.length + 1} className="p-8 text-center text-slate-500 font-mono italic">Chưa có hàng dữ liệu con nào khớp bộ lọc tra cứu.</td></tr>
-            ) : paginatedRows.map((row: any) => ( // 🟢 SỬA TẠI ĐÂY: Thêm ": any" vào sau biến row để triệt tiêu lỗi Implicit Any
+            ) : paginatedRows.map((row) => (
               <tr key={row.__globalIndex} className="hover:bg-slate-950/30 transition">
                 {tableHeaders.map((key) => (
                   <td key={key} className="p-3">
-                    <input 
-                      type={key === 'rate' ? 'number' : 'text'} 
-                      className="w-full bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none font-medium" 
-                      value={row[key] !== undefined ? row[key] : ''} 
-                      onChange={(e) => handleUpdateRowValue(row.__globalIndex, key, e.target.value)} 
+                    <input
+                      type={key === 'rate' ? 'number' : 'text'}
+                      className="w-full bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none font-medium"
+                      value={getInputValue(row, key)}
+                      onChange={(e) => handleUpdateRowValue(row.__globalIndex, key, e.target.value)}
+                      disabled={isFallbackCategory}
                     />
                   </td>
                 ))}
                 <td className="p-3 text-center">
-                  <button onClick={() => handleRemoveRow(row.__globalIndex)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleRemoveRow(row.__globalIndex)} disabled={isFallbackCategory} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"><Trash2 className="w-4 h-4" /></button>
                 </td>
               </tr>
             ))}
@@ -203,10 +220,10 @@ export default function MetadataManagement() {
         {/* THANH PHÂN TRANG */}
         <div className="p-4 bg-slate-950/50 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-mono text-slate-400 select-none">
           <div className="w-full md:w-auto flex justify-between md:justify-start items-center gap-4">
-            <button onClick={handleAddRow} className="text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 transition font-sans"><Plus className="w-4 h-4" /> Thêm hàng con mới</button>
+            <button onClick={handleAddRow} disabled={isFallbackCategory} className="text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 transition font-sans"><Plus className="w-4 h-4" /> Thêm hàng con mới</button>
             <div>Total <span className="text-purple-400 font-bold">{filteredRows.length}</span> items</div>
           </div>
-          
+
           <div className="flex flex-wrap items-center justify-end gap-4 w-full md:w-auto">
             <div className="flex items-center gap-1.5">
               <span>Show rows:</span>

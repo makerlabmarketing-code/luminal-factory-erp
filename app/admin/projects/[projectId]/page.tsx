@@ -14,6 +14,8 @@ import {
   Lock,
   MessageSquare,
   Pencil,
+  UserPlus,
+  Users,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
@@ -40,12 +42,36 @@ interface PhaseRecord {
   isCompleted: boolean;
 }
 
+interface ProjectMemberDTO {
+  membershipId: number;
+  employeeId: number;
+  fullName: string;
+  title: string | null;
+  roleCode: 'PROJECT_OWNER' | 'PROJECT_MANAGER' | 'CREATIVE_LEAD' | 'CONTRIBUTOR';
+  roleLabel: string;
+  status: 'ACTIVE' | 'REVOKED';
+  joinedAt: string | null;
+  revokedAt: string | null;
+}
+
+interface ProjectCapabilitiesDTO {
+  canViewProject: boolean;
+  canEditProject: boolean;
+  canManageMembers: boolean;
+  canManagePhases: boolean;
+  canManageTasks: boolean;
+  canCancelProject: boolean;
+}
+
 interface ProjectDetailDTO {
   id: number;
   name: string;
   status: string | null;
+  projectDeadline: string | null;
   progressPercent: number;
   currentPhaseId: number | null;
+  capabilities: ProjectCapabilitiesDTO;
+  members: ProjectMemberDTO[];
   phases: PhaseRecord[];
   unassignedTasks: WorkflowTask[];
 }
@@ -203,21 +229,45 @@ export default function ProjectDetailPage() {
   const [editingPhaseOrder, setEditingPhaseOrder] = useState('');
   const [driveLinkInput, setDriveLinkInput] = useState('');
   const [selectedPhaseId, setSelectedPhaseId] = useState<number | null>(null);
-  const hasProjectMutationAccess = true;
+  const [members, setMembers] = useState<ProjectMemberDTO[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [memberActionLoading, setMemberActionLoading] = useState(false);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [candidateEmployees, setCandidateEmployees] = useState<Array<{ employeeId: number; fullName: string; title: string | null }>>([]);
+  const [candidateEmployeesLoaded, setCandidateEmployeesLoaded] = useState(false);
+  const [memberEmployeeId, setMemberEmployeeId] = useState('');
+  const [memberRoleCode, setMemberRoleCode] = useState<ProjectMemberDTO['roleCode']>('CONTRIBUTOR');
+  const [projectCapabilities, setProjectCapabilities] = useState<ProjectCapabilitiesDTO>({
+    canViewProject: false,
+    canEditProject: false,
+    canManageMembers: false,
+    canManagePhases: false,
+    canManageTasks: false,
+    canCancelProject: false,
+  });
+  const hasProjectMutationAccess = projectCapabilities.canManagePhases || projectCapabilities.canEditProject || projectCapabilities.canCancelProject;
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadFailed(false);
     try {
-      const workflowItems = await getWorkflowItems({ includeClosedProjects: true });
+      const [workflowItems, membersResponse] = await Promise.all([
+        getWorkflowItems({ includeClosedProjects: true }),
+        fetch(`/api/admin/projects/${projectId}/members`, { cache: 'no-store' }),
+      ]);
       setItems(workflowItems);
+      if (membersResponse.ok) {
+        const payload = await membersResponse.json() as { members?: ProjectMemberDTO[]; capabilities?: ProjectCapabilitiesDTO };
+        setMembers(payload.members || []);
+        if (payload.capabilities) setProjectCapabilities(payload.capabilities);
+      }
     } catch {
       setLoadFailed(true);
       showToast('Không thể tải dự án.', 'Vui lòng thử lại sau.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [projectId, showToast]);
 
   useEffect(() => {
     loadData();
@@ -283,20 +333,24 @@ export default function ProjectDetailPage() {
   const nearestDeadline = [...phases.flatMap((phase) => phase.tasks.map((task) => task.deadline || task.estimationDate)), ...unassignedTasks.map((task) => task.estimationDate || task.deadline)]
     .filter((value): value is string => Boolean(value))
     .sort()[0] || null;
-  const memberCount = 0;
+  const memberCount = members.filter((member) => member.status === 'ACTIVE').length;
   const activePhase = phases.find((phase) => phase.status === 'ACTIVE' || phase.status === 'BLOCKED' || phase.status === 'REVIEW') || phases.find((phase) => phase.status === 'COMPLETED') || phases[0] || null;
   const selectedPhase = phases.find((phase) => phase.item.phase_id === selectedPhaseId) || activePhase;
   const projectDetail: ProjectDetailDTO = {
     id: projectId,
     name: projectName,
     status: firstDescription.project_status || null,
+    projectDeadline: firstDescription.project_deadline || null,
     progressPercent,
     currentPhaseId: activePhase?.item.phase_id || null,
+    capabilities: projectCapabilities,
+    members,
     phases,
     unassignedTasks,
   };
   const isProjectCancelled = String(projectDetail.status || '').toUpperCase() === 'CANCELLED';
   const canManageProject = hasProjectMutationAccess && !isProjectCancelled;
+  const canManageMembers = projectDetail.capabilities.canManageMembers && !isProjectCancelled;
 
   useEffect(() => {
     setDriveLinkInput(firstDescription.project_drive_link || '');
@@ -315,6 +369,101 @@ export default function ProjectDetailPage() {
   if (!loading && !loadFailed && projectItems.length === 0) {
     notFound();
   }
+
+
+
+  const loadCandidateEmployees = async () => {
+    if (candidateEmployeesLoaded || membersLoading) return;
+    setMembersLoading(true);
+    try {
+      const response = await fetch(`/api/admin/projects/${projectId}/members?scope=candidates`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('employee_load_failed');
+      const payload = await response.json() as { candidates?: Array<{ employeeId: number; fullName: string; title: string | null }> };
+      setCandidateEmployees(payload.candidates || []);
+      setCandidateEmployeesLoaded(true);
+    } catch {
+      showToast('Không thể tải danh sách nhân sự.', 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setMembersLoading(false);
+    }
+  };
+
+  const openAddMemberModal = async () => {
+    if (!canManageMembers) return;
+    setAddMemberOpen(true);
+    await loadCandidateEmployees();
+  };
+
+  const refreshMembers = async () => {
+    const response = await fetch(`/api/admin/projects/${projectId}/members`, { cache: 'no-store' });
+    if (!response.ok) throw new Error('member_refresh_failed');
+    const payload = await response.json() as { members?: ProjectMemberDTO[]; capabilities?: ProjectCapabilitiesDTO };
+    setMembers(payload.members || []);
+    if (payload.capabilities) setProjectCapabilities(payload.capabilities);
+    setCandidateEmployeesLoaded(false);
+  };
+
+  const handleAddMember = async () => {
+    if (!canManageMembers || memberActionLoading) return;
+    setMemberActionLoading(true);
+    try {
+      const response = await fetch(`/api/admin/projects/${projectId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId: Number(memberEmployeeId), roleCode: memberRoleCode }),
+      });
+      const payload = await response.json().catch(() => null) as { message?: string } | null;
+      if (!response.ok) throw new Error(payload?.message || 'member_add_failed');
+      showToast('Đã thêm thành viên.', 'Thành viên dự án đã được cập nhật.', 'success');
+      setAddMemberOpen(false);
+      setMemberEmployeeId('');
+      await refreshMembers();
+    } catch (error) {
+      showToast('Không thể thêm thành viên.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setMemberActionLoading(false);
+    }
+  };
+
+  const handleChangeRole = async (member: ProjectMemberDTO) => {
+    if (!canManageMembers || memberActionLoading) return;
+    const nextRole = window.prompt('Nhập role mới: PROJECT_OWNER, PROJECT_MANAGER, CREATIVE_LEAD hoặc CONTRIBUTOR', member.roleCode);
+    if (!nextRole) return;
+    setMemberActionLoading(true);
+    try {
+      const response = await fetch(`/api/admin/projects/${projectId}/members/${member.membershipId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roleCode: nextRole }),
+      });
+      const payload = await response.json().catch(() => null) as { message?: string } | null;
+      if (!response.ok) throw new Error(payload?.message || 'member_update_failed');
+      showToast('Đã đổi vai trò.', 'Vai trò dự án đã được cập nhật.', 'success');
+      await refreshMembers();
+    } catch (error) {
+      showToast('Không thể đổi vai trò.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setMemberActionLoading(false);
+    }
+  };
+
+  const handleRevokeMember = (member: ProjectMemberDTO) => {
+    if (!canManageMembers || memberActionLoading) return;
+    showConfirm('Thu hồi thành viên', 'Thành viên sẽ không còn ACTIVE trong dự án, lịch sử vẫn được giữ lại.', async () => {
+      setMemberActionLoading(true);
+      try {
+        const response = await fetch(`/api/admin/projects/${projectId}/members/${member.membershipId}/revoke`, { method: 'POST' });
+        const payload = await response.json().catch(() => null) as { message?: string } | null;
+        if (!response.ok) throw new Error(payload?.message || 'member_revoke_failed');
+        showToast('Đã thu hồi thành viên.', 'Lịch sử membership vẫn được giữ lại.', 'success');
+        await refreshMembers();
+      } catch (error) {
+        showToast('Không thể thu hồi thành viên.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
+      } finally {
+        setMemberActionLoading(false);
+      }
+    });
+  };
 
   const handleStartEditPhase = (phase: PhaseRecord) => {
     if (!canManageProject) return;
@@ -509,6 +658,44 @@ export default function ProjectDetailPage() {
                 </div>
                 {projectDetail.phases.length === 0 && (
                   <div className="p-6 text-center text-xs text-slate-500">Dự án chưa có giai đoạn.</div>
+                )}
+              </div>
+            </section>
+
+
+
+            <section className="rounded-lg border border-slate-800 bg-slate-900">
+              <div className="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-cyan-300" />
+                    <h2 className="text-sm font-black text-slate-100">Thành viên dự án</h2>
+                  </div>
+                  <p className="text-[11px] text-slate-500">{memberCount} thành viên đang hoạt động · Không hard delete membership.</p>
+                </div>
+                <button type="button" disabled={!canManageMembers || memberActionLoading} onClick={openAddMemberModal} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
+                  <UserPlus className="h-4 w-4" /> Thêm thành viên
+                </button>
+              </div>
+              <div className="overflow-x-auto p-4">
+                {projectDetail.members.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-700 p-6 text-center text-xs text-slate-500">Chưa có thành viên dự án.</div>
+                ) : (
+                  <table className="w-full min-w-[760px] text-left text-xs">
+                    <thead className="text-slate-500"><tr className="border-b border-slate-800"><th className="py-2 pr-3">Nhân viên</th><th className="py-2 pr-3">Chức vụ</th><th className="py-2 pr-3">Vai trò</th><th className="py-2 pr-3">Trạng thái</th><th className="py-2 pr-3">Ngày tham gia</th><th className="py-2">Thao tác</th></tr></thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {projectDetail.members.map((member) => (
+                        <tr key={member.membershipId}>
+                          <td className="py-3 pr-3 font-bold text-slate-100">{member.fullName}</td>
+                          <td className="py-3 pr-3 text-slate-300">{member.title || 'Chưa có'}</td>
+                          <td className="py-3 pr-3 text-slate-300">{member.roleLabel}</td>
+                          <td className="py-3 pr-3"><span className={`rounded border px-2 py-1 ${member.status === 'ACTIVE' ? 'border-emerald-800 text-emerald-200' : 'border-slate-700 text-slate-400'}`}>{member.status === 'ACTIVE' ? 'Đang hoạt động' : 'Đã thu hồi'}</span></td>
+                          <td className="py-3 pr-3 text-slate-300">{formatDate(member.joinedAt)}</td>
+                          <td className="py-3"><div className="flex gap-2"><button type="button" disabled={!canManageMembers || member.status !== 'ACTIVE' || memberActionLoading} onClick={() => handleChangeRole(member)} className="rounded border border-slate-700 px-2 py-1 font-bold text-slate-300 disabled:opacity-40">Đổi vai trò</button><button type="button" disabled={!canManageMembers || member.status !== 'ACTIVE' || memberActionLoading} onClick={() => handleRevokeMember(member)} className="rounded border border-amber-800 px-2 py-1 font-bold text-amber-200 disabled:opacity-40">Thu hồi</button></div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </div>
             </section>
@@ -713,6 +900,27 @@ export default function ProjectDetailPage() {
           </aside>
         </div>
       </div>
+        {addMemberOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-label="Thêm thành viên dự án">
+            <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
+              <div className="mb-4"><h2 className="text-base font-black text-slate-100">Thêm thành viên dự án</h2><p className="text-xs text-slate-500">Chỉ tải danh sách nhân sự ACTIVE khi mở modal.</p></div>
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-slate-300">Nhân sự</label>
+                <select value={memberEmployeeId} onChange={(event) => setMemberEmployeeId(event.target.value)} disabled={membersLoading || memberActionLoading} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100">
+                  <option value="">Chọn nhân sự</option>
+                  {candidateEmployees.map((employee) => <option key={employee.employeeId} value={employee.employeeId}>{employee.fullName}{employee.title ? ` · ${employee.title}` : ''}</option>)}
+                </select>
+                {candidateEmployeesLoaded && candidateEmployees.length === 0 && <p className="text-xs text-slate-500">Không còn nhân sự ACTIVE nào chưa có membership ACTIVE.</p>}
+                <label className="block text-xs font-bold text-slate-300">Vai trò dự án</label>
+                <select value={memberRoleCode} onChange={(event) => setMemberRoleCode(event.target.value as ProjectMemberDTO['roleCode'])} disabled={memberActionLoading} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100">
+                  <option value="PROJECT_OWNER">Chủ dự án</option><option value="PROJECT_MANAGER">Quản lý dự án</option><option value="CREATIVE_LEAD">Lead sáng tạo</option><option value="CONTRIBUTOR">Thành viên</option>
+                </select>
+              </div>
+              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setAddMemberOpen(false)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={!memberEmployeeId || memberActionLoading || membersLoading} onClick={handleAddMember} className="rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Thêm thành viên'}</button></div>
+            </div>
+          </div>
+        )}
+
     </div>
   );
 }
