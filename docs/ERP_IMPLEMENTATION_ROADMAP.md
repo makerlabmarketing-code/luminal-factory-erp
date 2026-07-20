@@ -21,7 +21,7 @@ Không dùng roadmap này để thay thế business rule hoặc security rule ch
 ## 2. Quy tắc sử dụng roadmap
 
 - Chỉ thực hiện một giai đoạn hoặc một batch tại một thời điểm.
-- Không tự chuyển sang bước tiếp theo nếu chưa được người dùng xác nhận.
+- Mặc định chỉ thực hiện một giai đoạn hoặc một batch tại một thời điểm. Khi người dùng bật `AUTO_RUN_ROADMAP`, Codex được tự chuyển sang bước kế tiếp sau khi Exit Criteria của bước hiện tại PASS; không cần xin xác nhận lại giữa các bước an toàn.
 - Nếu gặp lỗi, thiếu quyền, thiếu dữ liệu, thiếu biến môi trường hoặc cần thao tác trên Supabase Dashboard, phải dừng và báo rõ.
 - Không tự tạo dữ liệu giả để vượt lỗi.
 - Không hard-code secret, token, UUID, mật khẩu hoặc key.
@@ -91,6 +91,281 @@ Sau mỗi batch, Codex phải cập nhật:
 - Bước tiếp theo
 
 Không xóa lịch sử giai đoạn đã hoàn thành.
+
+---
+
+# 5.1. Chế độ chạy roadmap tự động
+
+Roadmap hỗ trợ hai chế độ:
+
+## MANUAL_MODE
+
+- Codex thực hiện đúng batch được giao.
+- Sau khi hoàn thành, Codex cập nhật roadmap và chờ người dùng duyệt bước tiếp theo.
+- Dùng cho migration, backfill, production data mutation, thay đổi RLS hoặc các thao tác cần phê duyệt riêng.
+
+## AUTO_RUN_ROADMAP
+
+Khi người dùng yêu cầu chạy toàn bộ roadmap hoặc một workstream, Codex được tự động thực hiện tuần tự từng batch mà không cần hỏi lại sau mỗi batch, với các điều kiện sau:
+
+1. Chỉ chạy một batch tại một thời điểm.
+2. Phải đọc `AGENTS.md`, `.agents/skills/luminal-erp/SKILL.md` và reference nhỏ nhất phù hợp trước mỗi batch.
+3. Phải kiểm tra roadmap, spec, audit và handoff liên quan trước khi sửa code.
+4. Phải hoàn thành Acceptance Criteria và Exit Criteria của batch hiện tại trước khi chuyển tiếp.
+5. Sau mỗi batch phải cập nhật roadmap, tạo checkpoint commit riêng và chạy validation phù hợp.
+6. Không gom nhiều batch vào một commit.
+7. Không tự mở rộng scope sang module khác chỉ vì phát hiện cơ hội refactor.
+8. Nếu gặp blocker thật, phải dừng toàn bộ chuỗi và báo `BLOCKED`.
+9. Nếu một bước cần live SQL, migration, backfill, Auth mutation, permission mutation hoặc production data mutation chưa được duyệt rõ, phải dừng tại gate đó và báo `LIVE_APPROVAL_REQUIRED`.
+10. Không dùng dữ liệu giả, hard-code option hoặc service-role bypass để vượt blocker.
+
+### Auto-run validation gate
+
+Một batch application-code chỉ được chuyển tiếp khi:
+
+- `npm test` PASS
+- `npm run lint` PASS hoặc chỉ còn warning có sẵn không thuộc diff
+- `npx tsc --noEmit` PASS
+- `npm run build` PASS
+- Không còn P0/P1 finding
+- Không có secret trong diff/log
+- Không có unrelated change
+- Không có production mutation ngoài phê duyệt
+- Git diff đã được review
+- Roadmap đã được cập nhật
+
+### Git delivery trong AUTO_RUN_ROADMAP
+
+- Codex được commit riêng từng batch.
+- Codex chỉ được push/merge theo `Git delivery policy` trong `AGENTS.md`.
+- Nếu checkout không có `origin`, branch protection chặn, authentication thất bại hoặc merge conflict, phải dừng ở trạng thái `BLOCKED_GIT_DELIVERY`.
+- Không force-push, không reset để che conflict và không bỏ validation.
+
+---
+
+# 5.2. Acceptance Criteria, Exit Criteria và Handoff
+
+Mỗi batch đang hoạt động phải có ba nhóm tiêu chí:
+
+## Acceptance Criteria
+
+Mô tả hành vi cụ thể cần tồn tại để batch được coi là đúng về mặt chức năng, dữ liệu, quyền và UX.
+
+Checklist tối thiểu:
+
+- Luồng chính hoạt động đúng.
+- Error state và permission state rõ ràng.
+- Không làm thay đổi business logic ngoài scope.
+- Có regression coverage cho luồng quan trọng.
+- Không tạo request thừa hoặc N+1 rõ ràng.
+- Không lộ raw database error hoặc secret.
+- UI người dùng nhìn thấy dùng tiếng Việt đơn giản.
+
+## Exit Criteria
+
+Batch chỉ được chuyển sang bước tiếp theo khi:
+
+- Acceptance Criteria PASS.
+- Test/lint/typecheck/build PASS theo validation matrix.
+- Không còn P0/P1 finding.
+- Database impact và security impact đã được ghi rõ.
+- Manual QA checklist đã được tạo hoặc thực hiện.
+- Roadmap đã cập nhật trạng thái, bằng chứng và bước tiếp theo.
+- Không còn blocker chưa được phân loại.
+
+## Handoff Notes
+
+Phải ghi rõ:
+
+- Những contract mà batch sau được phép dựa vào.
+- Những legacy field/schema vẫn còn tồn tại.
+- Những phần chưa được triển khai.
+- Migration/backfill/live verification còn thiếu.
+- Regression boundary cần giữ nguyên.
+- File/spec/roadmap nào là source of truth tiếp theo.
+
+---
+
+# 5.3. Project Workflow Completion Workstream
+
+Workstream này là chuỗi triển khai ưu tiên hiện tại. Nó không thay thế số batch lịch sử trong roadmap tổng thể; mỗi phase bên dưới phải được map tới batch hoặc slice tương ứng trong bảng roadmap.
+
+## Phase 1: Membership Foundation
+
+**Trạng thái mục tiêu:** `IN_QA` → `COMPLETE`
+
+Phạm vi:
+
+- Membership authorization trung tâm
+- Add/change/revoke membership
+- Project Detail member DTO và capability DTO
+- Membership management UI
+- Project/Phase authorization integration
+- Attendance và Project Deadline regression boundary
+
+Acceptance Criteria:
+
+- Thêm thành viên ACTIVE thành công.
+- Không tạo duplicate ACTIVE membership.
+- Đổi role đúng whitelist.
+- Revoke không hard delete và giữ lịch sử.
+- Revoke lặp lại được xử lý rõ.
+- Cross-project membership mutation bị chặn.
+- Project `CANCELLED` readonly.
+- UI chỉ dùng capability từ server.
+- Không fetch employee list trước khi mở modal.
+- Attendance không phụ thuộc `project_members`.
+- Project Deadline không regression.
+- Test/lint/typecheck/build PASS.
+- Manual QA cho add/change/revoke/readonly PASS.
+
+Exit Criteria:
+
+- Không còn P0/P1.
+- Membership APIs/UI đã được live verify hoặc có checklist rõ nếu deployment bị chặn.
+- Roadmap cập nhật trạng thái `✅ Hoàn thành` hoặc `⚠️ Cần kiểm tra` với blocker cụ thể.
+- Có handoff đầy đủ cho Task Assignment Foundation.
+
+Handoff sang Phase 2:
+
+- `project_members` ACTIVE là authority để xác thực assignee thuộc dự án.
+- Không dùng tên người hoặc email làm assignment authority.
+- Không triển khai assignment trên legacy text field nếu chưa có stable employee identifier.
+
+## Phase 2: Task Assignment Foundation
+
+Phạm vi:
+
+- Child Task
+- Assignee
+- Deadline
+- Comment
+- Activity
+- Notification foundation
+
+Acceptance Criteria:
+
+- Audit schema task legacy trước khi thay đổi.
+- Child task có quan hệ rõ với project/phase/parent task.
+- Assignee dùng stable `employee_id` hoặc internal employee PK theo contract đã duyệt.
+- Assignee phải là employee ACTIVE và ACTIVE project member.
+- Deadline được lưu/đọc thống nhất và hiển thị đúng timezone.
+- Comment dùng textarea, có validation và không lộ raw DB error.
+- Activity ghi nhận actor, action và timestamp tối thiểu.
+- Notification chỉ triển khai foundation trong scope được duyệt; không mở WebSocket/realtime rộng.
+- Không làm regression Membership, Attendance, Project Deadline và Phase authorization.
+- Có migration/rollback/validation/backfill plan nếu cần schema mới.
+- Không chạy live migration nếu chưa được duyệt.
+
+Exit Criteria:
+
+- Task Assignment contract được chốt.
+- API/UI/tests PASS.
+- Legacy compatibility được ghi rõ.
+- Handoff sang Project Workflow nêu rõ task/phase dependencies.
+
+## Phase 3: Project Workflow
+
+Phạm vi:
+
+- Phase transition
+- Complete phase
+- Lock phase
+- Unlock phase
+- Sequential workflow
+
+Acceptance Criteria:
+
+- Transition validator nằm ở server/domain boundary.
+- Không để client tự quyết định quyền hoặc trạng thái hợp lệ.
+- Chỉ mở phase sau khi dependency trước đạt điều kiện.
+- Complete/lock/unlock có authorization và audit.
+- Project `CANCELLED` readonly.
+- Không phá task assignment và membership capability.
+- Có transition matrix và regression tests.
+
+Exit Criteria:
+
+- Workflow state machine và quyền đã PASS.
+- Không còn transition bypass.
+- Handoff UI Polish ghi rõ các state/loading/error cần thể hiện.
+
+## Phase 4: UI Polish
+
+Phạm vi:
+
+- Animation
+- Loading
+- Skeleton
+- Spacing
+- Typography
+- Responsive
+- Dark mode
+- Dashboard
+- Project detail
+- Employee detail
+
+Acceptance Criteria:
+
+- Không thay đổi business logic.
+- Dùng shared loading/skeleton/error/empty patterns.
+- Không tạo design system song song.
+- Desktop, tablet và mobile pass kiểm tra cơ bản.
+- Dark mode chỉ hoàn thành khi contrast và readability PASS.
+- Dashboard dùng dữ liệu thật, không demo metric.
+- Project/Employee Detail giữ nguyên authorization server-side.
+
+Exit Criteria:
+
+- Core pages có UI consistency.
+- Accessibility issue nghiêm trọng đã xử lý.
+- Handoff Production Hardening ghi rõ performance hot spots còn lại.
+
+## Phase 5: Production Hardening
+
+Phạm vi:
+
+- Cache
+- Audit log
+- Notification
+- Realtime
+- WebSocket nếu thực sự cần
+- Optimistic update
+- Background jobs
+- Monitoring
+- Performance
+
+Acceptance Criteria:
+
+- Mọi kỹ thuật mới có use case rõ, không thêm chỉ để “đủ stack”.
+- Cache có invalidation strategy.
+- Optimistic update có rollback/error path.
+- Background job có idempotency và retry policy.
+- Realtime/WebSocket chỉ dùng nơi polling hoặc invalidation không đủ.
+- Audit log có actor/action/entity/time và không chứa secret.
+- Có monitoring cho error rate, latency và job failure.
+- Request waterfall, N+1 và duplicate fetch được kiểm tra.
+- Full regression và production build PASS.
+
+Exit Criteria:
+
+- Release readiness checklist PASS.
+- Rollback notes đầy đủ.
+- Không còn P0/P1.
+- Hệ thống sẵn sàng release theo safe rollout order.
+
+---
+
+# 5.4. Current Active Workstream
+
+Codex phải cập nhật khối này sau mỗi batch trong AUTO_RUN_ROADMAP.
+
+- **Workstream:** Project Workflow Completion
+- **Current phase:** Phase 1 - Membership Foundation
+- **Current status:** ⚠️ Cần manual QA / Git delivery verification
+- **Current blocker:** Môi trường checkout Codex không có `origin` remote nên chưa thể push/merge; cần chạy trong checkout có remote hoặc thực hiện Git delivery từ local repository.
+- **Next safe action:** Review Membership diff, chạy manual QA, cập nhật trạng thái Phase 1; nếu PASS thì tự chuyển sang Phase 2 Task Assignment Foundation.
+- **Auto-run target:** Chạy tuần tự Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5, dừng tại mọi `LIVE_APPROVAL_REQUIRED`, P0/P1, migration gate hoặc Git delivery blocker.
 
 ---
 
