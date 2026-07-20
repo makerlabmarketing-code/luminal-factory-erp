@@ -344,4 +344,14 @@ Apply only checklist items that fit a Next.js web ERP.
 
 Ignore React Native-only assumptions, mobile-app-only safe-area rules, and any requirement that conflicts with this repository's stack or existing design system.
 
+## Global Overlay and Notification Rule
+
+All global notifications, confirmations, and critical overlays must render through a root-level portal and must not be constrained by local stacking contexts.
+
+The notification layer must use `z-index: 999999`.
+
+No success, warning, validation, or error message may appear behind a modal, drawer, backdrop, loading overlay, dropdown, or page container.
+
+All user-facing messages must be clear Vietnamese messages and must not expose raw infrastructure errors.
+
 Do not treat Phosphor icons as mandatory. Prefer Lucide, Shadcn UI, Radix UI, and Efferd-inspired structure according to repository guidance.
