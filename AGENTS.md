@@ -344,6 +344,27 @@ Improve one seam at a time.
 
 Minimize regression risk.
 
+## Automated delivery workflow
+
+For every implementation task:
+
+1. Work only on the Codex task branch created for the task.
+2. Do not run `git push` through the sandbox shell.
+3. Do not add, remove, or modify Git remotes.
+4. Never push directly to `main`.
+5. Complete the requested implementation before delivery.
+6. Run all relevant tests, lint, type-check, build, and `git diff --check`.
+7. Fix all failures introduced by the implementation.
+8. Commit all verified changes.
+9. Use the Codex GitHub integration to create or update a pull request targeting `main`.
+10. Reuse the existing pull request when continuing the same task.
+11. If repository auto-merge is available, enable auto-merge only after all required checks pass.
+12. Do not merge when tests fail, required secrets are unavailable, or the change contains an unresolved business-rule decision.
+13. Report the pull request status, test results, and remaining blockers.
+
+A missing shell Git remote such as `origin` is not an implementation failure.
+Do not attempt to repair it using `git remote add`.
+
 ## Working Mode
 
 Default working mode is:
