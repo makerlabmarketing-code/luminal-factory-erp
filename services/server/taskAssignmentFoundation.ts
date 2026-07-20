@@ -42,6 +42,10 @@ type MutationContext = {
   actorEmployeeId: number;
 };
 
+type ListContext = MutationContext & {
+  canManageTasks: boolean;
+};
+
 function taskAssignmentError(status: number, message: string, code: string, failureStage = 'unknown', safeDetails?: Record<string, boolean | number | string | null>) {
   return new AuthFlowError({
     status,
@@ -110,6 +114,23 @@ export function taskAssignmentErrorResponse(error: unknown): { status: number; b
   };
 }
 
+function taskProgressPercent(status: TaskAssignmentDTO['status']): number {
+  const progressByStatus: Record<TaskAssignmentDTO['status'], number> = {
+    BACKLOG: 0,
+    READY: 10,
+    IN_PROGRESS: 50,
+    PENDING_REVIEW: 80,
+    REVISION_REQUIRED: 60,
+    APPROVED: 90,
+    BLOCKED: 40,
+    ON_HOLD: 30,
+    COMPLETED: 100,
+    CANCELLED: 0,
+  };
+
+  return progressByStatus[status] ?? 0;
+}
+
 function mapTask(row: TaskRow, commentCounts = new Map<number, number>(), lastActivity = new Map<number, string | null>()): TaskAssignmentDTO {
   if (!row.project_id || !row.title || !row.status) {
     throw taskAssignmentError(500, 'Dữ liệu công việc dự án chưa hoàn chỉnh.', 'task_assignment_schema_invalid', 'schema_validation');
@@ -126,6 +147,7 @@ function mapTask(row: TaskRow, commentCounts = new Map<number, number>(), lastAc
     assigneeFullName: row.employees?.full_name ?? null,
     deadline: row.deadline ?? null,
     status: row.status,
+    progressPercent: taskProgressPercent(row.status),
     commentCount: commentCounts.get(Number(row.id)) ?? 0,
     lastActivityAt: lastActivity.get(Number(row.id)) ?? null,
   };
@@ -212,10 +234,11 @@ async function insertAssignmentNotification(projectId: number, taskId: number, r
   if (error) mapSupabaseError('Không thể tạo thông báo công việc.', 'task_assignment_notification_failed', error.code);
 }
 
-async function contextForList(projectId: number) {
-  await requireProjectMembershipAction(projectId, 'PROJECT_VIEW');
+async function contextForList(projectId: number): Promise<ListContext> {
+  const auth = await requireProjectMembershipAction(projectId, 'PROJECT_VIEW');
   assertTaskAssignmentFeatureEnabled();
   await assertTaskSchemaReady();
+  return { actorEmployeeId: auth.actorEmployeeId, canManageTasks: auth.capabilities.canManageTasks };
 }
 
 async function contextForMutation(projectId: number): Promise<MutationContext> {
@@ -227,13 +250,16 @@ async function contextForMutation(projectId: number): Promise<MutationContext> {
 
 export async function listProjectTasks(rawProjectId: string): Promise<{ success: true; tasks: TaskAssignmentDTO[] }> {
   const projectId = parseTaskAssignmentProjectId(rawProjectId);
-  await contextForList(projectId);
+  const context = await contextForList(projectId);
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('tasks')
     .select('id, project_id, phase_id, parent_task_id, title, description, assignee_employee_id, deadline, status, created_at, updated_at, employees:assignee_employee_id(full_name)')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: false });
+    .eq('project_id', projectId);
+  if (!context.canManageTasks) {
+    query = query.eq('assignee_employee_id', context.actorEmployeeId);
+  }
+  const { data, error } = await query.order('created_at', { ascending: false });
   if (error) mapSupabaseError('Không thể tải danh sách công việc dự án.', 'task_assignment_list_failed', error.code);
 
   const rows = (data || []) as unknown as TaskRow[];

@@ -110,11 +110,12 @@ describe('phase and task edit capability pre-run audit contract', () => {
     expect(phaseMutations).not.toMatch(/description:|deadline:|assignee_employee_id:/);
   });
 
-  it('does not render fake task editing actions without a safe mutation contract', () => {
+  it('renders task editing only through the Task Assignment Foundation API contract', () => {
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
 
-    expect(detailPage).toMatch(/Phase Workflow Schema \/ Task Assignment Foundation/);
-    expect(detailPage).toMatch(/Chưa hỗ trợ/);
+    expect(detailPage).toMatch(/Task Assignment Foundation/);
+    expect(detailPage).toMatch(/handleSaveTask/);
+    expect(detailPage).toContain('/api/admin/projects/${projectId}/tasks');
     expect(detailPage).not.toMatch(/updateWorkflowTask|updateWorkflowTaskField/);
   });
 

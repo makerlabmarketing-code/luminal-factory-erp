@@ -74,11 +74,26 @@ describe('Task Assignment Foundation contracts', () => {
     expect(service).toMatch(/Không thể đổi trạng thái công việc dự án/);
     expect(service).not.toMatch(/task_assignment_repository_not_implemented/);
     expect(service).toMatch(/requireProjectMembershipAction\(projectId, 'TASK_MANAGE'\)/);
+    expect(service).toMatch(/canManageTasks/);
+    expect(service).toMatch(/assignee_employee_id', context\.actorEmployeeId/);
     expect(listRoute).toMatch(/export async function GET/);
     expect(listRoute).toMatch(/export async function POST/);
     expect(patchRoute).toMatch(/export async function PATCH/);
     expect(assignRoute).toMatch(/export async function POST/);
     expect(statusRoute).toMatch(/export async function POST/);
+  });
+
+  it('wires project detail to normalized task assignment without extra employee-list fetches', () => {
+    const projectDetail = source('app/admin/projects/[projectId]/page.tsx');
+
+    expect(projectDetail).toMatch(/TaskAssignmentDTO/);
+    expect(projectDetail).toContain('/api/admin/projects/${projectId}/tasks');
+    expect(projectDetail).toMatch(/task\.commentCount/);
+    expect(projectDetail).toMatch(/task\.progressPercent/);
+    expect(projectDetail).toMatch(/<textarea/);
+    expect(projectDetail).toMatch(/activeProjectMembers/);
+    expect(projectDetail).not.toMatch(/scope=assignable/);
+    expect(projectDetail).not.toMatch(/type=\"number\"[^>]+comment/i);
   });
 
   it('prepares migration, rollback, validation and backfill artifacts without executing SQL', () => {

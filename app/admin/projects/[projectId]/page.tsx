@@ -14,10 +14,12 @@ import {
   Lock,
   MessageSquare,
   Pencil,
+  Save,
   UserPlus,
   Users,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
+import type { TaskAssignmentDTO, TaskAssignmentStatus } from '@/lib/types/task-assignment';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
 import {
   cancelWorkflowProject,
@@ -28,6 +30,7 @@ import {
 
 type PhaseDisplayStatus = 'ACTIVE' | 'LOCKED' | 'COMPLETED' | 'BLOCKED' | 'REVIEW' | 'CANCELLED';
 type PhaseTaskGroupKey = number | 'unassigned';
+type DisplayTask = WorkflowTask | TaskAssignmentDTO;
 
 interface PhaseRecord {
   item: WorkflowSetting;
@@ -35,7 +38,7 @@ interface PhaseRecord {
   status: PhaseDisplayStatus;
   phaseName: string;
   orderIndex: number;
-  tasks: WorkflowTask[];
+  tasks: DisplayTask[];
   taskCount: number;
   completedTaskCount: number;
   isLocked: boolean;
@@ -73,7 +76,15 @@ interface ProjectDetailDTO {
   capabilities: ProjectCapabilitiesDTO;
   members: ProjectMemberDTO[];
   phases: PhaseRecord[];
-  unassignedTasks: WorkflowTask[];
+  unassignedTasks: DisplayTask[];
+}
+
+interface TaskEditState {
+  taskId: number;
+  assigneeEmployeeId: string;
+  deadline: string;
+  status: TaskAssignmentStatus;
+  comment: string;
 }
 
 function parseDescription(raw?: string | null): WorkflowDescription {
@@ -126,6 +137,19 @@ function taskStatusLabel(status?: string | null): string {
   if (normalized === 'TODO' || normalized === 'BACKLOG' || normalized === 'READY') return 'Chưa làm';
   return status || 'Chưa có';
 }
+
+const TASK_STATUS_OPTIONS: Array<{ value: TaskAssignmentStatus; label: string }> = [
+  { value: 'BACKLOG', label: 'Chưa xếp lịch' },
+  { value: 'READY', label: 'Sẵn sàng' },
+  { value: 'IN_PROGRESS', label: 'Đang làm' },
+  { value: 'PENDING_REVIEW', label: 'Chờ duyệt' },
+  { value: 'REVISION_REQUIRED', label: 'Cần sửa' },
+  { value: 'APPROVED', label: 'Đã duyệt' },
+  { value: 'BLOCKED', label: 'Bị vướng' },
+  { value: 'ON_HOLD', label: 'Tạm dừng' },
+  { value: 'COMPLETED', label: 'Hoàn thành' },
+  { value: 'CANCELLED', label: 'Đã hủy' },
+];
 
 function persistedPhaseStatus(item: WorkflowSetting): PhaseDisplayStatus | null {
   const value = String(item.value || '').toUpperCase();
@@ -188,19 +212,53 @@ function mapLegacyTasksToPhaseGroups(
   return groups;
 }
 
-function getTaskAssigneeLabel(task: WorkflowTask): string {
+function isTaskAssignmentDTO(task: DisplayTask): task is TaskAssignmentDTO {
+  return 'taskId' in task;
+}
+
+function getTaskKey(task: DisplayTask): string {
+  return isTaskAssignmentDTO(task) ? `task-${task.taskId}` : `legacy-${task.id || `${task.name}-${task.deadline}`}`;
+}
+
+function getTaskTitle(task: DisplayTask): string {
+  return isTaskAssignmentDTO(task) ? task.title : task.name || task.projectName || 'Công việc chưa đặt tên';
+}
+
+function getTaskAssigneeLabel(task: DisplayTask): string {
+  if (isTaskAssignmentDTO(task)) return task.assigneeFullName || 'Chưa phân công';
   return task.assignedEmployee?.fullName || task.assignedToText || 'Chưa phân công';
 }
 
-function getTaskPackerLabel(task: WorkflowTask): string | null {
+function getTaskPackerLabel(task: DisplayTask): string | null {
+  if (isTaskAssignmentDTO(task)) return null;
   return task.packerEmployee?.fullName || task.packerAssignedText || null;
 }
 
-function getTaskDeadlineLabel(task: WorkflowTask): string {
+function getTaskDeadlineLabel(task: DisplayTask): string {
+  if (isTaskAssignmentDTO(task)) return formatDate(task.deadline);
   return formatDate(task.estimationDate || task.deadline);
 }
 
-function isTaskCompleted(task: WorkflowTask): boolean {
+function getTaskDeadlineValue(task: DisplayTask): string | null | undefined {
+  return isTaskAssignmentDTO(task) ? task.deadline : task.estimationDate || task.deadline;
+}
+
+function getTaskStatusValue(task: DisplayTask): string | null | undefined {
+  return isTaskAssignmentDTO(task) ? task.status : task.status || task.currentPhaseText;
+}
+
+function getTaskProgressLabel(task: DisplayTask): string {
+  if (isTaskAssignmentDTO(task)) return `${task.progressPercent}%`;
+  return isTaskCompleted(task) ? '100%' : '0%';
+}
+
+function getTaskCommentLabel(task: DisplayTask): string {
+  if (isTaskAssignmentDTO(task)) return `${task.commentCount} bình luận`;
+  return task.issueNote || task.note || 'Chưa có ghi chú';
+}
+
+function isTaskCompleted(task: DisplayTask): boolean {
+  if (isTaskAssignmentDTO(task)) return task.status === 'COMPLETED';
   const status = String(task.status || task.currentPhaseText || '').toUpperCase();
   return status === 'DONE' || status === 'COMPLETED';
 }
@@ -222,6 +280,10 @@ export default function ProjectDetailPage() {
   const { showToast, showConfirm } = useNotification();
   const projectId = Number(params.projectId);
   const [items, setItems] = useState<WorkflowSetting[]>([]);
+  const [projectTasks, setProjectTasks] = useState<TaskAssignmentDTO[]>([]);
+  const [taskLoadBlocked, setTaskLoadBlocked] = useState(false);
+  const [taskActionLoading, setTaskActionLoading] = useState<number | null>(null);
+  const [editingTask, setEditingTask] = useState<TaskEditState | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [editingPhaseId, setEditingPhaseId] = useState<number | null>(null);
@@ -246,20 +308,35 @@ export default function ProjectDetailPage() {
     canCancelProject: false,
   });
   const hasProjectMutationAccess = projectCapabilities.canManagePhases || projectCapabilities.canEditProject || projectCapabilities.canCancelProject;
+  const activeProjectMembers = useMemo(
+    () => members.filter((member) => member.status === 'ACTIVE'),
+    [members]
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadFailed(false);
     try {
-      const [workflowItems, membersResponse] = await Promise.all([
+      const [workflowItems, membersResponse, tasksResponse] = await Promise.all([
         getWorkflowItems({ includeClosedProjects: true }),
         fetch(`/api/admin/projects/${projectId}/members`, { cache: 'no-store' }),
+        fetch(`/api/admin/projects/${projectId}/tasks`, { cache: 'no-store' }),
       ]);
       setItems(workflowItems);
       if (membersResponse.ok) {
         const payload = await membersResponse.json() as { members?: ProjectMemberDTO[]; capabilities?: ProjectCapabilitiesDTO };
         setMembers(payload.members || []);
         if (payload.capabilities) setProjectCapabilities(payload.capabilities);
+      }
+      if (tasksResponse.ok) {
+        const payload = await tasksResponse.json() as { tasks?: TaskAssignmentDTO[] };
+        setProjectTasks(payload.tasks || []);
+        setTaskLoadBlocked(false);
+      } else if (tasksResponse.status === 409 || tasksResponse.status === 403 || tasksResponse.status === 401) {
+        setProjectTasks([]);
+        setTaskLoadBlocked(true);
+      } else {
+        throw new Error('task_load_failed');
       }
     } catch {
       setLoadFailed(true);
@@ -302,11 +379,17 @@ export default function ProjectDetailPage() {
       })
       .sort((left, right) => left.orderIndex - right.orderIndex);
     const legacyTaskGroups = mapLegacyTasksToPhaseGroups(phaseDrafts, legacyTasks);
+    const assignmentTaskGroups = new Map<number, TaskAssignmentDTO[]>();
+    projectTasks.forEach((task) => {
+      if (!task.phaseId) return;
+      assignmentTaskGroups.set(task.phaseId, [...(assignmentTaskGroups.get(task.phaseId) || []), task]);
+    });
     const statuses = deriveSequentialPhaseStatuses(phaseDrafts);
 
     return phaseDrafts.map((phase, index) => {
-      const mappedTasks = phase.item.phase_id ? legacyTaskGroups.get(phase.item.phase_id) || [] : [];
-      const tasks = [...phase.tasks, ...mappedTasks];
+      const assignmentTasks = phase.item.phase_id ? assignmentTaskGroups.get(phase.item.phase_id) || [] : [];
+      const mappedTasks = phase.item.phase_id && assignmentTasks.length === 0 ? legacyTaskGroups.get(phase.item.phase_id) || [] : [];
+      const tasks: DisplayTask[] = [...assignmentTasks, ...phase.tasks, ...mappedTasks];
       const completedTaskCount = tasks.filter(isTaskCompleted).length;
       const status = statuses[index] || 'LOCKED';
 
@@ -320,17 +403,19 @@ export default function ProjectDetailPage() {
         isCompleted: status === 'COMPLETED',
       };
     });
-  }, [projectItems, legacyTasks]);
+  }, [projectItems, legacyTasks, projectTasks]);
 
   const unassignedTasks = useMemo(
-    () => mapLegacyTasksToPhaseGroups(phases, legacyTasks).get('unassigned') || [],
-    [phases, legacyTasks]
+    () => projectTasks.filter((task) => !task.phaseId).length > 0
+      ? projectTasks.filter((task) => !task.phaseId)
+      : mapLegacyTasksToPhaseGroups(phases, legacyTasks).get('unassigned') || [],
+    [phases, legacyTasks, projectTasks]
   );
   const completedPhaseCount = phases.filter((phase) => phase.status === 'COMPLETED').length;
   const progressPercent = phases.length > 0 ? Math.round((completedPhaseCount / phases.length) * 100) : 0;
   const totalTaskCount = phases.reduce((sum, phase) => sum + phase.taskCount, 0) + unassignedTasks.length;
   const completedTaskCount = phases.reduce((sum, phase) => sum + phase.completedTaskCount, 0) + unassignedTasks.filter(isTaskCompleted).length;
-  const nearestDeadline = [...phases.flatMap((phase) => phase.tasks.map((task) => task.deadline || task.estimationDate)), ...unassignedTasks.map((task) => task.estimationDate || task.deadline)]
+  const nearestDeadline = [...phases.flatMap((phase) => phase.tasks.map(getTaskDeadlineValue)), ...unassignedTasks.map(getTaskDeadlineValue)]
     .filter((value): value is string => Boolean(value))
     .sort()[0] || null;
   const memberCount = members.filter((member) => member.status === 'ACTIVE').length;
@@ -473,6 +558,58 @@ export default function ProjectDetailPage() {
     setEditingPhaseOrder(String(phase.orderIndex));
   };
 
+  const handleStartEditTask = (task: DisplayTask) => {
+    if (!canManageProject || !isTaskAssignmentDTO(task)) return;
+    setEditingTask({
+      taskId: task.taskId,
+      assigneeEmployeeId: task.assigneeEmployeeId ? String(task.assigneeEmployeeId) : '',
+      deadline: task.deadline ? task.deadline.slice(0, 10) : '',
+      status: task.status,
+      comment: '',
+    });
+  };
+
+  const handleSaveTask = async () => {
+    if (!canManageProject || !editingTask || taskActionLoading) return;
+    setTaskActionLoading(editingTask.taskId);
+    try {
+      const assignResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assigneeEmployeeId: editingTask.assigneeEmployeeId ? Number(editingTask.assigneeEmployeeId) : null,
+          comment: editingTask.comment || null,
+        }),
+      });
+      const assignPayload = await assignResponse.json().catch(() => null) as { message?: string } | null;
+      if (!assignResponse.ok) throw new Error(assignPayload?.message || 'Không thể giao công việc.');
+
+      const updateResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deadline: editingTask.deadline || null }),
+      });
+      const updatePayload = await updateResponse.json().catch(() => null) as { message?: string } | null;
+      if (!updateResponse.ok) throw new Error(updatePayload?.message || 'Không thể cập nhật deadline.');
+
+      const statusResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: editingTask.status }),
+      });
+      const statusPayload = await statusResponse.json().catch(() => null) as { message?: string } | null;
+      if (!statusResponse.ok) throw new Error(statusPayload?.message || 'Không thể đổi trạng thái.');
+
+      setEditingTask(null);
+      showToast('Đã lưu công việc.', 'Công việc con đã được cập nhật.', 'success');
+      await loadData();
+    } catch (error) {
+      showToast('Không thể lưu công việc.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setTaskActionLoading(null);
+    }
+  };
+
   const handleSavePhase = async (phase: PhaseRecord) => {
     if (!canManageProject) return;
     if (!phase.item.project_id || !phase.item.phase_id) return;
@@ -606,6 +743,12 @@ export default function ProjectDetailPage() {
         {isProjectCancelled && (
           <section className="rounded-lg border border-red-900 bg-red-950/25 p-4 text-xs text-red-100">
             Dự án đã hủy. Màn hình này chỉ cho xem dữ liệu hiện có; các thao tác sửa phase, task và thông tin dự án đang bị khóa.
+          </section>
+        )}
+
+        {taskLoadBlocked && (
+          <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">
+            Task Assignment Foundation chưa sẵn sàng hoặc bạn chỉ có quyền xem giới hạn. Dữ liệu công việc legacy vẫn hiển thị ở chế độ chỉ xem.
           </section>
         )}
 
@@ -758,7 +901,7 @@ export default function ProjectDetailPage() {
                   )}
 
                   <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-400">
-                    Hiện chỉ hỗ trợ lưu tên giai đoạn và thứ tự. Mô tả phase, người phụ trách phase, deadline phase và chỉnh sửa công việc con cần Phase Workflow Schema / Task Assignment Foundation trước khi mở form lưu dữ liệu.
+                    Công việc con dùng Task Assignment Foundation khi đã bật migration gate. Nếu chưa bật, màn hình giữ dữ liệu legacy ở chế độ chỉ xem.
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
@@ -790,40 +933,50 @@ export default function ProjectDetailPage() {
                         <tr className="border-b border-slate-800">
                           <th className="py-2 pr-3">Tên công việc</th>
                           <th className="py-2 pr-3">Người phụ trách</th>
-                          <th className="py-2 pr-3">Người đóng gói</th>
                           <th className="py-2 pr-3">Deadline</th>
                           <th className="py-2 pr-3">Trạng thái</th>
-                          <th className="py-2 pr-3">Ghi chú</th>
-                          <th className="py-2 pr-3">Comment gần nhất</th>
-                          <th className="py-2">Action</th>
+                          <th className="py-2 pr-3">Tiến độ</th>
+                          <th className="py-2 pr-3">Bình luận</th>
+                          <th className="py-2">Thao tác</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800">
                         {selectedPhase.tasks.map((task) => (
-                          <tr key={task.id || `${task.name}-${task.deadline}`} className="text-slate-300">
-                            <td className="py-3 pr-3 font-bold text-slate-100">{task.name || task.projectName || 'Công việc chưa đặt tên'}</td>
+                          <tr key={getTaskKey(task)} className="text-slate-300">
+                            <td className="py-3 pr-3 font-bold text-slate-100">{getTaskTitle(task)}</td>
                             <td className="py-3 pr-3">{getTaskAssigneeLabel(task)}</td>
-                            <td className="py-3 pr-3">{getTaskPackerLabel(task) || 'Chưa gán'}</td>
                             <td className="py-3 pr-3">{getTaskDeadlineLabel(task)}</td>
-                            <td className="py-3 pr-3">{taskStatusLabel(task.status || task.currentPhaseText)}</td>
-                            <td className="py-3 pr-3">{task.issueNote || task.note || 'Chưa có ghi chú'}</td>
-                            <td className="py-3 pr-3">Chưa có</td>
-                            <td className="py-3">{isPhaseReadonly(selectedPhase, canManageProject) ? 'Chỉ xem' : 'Chưa hỗ trợ'}</td>
+                            <td className="py-3 pr-3">{taskStatusLabel(getTaskStatusValue(task))}</td>
+                            <td className="py-3 pr-3">{getTaskProgressLabel(task)}</td>
+                            <td className="py-3 pr-3">{getTaskCommentLabel(task)}</td>
+                            <td className="py-3">
+                              {isTaskAssignmentDTO(task) && canManageProject ? (
+                                <button type="button" onClick={() => handleStartEditTask(task)} className="rounded border border-slate-700 px-2 py-1 font-bold text-slate-300">
+                                  Sửa
+                                </button>
+                              ) : 'Chỉ xem'}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                     <div className="space-y-3 md:hidden">
                       {selectedPhase.tasks.map((task) => (
-                        <div key={task.id || `${task.name}-${task.deadline}`} className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs">
-                          <p className="font-bold text-slate-100">{task.name || task.projectName || 'Công việc chưa đặt tên'}</p>
+                        <div key={getTaskKey(task)} className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs">
+                          <p className="font-bold text-slate-100">{getTaskTitle(task)}</p>
                           <div className="mt-2 space-y-1 text-slate-400">
                             <p>Người phụ trách: {getTaskAssigneeLabel(task)}</p>
                             <p>Người đóng gói: {getTaskPackerLabel(task) || 'Chưa gán'}</p>
                             <p>Deadline: {getTaskDeadlineLabel(task)}</p>
-                            <p>Trạng thái: {taskStatusLabel(task.status || task.currentPhaseText)}</p>
-                            <p>Ghi chú: {task.issueNote || task.note || 'Chưa có ghi chú'}</p>
+                            <p>Trạng thái: {taskStatusLabel(getTaskStatusValue(task))}</p>
+                            <p>Tiến độ: {getTaskProgressLabel(task)}</p>
+                            <p>Bình luận: {getTaskCommentLabel(task)}</p>
                           </div>
+                          {isTaskAssignmentDTO(task) && canManageProject && (
+                            <button type="button" onClick={() => handleStartEditTask(task)} className="mt-3 rounded border border-slate-700 px-2 py-1 font-bold text-slate-300">
+                              Sửa
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -843,17 +996,17 @@ export default function ProjectDetailPage() {
                 </div>
                 <div className="divide-y divide-slate-800">
                   {projectDetail.unassignedTasks.map((task) => (
-                    <div key={task.id} className="grid grid-cols-1 gap-2 p-4 text-xs md:grid-cols-[1fr_180px_160px]">
+                    <div key={getTaskKey(task)} className="grid grid-cols-1 gap-2 p-4 text-xs md:grid-cols-[1fr_180px_160px]">
                       <div>
-                        <p className="font-bold text-slate-100">{task.name || task.projectName || 'Công việc chưa đặt tên'}</p>
-                        <p className="mt-1 inline-flex items-center gap-1 text-slate-500"><MessageSquare className="h-3 w-3" /> {task.issueNote || task.note || 'Chưa có ghi chú'}</p>
+                        <p className="font-bold text-slate-100">{getTaskTitle(task)}</p>
+                        <p className="mt-1 inline-flex items-center gap-1 text-slate-500"><MessageSquare className="h-3 w-3" /> {getTaskCommentLabel(task)}</p>
                       </div>
                       <div className="text-slate-300">
                         <p>Người phụ trách: {getTaskAssigneeLabel(task)}</p>
                         <p>Người đóng gói: {getTaskPackerLabel(task) || 'Chưa gán'}</p>
                       </div>
                       <div className="text-slate-400">
-                        <p>Phase: {task.currentPhaseText || 'Chưa có'}</p>
+                        <p>Phase: {isTaskAssignmentDTO(task) ? 'Chưa gán' : task.currentPhaseText || 'Chưa có'}</p>
                         <p>Deadline: {getTaskDeadlineLabel(task)}</p>
                       </div>
                     </div>
@@ -917,6 +1070,38 @@ export default function ProjectDetailPage() {
                 </select>
               </div>
               <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setAddMemberOpen(false)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={!memberEmployeeId || memberActionLoading || membersLoading} onClick={handleAddMember} className="rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Thêm thành viên'}</button></div>
+            </div>
+          </div>
+        )}
+
+        {editingTask && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-label="Sửa công việc con">
+            <div className="w-full max-w-xl rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
+              <div className="mb-4">
+                <h2 className="text-base font-black text-slate-100">Sửa công việc con</h2>
+                <p className="text-xs text-slate-500">Người phụ trách phải là thành viên ACTIVE của dự án.</p>
+              </div>
+              <div className="space-y-3 text-xs">
+                <label className="block font-bold text-slate-300">Người phụ trách</label>
+                <select value={editingTask.assigneeEmployeeId} onChange={(event) => setEditingTask({ ...editingTask, assigneeEmployeeId: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">
+                  <option value="">Chưa phân công</option>
+                  {activeProjectMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}{member.title ? ` · ${member.title}` : ''}</option>)}
+                </select>
+                <label className="block font-bold text-slate-300">Deadline</label>
+                <input type="date" value={editingTask.deadline} onChange={(event) => setEditingTask({ ...editingTask, deadline: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+                <label className="block font-bold text-slate-300">Trạng thái</label>
+                <select value={editingTask.status} onChange={(event) => setEditingTask({ ...editingTask, status: event.target.value as TaskAssignmentStatus })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">
+                  {TASK_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+                <label className="block font-bold text-slate-300">Bình luận</label>
+                <textarea value={editingTask.comment} onChange={(event) => setEditingTask({ ...editingTask, comment: event.target.value })} disabled={taskActionLoading !== null} rows={4} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none" placeholder="Nhập bình luận cho công việc" />
+              </div>
+              <div className="mt-5 flex justify-end gap-2">
+                <button type="button" disabled={taskActionLoading !== null} onClick={() => setEditingTask(null)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button>
+                <button type="button" disabled={taskActionLoading !== null} onClick={handleSaveTask} className="inline-flex items-center gap-2 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
+                  <Save className="h-4 w-4" /> {taskActionLoading !== null ? 'Đang lưu...' : 'Lưu'}
+                </button>
+              </div>
             </div>
           </div>
         )}

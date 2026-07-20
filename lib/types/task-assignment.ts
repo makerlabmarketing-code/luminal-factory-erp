@@ -35,6 +35,7 @@ export interface TaskAssignmentDTO {
   assigneeFullName: string | null;
   deadline: string | null;
   status: TaskAssignmentStatus;
+  progressPercent: number;
   commentCount: number;
   lastActivityAt: string | null;
 }

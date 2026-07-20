@@ -94,5 +94,21 @@ Phase 3 began with the project create reliability seam after Task Assignment val
 - Project creation still returns success only after the project insert and phase creation attempt finish; stale duplicate-name errors are no longer shown.
 - Global toast and confirmation overlays use the root portal layer with `z-index: 999999`.
 
+## 2026-07-20 end-to-end project detail workflow
+
+Completed application wiring for normalized project subtasks after the Task Assignment Foundation migration gate:
+
+- Project Detail now loads normalized `/api/admin/projects/:projectId/tasks` once with the existing project members request and renders child tasks by stable `phaseId` when available. Legacy task rows remain read-only fallback while the runtime gate is unavailable.
+- Each normalized subtask shows task name, assigned employee, deadline, Vietnamese status label, derived progress percentage, and comment count.
+- Project users with `canManageTasks` may open an edit dialog to change assignee, deadline, status, and add a textarea comment through the existing assign/update/status APIs; the UI reloads from the server after save so data persists after refresh.
+- The edit form reuses already-loaded ACTIVE project members instead of fetching a separate employee list.
+- Staff or project members without task-management capability only receive assigned tasks from the server list path and see project detail task controls as read-only.
+
+Remaining gaps:
+
+- The current role matrix still grants task management only through global project management, Project Owner, and Project Manager. Creative Lead task-management remains unavailable unless the approved role matrix is changed later.
+- Comment display currently uses comment count from the foundation API; latest-comment preview can be added after the API returns sanitized latest comment body.
+- Sequential phase lock/complete/unlock mutations remain Phase 3 work and still require the workflow state-machine design.
+
 Next Phase 3 slice: project detail phase gating/status transition design. Stop at `LIVE_APPROVAL_REQUIRED` if schema, RLS, or data mutation beyond approved application behavior is needed.
 
