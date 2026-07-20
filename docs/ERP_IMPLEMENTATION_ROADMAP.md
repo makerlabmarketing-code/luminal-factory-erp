@@ -735,3 +735,13 @@ Phase Workflow Foundation Migration remains cho duyet.
 ## 2026-07-20 Task Assignment Foundation Completion
 
 - Phase 2 Task Assignment Foundation completed: migration applied, obsolete trial rows removed with approval, validation passed, and server persistence wired behind `TASK_ASSIGNMENT_FOUNDATION_ENABLED`.
+
+## 2026-07-20 Phase 3 Project Workflow Start
+
+- Phase 3 started with the Project Create Reliability slice.
+- Duplicate project display names are no longer blocked in server create flow; stable `projects.id` remains the identity boundary because no approved project-code schema exists yet.
+- `/admin/projects` now groups duplicate project names by stable project key instead of name, refreshes after create/cancel, and uses Vietnamese project-create validation messages.
+- Root notification and confirmation overlays remain portal-based and now use the explicit `z-index: 999999` requirement.
+- No schema migration, RLS mutation, production deployment, or project-code migration was run.
+- Next safe slice: Project Detail phase gating/status transition design and application implementation until a schema/RLS approval gate is reached.
+

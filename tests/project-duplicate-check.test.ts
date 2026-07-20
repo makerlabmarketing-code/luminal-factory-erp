@@ -8,27 +8,28 @@ function source(relativePath: string): string {
   return readFileSync(join(repositoryRoot, relativePath), 'utf8');
 }
 
-describe('project duplicate check and error mapping', () => {
-  it('checks duplicates against active project statuses with normalized names', () => {
+describe('project duplicate-name policy and error mapping', () => {
+  it('allows duplicate project names and keeps project identity on stable ids', () => {
     const service = source('services/server/projectMutations.ts');
+    const projectPage = source('app/admin/projects/page.tsx');
 
-    expect(service).toMatch(/DUPLICATE_BLOCKING_PROJECT_STATUSES/);
-    expect(service).toMatch(/\.from\('projects'\)\s*\.select\('id, project_name, status'\)\s*\.in\('status', \[\.\.\.DUPLICATE_BLOCKING_PROJECT_STATUSES\]\)/);
-    expect(service).toMatch(/function normalizeProjectName/);
-    expect(service).toMatch(/normalizeProjectName\(String\(project\.project_name \|\| ''\)\) === normalizedProjectName/);
+    expect(service).toMatch(/Duplicate project names are allowed; stable project IDs remain the project identity/);
+    expect(service).not.toMatch(/DUPLICATE_BLOCKING_PROJECT_STATUSES/);
+    expect(service).not.toMatch(/project_already_exists/);
+    expect(service).not.toMatch(/project_duplicate_check_failed/);
     expect(service).not.toMatch(/\.ilike\('project_name', projectName\)\s*\.limit\(1\)/);
     expect(service).not.toMatch(/\.eq\('project_name', projectName\)\s*\.maybeSingle\(\)/);
     expect(service).not.toMatch(/\.eq\('project_name', projectName\)\s*\.single\(\)/);
+    expect(projectPage).toMatch(/recordKey/);
+    expect(projectPage).toMatch(/project-\$\{item\.project_id\}/);
   });
 
-  it('maps duplicate outcomes to the expected API contract', () => {
+  it('maps project insert outcomes to the expected API contract', () => {
     const service = source('services/server/projectMutations.ts');
     const route = source('app/api/admin/projects/route.ts');
 
-    expect(service).toMatch(/status: 409,\s*message: `Dự án đang trùng với #\$\{existingProject\.id\}/);
-    expect(service).toMatch(/duplicate_project_status/);
-    expect(service).toMatch(/status: 500,\s*message: 'Không thể kiểm tra dự án hiện có\.',\s*failureStage: 'duplicate_check',\s*code: 'project_duplicate_check_failed'/);
     expect(service).toMatch(/failureStage: 'project_insert',\s*code: 'project_insert_failed'/);
+    expect(service).toMatch(/Không thể tạo dự án\./);
     expect(route).toMatch(/jsonNoStore\(await createProject\(body\), \{ status: 201 \}\)/);
   });
 
@@ -50,7 +51,8 @@ describe('project duplicate check and error mapping', () => {
     const projectPage = source('app/admin/projects/page.tsx');
 
     for (const page of [taskPage, projectPage]) {
-      expect(page).toMatch(/Dự án này đã tồn tại\./);
+      expect(page).not.toMatch(/Dự án này đã tồn tại\./);
+      expect(page).not.toMatch(/project_already_exists/);
       expect(page).toMatch(/Bạn không có quyền tạo dự án\./);
       expect(page).toMatch(/Thông tin dự án chưa hợp lệ\./);
       expect(page).toMatch(/Không thể tạo dự án\./);

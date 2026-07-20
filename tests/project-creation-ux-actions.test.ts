@@ -13,6 +13,7 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     const notification = source('component/NotificationContext.tsx');
 
     expect(notification).toMatch(/fixed right-3 top-3/);
+    expect(notification).toMatch(/z-\[999999\]/);
     expect(notification).toMatch(/durationMs/);
     expect(notification).toMatch(/actionLabel/);
     expect(notification).not.toMatch(/fixed inset-0 bg-black\/70[\s\S]{0,220}toast\.show/);

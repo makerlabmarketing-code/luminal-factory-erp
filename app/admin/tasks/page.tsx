@@ -36,7 +36,7 @@ function projectCreateErrorMessage(error: unknown): string {
     : '';
   const message = error instanceof Error ? error.message : '';
 
-  if (status === 409 || code === 'project_already_exists') return 'Dự án này đã tồn tại.';
+  if (status === 409) return 'Không thể lưu dự án vì trạng thái dữ liệu chưa phù hợp.';
   if (status === 403) return 'Bạn không có quyền tạo dự án.';
   if (status === 422) return 'Thông tin dự án chưa hợp lệ.';
   if (code === 'phase_mutation_failed' || message.includes('giai đoạn')) return 'Không thể lưu giai đoạn.';

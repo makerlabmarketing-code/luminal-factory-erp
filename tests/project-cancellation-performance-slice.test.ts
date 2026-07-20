@@ -13,8 +13,7 @@ describe('project cancellation UI and active list contract', () => {
     const notification = source('component/NotificationContext.tsx');
 
     expect(notification).toMatch(/createPortal\(notificationLayer, document\.body\)/);
-    expect(notification).toMatch(/z-\[2147483000\]/);
-    expect(notification).toMatch(/z-\[2147483001\]/);
+    expect(notification).toMatch(/z-\[999999\]/);
     expect(notification).toMatch(/bg-black\/85/);
     expect(notification).toMatch(/role="dialog"/);
     expect(notification).toMatch(/aria-modal="true"/);

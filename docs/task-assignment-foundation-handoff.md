@@ -83,3 +83,16 @@ Completed with live approval through the Supabase Management API over HTTPS:
 - Preserved fake-success protection: API mutations return success only after Supabase persistence, comment/activity/notification side effects, and task reload succeed.
 
 Rollback note: do not roll back the successful schema migration automatically. Rollback remains the reviewed SQL artifact and requires separate approval because live schema/data has changed.
+
+## 2026-07-20 Phase 3 project workflow start
+
+Phase 3 began with the project create reliability seam after Task Assignment validation passed.
+
+- Duplicate project names are allowed when the business process creates another project under the same display name.
+- Stable `projects.id` remains the project identity; the current schema has no separate project-code column to enforce.
+- The admin project workflow view now groups and selects records by stable project key instead of display name so duplicate names do not merge visually.
+- Project creation still returns success only after the project insert and phase creation attempt finish; stale duplicate-name errors are no longer shown.
+- Global toast and confirmation overlays use the root portal layer with `z-index: 999999`.
+
+Next Phase 3 slice: project detail phase gating/status transition design. Stop at `LIVE_APPROVAL_REQUIRED` if schema, RLS, or data mutation beyond approved application behavior is needed.
+

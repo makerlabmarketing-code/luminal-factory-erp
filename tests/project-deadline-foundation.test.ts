@@ -55,12 +55,12 @@ describe('project deadline application contract', () => {
     expect(listPage).toMatch(/firstDescription\.target_release_date \|\| firstDescription\.project_deadline/);
   });
 
-  it('keeps duplicate semantics as Option A and never hard-deletes cancelled projects', () => {
+  it('allows duplicate project names and never hard-deletes cancelled projects', () => {
     const service = source('services/server/projectMutations.ts');
 
-    expect(service).toMatch(/DUPLICATE_BLOCKING_PROJECT_STATUSES/);
-    expect(service).not.toMatch(/'CANCELLED'[\s\S]{0,80}as const/);
-    expect(service).toMatch(/normalizeProjectName/);
+    expect(service).toMatch(/Duplicate project names are allowed; stable project IDs remain the project identity/);
+    expect(service).not.toMatch(/DUPLICATE_BLOCKING_PROJECT_STATUSES/);
+    expect(service).not.toMatch(/project_already_exists/);
     expect(service).toMatch(/status: 'CANCELLED'/);
     expect(service).not.toMatch(/from\('projects'\)\.delete|\.delete\(\)\.eq\('id', projectId\)/);
   });

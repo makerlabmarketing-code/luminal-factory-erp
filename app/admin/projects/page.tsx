@@ -78,6 +78,7 @@ interface ColorwayRecord {
 
 interface ProjectRecord {
   id?: number;
+  recordKey: string;
   name: string;
   colorways: ColorwayRecord[];
   progress: number;
@@ -95,7 +96,7 @@ function projectCreateErrorMessage(error: unknown): string {
     : '';
   const message = error instanceof Error ? error.message : '';
 
-  if (status === 409 || code === 'project_already_exists') return 'Dự án này đã tồn tại.';
+  if (status === 409) return 'Không thể lưu dự án vì trạng thái dữ liệu chưa phù hợp.';
   if (status === 403) return 'Bạn không có quyền tạo dự án.';
   if (status === 422) return 'Thông tin dự án chưa hợp lệ.';
   if (code === 'phase_mutation_failed' || message.includes('giai đoạn')) return 'Không thể lưu giai đoạn.';
@@ -202,12 +203,14 @@ function buildProjectRecords(items: WorkflowSetting[]): ProjectRecord[] {
   const byProject = new Map<string, WorkflowSetting[]>();
 
   items.forEach((item) => {
-    const projectName = item.config_name?.split(' - ')[0] || 'Untitled project';
-    if (!byProject.has(projectName)) byProject.set(projectName, []);
-    byProject.get(projectName)?.push(item);
+    const projectName = item.config_name?.split(' - ')[0] || 'Dự án chưa đặt tên';
+    const projectKey = item.project_id ? `project-${item.project_id}` : `legacy-${projectName}`;
+    if (!byProject.has(projectKey)) byProject.set(projectKey, []);
+    byProject.get(projectKey)?.push(item);
   });
 
-  return Array.from(byProject.entries()).map(([projectName, projectItems]) => {
+  return Array.from(byProject.values()).map((projectItems) => {
+    const firstProjectName = projectItems[0]?.config_name?.split(' - ')[0] || 'Dự án chưa đặt tên';
     const byColorway = new Map<string, StageRecord[]>();
 
     projectItems.forEach((item) => {
@@ -262,7 +265,8 @@ function buildProjectRecords(items: WorkflowSetting[]): ProjectRecord[] {
 
     return {
       id: projectItems[0]?.project_id,
-      name: projectName,
+      recordKey: projectItems[0]?.project_id ? `project-${projectItems[0].project_id}` : `legacy-${firstProjectName}`,
+      name: firstProjectName,
       colorways,
       progress,
       targetDate: firstColorway?.targetDate || '',
@@ -287,7 +291,7 @@ export default function AdminProjectManagement() {
   const [items, setItems] = useState<WorkflowSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedProjectKey, setSelectedProjectKey] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [colorwayName, setColorwayName] = useState('');
@@ -315,7 +319,7 @@ export default function AdminProjectManagement() {
 
   const projects = useMemo(() => buildProjectRecords(items), [items]);
   const filteredProjects = projects.filter((project) => project.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  const activeProject = filteredProjects.find((project) => project.name === selectedProject) || filteredProjects[0];
+  const activeProject = filteredProjects.find((project) => project.recordKey === selectedProjectKey) || filteredProjects[0];
 
   const metrics = useMemo(() => {
     const colorways = projects.flatMap((project) => project.colorways);
@@ -328,17 +332,17 @@ export default function AdminProjectManagement() {
   }, [projects]);
 
   const metricCards = [
-    { label: 'Projects', value: metrics.projects, Icon: Layers, color: 'text-cyan-300' },
-    { label: 'Colorways', value: metrics.colorways, Icon: Activity, color: 'text-blue-300' },
-    { label: 'Blocked', value: metrics.blocked, Icon: ShieldAlert, color: 'text-red-300' },
-    { label: 'At risk', value: metrics.atRisk, Icon: AlertTriangle, color: 'text-amber-300' },
+    { label: 'Dự án', value: metrics.projects, Icon: Layers, color: 'text-cyan-300' },
+    { label: 'Colorway', value: metrics.colorways, Icon: Activity, color: 'text-blue-300' },
+    { label: 'Bị vướng', value: metrics.blocked, Icon: ShieldAlert, color: 'text-red-300' },
+    { label: 'Rủi ro', value: metrics.atRisk, Icon: AlertTriangle, color: 'text-amber-300' },
   ];
 
   const handleCreateProject = async () => {
     if (isCreatingProject) return;
-    if (!projectName.trim()) return showToast('Missing data', 'Please enter project/product line name.', 'error');
-    if (!colorwayName.trim()) return showToast('Missing data', 'Please enter colorway name.', 'error');
-    if (!targetDate) return showToast('Missing data', 'Please choose target release date.', 'error');
+    if (!projectName.trim()) return showToast('Thiếu thông tin', 'Vui lòng nhập tên dự án hoặc dòng sản phẩm.', 'error');
+    if (!colorwayName.trim()) return showToast('Thiếu thông tin', 'Vui lòng nhập tên colorway.', 'error');
+    if (!targetDate) return showToast('Thiếu thông tin', 'Vui lòng chọn ngày mục tiêu.', 'error');
 
     setIsCreatingProject(true);
     setCreationStage('Đang tạo dự án...');
@@ -412,7 +416,7 @@ export default function AdminProjectManagement() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-400 flex items-center justify-center text-xs font-mono gap-2">
-        <RefreshCcw className="w-4 h-4 animate-spin" /> Syncing project workflow...
+        <RefreshCcw className="w-4 h-4 animate-spin" /> Đang tải workflow dự án...
       </div>
     );
   }
@@ -423,16 +427,16 @@ export default function AdminProjectManagement() {
         <div className="flex items-center gap-3">
           <Layers className="w-5 h-5 text-cyan-400" />
           <div>
-            <h1 className="text-base font-bold">Project Colorway Control</h1>
-            <p className="text-[11px] text-slate-400">Project - Colorway - Production Stage - Task</p>
+            <h1 className="text-base font-bold">Điều phối dự án</h1>
+            <p className="text-[11px] text-slate-400">Dự án - Colorway - Giai đoạn - Công việc</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={loadData} className="bg-slate-900 border border-slate-800 text-slate-300 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
-            <RefreshCcw className="w-4 h-4" /> Refresh
+            <RefreshCcw className="w-4 h-4" /> Tải lại
           </button>
           <button onClick={() => setShowAddModal(true)} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
-            <Plus className="w-4 h-4" /> New Project
+            <Plus className="w-4 h-4" /> Tạo dự án
           </button>
         </div>
       </div>
@@ -452,14 +456,14 @@ export default function AdminProjectManagement() {
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 items-start">
         <div className="xl:col-span-3 bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-800 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-            <h2 className="text-xs font-black uppercase text-slate-300">Project overview</h2>
+            <h2 className="text-xs font-black uppercase text-slate-300">Tổng quan dự án</h2>
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
               <input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 className="bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-2 text-xs text-slate-200 outline-none w-full sm:w-64"
-                placeholder="Search project..."
+                placeholder="Tìm dự án..."
               />
             </div>
           </div>
@@ -468,12 +472,12 @@ export default function AdminProjectManagement() {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-950 text-slate-400 uppercase text-[10px]">
                 <tr>
-                  <th className="p-4">Project / Product line</th>
-                  <th className="p-4 text-center">Colorways</th>
-                  <th className="p-4 text-center">Blocked</th>
-                  <th className="p-4 text-center">Progress</th>
-                  <th className="p-4">Target</th>
-                  <th className="p-4">Next action</th>
+                  <th className="p-4">Dự án / dòng sản phẩm</th>
+                  <th className="p-4 text-center">Colorway</th>
+                  <th className="p-4 text-center">Bị vướng</th>
+                  <th className="p-4 text-center">Tiến độ</th>
+                  <th className="p-4">Mục tiêu</th>
+                  <th className="p-4">Việc tiếp theo</th>
                   <th className="p-4 text-center"></th>
                 </tr>
               </thead>
@@ -482,9 +486,9 @@ export default function AdminProjectManagement() {
                   const blockedCount = project.colorways.filter((colorway) => colorway.health === 'BLOCKED').length;
                   return (
                     <tr
-                      key={project.name}
-                      onClick={() => setSelectedProject(project.name)}
-                      className={`cursor-pointer hover:bg-slate-950/50 ${activeProject?.name === project.name ? 'bg-cyan-950/20' : ''}`}
+                      key={project.recordKey}
+                      onClick={() => setSelectedProjectKey(project.recordKey)}
+                      className={`cursor-pointer hover:bg-slate-950/50 ${activeProject?.recordKey === project.recordKey ? 'bg-cyan-950/20' : ''}`}
                     >
                       <td className="p-4 font-bold text-slate-100">{project.name}</td>
                       <td className="p-4 text-center font-mono text-cyan-300">{project.colorways.length}</td>
@@ -507,7 +511,7 @@ export default function AdminProjectManagement() {
                 })}
                 {filteredProjects.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-500">No project workflow yet.</td>
+                    <td colSpan={7} className="p-8 text-center text-slate-500">Chưa có workflow dự án.</td>
                   </tr>
                 )}
               </tbody>
@@ -518,8 +522,8 @@ export default function AdminProjectManagement() {
         <div className="xl:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-black text-slate-100">{activeProject?.name || 'Select a project'}</h2>
-              <p className="text-[11px] text-slate-400">Colorway board</p>
+              <h2 className="text-sm font-black text-slate-100">{activeProject?.name || 'Chọn dự án'}</h2>
+              <p className="text-[11px] text-slate-400">Bảng colorway</p>
             </div>
             <span className="text-[10px] border border-slate-700 rounded px-2 py-1 text-slate-400">
               {activeProject?.progress || 0}%
@@ -536,7 +540,7 @@ export default function AdminProjectManagement() {
                       {colorway.code && <span className="text-[10px] text-slate-500 font-mono">{colorway.code}</span>}
                     </div>
                     <p className="text-[11px] text-slate-400">
-                      Current: {colorway.currentStage?.description.stage_name || 'Completed'}
+                      Hiện tại: {colorway.currentStage?.description.stage_name || 'Đã hoàn thành'}
                     </p>
                   </div>
                   <span className={`text-[10px] font-black border rounded px-2 py-1 ${healthStyles[colorway.health]}`}>
@@ -549,10 +553,10 @@ export default function AdminProjectManagement() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
-                  <span className="flex items-center gap-1"><User className="w-3 h-3" /> {colorway.owner || 'No owner'}</span>
-                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {colorway.targetDate || 'No target'}</span>
-                  <span className="flex items-center gap-1"><Activity className="w-3 h-3" /> {colorway.activeTasks} active task</span>
-                  <span className="flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> {colorway.blockedTasks} blocker</span>
+                  <span className="flex items-center gap-1"><User className="w-3 h-3" /> {colorway.owner || 'Chưa có người phụ trách'}</span>
+                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {colorway.targetDate || 'Chưa có mục tiêu'}</span>
+                  <span className="flex items-center gap-1"><Activity className="w-3 h-3" /> {colorway.activeTasks} công việc đang làm</span>
+                  <span className="flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> {colorway.blockedTasks} điểm vướng</span>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
@@ -577,12 +581,12 @@ export default function AdminProjectManagement() {
 
                 <div className="border-t border-slate-800 pt-3 text-[11px] text-slate-300 flex items-center gap-2">
                   <Clock className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="truncate">Next: {colorway.nextAction}</span>
+                  <span className="truncate">Tiếp theo: {colorway.nextAction}</span>
                 </div>
               </div>
             ))}
 
-            {!activeProject && <div className="text-sm text-slate-500 text-center py-12">Create a project to start tracking colorways.</div>}
+            {!activeProject && <div className="text-sm text-slate-500 text-center py-12">Tạo dự án để bắt đầu theo dõi colorway.</div>}
           </div>
         </div>
       </div>
@@ -592,8 +596,8 @@ export default function AdminProjectManagement() {
           <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-lg p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
-                <h3 className="text-sm font-black text-slate-100">Create colorway pipeline</h3>
-                <p className="text-[11px] text-slate-400">Uses Standard Artisan Keycap Pipeline.</p>
+                <h3 className="text-sm font-black text-slate-100">Tạo pipeline colorway</h3>
+                <p className="text-[11px] text-slate-400">Dùng pipeline keycap artisan tiêu chuẩn.</p>
               </div>
               <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
                 <X className="w-5 h-5" />
@@ -602,7 +606,7 @@ export default function AdminProjectManagement() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="space-y-1">
-                <span className="text-[11px] text-slate-400 font-bold">Project / product line</span>
+                <span className="text-[11px] text-slate-400 font-bold">Dự án / dòng sản phẩm</span>
                 <input value={projectName} onChange={(event) => setProjectName(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100" placeholder="Meowhe" />
               </label>
               <label className="space-y-1">
@@ -610,15 +614,15 @@ export default function AdminProjectManagement() {
                 <input value={colorwayName} onChange={(event) => setColorwayName(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100" placeholder="Sakura" />
               </label>
               <label className="space-y-1">
-                <span className="text-[11px] text-slate-400 font-bold">Internal code</span>
+                <span className="text-[11px] text-slate-400 font-bold">Mã nội bộ</span>
                 <input value={colorwayCode} onChange={(event) => setColorwayCode(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100" placeholder="MEW-SAK-01" />
               </label>
               <label className="space-y-1">
-                <span className="text-[11px] text-slate-400 font-bold">Target release</span>
+                <span className="text-[11px] text-slate-400 font-bold">Mục tiêu release</span>
                 <input type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-amber-300" />
               </label>
               <label className="space-y-1 md:col-span-2">
-                <span className="text-[11px] text-slate-400 font-bold">Default stage owner</span>
+                <span className="text-[11px] text-slate-400 font-bold">Người phụ trách mặc định</span>
                 <input
                   value={stageOwner}
                   onChange={(event) => setStageOwner(event.target.value)}
@@ -629,7 +633,7 @@ export default function AdminProjectManagement() {
             </div>
 
             <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
-              <p className="text-[11px] text-slate-400 font-bold mb-2">Stages to create</p>
+              <p className="text-[11px] text-slate-400 font-bold mb-2">Giai đoạn sẽ tạo</p>
               <div className="flex flex-wrap gap-1.5">
                 {PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage) => (
                   <span key={stage.type} className="text-[10px] border border-slate-800 rounded px-2 py-1 text-slate-300">{stage.name}</span>
@@ -638,8 +642,8 @@ export default function AdminProjectManagement() {
             </div>
 
             <div className="flex gap-2 border-t border-slate-800 pt-3">
-              <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg p-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40">Cancel</button>
-              <button disabled={isCreatingProject} onClick={handleCreateProject} className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg p-2 text-xs font-black">{isCreatingProject ? 'Đang lưu...' : 'Create Pipeline'}</button>
+              <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg p-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40">Hủy</button>
+              <button disabled={isCreatingProject} onClick={handleCreateProject} className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg p-2 text-xs font-black">{isCreatingProject ? 'Đang lưu...' : 'Tạo pipeline'}</button>
             </div>
           </div>
         </div>

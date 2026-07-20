@@ -28,7 +28,6 @@ interface ProjectMembershipRow {
 export interface ProjectMutationResult {
   success: true;
   projectId: number;
-  deduplicated?: boolean;
   archived?: boolean;
   deadlinePersisted?: boolean;
 }
@@ -84,15 +83,6 @@ const VALID_PROJECT_STATUSES = new Set([
   'CANCELLED',
 ]);
 
-const DUPLICATE_BLOCKING_PROJECT_STATUSES = [
-  'DRAFT',
-  'PLANNING',
-  'PROCESSING',
-  'IN_PROGRESS',
-  'BLOCKED',
-  'ON_HOLD',
-] as const;
-
 function mutationError({
   status,
   message,
@@ -102,8 +92,8 @@ function mutationError({
 }: {
   status: number;
   message: string;
-  failureStage: 'auth_get_user' | 'employee_lookup' | 'employee_status' | 'workspace_access' | 'permission_check' | 'payload_validation' | 'duplicate_check' | 'admin_client_creation' | 'project_insert' | 'unknown';
-  code?: 'session_not_verified' | 'permission_forbidden' | 'admin_verification_failed' | 'payload_validation_failed' | 'project_already_exists' | 'project_duplicate_check_failed' | 'project_insert_failed';
+  failureStage: 'auth_get_user' | 'employee_lookup' | 'employee_status' | 'workspace_access' | 'permission_check' | 'payload_validation' | 'admin_client_creation' | 'project_insert' | 'unknown';
+  code?: 'session_not_verified' | 'permission_forbidden' | 'admin_verification_failed' | 'payload_validation_failed' | 'project_insert_failed';
   safeDetails?: Record<string, boolean | number | string | null>;
 }) {
   return new AuthFlowError({
@@ -154,10 +144,6 @@ function optionalText(value: unknown, fieldName: string): string | null {
 
   const trimmed = value.trim();
   return trimmed === '' ? null : trimmed;
-}
-
-function normalizeProjectName(value: string): string {
-  return value.trim().toLocaleLowerCase('vi-VN');
 }
 
 function isIsoDateOnly(value: string): boolean {
@@ -511,41 +497,7 @@ export async function createProject(body: ProjectMutationBody): Promise<ProjectM
   const projectName = requiredProjectName(body);
   const status = validateStatus(body.status) || 'PROCESSING';
   const projectDeadline = optionalIsoDate(body.projectDeadline, 'projectDeadline');
-  const supabase = createSupabaseAdminClient();
-  const { data: existingProjects, error: existingError } = await supabase
-    .from('projects')
-    .select('id, project_name, status')
-    .in('status', [...DUPLICATE_BLOCKING_PROJECT_STATUSES]);
-
-  if (existingError) {
-    throw mutationError({
-      status: 500,
-      message: 'Không thể kiểm tra dự án hiện có.',
-      failureStage: 'duplicate_check',
-      code: 'project_duplicate_check_failed',
-      safeDetails: {
-        supabase_error_code: existingError.code ?? 'unknown',
-      },
-    });
-  }
-
-  const normalizedProjectName = normalizeProjectName(projectName);
-  const existingProject = (existingProjects || []).find((project) => (
-    normalizeProjectName(String(project.project_name || '')) === normalizedProjectName
-  ));
-  if (existingProject?.id) {
-    throw mutationError({
-      status: 409,
-      message: `Dự án đang trùng với #${existingProject.id} (${existingProject.status || 'chưa có trạng thái'}).`,
-      failureStage: 'duplicate_check',
-      code: 'project_already_exists',
-      safeDetails: {
-        duplicate_project_id: Number(existingProject.id),
-        duplicate_project_status: existingProject.status || null,
-      },
-    });
-  }
-
+  // Duplicate project names are allowed; stable project IDs remain the project identity.
   const project = await insertProjectRow({ projectName, status, projectDeadline });
 
   return {
