@@ -54,7 +54,7 @@ describe('project cancellation UI and active list contract', () => {
   it('locks project detail mutations when the project is CANCELLED', () => {
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
 
-    expect(detailPage).toMatch(/isProjectCancelled = String\(projectDetail\.status \|\| ''\)\.toUpperCase\(\) === 'CANCELLED'/);
+    expect(detailPage).toMatch(/isProjectCancelled = String\(firstDescription\.project_status \|\| ''\)\.toUpperCase\(\) === 'CANCELLED'/);
     expect(detailPage).toMatch(/const canManageProject = hasProjectMutationAccess && !isProjectCancelled/);
     expect(detailPage).toMatch(/disabled=\{isProjectCancelled\}/);
     expect(detailPage).toMatch(/disabled=\{selectedPhase\.isLocked \|\| !canManageProject\}/);

@@ -112,3 +112,18 @@ Remaining gaps:
 
 Next Phase 3 slice: project detail phase gating/status transition design. Stop at `LIVE_APPROVAL_REQUIRED` if schema, RLS, or data mutation beyond approved application behavior is needed.
 
+
+
+## 2026-07-20 Phase 3 project phase workflow application slice
+
+Completed application-only workflow state-machine preparation:
+
+- Added a central pure phase workflow helper for task status transitions, phase gating, phase progress and project progress calculations.
+- Project Detail now filters status options through the approved task transition map before sending status mutations.
+- Project progress now averages phase progress derived from task progress, instead of only counting completed phases.
+- Phase detail now shows gate messaging and latest normalized task activity timestamp when available.
+- Creative Lead permissions were not expanded; task and phase controls still rely on the existing server capability DTO and current role matrix.
+
+No SQL was executed. No schema, RLS, role matrix, or live data mutation was added. Completing/unlocking phases remains blocked until an approved phase status/dependency mutation contract and persistence plan exist.
+
+Next Phase 3 slice: prepare the phase status/dependency mutation design, migration/rollback/validation SQL, RLS impact and audit-history plan, then stop at `LIVE_APPROVAL_REQUIRED` before any live schema or data mutation.

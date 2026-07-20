@@ -20,6 +20,14 @@ import {
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
 import type { TaskAssignmentDTO, TaskAssignmentStatus } from '@/lib/types/task-assignment';
+import {
+  allowedNextTaskStatuses,
+  calculatePhaseProgress,
+  calculateProjectProgress,
+  canTransitionTaskStatus,
+  phaseGateState,
+  taskProgressPercent,
+} from '@/lib/workflow-project-phase';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
 import {
   cancelWorkflowProject,
@@ -41,6 +49,10 @@ interface PhaseRecord {
   tasks: DisplayTask[];
   taskCount: number;
   completedTaskCount: number;
+  progressPercent: number;
+  lastActivityAt: string | null;
+  gateMessage: string | null;
+  canCompletePhase: boolean;
   isLocked: boolean;
   isCompleted: boolean;
 }
@@ -161,7 +173,7 @@ function persistedPhaseStatus(item: WorkflowSetting): PhaseDisplayStatus | null 
 }
 
 function deriveSequentialPhaseStatuses(
-  phases: Array<Omit<PhaseRecord, 'status' | 'taskCount' | 'completedTaskCount' | 'isLocked' | 'isCompleted'>>
+  phases: Array<Omit<PhaseRecord, 'status' | 'taskCount' | 'completedTaskCount' | 'progressPercent' | 'lastActivityAt' | 'gateMessage' | 'canCompletePhase' | 'isLocked' | 'isCompleted'>>
 ): PhaseDisplayStatus[] {
   let canOpenNext = true;
   let activeAssigned = false;
@@ -248,7 +260,7 @@ function getTaskStatusValue(task: DisplayTask): string | null | undefined {
 }
 
 function getTaskProgressLabel(task: DisplayTask): string {
-  if (isTaskAssignmentDTO(task)) return `${task.progressPercent}%`;
+  if (isTaskAssignmentDTO(task)) return `${taskProgressPercent(task.status)}%`;
   return isTaskCompleted(task) ? '100%' : '0%';
 }
 
@@ -392,6 +404,14 @@ export default function ProjectDetailPage() {
       const tasks: DisplayTask[] = [...assignmentTasks, ...phase.tasks, ...mappedTasks];
       const completedTaskCount = tasks.filter(isTaskCompleted).length;
       const status = statuses[index] || 'LOCKED';
+      const progressValues = tasks.map((task) => isTaskAssignmentDTO(task) ? task.progressPercent : isTaskCompleted(task) ? 100 : 0);
+      const progressPercent = calculatePhaseProgress(progressValues, status === 'COMPLETED');
+      const lastActivityAt = tasks
+        .map((task) => isTaskAssignmentDTO(task) ? task.lastActivityAt : null)
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) || null;
+      const gate = phaseGateState({ status, taskCount: tasks.length, completedTaskCount, orderIndex: phase.orderIndex }, false);
 
       return {
         ...phase,
@@ -399,6 +419,10 @@ export default function ProjectDetailPage() {
         tasks,
         taskCount: tasks.length,
         completedTaskCount,
+        progressPercent,
+        lastActivityAt,
+        gateMessage: gate.gatingMessage,
+        canCompletePhase: gate.canCompletePhase,
         isLocked: status === 'LOCKED',
         isCompleted: status === 'COMPLETED',
       };
@@ -411,16 +435,22 @@ export default function ProjectDetailPage() {
       : mapLegacyTasksToPhaseGroups(phases, legacyTasks).get('unassigned') || [],
     [phases, legacyTasks, projectTasks]
   );
-  const completedPhaseCount = phases.filter((phase) => phase.status === 'COMPLETED').length;
-  const progressPercent = phases.length > 0 ? Math.round((completedPhaseCount / phases.length) * 100) : 0;
-  const totalTaskCount = phases.reduce((sum, phase) => sum + phase.taskCount, 0) + unassignedTasks.length;
-  const completedTaskCount = phases.reduce((sum, phase) => sum + phase.completedTaskCount, 0) + unassignedTasks.filter(isTaskCompleted).length;
-  const nearestDeadline = [...phases.flatMap((phase) => phase.tasks.map(getTaskDeadlineValue)), ...unassignedTasks.map(getTaskDeadlineValue)]
+  const isProjectCancelled = String(firstDescription.project_status || '').toUpperCase() === 'CANCELLED';
+  const canManageProject = hasProjectMutationAccess && !isProjectCancelled;
+  const phasesWithGates = useMemo(() => phases.map((phase) => {
+    const gate = phaseGateState({ status: phase.status, taskCount: phase.taskCount, completedTaskCount: phase.completedTaskCount, orderIndex: phase.orderIndex }, canManageProject);
+    return { ...phase, gateMessage: gate.gatingMessage, canCompletePhase: gate.canCompletePhase };
+  }), [phases, canManageProject]);
+  const completedPhaseCount = phasesWithGates.filter((phase) => phase.status === 'COMPLETED').length;
+  const progressPercent = calculateProjectProgress(phasesWithGates.map((phase) => phase.progressPercent));
+  const totalTaskCount = phasesWithGates.reduce((sum, phase) => sum + phase.taskCount, 0) + unassignedTasks.length;
+  const completedTaskCount = phasesWithGates.reduce((sum, phase) => sum + phase.completedTaskCount, 0) + unassignedTasks.filter(isTaskCompleted).length;
+  const nearestDeadline = [...phasesWithGates.flatMap((phase) => phase.tasks.map(getTaskDeadlineValue)), ...unassignedTasks.map(getTaskDeadlineValue)]
     .filter((value): value is string => Boolean(value))
     .sort()[0] || null;
   const memberCount = members.filter((member) => member.status === 'ACTIVE').length;
-  const activePhase = phases.find((phase) => phase.status === 'ACTIVE' || phase.status === 'BLOCKED' || phase.status === 'REVIEW') || phases.find((phase) => phase.status === 'COMPLETED') || phases[0] || null;
-  const selectedPhase = phases.find((phase) => phase.item.phase_id === selectedPhaseId) || activePhase;
+  const activePhase = phasesWithGates.find((phase) => phase.status === 'ACTIVE' || phase.status === 'BLOCKED' || phase.status === 'REVIEW') || phases.find((phase) => phase.status === 'COMPLETED') || phases[0] || null;
+  const selectedPhase = phasesWithGates.find((phase) => phase.item.phase_id === selectedPhaseId) || activePhase;
   const projectDetail: ProjectDetailDTO = {
     id: projectId,
     name: projectName,
@@ -430,12 +460,11 @@ export default function ProjectDetailPage() {
     currentPhaseId: activePhase?.item.phase_id || null,
     capabilities: projectCapabilities,
     members,
-    phases,
+    phases: phasesWithGates,
     unassignedTasks,
   };
-  const isProjectCancelled = String(projectDetail.status || '').toUpperCase() === 'CANCELLED';
-  const canManageProject = hasProjectMutationAccess && !isProjectCancelled;
   const canManageMembers = projectDetail.capabilities.canManageMembers && !isProjectCancelled;
+  const canManageTasks = projectDetail.capabilities.canManageTasks && !isProjectCancelled;
 
   useEffect(() => {
     setDriveLinkInput(firstDescription.project_drive_link || '');
@@ -559,7 +588,7 @@ export default function ProjectDetailPage() {
   };
 
   const handleStartEditTask = (task: DisplayTask) => {
-    if (!canManageProject || !isTaskAssignmentDTO(task)) return;
+    if (!canManageTasks || !isTaskAssignmentDTO(task)) return;
     setEditingTask({
       taskId: task.taskId,
       assigneeEmployeeId: task.assigneeEmployeeId ? String(task.assigneeEmployeeId) : '',
@@ -570,7 +599,7 @@ export default function ProjectDetailPage() {
   };
 
   const handleSaveTask = async () => {
-    if (!canManageProject || !editingTask || taskActionLoading) return;
+    if (!canManageTasks || !editingTask || taskActionLoading) return;
     setTaskActionLoading(editingTask.taskId);
     try {
       const assignResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}/assign`, {
@@ -591,6 +620,11 @@ export default function ProjectDetailPage() {
       });
       const updatePayload = await updateResponse.json().catch(() => null) as { message?: string } | null;
       if (!updateResponse.ok) throw new Error(updatePayload?.message || 'Không thể cập nhật deadline.');
+
+      const currentTask = projectTasks.find((task) => task.taskId === editingTask.taskId);
+      if (currentTask && !canTransitionTaskStatus(currentTask.status, editingTask.status)) {
+        throw new Error('Chuyển trạng thái này chưa được hỗ trợ bởi state machine.');
+      }
 
       const statusResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}/status`, {
         method: 'POST',
@@ -883,9 +917,9 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
                 <div className="space-y-4 p-4">
-                  {selectedPhase.isLocked && (
+                  {selectedPhase.gateMessage && (
                     <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-400">
-                      Hoàn thành giai đoạn trước để mở khóa.
+                      {selectedPhase.gateMessage}
                     </div>
                   )}
 
@@ -915,11 +949,11 @@ export default function ProjectDetailPage() {
                     </div>
                     <div>
                       <p className="text-slate-500">Tiến độ phase</p>
-                      <p className="font-bold text-slate-100">{selectedPhase.completedTaskCount}/{selectedPhase.taskCount} công việc</p>
+                      <p className="font-bold text-slate-100">{selectedPhase.progressPercent}% · {selectedPhase.completedTaskCount}/{selectedPhase.taskCount} công việc</p>
                     </div>
                     <div>
-                      <p className="text-slate-500">Comment gần nhất</p>
-                      <p className="font-bold text-slate-100">Chưa có</p>
+                      <p className="text-slate-500">Hoạt động gần nhất</p>
+                      <p className="font-bold text-slate-100">{formatDateTime(selectedPhase.lastActivityAt)}</p>
                     </div>
                   </div>
 
@@ -950,7 +984,7 @@ export default function ProjectDetailPage() {
                             <td className="py-3 pr-3">{getTaskProgressLabel(task)}</td>
                             <td className="py-3 pr-3">{getTaskCommentLabel(task)}</td>
                             <td className="py-3">
-                              {isTaskAssignmentDTO(task) && canManageProject ? (
+                              {isTaskAssignmentDTO(task) && canManageTasks ? (
                                 <button type="button" onClick={() => handleStartEditTask(task)} className="rounded border border-slate-700 px-2 py-1 font-bold text-slate-300">
                                   Sửa
                                 </button>
@@ -972,7 +1006,7 @@ export default function ProjectDetailPage() {
                             <p>Tiến độ: {getTaskProgressLabel(task)}</p>
                             <p>Bình luận: {getTaskCommentLabel(task)}</p>
                           </div>
-                          {isTaskAssignmentDTO(task) && canManageProject && (
+                          {isTaskAssignmentDTO(task) && canManageTasks && (
                             <button type="button" onClick={() => handleStartEditTask(task)} className="mt-3 rounded border border-slate-700 px-2 py-1 font-bold text-slate-300">
                               Sửa
                             </button>
@@ -1091,7 +1125,10 @@ export default function ProjectDetailPage() {
                 <input type="date" value={editingTask.deadline} onChange={(event) => setEditingTask({ ...editingTask, deadline: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
                 <label className="block font-bold text-slate-300">Trạng thái</label>
                 <select value={editingTask.status} onChange={(event) => setEditingTask({ ...editingTask, status: event.target.value as TaskAssignmentStatus })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">
-                  {TASK_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  {TASK_STATUS_OPTIONS.filter((option) => {
+                    const currentTask = projectTasks.find((task) => task.taskId === editingTask.taskId);
+                    return !currentTask || allowedNextTaskStatuses(currentTask.status).includes(option.value);
+                  }).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
                 <label className="block font-bold text-slate-300">Bình luận</label>
                 <textarea value={editingTask.comment} onChange={(event) => setEditingTask({ ...editingTask, comment: event.target.value })} disabled={taskActionLoading !== null} rows={4} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none" placeholder="Nhập bình luận cho công việc" />

@@ -37,7 +37,7 @@ describe('project detail stepper and task assignee display', () => {
     expect(detailPage).toMatch(/setSelectedPhaseId\(phase\.item\.phase_id \|\| null\)/);
     expect(detailPage).toMatch(/function isPhaseReadonly\(phase: PhaseRecord, canManageProject = false\)/);
     expect(detailPage).toMatch(/phase\.status === 'LOCKED'/);
-    expect(detailPage).toMatch(/Hoàn thành giai đoạn trước để mở khóa\./);
+    expect(detailPage).toMatch(/selectedPhase\.gateMessage/);
     expect(detailPage).toMatch(/Chỉ xem/);
   });
 
@@ -78,11 +78,14 @@ describe('project detail stepper and task assignee display', () => {
     expect(detailPage).toMatch(/Công việc chưa phân giai đoạn/);
   });
 
-  it('shows project progress from completed phases and current active phase', () => {
+  it('shows project progress from phase and task progress with current active phase', () => {
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
+    const workflow = source('lib/workflow-project-phase.ts');
 
-    expect(detailPage).toMatch(/const completedPhaseCount = phases\.filter\(\(phase\) => phase\.status === 'COMPLETED'\)\.length/);
-    expect(detailPage).toMatch(/const progressPercent = phases\.length > 0 \? Math\.round\(\(completedPhaseCount \/ phases\.length\) \* 100\) : 0/);
+    expect(detailPage).toMatch(/const completedPhaseCount = phasesWithGates\.filter\(\(phase\) => phase\.status === 'COMPLETED'\)\.length/);
+    expect(detailPage).toMatch(/const progressPercent = calculateProjectProgress\(phasesWithGates\.map\(\(phase\) => phase\.progressPercent\)\)/);
+    expect(workflow).toMatch(/function calculatePhaseProgress/);
+    expect(workflow).toMatch(/function calculateProjectProgress/);
     expect(detailPage).toMatch(/Tiến độ dự án/);
     expect(detailPage).toMatch(/currentPhaseId: activePhase\?\.item\.phase_id \|\| null/);
   });
