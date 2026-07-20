@@ -37,6 +37,15 @@ For non-trivial ERP work, read:
 
 Then read only the smallest relevant reference set selected by that skill.
 
+## Migration Gate Policy
+
+When a workstream requires schema changes:
+
+1. Complete every application-only task that does not depend on the new schema.
+2. Generate migration, rollback, validation and backfill plans.
+3. Stop at LIVE_APPROVAL_REQUIRED.
+4. Do not stop earlier if application code, tests, documentation or planning can still be completed safely.
+
 ## Guidance Maintenance
 
 When creating or materially changing repository-owned guidance, consult:
