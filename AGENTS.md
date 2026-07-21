@@ -280,9 +280,9 @@ For approved implementation work, Codex may, after every repository validation g
 - commit
 - push the current feature branch through approved GitHub tooling
 - create or update the pull request
-- enable auto-merge only when the available GitHub integration supports it and no actionable review conversations remain
+- enable auto-merge only when the available GitHub integration supports it and no actionable Code Review findings remain
 
-Successful branch push and pull request creation count as completed delivery only after the Pull Request Review Comment Policy below is satisfied.
+Successful branch push and pull request creation count as completed delivery only after the Code Review Source and Remediation Policy below is satisfied.
 
 `AUTO_MERGE_UNAVAILABLE` is a delivery limitation, not an implementation blocker.
 
@@ -334,8 +334,8 @@ After all required validation gates pass, Codex should:
 1. Commit the completed work.
 2. Push the current feature branch through approved GitHub tooling.
 3. Create or update the pull request.
-4. Inspect and resolve unresolved review conversations according to the Pull Request Review Comment Policy below.
-5. Enable auto-merge when the available GitHub integration supports it and no actionable review conversations remain.
+4. Process review findings according to the Code Review Source and Remediation Policy below.
+5. Enable auto-merge when the available GitHub integration supports it and no actionable Code Review findings remain.
 6. Allow GitHub to merge only after all required checks, reviews, and branch protection rules pass.
 7. Never merge or push directly to `main`.
 
@@ -358,84 +358,84 @@ Stop and report only when:
 
 After the pull request is merged, future roadmap work must continue from the latest `main` branch.
 
-### Review Source Policy
+### Code Review Source and Remediation Policy
 
-When pull request review conversations are not available inside the active Codex Cloud task:
+For every implementation pull request, review findings must be processed before delivery is considered complete.
 
-- report REVIEW_SOURCE_UNAVAILABLE
-- do not guess comment contents
-- do not block unrelated implementation solely because old comments cannot be retrieved
-- instruct the operator to invoke `@codex` in the relevant GitHub pull request or provide the review findings in the task
-- remediate merged-PR findings through a new review-debt pull request from latest main
+Review source priority:
 
-### Pull Request Review Comment Policy
+1. Current Codex GitHub Code Review findings shown in the Code Review workflow.
+2. Unresolved conversations on the current pull request.
+3. Review findings explicitly supplied by the user.
+4. Repository tests, static analysis, and self-review findings.
 
-A pull request is not delivery-complete while actionable review conversations remain unresolved.
+When findings are available, Codex must:
 
-After creating or updating a pull request, Codex must:
-
-1. Inspect every unresolved review comment and conversation.
-2. Classify each comment as:
+1. Inspect every finding.
+2. Classify it as:
    - ACTIONABLE
    - ALREADY_FIXED
    - NOT_APPLICABLE
-   - BUSINESS_DECISION_REQUIRED
    - FALSE_POSITIVE
-3. For every ACTIONABLE comment:
-   - inspect the referenced code and surrounding execution path
-   - implement the smallest safe fix
-   - preserve approved business rules and permissions
-   - add or update regression tests
-4. Do not blindly apply reviewer suggestions.
-5. Do not change business rules, role permissions, schema, RLS, or workflow transitions only because a review bot suggested it.
-6. For NOT_APPLICABLE or FALSE_POSITIVE comments:
-   - provide a concise technical explanation
-   - cite the relevant code behavior
-   - do not modify code unnecessarily
-7. For BUSINESS_DECISION_REQUIRED comments:
-   - stop and report the exact decision required
-   - do not guess
-8. Resolve a review conversation only after:
-   - the issue is fixed and validated
-   - the existing implementation is proven correct
-   - or an approved decision explicitly rejects the suggestion
-9. Rerun affected validation after review fixes:
-   - targeted tests
-   - npm test
-   - npm run lint
-   - npx tsc --noEmit
-   - npm run build
-   - git diff --check
-10. Re-check the pull request after pushing fixes because new review comments may be generated.
+   - BUSINESS_DECISION_REQUIRED
+3. Fix every ACTIONABLE finding using the smallest safe change.
+4. Add or update focused regression tests.
+5. Preserve approved business rules, permissions, schema, RLS, and workflow rules.
+6. Explain FALSE_POSITIVE and NOT_APPLICABLE findings technically instead of changing correct code.
+7. Stop on BUSINESS_DECISION_REQUIRED instead of guessing.
+8. Rerun all affected validation gates after fixes.
+9. Update the existing pull request for the same roadmap slice.
+10. Re-check Code Review after each update because new findings may appear.
 
 Delivery is complete only when:
 
-- no unresolved ACTIONABLE review comments remain
+- no unresolved ACTIONABLE findings remain
 - no unresolved P0 or P1 findings remain
 - all required validation gates pass
-- branch push and pull request creation/update succeed
+- the current pull request has been updated successfully
 
-Auto-merge must not proceed while actionable review comments remain unresolved.
+If the active task cannot access Code Review findings:
+
+- report REVIEW_SOURCE_UNAVAILABLE
+- do not guess missing findings
+- do not block unrelated work solely because old merged-PR findings are unavailable
+- instruct the operator to run remediation from the Code Review workflow or provide the findings explicitly
+
+Auto-merge must not proceed while actionable Code Review findings remain.
+
+### Pull Request Review Comment Policy
+
+Unresolved pull request conversations are one review source under the Code Review Source and Remediation Policy.
+
+For each unresolved pull request review comment or conversation, Codex must:
+
+1. Inspect the referenced code and surrounding execution path.
+2. Classify and remediate the finding according to the Code Review Source and Remediation Policy.
+3. Do not blindly apply reviewer suggestions.
+4. Resolve a review conversation only after:
+   - the issue is fixed and validated
+   - the existing implementation is proven correct
+   - or an approved decision explicitly rejects the suggestion
 
 ### Existing Pull Request Update Policy
 
 When an implementation pull request for the current roadmap slice is still open:
 
 1. Treat that pull request and its feature branch as the active delivery target.
-2. Inspect all newly generated unresolved review comments.
-3. Classify each comment according to the Pull Request Review Comment Policy.
-4. Fix every ACTIONABLE comment using the smallest safe change.
+2. Inspect all newly generated Code Review findings and unresolved review comments.
+3. Classify each finding according to the Code Review Source and Remediation Policy.
+4. Fix every ACTIONABLE finding using the smallest safe change.
 5. Add or update focused regression tests.
 6. Commit the fixes to the same feature branch.
 7. Update the existing pull request.
 8. Do not create a second pull request for the same roadmap slice.
-9. Re-check the pull request after each update because new automated review comments may appear.
+9. Re-check Code Review and pull request conversations after each update because new findings may appear.
 10. Continue this review-fix-update loop until:
-    - no unresolved ACTIONABLE comments remain
+    - no unresolved ACTIONABLE findings remain
     - no unresolved P0 or P1 findings remain
     - all required validation gates pass
 
-Do not treat the pull request as delivery-complete while actionable review conversations remain.
+Do not treat the pull request as delivery-complete while actionable Code Review findings remain.
 
 A new pull request may be created only when:
 
