@@ -280,9 +280,9 @@ For approved implementation work, Codex may, after every repository validation g
 - commit
 - push the current feature branch through approved GitHub tooling
 - create or update the pull request
-- enable auto-merge only when the available GitHub integration supports it
+- enable auto-merge only when the available GitHub integration supports it and no actionable review conversations remain
 
-Successful branch push and pull request creation count as completed delivery.
+Successful branch push and pull request creation count as completed delivery only after the Pull Request Review Comment Policy below is satisfied.
 
 `AUTO_MERGE_UNAVAILABLE` is a delivery limitation, not an implementation blocker.
 
@@ -323,9 +323,10 @@ After all required validation gates pass, Codex should:
 1. Commit the completed work.
 2. Push the current feature branch through approved GitHub tooling.
 3. Create or update the pull request.
-4. Enable auto-merge when the available GitHub integration supports it.
-5. Allow GitHub to merge only after all required checks, reviews, and branch protection rules pass.
-6. Never merge or push directly to `main`.
+4. Inspect and resolve unresolved review conversations according to the Pull Request Review Comment Policy below.
+5. Enable auto-merge when the available GitHub integration supports it and no actionable review conversations remain.
+6. Allow GitHub to merge only after all required checks, reviews, and branch protection rules pass.
+7. Never merge or push directly to `main`.
 
 If auto-merge is unavailable in the current integration:
 
