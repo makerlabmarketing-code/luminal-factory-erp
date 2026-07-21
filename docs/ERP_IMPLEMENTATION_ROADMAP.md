@@ -833,3 +833,19 @@ Validation evidence:
 Database impact: approved schema/RPC/grant mutation only for Corrective Slice 3A.
 Security impact: server/authenticated RPC derives actor from `auth.uid()` and checks existing workspace/permission helpers; no broad browser write policy was introduced.
 Blocking: `REVIEW_SOURCE_UNAVAILABLE` for connected Code Review workflow findings. Do not begin Corrective Slice 3B from this slice.
+
+## 2026-07-21 Corrective Slice 3B finance beneficiary, payer, reimbursement and receipts
+
+Completed application-only finance workflow correction/preparation from the latest main-equivalent branch after Slices 1, 2, and 3A were already complete.
+
+- Added a typed finance workflow contract that separates Beneficiary, Payer / payment executor, Record creator, Reimbursement requester, Reimbursement recipient, Approver, and Payment confirmer instead of collapsing them into one generic employee field.
+- Added category-aware validation for salary, reimbursement, supplier payment, personal advance, project/material/operating expense, and other approved expense categories.
+- Salary QR generation now uses the beneficiary employee payment profile helper and returns the required Vietnamese warning `Nhân sự chưa có thông tin nhận tiền.` when bank/payment information is missing.
+- Reimbursement status transition rules now require rejection reasons, approval permission, finance payment-confirmation permission, and block requester self-approval/self-payment confirmation.
+- Receipt/attachment validation now covers allowed image/PDF types, maximum 10 MB size, and safe filename handling.
+- The finance add/edit dialog is now organized into `Thông tin khoản chi`, `Người liên quan`, `Thanh toán`, `Chứng từ`, and `Phê duyệt và lịch sử` sections with the required Vietnamese role copy.
+- Prepared draft-only forward, rollback, validation, compatibility/backfill, RLS, and attachment storage policy artifacts under `supabase/drafts/20260721_finance_expense_workflow_*` and `docs/corrective-slice-3b-finance-workflow-handoff.md`.
+
+No SQL was executed. No schema change, RLS change, storage bucket/policy change, transactional RPC, permission backfill, finance backfill, live data mutation, destructive cleanup, deployment, or production mutation was run.
+
+Current gate: `LIVE_APPROVAL_REQUIRED` before applying the finance workflow schema/RLS/storage/RPC/backfill package.
