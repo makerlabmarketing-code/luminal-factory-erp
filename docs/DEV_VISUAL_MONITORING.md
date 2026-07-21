@@ -9,148 +9,126 @@ This is the repository-wide dev-only workflow for observing AI coding sessions a
 This workflow preserves production runtime behavior:
 
 - no production code path is changed;
-- no application dependency is added;
-- no Playwright, Cypress, browser binary, token, cookie, or auth state is committed;
+- Playwright is a dev dependency only;
+- no Playwright browser binary, token, cookie, or auth state is committed;
 - no database schema, RLS, role permission, feature flag, RPC, backfill, deployment, or live data mutation is required.
 
-## Repository inspection result
+## Installation
 
-Current tooling found before this workflow was added:
-
-- `package.json` uses npm scripts for `dev`, `test`, `lint`, and `build`.
-- Tests are Vitest-based under `tests/`.
-- No README file exists in the repository root.
-- Existing docs are under `docs/` and do not define a screenshot/browser automation workflow.
-- No Playwright or Cypress dependency is declared in `package.json`.
-- `package-lock.json` mentions Vitest optional browser metadata, but this is not an installed repository screenshot workflow.
-- No existing screenshot, video, trace, or browser automation script was found.
-- `.gitignore` now excludes local monitoring artifacts, browser traces, videos, and temporary auth state.
-
-## Agent Eye and local dashboard suitability
-
-Agent Eye was investigated as a requested category, but this repository should not assume it is installed or required.
-
-As of 2026-07-21, the closest public match found during inspection was `coding-by-feng/ai-agent-session-center`, published recently in search results and described as a local dashboard for Claude Code, Gemini CLI, and Codex sessions. Its README describes local terminals, transcripts, tool logs, and queues. This is enough to treat it as potentially suitable for local operator monitoring, but not enough to make it a repository dependency without approval.
-
-Observed suitability rules for this repository:
-
-- Prefer built-in Codex task logs for Codex Cloud because cloud tasks already expose command output, diffs, and validation logs to the operator.
-- A local dashboard can be useful for local CLI sessions if it is actively maintained, works locally, and is reversible.
-- Do not add a dashboard dependency to this repository unless the team approves the exact tool and security model.
-- Do not install a tool that requires paid hosting, cloud-only accounts, checked-in tokens, broad filesystem hooks, or persistent auth state in the repo.
-- If a dashboard uses hooks into local agent CLIs, review what files it changes, where logs are stored, and whether sensitive prompts or terminal output leave the machine.
-
-A suitable local option is any dashboard that:
-
-- runs on localhost;
-- supports Codex CLI or the local agent actually used by the operator;
-- is actively maintained at the time of adoption;
-- can be uninstalled cleanly;
-- stores logs outside the repository or under ignored local artifacts;
-- does not require cloud services for normal monitoring.
-
-`ai-agent-session-center` is an example of the category: its public README describes a localhost dashboard for Claude Code, Gemini, and Codex sessions, an `npx` startup flow, reversible hooks, and local-only message queues. Treat it as an operator-owned local tool, not a repository dependency.
-
-## Approved lightweight workflow
-
-For all Codex Cloud tasks:
-
-1. Use the Codex task log as the primary monitoring surface.
-2. Keep validation output in the PR summary.
-3. Use screenshots only when a UI change is visible and browser tooling is available.
-4. If screenshots cannot be captured in Codex Cloud, report the missing browser tooling and provide local commands.
-
-For local development:
-
-1. Run the ERP dev server:
-
-   ```bash
-   npm run dev
-   ```
-
-2. Open the app locally, usually at:
-
-   ```text
-   http://127.0.0.1:3000
-   ```
-
-3. Optionally open a local agent dashboard after reviewing its maintenance status, hook behavior, and data storage.
-4. Capture screenshots manually or with an approved browser tool.
-5. Save evidence under:
-
-   ```text
-   .artifacts/screenshots/
-   ```
-
-6. Attach selected screenshots to the PR; do not commit them.
-
-## Screenshot capture status
-
-Current status: `TOOLING_APPROVAL_REQUIRED` before adding Playwright, Cypress, or browser binaries.
-
-Because this repository does not currently include Playwright or Cypress, no `ui:screenshot` or `ui:verify` npm script is registered yet. Adding scripts that call missing browser tooling would create a false workflow.
-
-## Minimal browser setup proposal after approval
-
-If the team approves Playwright as dev-only tooling, use the minimal setup below:
+Install normal repository dependencies with npm:
 
 ```bash
-npm install --save-dev playwright
-npx playwright install chromium
+npm install
 ```
 
-Then add a repository script that:
+Playwright must remain in `devDependencies`. Do not add Playwright, Cypress, browser launchers, credentials, cookies, or Supabase secrets to production dependencies or runtime code.
 
-- starts or assumes `npm run dev`;
-- fails clearly if the local server is unavailable;
-- fails clearly if Chromium or host browser dependencies are missing;
-- supports `UI_SCREENSHOT_BASE_URL`;
-- captures only approved key pages;
-- avoids live data mutation;
-- writes screenshots to `.artifacts/screenshots/`.
+## Browser setup
 
-Do not add Playwright to production dependencies.
+Install the minimum approved browser binary for screenshots:
 
-## Approved key pages for future automation
+```bash
+npm run ui:install-browser
+```
 
-Future automation may target only pages that are safe in the current local session:
+This runs `playwright install chromium`. If the download is blocked by Codex Cloud or a corporate network, keep the dev-only setup and capture screenshots locally instead.
+
+## Screenshot commands
+
+Use an already running local server:
+
+```bash
+npm run dev
+npm run ui:screenshot
+```
+
+Or let the workflow start the dev server:
+
+```bash
+npm run ui:screenshot -- --start-server
+```
+
+Verification-only mode loads the same routes without writing images:
+
+```bash
+npm run ui:verify
+```
+
+Useful options and environment variables:
+
+```bash
+UI_SCREENSHOT_BASE_URL=http://127.0.0.1:3000 npm run ui:screenshot
+UI_SCREENSHOT_DIR=.artifacts/screenshots npm run ui:screenshot
+UI_SCREENSHOT_READY_SELECTOR=body npm run ui:screenshot
+npm run ui:screenshot -- --route home --viewport mobile
+npm run ui:screenshot -- --include-authenticated
+```
+
+Screenshots are saved under `.artifacts/screenshots/` and are ignored by git.
+
+## Approved screenshot routes
+
+The route list lives in `scripts/ui-screenshot-config.mjs` so tests and the screenshot script share one source of truth.
+
+Default public routes:
 
 - `/`
 - `/auth/no-workspace`
-- `/admin/projects` only when the operator already has a safe local admin session;
-- `/admin/projects/1` only when the operator already has a safe local admin session and the record exists locally;
-- `/staff/tasks` only when the operator already has a safe local staff session.
 
-Authenticated pages require an operator-provided safe local session. Do not hardcode credentials, store cookies or tokens in Git, bypass authentication, or mutate live data to create a screenshot state.
+Approved authenticated ERP routes:
 
-## Auth fixture inspection result
+- `/admin/projects`
+- `/admin/projects/1`
+- `/staff/tasks`
 
-No safe checked-in browser auth fixture was found for UI screenshot automation.
+Authenticated routes are skipped by default unless the operator explicitly supplies an auth workflow. The script exits non-zero when a requested route or required screenshot cannot be captured.
 
-Until an approved auth fixture exists:
+## Authenticated-page setup
 
-- do not automate login with hardcoded credentials;
-- do not commit storage state, cookies, tokens, passwords, or Supabase session data;
-- limit automation to public pages or pages reachable through the operator's existing local browser session;
-- document the session state used when attaching screenshots.
+Inspection result: no safe checked-in browser auth fixture exists for this repository.
 
-## Codex Cloud limitations
+Until an approved fixture exists, use one of these local-only workflows:
 
-Codex Cloud may not provide installed browser automation packages or browser binaries. In that case:
+1. Manual authenticated state file:
+   - Start the app locally.
+   - Sign in through the normal ERP login flow with a safe local account.
+   - Save Playwright storage state outside git, preferably under `.auth/storage-state.json`.
+   - Run:
 
-- normal validation must still use `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check`;
-- screenshot capture remains a local evidence step;
-- report `TOOLING_APPROVAL_REQUIRED` rather than failing the implementation for missing Playwright/Cypress;
-- do not install heavy browser dependencies without explicit approval.
+     ```bash
+     UI_SCREENSHOT_STORAGE_STATE=.auth/storage-state.json npm run ui:screenshot -- --include-authenticated
+     ```
 
-## PR evidence checklist
+2. Environment-provided storage state:
+   - Provide `UI_SCREENSHOT_STORAGE_STATE` from a secure local or CI secret mount.
+   - Keep the file outside committed source control.
+   - Document the session state in the PR evidence checklist.
+
+Never hardcode credentials, cookies, tokens, Supabase keys, or session data. Never bypass authentication or mutate live data only to make a screenshot state.
+
+## PR evidence workflow
 
 For UI PRs, include:
 
 - whether screenshots were captured in Codex Cloud or locally;
-- the browser/tool used;
+- the command used;
 - the base URL;
-- the page paths captured;
+- the page paths and viewport names captured;
 - the session state, such as logged out, admin session, staff session, or permission denied;
 - the screenshot filenames from `.artifacts/screenshots/`;
-- any limitation such as missing browser package, missing browser binary, missing auth fixture, or unavailable local data.
+- any limitation such as missing browser package, blocked Chromium download, missing auth fixture, or unavailable local data.
+
+## Codex Cloud limitations
+
+Codex Cloud may block browser binary downloads or browser execution. In this task, browser setup failed when Chromium download returned `403 Domain forbidden` from the Playwright CDN.
+
+When that happens:
+
+- normal validation must still use `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check`;
+- screenshot capture remains a local evidence step;
+- report the exact blocker;
+- do not make normal repository validation depend on Playwright browser binaries.
+
+## Agent session monitoring
+
+Use the Codex task log as the primary monitoring surface in Codex Cloud. A local dashboard such as Agent Eye or `coding-by-feng/ai-agent-session-center` can be operator-owned local tooling, but it is not a repository dependency and must not be required for normal validation.
