@@ -321,26 +321,79 @@ If any stop condition occurs:
 After all required validation gates pass, Codex should:
 
 1. Commit the completed work.
-2. Push the current feature branch.
+2. Push the current feature branch through approved GitHub tooling.
 3. Create or update the pull request.
-4. Enable auto-merge for the pull request only when the available GitHub integration supports it.
-5. If auto-merge is unavailable, report `AUTO_MERGE_UNAVAILABLE` as a delivery limitation and continue treating branch push plus pull request creation as completed delivery.
-6. Allow GitHub to merge only after all required checks, reviews, and branch protection rules pass.
-7. Do not bypass branch protection or required checks.
+4. Enable auto-merge when the available GitHub integration supports it.
+5. Allow GitHub to merge only after all required checks, reviews, and branch protection rules pass.
+6. Never merge or push directly to `main`.
 
-Stop and report when any of the following occurs:
+If auto-merge is unavailable in the current integration:
 
-- branch push failure
-- pull request creation or update failure
-- validation failure
-- merge conflict
-- missing required approval
-- branch protection blocker
-- unavailable GitHub remote or permission
-- unexpected changes on the target branch
+- report `AUTO_MERGE_UNAVAILABLE`
+- provide the created PR metadata or PR link when available
+- do not treat this alone as an implementation failure
+- consider the delivery step complete when the branch and PR have been created successfully
+
+Stop and report only when:
+
+- the branch cannot be pushed
+- the pull request cannot be created
+- a merge conflict exists
+- a required check fails
+- required approval is missing
+- branch protection blocks delivery
+- unexpected target-branch changes create risk
 
 After the pull request is merged, future roadmap work must continue from the latest `main` branch.
 
+### Pull Request Review Comment Policy
+
+A pull request is not delivery-complete while actionable review conversations remain unresolved.
+
+After creating or updating a pull request, Codex must:
+
+1. Inspect every unresolved review comment and conversation.
+2. Classify each comment as:
+   - ACTIONABLE
+   - ALREADY_FIXED
+   - NOT_APPLICABLE
+   - BUSINESS_DECISION_REQUIRED
+   - FALSE_POSITIVE
+3. For every ACTIONABLE comment:
+   - inspect the referenced code and surrounding execution path
+   - implement the smallest safe fix
+   - preserve approved business rules and permissions
+   - add or update regression tests
+4. Do not blindly apply reviewer suggestions.
+5. Do not change business rules, role permissions, schema, RLS, or workflow transitions only because a review bot suggested it.
+6. For NOT_APPLICABLE or FALSE_POSITIVE comments:
+   - provide a concise technical explanation
+   - cite the relevant code behavior
+   - do not modify code unnecessarily
+7. For BUSINESS_DECISION_REQUIRED comments:
+   - stop and report the exact decision required
+   - do not guess
+8. Resolve a review conversation only after:
+   - the issue is fixed and validated
+   - the existing implementation is proven correct
+   - or an approved decision explicitly rejects the suggestion
+9. Rerun affected validation after review fixes:
+   - targeted tests
+   - npm test
+   - npm run lint
+   - npx tsc --noEmit
+   - npm run build
+   - git diff --check
+10. Re-check the pull request after pushing fixes because new review comments may be generated.
+
+Delivery is complete only when:
+
+- no unresolved ACTIONABLE review comments remain
+- no unresolved P0 or P1 findings remain
+- all required validation gates pass
+- branch push and pull request creation/update succeed
+
+Auto-merge must not proceed while actionable review comments remain unresolved.
 ---
 
 ## Working Principles
