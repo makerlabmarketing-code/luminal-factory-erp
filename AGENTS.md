@@ -275,14 +275,18 @@ or when validation fails:
 
 ## Git Delivery Policy
 
-For approved implementation work, Codex may:
+For approved implementation work, Codex may, after every repository validation gate passes:
 
 - commit
-- push feature branch
-- merge into `main`
-- push `main`
+- push the current feature branch through approved GitHub tooling
+- create or update the pull request
+- enable auto-merge only when the available GitHub integration supports it
 
-Only after every repository validation gate passes.
+Successful branch push and pull request creation count as completed delivery.
+
+`AUTO_MERGE_UNAVAILABLE` is a delivery limitation, not an implementation blocker.
+
+Codex must never push or merge directly to `main`; protected branch rules own the merge.
 
 Required gates:
 
@@ -304,7 +308,9 @@ Never:
 - discard unknown changes
 - guess merge conflict resolution
 
-If any validation gate fails:
+Stop only when branch push, pull request creation, validation, conflict, approval, or branch protection fails.
+
+If any stop condition occurs:
 
 - stop
 - report the blocker
@@ -434,11 +440,10 @@ For every implementation task:
 6. Run all relevant tests, lint, type-check, build, and `git diff --check`.
 7. Fix all failures introduced by the implementation.
 8. Commit all verified changes.
-9. Use the Codex GitHub integration to create or update a pull request targeting `main`.
+9. Follow the Pull Request and Auto-Merge policy above.
 10. Reuse the existing pull request when continuing the same task.
-11. If repository auto-merge is available, enable auto-merge only after all required checks pass.
-12. Do not merge when tests fail, required secrets are unavailable, or the change contains an unresolved business-rule decision.
-13. Report the pull request status, test results, and remaining blockers.
+11. Do not merge when tests fail, required secrets are unavailable, or the change contains an unresolved business-rule decision.
+12. Report the pull request status, test results, and remaining blockers.
 
 A missing shell Git remote such as `origin` is not an implementation failure.
 Do not attempt to repair it using `git remote add`.
