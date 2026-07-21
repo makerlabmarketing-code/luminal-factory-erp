@@ -31,7 +31,7 @@ Install the minimum approved browser binary for screenshots:
 npm run ui:install-browser
 ```
 
-This runs `playwright install chromium`. If the download is blocked by Codex Cloud or a corporate network, keep the dev-only setup and capture screenshots locally instead.
+This runs `playwright install chromium`. After the 2026-07-21 Codex Cloud network allowlist update, Chromium downloaded successfully in this repository. If a future environment blocks the download, keep the dev-only setup and capture screenshots locally instead.
 
 ## Screenshot commands
 
@@ -118,14 +118,16 @@ For UI PRs, include:
 - the screenshot filenames from `.artifacts/screenshots/`;
 - any limitation such as missing browser package, blocked Chromium download, missing auth fixture, or unavailable local data.
 
-## Codex Cloud limitations
+## Codex Cloud status and limitations
 
-Codex Cloud may block browser binary downloads or browser execution. In this task, browser setup failed when Chromium download returned `403 Domain forbidden` from the Playwright CDN.
+Codex Cloud verification on 2026-07-21 confirmed that `npx playwright install chromium` can download Chromium after the network allowlist update. Chromium availability is verified with `npx playwright install --list`, which should include the installed Chromium cache path.
 
-When that happens:
+Browser execution can still depend on host Linux packages. If `npm run ui:screenshot` reports `UI_SCREENSHOT_BROWSER_MISSING` after Chromium is installed, install the Playwright host dependencies for the current container or capture screenshots locally with equivalent dependencies available.
+
+When browser setup or execution is unavailable:
 
 - normal validation must still use `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check`;
-- screenshot capture remains a local evidence step;
+- screenshot capture remains a local evidence step until the browser can launch;
 - report the exact blocker;
 - do not make normal repository validation depend on Playwright browser binaries.
 

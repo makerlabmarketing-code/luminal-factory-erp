@@ -15,7 +15,8 @@ describe('dev visual monitoring documentation and tooling', () => {
     expect(docs).toMatch(/npm run ui:install-browser/);
     expect(docs).toMatch(/UI_SCREENSHOT_STORAGE_STATE/);
     expect(docs).toMatch(/no safe checked-in browser auth fixture exists/);
-    expect(docs).toMatch(/403 Domain forbidden/);
+    expect(docs).toMatch(/network allowlist update/);
+    expect(docs).toMatch(/UI_SCREENSHOT_BROWSER_MISSING/);
     expect(docs).toMatch(/\.artifacts\/screenshots/);
     expect(pkg.scripts['ui:screenshot']).toBe('node scripts/ui-screenshot.mjs');
     expect(pkg.scripts['ui:verify']).toBe('node scripts/ui-screenshot.mjs --verify');
