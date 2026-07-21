@@ -358,6 +358,19 @@ Stop and report only when:
 
 After the pull request is merged, future roadmap work must continue from the latest `main` branch.
 
+## Code Review Remediation Policy
+
+Before starting any new roadmap slice:
+
+1. Inspect unresolved review findings for the current open PR.
+2. Compare new findings against docs/CODE_REVIEW_REMEDIATION.md.
+3. Skip findings already classified as:
+   - ALREADY_FIXED_AND_VERIFIED
+   - FALSE_POSITIVE_WITH_EVIDENCE
+   - NOT_APPLICABLE_WITH_EVIDENCE
+4. Remediate ACTIONABLE findings before implementing unrelated roadmap work.
+5. Update CODE_REVIEW_REMEDIATION.md after every remediation PR.
+
 ### Code Review Source and Remediation Policy
 
 For every implementation pull request, review findings must be processed before delivery is considered complete.
