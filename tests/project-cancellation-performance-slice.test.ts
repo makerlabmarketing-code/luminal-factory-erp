@@ -18,7 +18,7 @@ describe('project cancellation UI and active list contract', () => {
     expect(notification).toMatch(/OVERLAY_Z_INDEX\.notification/);
     expect(notification).toMatch(/OVERLAY_Z_INDEX\.confirmation/);
     expect(overlays).toMatch(/notification: 999999/);
-    expect(overlays).toMatch(/confirmation: 999998/);
+    expect(overlays).toMatch(/confirmation: 999999/);
     expect(notification).toMatch(/bg-black\/85/);
     expect(notification).toMatch(/role="dialog"/);
     expect(notification).toMatch(/aria-modal="true"/);

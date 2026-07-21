@@ -601,39 +601,51 @@ export default function ProjectDetailPage() {
 
   const handleSaveTask = async () => {
     if (!canManageTasks || !editingTask || taskActionLoading) return;
+    const currentTask = projectTasks.find((task) => task.taskId === editingTask.taskId);
+    const nextAssigneeEmployeeId = editingTask.assigneeEmployeeId ? Number(editingTask.assigneeEmployeeId) : null;
+    const nextDeadline = editingTask.deadline || null;
+    const hasAssigneeChange = !currentTask || currentTask.assigneeEmployeeId !== nextAssigneeEmployeeId;
+    const hasDeadlineChange = !currentTask || currentTask.deadline !== nextDeadline;
+    const hasStatusChange = !currentTask || currentTask.status !== editingTask.status;
+
     setTaskActionLoading(editingTask.taskId);
     try {
-      const assignResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assigneeEmployeeId: editingTask.assigneeEmployeeId ? Number(editingTask.assigneeEmployeeId) : null,
-          comment: editingTask.comment || null,
-        }),
-      });
-      const assignPayload = await assignResponse.json().catch(() => null) as { message?: string } | null;
-      if (!assignResponse.ok) throw new Error(assignPayload?.message || 'Không thể giao công việc.');
-
-      const updateResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deadline: editingTask.deadline || null }),
-      });
-      const updatePayload = await updateResponse.json().catch(() => null) as { message?: string } | null;
-      if (!updateResponse.ok) throw new Error(updatePayload?.message || 'Không thể cập nhật deadline.');
-
-      const currentTask = projectTasks.find((task) => task.taskId === editingTask.taskId);
-      if (currentTask && !canTransitionTaskStatus(currentTask.status, editingTask.status)) {
-        throw new Error('Chuyển trạng thái này chưa được hỗ trợ bởi state machine.');
+      if (hasAssigneeChange) {
+        const assignResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}/assign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assigneeEmployeeId: nextAssigneeEmployeeId,
+            comment: editingTask.comment || null,
+          }),
+        });
+        const assignPayload = await assignResponse.json().catch(() => null) as { message?: string } | null;
+        if (!assignResponse.ok) throw new Error(assignPayload?.message || 'Không thể giao công việc.');
       }
 
-      const statusResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: editingTask.status }),
-      });
-      const statusPayload = await statusResponse.json().catch(() => null) as { message?: string } | null;
-      if (!statusResponse.ok) throw new Error(statusPayload?.message || 'Không thể đổi trạng thái.');
+      if (hasDeadlineChange) {
+        const updateResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deadline: nextDeadline }),
+        });
+        const updatePayload = await updateResponse.json().catch(() => null) as { message?: string } | null;
+        if (!updateResponse.ok) throw new Error(updatePayload?.message || 'Không thể cập nhật deadline.');
+      }
+
+      if (hasStatusChange) {
+        if (currentTask && !canTransitionTaskStatus(currentTask.status, editingTask.status)) {
+          throw new Error('Chuyển trạng thái này chưa được hỗ trợ bởi state machine.');
+        }
+
+        const statusResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: editingTask.status }),
+        });
+        const statusPayload = await statusResponse.json().catch(() => null) as { message?: string } | null;
+        if (!statusResponse.ok) throw new Error(statusPayload?.message || 'Không thể đổi trạng thái.');
+      }
 
       setEditingTask(null);
       showToast('Đã lưu công việc.', 'Công việc con đã được cập nhật.', 'success');

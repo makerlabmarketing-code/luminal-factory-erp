@@ -108,6 +108,22 @@ describe('Task Assignment Foundation contracts', () => {
     expect(source('services/taskAssignmentFoundation.ts')).toMatch(/task-status-transitions/);
   });
 
+
+  it('skips unchanged task edit requests before server validation seams', () => {
+    const projectDetail = source('app/admin/projects/[projectId]/page.tsx');
+    const saveTaskBody = projectDetail.slice(projectDetail.indexOf('const handleSaveTask'), projectDetail.indexOf('const handleSavePhase'));
+    const serverService = source('services/server/taskAssignmentFoundation.ts');
+    const assignBody = serverService.slice(serverService.indexOf('export async function assignProjectTask'), serverService.indexOf('export async function changeProjectTaskStatus'));
+
+    expect(saveTaskBody).toMatch(/const hasAssigneeChange = !currentTask \|\| currentTask\.assigneeEmployeeId !== nextAssigneeEmployeeId/);
+    expect(saveTaskBody).toMatch(/const hasDeadlineChange = !currentTask \|\| currentTask\.deadline !== nextDeadline/);
+    expect(saveTaskBody).toMatch(/const hasStatusChange = !currentTask \|\| currentTask\.status !== editingTask\.status/);
+    expect(saveTaskBody).toMatch(/if \(hasAssigneeChange\)[\s\S]*\/assign/);
+    expect(saveTaskBody).toMatch(/if \(hasDeadlineChange\)[\s\S]*method: 'PATCH'/);
+    expect(saveTaskBody).toMatch(/if \(hasStatusChange\)[\s\S]*\/status/);
+    expect(assignBody.indexOf('currentTask.assigneeEmployeeId === payload.assigneeEmployeeId')).toBeLessThan(assignBody.indexOf('assertAssigneeActiveMember'));
+  });
+
   it('wires project detail to normalized task assignment without extra employee-list fetches', () => {
     const projectDetail = source('app/admin/projects/[projectId]/page.tsx');
 

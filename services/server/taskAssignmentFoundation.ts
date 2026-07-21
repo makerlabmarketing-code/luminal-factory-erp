@@ -623,11 +623,12 @@ export async function assignProjectTask(
   const payload = validateTaskAssignmentAssignPayload(body);
   const context = await contextForMutation(projectId);
   const currentTask = await loadTask(projectId, taskId);
-  await assertAssigneeActiveMember(projectId, payload.assigneeEmployeeId);
   if (currentTask.assigneeEmployeeId === payload.assigneeEmployeeId) {
     await insertComment(projectId, taskId, context.actorEmployeeId, payload.comment);
     return { success: true, task: await loadTask(projectId, taskId) };
   }
+
+  await assertAssigneeActiveMember(projectId, payload.assigneeEmployeeId);
 
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase
