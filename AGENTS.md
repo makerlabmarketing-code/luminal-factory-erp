@@ -339,6 +339,55 @@ Stop and report only when:
 - unexpected target-branch changes create risk
 
 After the pull request is merged, future roadmap work must continue from the latest `main` branch.
+
+### Pull Request Review Comment Policy
+
+A pull request is not delivery-complete while actionable review conversations remain unresolved.
+
+After creating or updating a pull request, Codex must:
+
+1. Inspect every unresolved review comment and conversation.
+2. Classify each comment as:
+   - ACTIONABLE
+   - ALREADY_FIXED
+   - NOT_APPLICABLE
+   - BUSINESS_DECISION_REQUIRED
+   - FALSE_POSITIVE
+3. For every ACTIONABLE comment:
+   - inspect the referenced code and surrounding execution path
+   - implement the smallest safe fix
+   - preserve approved business rules and permissions
+   - add or update regression tests
+4. Do not blindly apply reviewer suggestions.
+5. Do not change business rules, role permissions, schema, RLS, or workflow transitions only because a review bot suggested it.
+6. For NOT_APPLICABLE or FALSE_POSITIVE comments:
+   - provide a concise technical explanation
+   - cite the relevant code behavior
+   - do not modify code unnecessarily
+7. For BUSINESS_DECISION_REQUIRED comments:
+   - stop and report the exact decision required
+   - do not guess
+8. Resolve a review conversation only after:
+   - the issue is fixed and validated
+   - the existing implementation is proven correct
+   - or an approved decision explicitly rejects the suggestion
+9. Rerun affected validation after review fixes:
+   - targeted tests
+   - npm test
+   - npm run lint
+   - npx tsc --noEmit
+   - npm run build
+   - git diff --check
+10. Re-check the pull request after pushing fixes because new review comments may be generated.
+
+Delivery is complete only when:
+
+- no unresolved ACTIONABLE review comments remain
+- no unresolved P0 or P1 findings remain
+- all required validation gates pass
+- branch push and pull request creation/update succeed
+
+Auto-merge must not proceed while actionable review comments remain unresolved.
 ---
 
 ## Working Principles
