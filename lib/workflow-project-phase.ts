@@ -1,6 +1,17 @@
 import type { TaskAssignmentStatus } from '@/lib/types/task-assignment';
 
 export type ProjectPhaseStatus = 'ACTIVE' | 'LOCKED' | 'COMPLETED' | 'BLOCKED' | 'REVIEW' | 'CANCELLED';
+export type ProjectPhaseStatusAction = 'COMPLETE' | 'LOCK' | 'UNLOCK' | 'REOPEN' | 'SKIP' | 'CANCEL' | 'OVERRIDE_LOCK';
+
+export interface ProjectPhaseTransitionInput {
+  currentStatus: ProjectPhaseStatus;
+  action: ProjectPhaseStatusAction;
+  previousPhaseStatus?: ProjectPhaseStatus | null;
+  nextPhaseStatus?: ProjectPhaseStatus | null;
+  taskCount: number;
+  completedTaskCount: number;
+  override: boolean;
+}
 
 export interface ProjectPhaseGateInput {
   status: ProjectPhaseStatus;
@@ -88,4 +99,74 @@ export function phaseGateState(input: ProjectPhaseGateInput, canManageProject: b
     canCompletePhase,
     gatingMessage: canCompletePhase ? 'Giai đoạn đủ điều kiện hoàn thành khi server có mutation được duyệt.' : 'Hoàn thành toàn bộ công việc con trước khi đóng giai đoạn.',
   };
+}
+
+export function isProjectPhaseStatus(value: unknown): value is ProjectPhaseStatus {
+  return (
+    value === 'ACTIVE' ||
+    value === 'LOCKED' ||
+    value === 'COMPLETED' ||
+    value === 'BLOCKED' ||
+    value === 'REVIEW' ||
+    value === 'CANCELLED'
+  );
+}
+
+export function isProjectPhaseStatusAction(value: unknown): value is ProjectPhaseStatusAction {
+  return (
+    value === 'COMPLETE' ||
+    value === 'LOCK' ||
+    value === 'UNLOCK' ||
+    value === 'REOPEN' ||
+    value === 'SKIP' ||
+    value === 'CANCEL' ||
+    value === 'OVERRIDE_LOCK'
+  );
+}
+
+function previousDependencySatisfied(status?: ProjectPhaseStatus | null): boolean {
+  return status === undefined || status === null || status === 'COMPLETED' || status === 'CANCELLED';
+}
+
+function allRequiredTasksComplete(taskCount: number, completedTaskCount: number): boolean {
+  return taskCount > 0 && completedTaskCount >= taskCount;
+}
+
+export function nextProjectPhaseStatus(input: ProjectPhaseTransitionInput): ProjectPhaseStatus | null {
+  if (input.currentStatus === 'CANCELLED') return null;
+
+  if (input.action === 'OVERRIDE_LOCK') {
+    return input.override ? 'ACTIVE' : null;
+  }
+
+  if (input.action === 'UNLOCK') {
+    if (input.currentStatus !== 'LOCKED' && input.currentStatus !== 'BLOCKED') return null;
+    return previousDependencySatisfied(input.previousPhaseStatus) ? 'ACTIVE' : null;
+  }
+
+  if (input.action === 'COMPLETE') {
+    if (input.currentStatus !== 'ACTIVE' && input.currentStatus !== 'REVIEW') return null;
+    return allRequiredTasksComplete(input.taskCount, input.completedTaskCount) ? 'COMPLETED' : null;
+  }
+
+  if (input.action === 'LOCK') {
+    return input.currentStatus === 'ACTIVE' ? 'LOCKED' : null;
+  }
+
+  if (input.action === 'REOPEN') {
+    if (input.currentStatus !== 'COMPLETED' && input.currentStatus !== 'REVIEW') return null;
+    if (input.currentStatus === 'COMPLETED' && input.nextPhaseStatus === 'COMPLETED' && !input.override) return null;
+    return previousDependencySatisfied(input.previousPhaseStatus) ? 'ACTIVE' : null;
+  }
+
+  if (input.action === 'SKIP') {
+    if (input.currentStatus !== 'ACTIVE' && input.currentStatus !== 'LOCKED') return null;
+    return previousDependencySatisfied(input.previousPhaseStatus) ? 'COMPLETED' : null;
+  }
+
+  if (input.action === 'CANCEL') {
+    return input.currentStatus === 'ACTIVE' || input.currentStatus === 'BLOCKED' ? 'CANCELLED' : null;
+  }
+
+  return null;
 }

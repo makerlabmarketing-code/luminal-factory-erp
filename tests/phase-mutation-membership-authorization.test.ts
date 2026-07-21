@@ -93,12 +93,14 @@ describe('phase mutation membership authorization', () => {
   it('routes phase APIs through the centralized server authorization helper', () => {
     const createRoute = source('app/api/admin/projects/[projectId]/phases/route.ts');
     const updateRoute = source('app/api/admin/projects/[projectId]/phases/[phaseId]/route.ts');
+    const statusRoute = source('app/api/admin/projects/[projectId]/phases/[phaseId]/status/route.ts');
     const listRoute = source('app/api/admin/phases/route.ts');
     const service = source('services/server/phaseMutations.ts');
     const authorization = source('services/server/phaseAuthorization.ts');
 
     expect(createRoute).toMatch(/createPhase/);
     expect(updateRoute).toMatch(/updatePhase/);
+    expect(statusRoute).toMatch(/updatePhaseStatus/);
     expect(listRoute).toMatch(/listPhases/);
     expect(service).toMatch(/requirePhaseMutationAccess/);
     expect(service).not.toMatch(/requireWorkspaceAccess\('ADMIN_WORKSPACE'\)/);
@@ -108,6 +110,23 @@ describe('phase mutation membership authorization', () => {
     expect(authorization).toMatch(/hasPermission\(authContext, 'PROJECT_MANAGE'\)/);
     expect(authorization).toMatch(/from\('project_members'\)/);
     expect(authorization).toMatch(/resolveSingleActiveProjectRole/);
+  });
+
+  it('keeps phase status persistence behind live approval, RPC atomicity, and audit history', () => {
+    const service = source('services/server/phaseMutations.ts');
+    const statusRoute = source('app/api/admin/projects/[projectId]/phases/[phaseId]/status/route.ts');
+
+    expect(statusRoute).toMatch(/updatePhaseStatus/);
+    expect(service).toMatch(/const UPDATE_PHASE_STATUS_KEYS = new Set\(\['action', 'reason', 'note', 'expectedCurrentStatus'\]\)/);
+    expect(service).toMatch(/PHASE_STATUS_MUTATION_ENABLED/);
+    expect(service).toMatch(/LIVE_APPROVAL_REQUIRED/);
+    expect(service).toMatch(/from\('phase_status_history'\)\.select\('id'\)/);
+    expect(service).toMatch(/nextProjectPhaseStatus/);
+    expect(service).toMatch(/from\('tasks'\)\s*\.select\('id, status'\)/);
+    expect(service).toMatch(/rpc\('transition_project_phase_status'/);
+    expect(service).toMatch(/p_old_status: phase\.status/);
+    expect(service).toMatch(/p_new_status: nextStatus/);
+    expect(service).not.toMatch(/from\('phase_status_history'\)\s*\.insert/);
   });
 
   it('checks project, phase ownership, cancellation, and membership before mutation', () => {
