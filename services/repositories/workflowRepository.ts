@@ -87,7 +87,7 @@ export function normalizeProjectRow(row: GenericRow): WorkflowProject | null {
 }
 
 export function normalizePhaseRow(row: GenericRow): WorkflowPhase | null {
-  assertKnownFields(row, ['id', 'project_id', 'name', 'order_index', 'created_at'], 'phase_row');
+  assertKnownFields(row, ['id', 'project_id', 'name', 'order_index', 'created_at', 'status', 'colorway_name', 'colorway_code', 'stage_type', 'stage_owner', 'planned_start_date', 'planned_end_date', 'actual_start_date', 'actual_end_date', 'progress', 'next_action', 'required_review'], 'phase_row');
 
   const id = pickFirstNumber(row, ['id']);
   const projectId = pickFirstNumber(row, ['project_id']);
@@ -99,18 +99,18 @@ export function normalizePhaseRow(row: GenericRow): WorkflowPhase | null {
     name: pickFirstText(row, ['name']) || `Giai doan ${id}`,
     order_index: pickFirstNumber(row, ['order_index']) ?? 0,
     created_at: pickFirstText(row, ['created_at']) || null,
-    status: null,
-    colorway_name: null,
-    colorway_code: null,
-    stage_type: null,
-    stage_owner: null,
-    planned_start_date: null,
-    planned_end_date: null,
-    actual_start_date: null,
-    actual_end_date: null,
-    progress: null,
-    next_action: null,
-    required_review: null,
+    status: pickFirstText(row, ['status']) || null,
+    colorway_name: pickFirstText(row, ['colorway_name']) || null,
+    colorway_code: pickFirstText(row, ['colorway_code']) || null,
+    stage_type: pickFirstText(row, ['stage_type']) || null,
+    stage_owner: pickFirstText(row, ['stage_owner']) || null,
+    planned_start_date: pickFirstText(row, ['planned_start_date']) || null,
+    planned_end_date: pickFirstText(row, ['planned_end_date']) || null,
+    actual_start_date: pickFirstText(row, ['actual_start_date']) || null,
+    actual_end_date: pickFirstText(row, ['actual_end_date']) || null,
+    progress: pickFirstNumber(row, ['progress']),
+    next_action: pickFirstText(row, ['next_action']) || null,
+    required_review: typeof row.required_review === 'boolean' ? row.required_review : null,
   };
 }
 
@@ -322,6 +322,15 @@ export class WorkflowRepository {
     projectId: number;
     phaseName: string;
     orderIndex: number;
+    colorwayName?: string;
+    colorwayCode?: string;
+    stageType?: string;
+    stageOwner?: string;
+    plannedStartDate?: string;
+    plannedEndDate?: string;
+    progress?: number;
+    nextAction?: string;
+    requiredReview?: boolean;
   }): Promise<number> {
     const result = await requestProjectMutation<{ phaseId: number }>(
       `/api/admin/projects/${params.projectId}/phases`,
@@ -330,6 +339,15 @@ export class WorkflowRepository {
         body: JSON.stringify({
           phaseName: params.phaseName,
           orderIndex: params.orderIndex,
+          colorwayName: params.colorwayName,
+          colorwayCode: params.colorwayCode,
+          stageType: params.stageType,
+          stageOwner: params.stageOwner,
+          plannedStartDate: params.plannedStartDate,
+          plannedEndDate: params.plannedEndDate,
+          progress: params.progress,
+          nextAction: params.nextAction,
+          requiredReview: params.requiredReview,
         }),
       }
     );

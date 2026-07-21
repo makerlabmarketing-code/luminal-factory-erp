@@ -18,9 +18,9 @@ describe('dev visual monitoring documentation', () => {
     expect(docs).toMatch(/Codex Cloud may not provide installed browser automation packages or browser binaries/);
     expect(docs).toMatch(/\.artifacts\/screenshots/);
     expect(docs).toMatch(/npm install --save-dev playwright/);
-    expect(pkg.scripts['agent:monitor']).toBeUndefined();
-    expect(pkg.scripts['ui:screenshot']).toBeUndefined();
-    expect(pkg.scripts['ui:verify']).toBeUndefined();
+    expect(pkg.scripts['agent:monitor']).toBe('node scripts/agent-monitor.mjs');
+    expect(pkg.scripts['ui:screenshot']).toBe('node scripts/ui-screenshot.mjs');
+    expect(pkg.scripts['ui:verify']).toBe('node scripts/ui-screenshot.mjs --verify');
     expect(pkg.dependencies?.playwright).toBeUndefined();
     expect(pkg.dependencies?.cypress).toBeUndefined();
     expect(pkg.devDependencies?.playwright).toBeUndefined();

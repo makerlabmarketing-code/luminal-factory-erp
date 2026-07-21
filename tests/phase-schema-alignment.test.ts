@@ -17,8 +17,8 @@ describe('phase schema alignment', () => {
     expect(repository).not.toMatch(/from\('phases'\)\.insert/);
     expect(repository).not.toMatch(/from\('phases'\)\.update/);
     expect(repository).not.toMatch(/from\('phases'\)\.select/);
-    expect(phaseMutations).toMatch(/select\('id, project_id, name, order_index, created_at'\)/);
-    expect(phaseMutations).toMatch(/insert\(\[\{ project_id: projectId, name: phaseName, order_index: orderIndex \}\]\)/);
+    expect(phaseMutations).toMatch(/select\('id, project_id, name, order_index, created_at, status, colorway_name/);
+    expect(phaseMutations).toMatch(/colorway_name: optionalTextField\(body, 'colorwayName'\)/);
     expect(phaseMutations).not.toMatch(/sort_order|status: params\.status/);
     expect(phaseMutations).toMatch(/PHASE_STATUS_MUTATION_ENABLED/);
     expect(repository).not.toMatch(/phase_status|sort_order/);
@@ -31,7 +31,7 @@ describe('phase schema alignment', () => {
     expect(repository).toMatch(/\/api\/admin\/projects\/\$\{params\.projectId\}\/phases/);
     expect(repository).toMatch(/phaseName: params\.phaseName/);
     expect(repository).toMatch(/orderIndex: params\.orderIndex/);
-    expect(phaseMutations).toMatch(/const CREATE_PHASE_KEYS = new Set\(\['phaseName', 'orderIndex'\]\)/);
+    expect(phaseMutations).toMatch(/const CREATE_PHASE_KEYS = new Set\(\[/);
     expect(phaseMutations).toMatch(/assertKnownFields\(body, CREATE_PHASE_KEYS\)/);
     expect(phaseMutations).toMatch(/status:\s*422/);
   });

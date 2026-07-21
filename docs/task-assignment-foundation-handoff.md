@@ -200,3 +200,20 @@ Added documentation and dev scripts for local agent-session monitoring and UI sc
 - Playwright/Cypress were inspected and are not installed in `package.json`; no heavy browser dependency was added. The screenshot wrapper exits with a clear missing-tool or missing-browser message until local browser tooling is explicitly approved and installed.
 
 No business logic, schema, RLS, backfill, RPC, feature flag, production deployment, or live data mutation was changed.
+
+
+## 2026-07-21 Phase 4 phase template metadata persistence
+
+Continued Phase 4 with an application-only Project Workflow Template foundation slice while Phase 3 phase status/dependency persistence and task-create RPC remain at `LIVE_APPROVAL_REQUIRED`.
+
+Completed:
+
+- Project creation now passes application-layer template metadata through the existing phase API: colorway name/code, stage type, owner, planned dates, progress, next action, and required-review flag.
+- Server phase create persists only to existing `phases` columns after the existing phase authorization boundary passes.
+- Phase list DTO and repository normalization return those metadata fields so Project Detail and project overview can reload the real persisted values after refresh instead of blank fallback metadata.
+- Preset phase and task names shown/saved by the UI are Vietnamese.
+- Added focused static regression coverage for UI → service → repository → API/server → Supabase phase metadata wiring.
+
+No SQL was executed. No schema, RLS, backfill, RPC, grant, feature-flag enablement, deployment, destructive operation, or live data mutation was performed by this slice.
+
+Current gate remains `LIVE_APPROVAL_REQUIRED` before deploying the task-create RPC, grants, phase status/dependency schema/RLS, backfill, or any live mutation.

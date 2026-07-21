@@ -106,21 +106,21 @@ function projectCreateErrorMessage(error: unknown): string {
 
 const PIPELINE_TEMPLATES: Record<string, StageTemplate[]> = {
   STANDARD_ARTISAN_KEYCAP: [
-    { name: 'Concept', type: 'CONCEPT', weight: 8, taskNames: ['Define story and palette', 'Collect references'] },
-    { name: '2D Design', type: '2D_DESIGN', weight: 8, requiresReview: true, taskNames: ['Sketch front view', 'Approve color direction'] },
-    { name: '3D Sculpt', type: '3D_SCULPT', weight: 12, requiresReview: true, taskNames: ['Block sculpt', 'Detail sculpt'] },
-    { name: 'Sculpt Review', type: 'SCULPT_REVIEW', weight: 5, requiresReview: true, taskNames: ['Technical fit review'] },
-    { name: 'Master Production', type: 'MASTER_PRINT', weight: 10, taskNames: ['Print master', 'Prepare master surface'] },
-    { name: 'Mold Making', type: 'MOLD_MAKING', weight: 12, taskNames: ['Plan mold', 'Pour mold', 'Cure mold'] },
-    { name: 'Mold Test', type: 'MOLD_TEST', weight: 8, requiresReview: true, taskNames: ['Test cast', 'Check deformation and fit'] },
-    { name: 'Color Test', type: 'COLOR_FORMULATION', weight: 7, taskNames: ['Mix resin colors', 'Record formula'] },
-    { name: 'Production Casting', type: 'PRODUCTION_CASTING', weight: 12, taskNames: ['Prepare resin', 'Cast production units'] },
-    { name: 'Finishing', type: 'FINISHING', weight: 8, taskNames: ['Demold', 'Clean', 'Sand'] },
-    { name: 'QC', type: 'QC', weight: 5, requiresReview: true, taskNames: ['Inspect units', 'Separate rework units'] },
-    { name: 'Product Photo', type: 'PRODUCT_PHOTO', weight: 2, taskNames: ['Shoot product photos'] },
-    { name: 'Content', type: 'CONTENT_READY', weight: 1, taskNames: ['Prepare listing copy'] },
-    { name: 'Packaging', type: 'PACKAGING', weight: 1, taskNames: ['Prepare packaging'] },
-    { name: 'Ready For Sale', type: 'READY_FOR_SALE', weight: 1, requiresReview: true, taskNames: ['Final release approval'] },
+    { name: 'Ý tưởng', type: 'CONCEPT', weight: 8, taskNames: ['Chốt câu chuyện và bảng màu', 'Tập hợp tư liệu tham khảo'] },
+    { name: 'Thiết kế 2D', type: '2D_DESIGN', weight: 8, requiresReview: true, taskNames: ['Phác thảo mặt trước', 'Duyệt hướng màu'] },
+    { name: 'Dựng mẫu 3D', type: '3D_SCULPT', weight: 12, requiresReview: true, taskNames: ['Dựng khối mẫu', 'Hoàn thiện chi tiết mẫu'] },
+    { name: 'Duyệt mẫu 3D', type: 'SCULPT_REVIEW', weight: 5, requiresReview: true, taskNames: ['Kiểm tra khớp kỹ thuật'] },
+    { name: 'In master', type: 'MASTER_PRINT', weight: 10, taskNames: ['In master', 'Chuẩn bị bề mặt master'] },
+    { name: 'Làm khuôn', type: 'MOLD_MAKING', weight: 12, taskNames: ['Lên phương án khuôn', 'Đổ khuôn', 'Chờ khuôn khô'] },
+    { name: 'Thử khuôn', type: 'MOLD_TEST', weight: 8, requiresReview: true, taskNames: ['Đúc thử', 'Kiểm tra biến dạng và độ khớp'] },
+    { name: 'Thử màu', type: 'COLOR_FORMULATION', weight: 7, taskNames: ['Pha màu resin', 'Ghi công thức màu'] },
+    { name: 'Đúc sản xuất', type: 'PRODUCTION_CASTING', weight: 12, taskNames: ['Chuẩn bị resin', 'Đúc sản phẩm'] },
+    { name: 'Hoàn thiện', type: 'FINISHING', weight: 8, taskNames: ['Tháo khuôn', 'Vệ sinh', 'Chà nhám'] },
+    { name: 'Kiểm tra chất lượng', type: 'QC', weight: 5, requiresReview: true, taskNames: ['Kiểm tra sản phẩm', 'Tách sản phẩm cần sửa'] },
+    { name: 'Chụp sản phẩm', type: 'PRODUCT_PHOTO', weight: 2, taskNames: ['Chụp ảnh sản phẩm'] },
+    { name: 'Nội dung', type: 'CONTENT_READY', weight: 1, taskNames: ['Chuẩn bị nội dung đăng bán'] },
+    { name: 'Đóng gói', type: 'PACKAGING', weight: 1, taskNames: ['Chuẩn bị bao bì'] },
+    { name: 'Sẵn sàng mở bán', type: 'READY_FOR_SALE', weight: 1, requiresReview: true, taskNames: ['Duyệt mở bán cuối cùng'] },
   ],
 };
 
@@ -254,7 +254,7 @@ function buildProjectRecords(items: WorkflowSetting[]): ProjectRecord[] {
         targetDate: firstDescription.target_release_date || firstDescription.project_deadline || '',
         owner: currentStage?.description.stage_owner || firstDescription.stage_owner || '',
         nextAction: currentStage?.description.next_action || currentStage?.description.stage_name || 'Review pipeline',
-        lastActivity: 'Updated in workflow',
+        lastActivity: 'Đã cập nhật trong workflow',
       };
     });
 
@@ -270,7 +270,7 @@ function buildProjectRecords(items: WorkflowSetting[]): ProjectRecord[] {
       colorways,
       progress,
       targetDate: firstColorway?.targetDate || '',
-      nextAction: colorways.find((colorway) => colorway.health !== 'COMPLETED')?.nextAction || 'All colorways completed',
+      nextAction: colorways.find((colorway) => colorway.health !== 'COMPLETED')?.nextAction || 'Tất cả colorway đã hoàn thành',
       owner: firstColorway?.owner || '',
     };
   });

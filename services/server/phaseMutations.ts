@@ -38,10 +38,32 @@ interface PhaseListResult {
     name: string;
     order_index: number;
     created_at: string | null;
+    status: string | null;
+    colorway_name: string | null;
+    colorway_code: string | null;
+    stage_type: string | null;
+    stage_owner: string | null;
+    planned_start_date: string | null;
+    planned_end_date: string | null;
+    progress: number | null;
+    next_action: string | null;
+    required_review: boolean | null;
   }>;
 }
 
-const CREATE_PHASE_KEYS = new Set(['phaseName', 'orderIndex']);
+const CREATE_PHASE_KEYS = new Set([
+  'phaseName',
+  'orderIndex',
+  'colorwayName',
+  'colorwayCode',
+  'stageType',
+  'stageOwner',
+  'plannedStartDate',
+  'plannedEndDate',
+  'progress',
+  'nextAction',
+  'requiredReview',
+]);
 const UPDATE_PHASE_KEYS = new Set(['phaseName', 'orderIndex']);
 const UPDATE_PHASE_STATUS_KEYS = new Set(['action', 'reason', 'note', 'expectedCurrentStatus']);
 const LIST_PHASE_KEYS = new Set(['projectIds']);
@@ -156,6 +178,66 @@ function requiredOrderIndex(body: PhaseMutationBody): number {
   }
 
   return orderIndex;
+}
+
+
+function optionalTextField(body: PhaseMutationBody, key: string): string | null {
+  const value = body[key];
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') {
+    throw phaseMutationError({
+      status: 422,
+      message: 'Thông tin giai đoạn chưa hợp lệ.',
+      safeDetails: { field: key },
+    });
+  }
+
+  const text = value.trim();
+  return text || null;
+}
+
+function optionalDateField(body: PhaseMutationBody, key: string): string | null {
+  const value = optionalTextField(body, key);
+  if (!value) return null;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(new Date(`${value}T00:00:00Z`).getTime())) {
+    throw phaseMutationError({
+      status: 422,
+      message: 'Ngày giai đoạn không hợp lệ.',
+      safeDetails: { field: key },
+    });
+  }
+
+  return value;
+}
+
+function optionalProgress(body: PhaseMutationBody): number | null {
+  if (body.progress === undefined || body.progress === null || body.progress === '') return null;
+
+  const progress = Number(body.progress);
+  if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
+    throw phaseMutationError({
+      status: 422,
+      message: 'Tiến độ giai đoạn không hợp lệ.',
+      safeDetails: { field: 'progress' },
+    });
+  }
+
+  return progress;
+}
+
+function optionalBooleanField(body: PhaseMutationBody, key: string): boolean | null {
+  const value = body[key];
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'boolean') {
+    throw phaseMutationError({
+      status: 422,
+      message: 'Thông tin giai đoạn chưa hợp lệ.',
+      safeDetails: { field: key },
+    });
+  }
+
+  return value;
 }
 
 function phaseUpdateAction(body: PhaseMutationBody): PhaseAction {
@@ -330,7 +412,20 @@ export async function createPhase(
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from('phases')
-    .insert([{ project_id: projectId, name: phaseName, order_index: orderIndex }])
+    .insert([{
+      project_id: projectId,
+      name: phaseName,
+      order_index: orderIndex,
+      colorway_name: optionalTextField(body, 'colorwayName'),
+      colorway_code: optionalTextField(body, 'colorwayCode'),
+      stage_type: optionalTextField(body, 'stageType'),
+      stage_owner: optionalTextField(body, 'stageOwner'),
+      planned_start_date: optionalDateField(body, 'plannedStartDate'),
+      planned_end_date: optionalDateField(body, 'plannedEndDate'),
+      progress: optionalProgress(body),
+      next_action: optionalTextField(body, 'nextAction'),
+      required_review: optionalBooleanField(body, 'requiredReview'),
+    }])
     .select('id')
     .single();
 
@@ -516,7 +611,7 @@ export async function listPhases(body: PhaseMutationBody): Promise<PhaseListResu
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from('phases')
-    .select('id, project_id, name, order_index, created_at')
+    .select('id, project_id, name, order_index, created_at, status, colorway_name, colorway_code, stage_type, stage_owner, planned_start_date, planned_end_date, progress, next_action, required_review')
     .in('project_id', projectIds)
     .order('id', { ascending: true });
 
@@ -538,6 +633,16 @@ export async function listPhases(body: PhaseMutationBody): Promise<PhaseListResu
       name: String(phase.name || ''),
       order_index: Number(phase.order_index || 0),
       created_at: phase.created_at || null,
+      status: phase.status || null,
+      colorway_name: phase.colorway_name || null,
+      colorway_code: phase.colorway_code || null,
+      stage_type: phase.stage_type || null,
+      stage_owner: phase.stage_owner || null,
+      planned_start_date: phase.planned_start_date || null,
+      planned_end_date: phase.planned_end_date || null,
+      progress: phase.progress === null ? null : Number(phase.progress),
+      next_action: phase.next_action || null,
+      required_review: phase.required_review === null ? null : Boolean(phase.required_review),
     })),
   };
 }

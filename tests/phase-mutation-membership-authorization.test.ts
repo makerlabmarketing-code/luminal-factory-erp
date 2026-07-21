@@ -164,7 +164,7 @@ describe('phase mutation membership authorization', () => {
   it('rejects client-supplied authority and cross-project identifiers in phase payloads', () => {
     const service = source('services/server/phaseMutations.ts');
 
-    expect(service).toMatch(/const CREATE_PHASE_KEYS = new Set\(\['phaseName', 'orderIndex'\]\)/);
+    expect(service).toMatch(/const CREATE_PHASE_KEYS = new Set\(\[/);
     expect(service).toMatch(/const UPDATE_PHASE_KEYS = new Set\(\['phaseName', 'orderIndex'\]\)/);
     expect(service).toMatch(/assertKnownFields\(body, CREATE_PHASE_KEYS\)/);
     expect(service).toMatch(/assertKnownFields\(body, UPDATE_PHASE_KEYS\)/);

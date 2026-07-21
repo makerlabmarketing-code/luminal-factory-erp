@@ -203,8 +203,17 @@ export async function createWorkflowProject(
     try {
       await workflowRepository.insertPhase({
         projectId,
-        phaseName: phase.name?.trim() || `Giai doan ${index + 1}`,
+        phaseName: phase.name?.trim() || `Giai đoạn ${index + 1}`,
         orderIndex: index,
+        colorwayName: phase.colorway_name,
+        colorwayCode: phase.colorway_code,
+        stageType: phase.stage_type,
+        stageOwner: phase.stage_owner,
+        plannedStartDate: phase.planned_start_date,
+        plannedEndDate: phase.planned_end_date,
+        progress: phase.progress,
+        nextAction: phase.next_action,
+        requiredReview: phase.required_review,
       });
       phasesCreated += 1;
     } catch {
