@@ -39,12 +39,3 @@ next-env.d.ts
 # supabase
 supabase/.temp/
 .gitattributes
-# local agent and UI verification artifacts
-.artifacts/
-test-results/
-playwright-report/
-blob-report/
-*.webm
-*.mp4
-*.trace.zip
-.auth/

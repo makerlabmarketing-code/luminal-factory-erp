@@ -7,14 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run",
-    "agent:monitor": "node scripts/agent-monitor.mjs",
-    "ui:screenshot": "node scripts/ui-screenshot.mjs",
-    "ui:verify": "node scripts/ui-screenshot.mjs --verify",
-    "ui:install-browser": "playwright install chromium",
-    "ui:auth:setup": "node scripts/ui-auth-setup.mjs",
-    "ui:screenshot:admin": "node scripts/ui-screenshot.mjs --role admin",
-    "ui:screenshot:staff": "node scripts/ui-screenshot.mjs --role staff"
+    "test": "vitest run"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
@@ -39,7 +32,6 @@
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1",
-    "playwright": "^1.61.1",
     "supabase": "^2.109.1",
     "vitest": "^4.1.10"
   }

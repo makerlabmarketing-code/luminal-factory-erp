@@ -189,18 +189,6 @@ No SQL was executed. No schema, RLS, backfill, RPC, feature flag enablement, dep
 
 Current gate: `LIVE_APPROVAL_REQUIRED` before deploying the task-create RPC, grants, phase status/dependency schema/RLS, backfill, or any live mutation.
 
-## 2026-07-21 dev-only visual monitoring workflow
-
-Added documentation and dev scripts for local agent-session monitoring and UI screenshot evidence:
-
-- `docs/agent-visual-monitoring.md` documents how to use Agent Eye or an equivalent local dashboard, how to capture screenshots, and how to attach evidence to PRs.
-- `npm run agent:monitor` prints the local monitoring checklist without starting production, paid, or cloud-only services.
-- `npm run ui:screenshot` and `npm run ui:verify` call a dev-only Node wrapper that assumes a local Next.js server by default and can start one with `-- --start-server`.
-- Screenshot output goes under `.artifacts/screenshots/`, which is ignored by git.
-- Playwright/Cypress were inspected and are not installed in `package.json`; no heavy browser dependency was added. The screenshot wrapper exits with a clear missing-tool or missing-browser message until local browser tooling is explicitly approved and installed.
-
-No business logic, schema, RLS, backfill, RPC, feature flag, production deployment, or live data mutation was changed.
-
 
 ## 2026-07-21 Phase 4 phase template metadata persistence
 

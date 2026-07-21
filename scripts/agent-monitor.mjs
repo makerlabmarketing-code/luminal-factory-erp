@@ -1,2 +1,0 @@
-#!/usr/bin/env node
-console.log(`Agent monitoring workflow\n\nUse docs/agent-visual-monitoring.md as the source of truth.\n\nRecommended local loop:\n1. Open your agent session dashboard, such as Agent Eye, in a local browser.\n2. Keep this repository terminal visible for validation output.\n3. Run npm run dev for the ERP app.\n4. Run npm run ui:screenshot after UI changes when Playwright is available.\n5. Attach files from .artifacts/screenshots/ to the PR as visual evidence.\n\nThis command does not start paid, cloud-only, or production services.`);

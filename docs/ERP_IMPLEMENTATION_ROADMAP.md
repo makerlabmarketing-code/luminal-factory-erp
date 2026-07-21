@@ -757,12 +757,6 @@ Phase Workflow Foundation Migration remains cho duyet.
 - Phase 4 Project Detail Empty/Error State Polish: Hoàn thành ngày 2026-07-21. Chuẩn hóa error/empty states qua shared `OperationalState`; không đổi business logic, feature flag, schema, RLS, RPC, backfill hoặc live data.
 - Phase 4 Phase Template Metadata Persistence: Hoàn thành ngày 2026-07-21. Project create từ preset application-layer lưu/đọc metadata phase trên cột `phases` hiện có để Project Detail không mất colorway/stage/deadline/next-action sau refresh; không đổi schema, RLS, RPC, feature flag hoặc live data.
 
-## 2026-07-21 Dev Visual Monitoring Tooling Note
-
-- Repository-wide dev visual monitoring guidance now lives in `docs/DEV_VISUAL_MONITORING.md`.
-- Current status: `TOOLING_APPROVAL_REQUIRED` before adding Playwright, Cypress, browser binaries, screenshot scripts, or checked-in auth fixtures.
-- No npm monitoring or screenshot script is registered until browser/monitoring tooling is explicitly approved.
-
 
 ## 2026-07-21 Review Debt Remediation Sweep
 
