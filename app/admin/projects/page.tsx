@@ -96,6 +96,7 @@ function projectCreateErrorMessage(error: unknown): string {
     : '';
   const message = error instanceof Error ? error.message : '';
 
+  if (code === 'project_creation_atomic_rpc_required') return 'Cần duyệt RPC giao dịch trước khi tạo dự án kèm giai đoạn và công việc.';
   if (status === 409) return 'Không thể lưu dự án vì trạng thái dữ liệu chưa phù hợp.';
   if (status === 403) return 'Bạn không có quyền tạo dự án.';
   if (status === 422) return 'Thông tin dự án chưa hợp lệ.';
@@ -294,6 +295,7 @@ export default function AdminProjectManagement() {
   const [selectedProjectKey, setSelectedProjectKey] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [projectName, setProjectName] = useState('');
+  const [projectCode, setProjectCode] = useState('');
   const [colorwayName, setColorwayName] = useState('');
   const [colorwayCode, setColorwayCode] = useState('');
   const [targetDate, setTargetDate] = useState('');
@@ -341,6 +343,7 @@ export default function AdminProjectManagement() {
   const handleCreateProject = async () => {
     if (isCreatingProject) return;
     if (!projectName.trim()) return showToast('Thiếu thông tin', 'Vui lòng nhập tên dự án hoặc dòng sản phẩm.', 'error');
+    if (!projectCode.trim()) return showToast('Thiếu thông tin', 'Vui lòng nhập mã dự án duy nhất.', 'error');
     if (!colorwayName.trim()) return showToast('Thiếu thông tin', 'Vui lòng nhập tên colorway.', 'error');
     if (!targetDate) return showToast('Thiếu thông tin', 'Vui lòng chọn ngày mục tiêu.', 'error');
 
@@ -369,28 +372,24 @@ export default function AdminProjectManagement() {
       const result = await createWorkflowProject({
         projectName: projectName.trim(),
         projectDeadline: targetDate,
+        projectCode: projectCode.trim(),
         phases: stages,
+        createTemplateTasks: true,
       });
 
       setCreationStage('Đang hoàn tất...');
       setShowAddModal(false);
       setProjectName('');
+      setProjectCode('');
       setColorwayName('');
       setColorwayCode('');
       setTargetDate('');
       setStageOwner('');
       await loadData();
-      if (result.warnings.length > 0) {
-        showToast('Dự án đã được tạo.', 'Một số công việc mẫu chưa thể khởi tạo.', 'info', {
-          actionLabel: 'Xem chi tiết',
-          onAction: () => router.push(`/admin/projects/${result.project.id}`),
-        });
-      } else {
-        showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success', {
-          actionLabel: 'Xem chi tiết',
-          onAction: () => router.push(`/admin/projects/${result.project.id}`),
-        });
-      }
+      showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success', {
+        actionLabel: 'Xem chi tiết',
+        onAction: () => router.push(`/admin/projects/${result.project.id}`),
+      });
     } catch (error) {
       showToast('Không thể tạo dự án.', projectCreateErrorMessage(error), 'error');
     } finally {
@@ -596,8 +595,8 @@ export default function AdminProjectManagement() {
           <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-lg p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
-                <h3 className="text-sm font-black text-slate-100">Tạo pipeline colorway</h3>
-                <p className="text-[11px] text-slate-400">Dùng pipeline keycap artisan tiêu chuẩn.</p>
+                <h3 className="text-sm font-black text-slate-100">Tạo dự án</h3>
+                <p className="text-[11px] text-slate-400">Thông tin dự án, thành viên, giai đoạn và công việc.</p>
               </div>
               <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
                 <X className="w-5 h-5" />
@@ -606,23 +605,27 @@ export default function AdminProjectManagement() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="space-y-1">
-                <span className="text-[11px] text-slate-400 font-bold">Dự án / dòng sản phẩm</span>
+                <span className="text-[11px] text-slate-400 font-bold">Tên dự án</span>
                 <input value={projectName} onChange={(event) => setProjectName(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100" placeholder="Meowhe" />
+              </label>
+              <label className="space-y-1">
+                <span className="text-[11px] text-slate-400 font-bold">Mã dự án</span>
+                <input value={projectCode} onChange={(event) => setProjectCode(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100" placeholder="MEW-SAK-01" />
               </label>
               <label className="space-y-1">
                 <span className="text-[11px] text-slate-400 font-bold">Colorway</span>
                 <input value={colorwayName} onChange={(event) => setColorwayName(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100" placeholder="Sakura" />
               </label>
               <label className="space-y-1">
-                <span className="text-[11px] text-slate-400 font-bold">Mã nội bộ</span>
+                <span className="text-[11px] text-slate-400 font-bold">Mã colorway</span>
                 <input value={colorwayCode} onChange={(event) => setColorwayCode(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100" placeholder="MEW-SAK-01" />
               </label>
               <label className="space-y-1">
-                <span className="text-[11px] text-slate-400 font-bold">Mục tiêu release</span>
+                <span className="text-[11px] text-slate-400 font-bold">Hạn hoàn thành</span>
                 <input type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-amber-300" />
               </label>
               <label className="space-y-1 md:col-span-2">
-                <span className="text-[11px] text-slate-400 font-bold">Người phụ trách mặc định</span>
+                <span className="text-[11px] text-slate-400 font-bold">Project Manager / người phụ trách mặc định</span>
                 <input
                   value={stageOwner}
                   onChange={(event) => setStageOwner(event.target.value)}
@@ -633,7 +636,7 @@ export default function AdminProjectManagement() {
             </div>
 
             <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
-              <p className="text-[11px] text-slate-400 font-bold mb-2">Giai đoạn sẽ tạo</p>
+              <p className="text-[11px] text-slate-400 font-bold mb-2">Giai đoạn và công việc sẽ tạo sau khi RPC giao dịch được duyệt</p>
               <div className="flex flex-wrap gap-1.5">
                 {PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage) => (
                   <span key={stage.type} className="text-[10px] border border-slate-800 rounded px-2 py-1 text-slate-300">{stage.name}</span>
@@ -643,7 +646,7 @@ export default function AdminProjectManagement() {
 
             <div className="flex gap-2 border-t border-slate-800 pt-3">
               <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg p-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40">Hủy</button>
-              <button disabled={isCreatingProject} onClick={handleCreateProject} className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg p-2 text-xs font-black">{isCreatingProject ? 'Đang lưu...' : 'Tạo pipeline'}</button>
+              <button disabled={isCreatingProject} onClick={handleCreateProject} className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg p-2 text-xs font-black">{isCreatingProject ? 'Đang lưu...' : 'Tạo dự án'}</button>
             </div>
           </div>
         </div>

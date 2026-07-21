@@ -800,3 +800,15 @@ Validation target for this remediation PR: targeted Vitest, `npm test`, `npm run
 - Account connection remains behind `ACCOUNT_MANAGE`; invitation and password reset are separate actions, retryable, and do not grant Staff Workspace, Admin Workspace, presets, or custom permissions merely by connecting Auth.
 - No schema, RLS, migration, salary-history/bank-detail table, Auth backfill, permission backfill, live mutation, deployment, or production SQL was executed.
 - Future Corrective Slice 3 remains recorded only: task assignee selection, task deadline/status, finance beneficiary, payer/executor, creator, reimbursement requester/recipient, employee-derived payment QR, receipts, and reimbursement requests.
+
+
+## 2026-07-21 Corrective Slice 3A project creation/task assignment gate
+
+- Scope: Project creation, task assignment, deadlines, subtasks, comments, and detail semantics.
+- Status: `LIVE_APPROVAL_REQUIRED` for full persistence because atomic create requires a transactional RPC/schema contract before the app can create project + phases + tasks + comments without partial writes.
+- Completed application guard: `createWorkflowProject` now rejects phase/template-task project creation with `project_creation_atomic_rpc_required` before project insert, so APIs/UI do not return fake success or leave partial projects when child persistence is required.
+- Completed UI contract: create-project dialog copy now uses Vietnamese project semantics, includes project code, project deadline, project manager/creative lead/member-oriented fields, disables close/submit while saving, and surfaces the atomic RPC gate through the toast path.
+- Prepared artifacts: draft forward, rollback, validation, and backfill plan files under `supabase/drafts/20260721_project_creation_atomic_*`.
+- Database impact: none executed. No schema, RLS, migration, RPC, grant, backfill, destructive cleanup, feature flag enablement, deployment, or live data mutation was run.
+- Future Corrective Slice 3B recorded only: finance beneficiary, payer/executor, record creator, reimbursement requester/recipient, employee-derived payment QR, receipt and invoice uploads, reimbursement request workflow, approval states, and payment states.
+- Next step: review/approve the transactional RPC/schema package, then resume Slice 3A implementation after `LIVE_APPROVAL_REQUIRED` is cleared.

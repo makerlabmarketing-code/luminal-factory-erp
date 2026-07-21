@@ -1,0 +1,5 @@
+-- Draft only. Validation plan for Corrective Slice 3A atomic project creation.
+-- Validate: unique active project_code, duplicate project names with different ids,
+-- no orphan phases/tasks/comments/activity, active-member-only assignees, same-project
+-- parent hierarchy, no direct/indirect cycles, deadline persistence, and no partial
+-- project remains after injected phase/task/comment failure.

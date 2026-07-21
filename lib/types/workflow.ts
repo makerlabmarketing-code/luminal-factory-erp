@@ -99,6 +99,7 @@ export type WorkflowTaskRow = WorkflowTask;
 export interface WorkflowProjectInsertInput {
   projectName: string;
   projectDeadline: string;
+  projectCode?: string;
   phases: WorkflowPhaseFormInput[];
   createTemplateTasks?: boolean;
 }

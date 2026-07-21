@@ -1,0 +1,12 @@
+-- Draft only. Do not run without LIVE_APPROVAL_REQUIRED approval.
+-- Forward plan for Corrective Slice 3A atomic project creation.
+-- Purpose: create one transaction boundary for project, members, phases, tasks,
+-- subtasks, optional initial comments, activity rows, and assignment notifications.
+-- Contract notes:
+-- - project display names are not unique.
+-- - project_code is unique among non-deleted projects.
+-- - task assignees must be ACTIVE project members backed by eligible ACTIVE employees.
+-- - task parent/child rows must belong to the same project and cannot form cycles.
+-- - success is returned only after every required insert and side effect completes.
+-- TODO after approval: implement SECURITY INVOKER/controlled RPC or server-side transaction
+-- compatible with deployed Supabase/PostgREST capabilities and existing RLS model.

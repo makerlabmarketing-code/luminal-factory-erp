@@ -265,3 +265,11 @@ Future corrective slices recorded but not implemented:
 - Profile design: existing employee detail tabs preserve the account/permission boundary and keep finance/history surfaces as dedicated placeholders for future schema-backed salary history, bank details, HR documents, and audit history.
 - Future Slice 3 recorded only: task assignee selection, task deadline/status, finance beneficiary, payer/executor, creator, reimbursement requester/recipient, employee-derived payment QR, receipts, and reimbursement requests were not implemented.
 - Database impact: none. No schema, RLS, migration, salary-history table, bank-detail table, Auth backfill, permission backfill, live data mutation, or production deployment was run.
+
+## 2026-07-21 Corrective Slice 3A application contract gate
+
+Corrective Slice 3A found that current project creation still creates projects and phases sequentially while task/subtask/comment creation requires an approved transactional boundary. The application now refuses create-project requests that include phases or template tasks before inserting the project row, returning `project_creation_atomic_rpc_required` instead of reporting partial success.
+
+Draft-only forward, rollback, validation, and backfill artifacts were prepared under `supabase/drafts/20260721_project_creation_atomic_*`. No SQL, migration, RLS change, RPC deployment, grant, backfill, destructive cleanup, or live data mutation was executed.
+
+Future Corrective Slice 3B remains recorded only: finance beneficiary, payer/executor, creator, reimbursement requester/recipient, employee-derived payment QR, receipt/invoice uploads, reimbursement workflow, approval states, and payment states.

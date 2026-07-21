@@ -65,3 +65,9 @@ No previously classified role-matrix change was expanded. No SQL, RLS, migration
 `REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. Corrective Slice 2 used the task-supplied employee-create failure, AGENTS.md, the ERP skill references, roadmap, handoffs, remediation ledger, current code, and regression tests as the available review source.
 
 No previous Slice 1 role/workspace matrix finding was reopened. No SQL, RLS, migration, backfill, permission live mutation, Auth backfill, production deployment, or live data mutation was performed.
+
+## 2026-07-21 Corrective Slice 3A review status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. Corrective Slice 3A used AGENTS.md, the ERP/Supabase references, roadmap, handoffs, remediation ledger, current code, and regression tests as the available review source.
+
+The app now blocks project creation that would require multi-row atomic persistence before inserting the project. Full create-project/task/subtask/comment persistence remains `LIVE_APPROVAL_REQUIRED` pending approved transactional RPC/schema work. No SQL, migration, RLS, grant, backfill, destructive cleanup, feature flag enablement, deployment, or live data mutation was performed.

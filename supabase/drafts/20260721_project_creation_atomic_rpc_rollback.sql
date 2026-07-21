@@ -1,0 +1,5 @@
+-- Draft only. Rollback plan for Corrective Slice 3A atomic project creation.
+-- Drop the approved RPC/function, revoke execute grants, remove any project_code
+-- unique index/constraint only if no deployed application version depends on it,
+-- and keep already-created business rows unless an approved data rollback identifies
+-- the exact project_id set created by the failed rollout.

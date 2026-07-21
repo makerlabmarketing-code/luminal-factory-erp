@@ -9,7 +9,7 @@ function source(relativePath: string): string {
 }
 
 describe('project creation orchestration and legacy task alignment', () => {
-  it('returns a structured partial-success result after project creation', () => {
+  it('keeps a structured project create result contract for simple project creation', () => {
     const service = source('services/workflowService.ts');
 
     expect(service).toMatch(/export interface WorkflowProjectCreateResult/);
@@ -22,7 +22,7 @@ describe('project creation orchestration and legacy task alignment', () => {
     expect(service).toMatch(/warnings: WorkflowWarning\[\]/);
   });
 
-  it('does not create template tasks against the legacy tasks table during project create', () => {
+  it('does not create template tasks or partial projects without the atomic RPC gate', () => {
     const service = source('services/workflowService.ts');
     const createWorkflowProjectBody = service.slice(
       service.indexOf('export async function createWorkflowProject'),
@@ -31,11 +31,12 @@ describe('project creation orchestration and legacy task alignment', () => {
 
     expect(createWorkflowProjectBody).not.toMatch(/insertTasks/);
     expect(createWorkflowProjectBody).not.toMatch(/assignee_id: task\.assignee_id/);
-    expect(createWorkflowProjectBody).toMatch(/params\.createTemplateTasks && \(phase\.tasks \|\| \[\]\)\.some/);
-    expect(createWorkflowProjectBody).toMatch(/code: 'task_template_partial_failed'/);
+    expect(createWorkflowProjectBody).toMatch(/WorkflowProjectCreationGateError/);
+    expect(createWorkflowProjectBody).toMatch(/params\.phases\.length > 0 \|\| expectedTasks > 0/);
+    expect(createWorkflowProjectBody.indexOf('throw new WorkflowProjectCreationGateError()')).toBeLessThan(createWorkflowProjectBody.indexOf('workflowRepository.insertProject'));
   });
 
-  it('does not warn when optional template tasks are present but not requested', () => {
+  it('keeps expected task counting explicit for the approved future RPC contract', () => {
     const service = source('services/workflowService.ts');
     const createWorkflowProjectBody = service.slice(
       service.indexOf('export async function createWorkflowProject'),
@@ -43,7 +44,7 @@ describe('project creation orchestration and legacy task alignment', () => {
     );
 
     expect(createWorkflowProjectBody).toMatch(/const expectedTasks = params\.createTemplateTasks/);
-    expect(createWorkflowProjectBody).not.toMatch(/if \(\(phase\.tasks \|\| \[\]\)\.some/);
+    expect(createWorkflowProjectBody).toMatch(/expectedTasks > 0/);
   });
 
   it('keeps legacy task insert payload limited to live task columns', () => {
@@ -62,15 +63,14 @@ describe('project creation orchestration and legacy task alignment', () => {
     expect(insertTasksBody).not.toMatch(/assignee_id|phase_id|task_status|reviewer_id|assigned_employee_id/);
   });
 
-  it('shows partial-success warnings instead of project-create failure after child warnings', () => {
+  it('shows the atomic RPC gate instead of partial-success warnings for child persistence', () => {
     const taskPage = source('app/admin/tasks/page.tsx');
     const projectPage = source('app/admin/projects/page.tsx');
 
     for (const page of [taskPage, projectPage]) {
-      expect(page).toMatch(/Một số công việc mẫu chưa thể khởi tạo\./);
-      expect(page).toMatch(/Tạo dự án thành công\./);
-      expect(page).toMatch(/setShowAddModal\(false\)/);
-      expect(page).toMatch(/await loadData\(\)/);
+      expect(page).toMatch(/project_creation_atomic_rpc_required/);
+      expect(page).toMatch(/Cần duyệt RPC giao dịch trước khi tạo dự án kèm giai đoạn và công việc/);
+      expect(page).not.toMatch(/Một số công việc mẫu chưa thể khởi tạo\./);
     }
   });
 

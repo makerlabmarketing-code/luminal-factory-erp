@@ -36,6 +36,7 @@ function projectCreateErrorMessage(error: unknown): string {
     : '';
   const message = error instanceof Error ? error.message : '';
 
+  if (code === 'project_creation_atomic_rpc_required') return 'Cần duyệt RPC giao dịch trước khi tạo dự án kèm giai đoạn và công việc.';
   if (status === 409) return 'Không thể lưu dự án vì trạng thái dữ liệu chưa phù hợp.';
   if (status === 403) return 'Bạn không có quyền tạo dự án.';
   if (status === 422) return 'Thông tin dự án chưa hợp lệ.';
@@ -147,6 +148,7 @@ export default function AdminTaskWorkflowDashboard() {
       const result = await createWorkflowProject({
         projectName: newProjectName,
         projectDeadline,
+        createTemplateTasks: true,
         phases: formPhases.map((phase) => {
           const validTasks = phase.tasks
             .filter((task) => task.name?.trim() !== '')
@@ -167,24 +169,10 @@ export default function AdminTaskWorkflowDashboard() {
       setCreationStage('Đang hoàn tất...');
       setShowAddModal(false);
       await loadData();
-      if (result.warnings.length > 0) {
-        showToast(
-          'Dự án đã được tạo.',
-          'Một số công việc mẫu chưa thể khởi tạo.',
-          'info',
-          {
-            actionLabel: 'Xem chi tiết',
-            onAction: () => {
-              router.push(`/admin/projects/${result.project.id}`);
-            },
-          }
-        );
-      } else {
-        showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success', {
-          actionLabel: 'Xem chi tiết',
-          onAction: () => router.push(`/admin/projects/${result.project.id}`),
-        });
-      }
+      showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success', {
+        actionLabel: 'Xem chi tiết',
+        onAction: () => router.push(`/admin/projects/${result.project.id}`),
+      });
     } catch (error) {
       showToast('Không thể tạo dự án.', projectCreateErrorMessage(error), 'error');
     } finally {

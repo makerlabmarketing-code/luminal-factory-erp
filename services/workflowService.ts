@@ -13,6 +13,17 @@ export interface WorkflowWarning {
   stage: 'phase_create' | 'task_template';
 }
 
+export class WorkflowProjectCreationGateError extends Error {
+  code = 'project_creation_atomic_rpc_required' as const;
+  status = 409;
+  failureStage = 'migration_gate' as const;
+
+  constructor() {
+    super('Tạo dự án kèm giai đoạn, công việc và phân công cần RPC giao dịch để tránh ghi dang dở.');
+    this.name = 'WorkflowProjectCreationGateError';
+  }
+}
+
 export interface WorkflowProjectCreateResult {
   success: true;
   project: {
@@ -228,6 +239,10 @@ export async function createWorkflowProject(
       sum + (phase.tasks || []).filter((task) => task.name?.trim()).length
     ), 0)
     : 0;
+
+  if (params.phases.length > 0 || expectedTasks > 0) {
+    throw new WorkflowProjectCreationGateError();
+  }
 
   const projectId = await workflowRepository.insertProject({
     projectName: params.projectName,
