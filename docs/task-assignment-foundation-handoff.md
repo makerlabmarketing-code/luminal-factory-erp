@@ -232,3 +232,18 @@ Completed:
 No SQL was executed. No schema, RLS, backfill, RPC, grant, feature-flag enablement, deployment, destructive operation, or live data mutation was performed by this slice.
 
 Current gate remains `LIVE_APPROVAL_REQUIRED` before deploying the task-create RPC, grants, phase status/dependency schema/RLS, backfill, or any live mutation.
+
+## 2026-07-21 Phase 4 project detail task action clarity
+
+Continued Phase 4 with an application-only task edit action clarity slice while Phase 3 phase status/dependency persistence and task-create RPC remain at `LIVE_APPROVAL_REQUIRED`.
+
+Completed:
+
+- Added a pure task edit intent helper so Project Detail can describe whether assignee, deadline, or status will be updated before saving.
+- Updated the task edit modal to show a Vietnamese live summary of pending changes and disable `Lưu` when there is no task field change.
+- Kept a handler-level no-op guard so accidental no-change submissions do not call assignment, deadline, or status APIs.
+- Added focused Vitest coverage for changed-field intent and no-op detection.
+
+No SQL was executed. No schema, RLS, backfill, RPC, feature flag, deployment, or live data mutation was performed.
+
+Current gate remains `LIVE_APPROVAL_REQUIRED` before deploying the task-create RPC, grants, phase status/dependency schema/RLS, backfill, or any live mutation.

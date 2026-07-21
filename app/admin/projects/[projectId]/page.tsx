@@ -26,6 +26,8 @@ import {
   calculatePhaseProgress,
   calculateProjectProgress,
   canTransitionTaskStatus,
+  describeTaskEditIntent,
+  hasTaskEditChanges,
   phaseGateState,
   taskProgressPercent,
 } from '@/lib/workflow-project-phase';
@@ -471,6 +473,20 @@ export default function ProjectDetailPage() {
   const memberCount = members.filter((member) => member.status === 'ACTIVE').length;
   const activePhase = phasesWithGates.find((phase) => phase.status === 'ACTIVE' || phase.status === 'BLOCKED' || phase.status === 'REVIEW') || phases.find((phase) => phase.status === 'COMPLETED') || phases[0] || null;
   const selectedPhase = phasesWithGates.find((phase) => phase.item.phase_id === selectedPhaseId) || activePhase;
+  const editingCurrentTask = editingTask ? projectTasks.find((task) => task.taskId === editingTask.taskId) || null : null;
+  const editingTaskIntent = editingTask && editingCurrentTask
+    ? describeTaskEditIntent({
+      currentTask: editingCurrentTask,
+      nextAssigneeEmployeeId: editingTask.assigneeEmployeeId ? Number(editingTask.assigneeEmployeeId) : null,
+      nextDeadline: editingTask.deadline || null,
+      nextStatus: editingTask.status,
+    })
+    : null;
+  const canSaveEditingTask = Boolean(
+    editingTask &&
+    taskActionLoading === null &&
+    (!editingCurrentTask || hasTaskEditChanges(editingTaskIntent))
+  );
   const projectDetail: ProjectDetailDTO = {
     id: projectId,
     name: projectName,
@@ -623,13 +639,23 @@ export default function ProjectDetailPage() {
     const currentTask = projectTasks.find((task) => task.taskId === editingTask.taskId);
     const nextAssigneeEmployeeId = editingTask.assigneeEmployeeId ? Number(editingTask.assigneeEmployeeId) : null;
     const nextDeadline = editingTask.deadline || null;
-    const hasAssigneeChange = !currentTask || currentTask.assigneeEmployeeId !== nextAssigneeEmployeeId;
-    const hasDeadlineChange = !currentTask || currentTask.deadline !== nextDeadline;
-    const hasStatusChange = !currentTask || currentTask.status !== editingTask.status;
+    const editIntent = currentTask
+      ? describeTaskEditIntent({
+        currentTask,
+        nextAssigneeEmployeeId,
+        nextDeadline,
+        nextStatus: editingTask.status,
+      })
+      : { hasAssigneeChange: true, hasDeadlineChange: true, hasStatusChange: true, changedLabels: ['người phụ trách', 'deadline', 'trạng thái'] };
+
+    if (currentTask && !hasTaskEditChanges(editIntent)) {
+      showToast('Chưa có thay đổi.', 'Hãy chỉnh người phụ trách, deadline hoặc trạng thái trước khi lưu.', 'info');
+      return;
+    }
 
     setTaskActionLoading(editingTask.taskId);
     try {
-      if (hasAssigneeChange) {
+      if (editIntent.hasAssigneeChange) {
         const assignResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}/assign`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -642,7 +668,7 @@ export default function ProjectDetailPage() {
         if (!assignResponse.ok) throw new Error(assignPayload?.message || 'Không thể giao công việc.');
       }
 
-      if (hasDeadlineChange) {
+      if (editIntent.hasDeadlineChange) {
         const updateResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -652,7 +678,7 @@ export default function ProjectDetailPage() {
         if (!updateResponse.ok) throw new Error(updatePayload?.message || 'Không thể cập nhật deadline.');
       }
 
-      if (hasStatusChange) {
+      if (editIntent.hasStatusChange) {
         if (currentTask && !canTransitionTaskStatus(currentTask.status, editingTask.status)) {
           throw new Error('Chuyển trạng thái này chưa được hỗ trợ bởi state machine.');
         }
@@ -1184,10 +1210,15 @@ export default function ProjectDetailPage() {
                 </select>
                 <label className="block font-bold text-slate-300">Bình luận</label>
                 <textarea value={editingTask.comment} onChange={(event) => setEditingTask({ ...editingTask, comment: event.target.value })} disabled={taskActionLoading !== null} rows={4} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none" placeholder="Nhập bình luận cho công việc" />
+                <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-slate-400" aria-live="polite">
+                  {editingTaskIntent && hasTaskEditChanges(editingTaskIntent)
+                    ? `Sẽ cập nhật ${editingTaskIntent.changedLabels.join(', ')}.`
+                    : 'Chưa có thay đổi để lưu.'}
+                </div>
               </div>
               <div className="mt-5 flex justify-end gap-2">
                 <button type="button" disabled={taskActionLoading !== null} onClick={() => setEditingTask(null)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button>
-                <button type="button" disabled={taskActionLoading !== null} onClick={handleSaveTask} className="inline-flex items-center gap-2 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
+                <button type="button" disabled={!canSaveEditingTask} onClick={handleSaveTask} className="inline-flex items-center gap-2 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
                   <Save className="h-4 w-4" /> {taskActionLoading !== null ? 'Đang lưu...' : 'Lưu'}
                 </button>
               </div>

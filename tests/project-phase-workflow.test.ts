@@ -4,6 +4,8 @@ import {
   calculatePhaseProgress,
   calculateProjectProgress,
   canTransitionTaskStatus,
+  describeTaskEditIntent,
+  hasTaskEditChanges,
   phaseGateState,
   nextProjectPhaseStatus,
   taskProgressPercent,
@@ -22,6 +24,29 @@ describe('project phase workflow state machine', () => {
 
   it('keeps the current status selectable while exposing allowed next statuses', () => {
     expect(allowedNextTaskStatuses('REVISION_REQUIRED')).toEqual(['REVISION_REQUIRED', 'IN_PROGRESS', 'CANCELLED']);
+  });
+
+  it('describes task edit intent before saving assignment updates', () => {
+    const intent = describeTaskEditIntent({
+      currentTask: { assigneeEmployeeId: 2, deadline: '2026-07-21', status: 'READY' },
+      nextAssigneeEmployeeId: 3,
+      nextDeadline: '2026-07-21',
+      nextStatus: 'IN_PROGRESS',
+    });
+
+    expect(intent).toMatchObject({
+      hasAssigneeChange: true,
+      hasDeadlineChange: false,
+      hasStatusChange: true,
+      changedLabels: ['người phụ trách', 'trạng thái'],
+    });
+    expect(hasTaskEditChanges(intent)).toBe(true);
+    expect(hasTaskEditChanges(describeTaskEditIntent({
+      currentTask: { assigneeEmployeeId: null, deadline: null, status: 'BACKLOG' },
+      nextAssigneeEmployeeId: null,
+      nextDeadline: null,
+      nextStatus: 'BACKLOG',
+    }))).toBe(false);
   });
 
   it('calculates phase and project progress from task progress instead of completed phase count only', () => {

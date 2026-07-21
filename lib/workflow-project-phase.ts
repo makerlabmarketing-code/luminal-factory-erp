@@ -1,5 +1,6 @@
 import type { TaskAssignmentStatus } from '@/lib/types/task-assignment';
 export { TASK_STATUS_TRANSITIONS, allowedNextTaskStatuses, canTransitionTaskStatus } from './task-status-transitions';
+export { describeTaskEditIntent, hasTaskEditChanges } from './task-edit-intent';
 
 export type ProjectPhaseStatus = 'ACTIVE' | 'LOCKED' | 'COMPLETED' | 'BLOCKED' | 'REVIEW' | 'CANCELLED';
 export type ProjectPhaseStatusAction = 'COMPLETE' | 'LOCK' | 'UNLOCK' | 'REOPEN' | 'SKIP' | 'CANCEL' | 'OVERRIDE_LOCK';

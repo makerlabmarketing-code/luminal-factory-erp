@@ -115,12 +115,11 @@ describe('Task Assignment Foundation contracts', () => {
     const serverService = source('services/server/taskAssignmentFoundation.ts');
     const assignBody = serverService.slice(serverService.indexOf('export async function assignProjectTask'), serverService.indexOf('export async function changeProjectTaskStatus'));
 
-    expect(saveTaskBody).toMatch(/const hasAssigneeChange = !currentTask \|\| currentTask\.assigneeEmployeeId !== nextAssigneeEmployeeId/);
-    expect(saveTaskBody).toMatch(/const hasDeadlineChange = !currentTask \|\| currentTask\.deadline !== nextDeadline/);
-    expect(saveTaskBody).toMatch(/const hasStatusChange = !currentTask \|\| currentTask\.status !== editingTask\.status/);
-    expect(saveTaskBody).toMatch(/if \(hasAssigneeChange\)[\s\S]*\/assign/);
-    expect(saveTaskBody).toMatch(/if \(hasDeadlineChange\)[\s\S]*method: 'PATCH'/);
-    expect(saveTaskBody).toMatch(/if \(hasStatusChange\)[\s\S]*\/status/);
+    expect(saveTaskBody).toMatch(/describeTaskEditIntent/);
+    expect(saveTaskBody).toMatch(/!hasTaskEditChanges\(editIntent\)/);
+    expect(saveTaskBody).toMatch(/if \(editIntent\.hasAssigneeChange\)[\s\S]*\/assign/);
+    expect(saveTaskBody).toMatch(/if \(editIntent\.hasDeadlineChange\)[\s\S]*method: 'PATCH'/);
+    expect(saveTaskBody).toMatch(/if \(editIntent\.hasStatusChange\)[\s\S]*\/status/);
     expect(assignBody.indexOf('currentTask.assigneeEmployeeId === payload.assigneeEmployeeId')).toBeLessThan(assignBody.indexOf('assertAssigneeActiveMember'));
   });
 
