@@ -1,4 +1,5 @@
 import type { TaskAssignmentStatus } from '@/lib/types/task-assignment';
+export { TASK_STATUS_TRANSITIONS, allowedNextTaskStatuses, canTransitionTaskStatus } from './task-status-transitions';
 
 export type ProjectPhaseStatus = 'ACTIVE' | 'LOCKED' | 'COMPLETED' | 'BLOCKED' | 'REVIEW' | 'CANCELLED';
 export type ProjectPhaseStatusAction = 'COMPLETE' | 'LOCK' | 'UNLOCK' | 'REOPEN' | 'SKIP' | 'CANCEL' | 'OVERRIDE_LOCK';
@@ -27,19 +28,6 @@ export interface ProjectPhaseGateState {
   gatingMessage: string | null;
 }
 
-export const TASK_STATUS_TRANSITIONS: Readonly<Record<TaskAssignmentStatus, readonly TaskAssignmentStatus[]>> = {
-  BACKLOG: ['READY', 'CANCELLED'],
-  READY: ['IN_PROGRESS', 'ON_HOLD', 'CANCELLED'],
-  IN_PROGRESS: ['PENDING_REVIEW', 'BLOCKED', 'ON_HOLD', 'CANCELLED'],
-  PENDING_REVIEW: ['APPROVED', 'REVISION_REQUIRED', 'CANCELLED'],
-  REVISION_REQUIRED: ['IN_PROGRESS', 'CANCELLED'],
-  APPROVED: ['COMPLETED', 'REVISION_REQUIRED'],
-  BLOCKED: ['IN_PROGRESS', 'ON_HOLD', 'CANCELLED'],
-  ON_HOLD: ['READY', 'IN_PROGRESS', 'CANCELLED'],
-  COMPLETED: [],
-  CANCELLED: [],
-};
-
 const TASK_PROGRESS_BY_STATUS: Readonly<Record<TaskAssignmentStatus, number>> = {
   BACKLOG: 0,
   READY: 10,
@@ -52,15 +40,6 @@ const TASK_PROGRESS_BY_STATUS: Readonly<Record<TaskAssignmentStatus, number>> = 
   COMPLETED: 100,
   CANCELLED: 0,
 };
-
-export function canTransitionTaskStatus(currentStatus: TaskAssignmentStatus, nextStatus: TaskAssignmentStatus): boolean {
-  if (currentStatus === nextStatus) return true;
-  return TASK_STATUS_TRANSITIONS[currentStatus].includes(nextStatus);
-}
-
-export function allowedNextTaskStatuses(currentStatus: TaskAssignmentStatus): readonly TaskAssignmentStatus[] {
-  return [currentStatus, ...TASK_STATUS_TRANSITIONS[currentStatus]];
-}
 
 export function taskProgressPercent(status: TaskAssignmentStatus): number {
   return TASK_PROGRESS_BY_STATUS[status] ?? 0;

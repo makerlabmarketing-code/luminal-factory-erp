@@ -67,6 +67,7 @@ interface ProjectMemberDTO {
   status: 'ACTIVE' | 'REVOKED';
   joinedAt: string | null;
   revokedAt: string | null;
+  isAssignable: boolean;
 }
 
 interface ProjectCapabilitiesDTO {
@@ -321,7 +322,7 @@ export default function ProjectDetailPage() {
   });
   const hasProjectMutationAccess = projectCapabilities.canManagePhases || projectCapabilities.canEditProject || projectCapabilities.canCancelProject;
   const activeProjectMembers = useMemo(
-    () => members.filter((member) => member.status === 'ACTIVE'),
+    () => members.filter((member) => member.status === 'ACTIVE' && member.isAssignable),
     [members]
   );
 

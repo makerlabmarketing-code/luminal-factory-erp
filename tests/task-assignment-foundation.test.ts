@@ -7,6 +7,7 @@ import {
   validateTaskAssignmentCreatePayload,
   validateTaskAssignmentStatusPayload,
   validateTaskAssignmentUpdatePayload,
+  canTransitionTaskStatus,
 } from '../services/taskAssignmentFoundation';
 
 const repositoryRoot = join(__dirname, '..');
@@ -68,19 +69,43 @@ describe('Task Assignment Foundation contracts', () => {
     expect(service).toMatch(/createSupabaseAdminClient/);
     expect(service).toMatch(/assertTaskSchemaReady/);
     expect(service).toMatch(/task_assignment_migration_required/);
-    expect(service).toMatch(/Không thể tạo công việc dự án/);
+    expect(service).toMatch(/task_assignment_atomic_create_required/);
     expect(service).toMatch(/Không thể cập nhật công việc dự án/);
     expect(service).toMatch(/Không thể giao công việc dự án/);
     expect(service).toMatch(/Không thể đổi trạng thái công việc dự án/);
     expect(service).not.toMatch(/task_assignment_repository_not_implemented/);
-    expect(service).toMatch(/requireProjectMembershipAction\(projectId, 'TASK_MANAGE'\)/);
+    expect(service).toMatch(/requireProjectMembershipAction\(projectId, ["']TASK_MANAGE["']\)/);
     expect(service).toMatch(/canManageTasks/);
-    expect(service).toMatch(/assignee_employee_id', context\.actorEmployeeId/);
+    expect(service).toMatch(/assignee_employee_id["'], context\.actorEmployeeId/);
     expect(listRoute).toMatch(/export async function GET/);
     expect(listRoute).toMatch(/export async function POST/);
     expect(patchRoute).toMatch(/export async function PATCH/);
     expect(assignRoute).toMatch(/export async function POST/);
     expect(statusRoute).toMatch(/export async function POST/);
+  });
+
+
+
+  it('enforces review-remediation task assignment workflow contracts', () => {
+    const service = source('services/server/taskAssignmentFoundation.ts');
+
+    expect(canTransitionTaskStatus('BACKLOG', 'READY')).toBe(true);
+    expect(canTransitionTaskStatus('BACKLOG', 'COMPLETED')).toBe(false);
+    expect(canTransitionTaskStatus('COMPLETED', 'IN_PROGRESS')).toBe(false);
+    expect(() => validateTaskAssignmentAssignPayload({ comment: 'Thiếu người làm' })).toThrow(TaskAssignmentValidationError);
+    expect(service).toMatch(/assignee:assignee_employee_id!tasks_assignee_employee_id_fkey/);
+    expect(service).toMatch(/project_members_employee_id_fkey/);
+    expect(service).toMatch(/employeeStatus === "INACTIVE"/);
+    expect(service).toMatch(/employeeStatus === "LOCKED"/);
+    expect(service).toMatch(/task_assignment_parent_cycle/);
+    expect(service).toMatch(/changedFields.length === 0/);
+    expect(service).toMatch(/currentTask.status === payload.status/);
+    expect(service).toMatch(/TASK_UPDATED/);
+    expect(service).toMatch(/STATUS_CHANGED/);
+    expect(service).toMatch(/oldStatus/);
+    expect(service).toMatch(/newStatus/);
+    expect(source('lib/workflow-project-phase.ts')).toMatch(/task-status-transitions/);
+    expect(source('services/taskAssignmentFoundation.ts')).toMatch(/task-status-transitions/);
   });
 
   it('wires project detail to normalized task assignment without extra employee-list fetches', () => {

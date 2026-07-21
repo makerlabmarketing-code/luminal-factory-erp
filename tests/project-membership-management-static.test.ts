@@ -40,3 +40,14 @@ describe('project membership management static contracts', () => {
     expect(page).toMatch(/Thành viên dự án/);
   });
 });
+
+
+it('marks listed project members assignable only when the joined employee remains eligible', () => {
+  const service = source('services/server/projectMembershipManagement.ts');
+  const detailPage = source('app/admin/projects/[projectId]/page.tsx');
+
+  expect(service).toMatch(/employees\(id, full_name, title, status, is_active\)/);
+  expect(service).toMatch(/isAssignable: row\.status === 'ACTIVE' && isActiveEmployeeRow\(employee\)/);
+  expect(service).toMatch(/'DISABLED', 'DELETED'/);
+  expect(detailPage).toMatch(/member\.status === 'ACTIVE' && member\.isAssignable/);
+});

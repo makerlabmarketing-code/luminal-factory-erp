@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Info, CheckCircle2, HelpCircle, AlertCircle } from 'lucide-react';
+import { OVERLAY_Z_INDEX } from '@/lib/constants/overlays';
 
 type ToastType = 'success' | 'error' | 'info';
 interface ToastOptions {
@@ -96,7 +97,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const notificationLayer = (
     <>
       {toast.show && (
-        <div className="fixed right-3 top-3 z-[999999] isolate w-[calc(100vw-1.5rem)] max-w-sm font-sans sm:right-5 sm:top-5">
+        <div className="fixed right-3 top-3 isolate w-[calc(100vw-1.5rem)] max-w-sm font-sans sm:right-5 sm:top-5" style={{ zIndex: OVERLAY_Z_INDEX.notification }}>
           <div className={`rounded-lg border p-4 shadow-2xl ${
             toast.type === 'success'
               ? 'border-emerald-800 bg-emerald-950 text-emerald-50'
@@ -141,7 +142,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       {confirm.show && (
         <div
-          className="fixed inset-0 z-[999999] isolate flex items-center justify-center bg-black/85 p-4 font-sans backdrop-blur-sm animate-fadeIn"
+          className="fixed inset-0 isolate flex items-center justify-center bg-black/85 p-4 font-sans backdrop-blur-sm animate-fadeIn"
+          style={{ zIndex: OVERLAY_Z_INDEX.confirmation }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="global-confirm-title"

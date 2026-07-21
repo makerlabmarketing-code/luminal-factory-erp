@@ -17,6 +17,8 @@ interface ProjectMemberEmployeeJoin {
   id?: number | string | null;
   full_name?: string | null;
   title?: string | null;
+  status?: string | null;
+  is_active?: boolean | null;
 }
 
 interface ProjectMembershipRow {
@@ -40,7 +42,7 @@ interface EmployeeCandidateRow {
 
 function isActiveEmployeeRow(employee: { status?: string | null; is_active?: boolean | null }): boolean {
   const status = String(employee.status || '').trim().toUpperCase();
-  return employee.is_active !== false && status !== 'INACTIVE' && status !== 'LOCKED';
+  return employee.is_active !== false && !['INACTIVE', 'LOCKED', 'DISABLED', 'DELETED'].includes(status);
 }
 
 export interface ProjectMemberDTO {
@@ -53,6 +55,7 @@ export interface ProjectMemberDTO {
   status: 'ACTIVE' | 'REVOKED';
   joinedAt: string | null;
   revokedAt: string | null;
+  isAssignable: boolean;
 }
 
 export interface ProjectMemberCandidateDTO {
@@ -103,6 +106,7 @@ function mapMember(row: ProjectMembershipRow): ProjectMemberDTO {
     status: row.status,
     joinedAt: row.granted_at ?? null,
     revokedAt: row.revoked_at ?? null,
+    isAssignable: row.status === 'ACTIVE' && isActiveEmployeeRow(employee),
   };
 }
 
@@ -110,7 +114,7 @@ async function loadProjectMemberRows(projectId: number): Promise<ProjectMembersh
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from('project_members')
-    .select('id, project_id, employee_id, role_code, status, granted_at, revoked_at, employees(id, full_name, title)')
+    .select('id, project_id, employee_id, role_code, status, granted_at, revoked_at, employees(id, full_name, title, status, is_active)')
     .eq('project_id', projectId)
     .order('status', { ascending: true })
     .order('granted_at', { ascending: false });

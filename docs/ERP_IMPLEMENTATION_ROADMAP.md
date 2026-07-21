@@ -751,3 +751,13 @@ Phase Workflow Foundation Migration remains cho duyet.
 - Current gate: `LIVE_APPROVAL_REQUIRED` before any phase status/dependency schema change, RLS policy, backfill, or live phase mutation.
 - Phase 4 Project Detail Loading State Polish: Hoàn thành ngày 2026-07-21. Thêm route-level skeleton và inline refresh skeleton khớp layout Project Detail; không đổi business logic, feature flag, schema, RLS, backfill hoặc live data.
 
+
+## 2026-07-21 Review Debt Remediation Sweep
+
+- Scope: consolidated remediation for available actionable Codex review findings affecting Task Assignment, Project Workflow identity, notification stacking, validation, and authorization seams.
+- Review source: `REVIEW_SOURCE_UNAVAILABLE` for old merged PR conversations because this checkout has no GitHub CLI/remote integration available to retrieve historical unresolved review threads. Remediation proceeded only from the explicit task context and repository documentation.
+- Completed application fixes: explicit task assignee FK embed, persisted-status transition validation, assignee ACTIVE membership plus eligible employee checks, parent-task cycle prevention, explicit assignment intent validation, no-op update rejection before audit writes, and shared overlay z-index constants with notifications above confirmations.
+- Atomic create status: non-atomic task creation is blocked at the application contract with `task_assignment_atomic_create_required`; draft-only RPC artifact prepared for review.
+- Database impact: draft SQL only. No SQL executed, no migration applied, no RLS/grant/backfill/live data mutation performed.
+- Security impact: no role matrix expansion; server-side authorization boundaries preserved; raw Supabase errors remain sanitized to safe codes.
+- Current gate: `LIVE_APPROVAL_REQUIRED` before deploying the task-create RPC, grants, RLS changes, or any live mutation.
