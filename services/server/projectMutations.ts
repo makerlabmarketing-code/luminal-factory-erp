@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
+import { createClient as createSupabaseServerClient } from '@/utils/supabase/server';
 import {
   AuthContext,
   AuthFlowError,
@@ -39,6 +40,10 @@ const CREATE_PROJECT_KEYS = new Set([
   'startDate',
   'projectDeadline',
   'metadata',
+  'projectCode',
+  'phases',
+  'tasks',
+  'memberEmployeeIds',
 ]);
 
 const UPDATE_PROJECT_KEYS = new Set([
@@ -489,22 +494,72 @@ function numericProjectId(rawProjectId: string): number {
   return projectId;
 }
 
+
+async function createProjectViaAtomicRpc(body: ProjectMutationBody): Promise<ProjectMutationResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc('create_project_atomic', { p_payload: body });
+
+  if (error) {
+    throw mutationError({
+      status: 500,
+      message: 'Không thể tạo dự án đầy đủ.',
+      failureStage: 'project_insert',
+      code: 'project_insert_failed',
+      safeDetails: {
+        supabase_error_code: error.code ?? 'unknown',
+      },
+    });
+  }
+
+  const result = data as { success?: unknown; projectId?: unknown; deadlinePersisted?: unknown; code?: unknown; message?: unknown } | null;
+  if (!result?.success) {
+    const code = typeof result?.code === 'string' ? result.code : 'project_insert_failed';
+    const message = typeof result?.message === 'string' ? result.message : 'Không thể tạo dự án đầy đủ.';
+    throw mutationError({
+      status: code === 'permission_forbidden' ? 403 : code === 'session_not_verified' ? 401 : code === 'duplicate_project_code' ? 409 : 422,
+      message,
+      failureStage: code === 'permission_forbidden' ? 'permission_check' : code === 'session_not_verified' ? 'auth_get_user' : 'project_insert',
+      code: code === 'permission_forbidden' ? 'permission_forbidden' : code === 'session_not_verified' ? 'session_not_verified' : code === 'duplicate_project_code' ? 'project_insert_failed' : 'payload_validation_failed',
+    });
+  }
+
+  const projectId = Number(result.projectId);
+  if (!Number.isInteger(projectId) || projectId <= 0) {
+    throw mutationError({
+      status: 500,
+      message: 'Không thể xác nhận dự án đã tạo.',
+      failureStage: 'project_insert',
+      code: 'project_insert_failed',
+    });
+  }
+
+  return {
+    success: true,
+    projectId,
+    deadlinePersisted: Boolean(result.deadlinePersisted),
+  };
+}
+
 export async function createProject(body: ProjectMutationBody): Promise<ProjectMutationResult> {
   assertKnownFields(body, CREATE_PROJECT_KEYS);
   validateDateOrder(body);
   await requireProjectManage();
 
-  const projectName = requiredProjectName(body);
-  const status = validateStatus(body.status) || 'PROCESSING';
-  const projectDeadline = optionalIsoDate(body.projectDeadline, 'projectDeadline');
-  // Duplicate project names are allowed; stable project IDs remain the project identity.
-  const project = await insertProjectRow({ projectName, status, projectDeadline });
+  requiredProjectName(body);
+  validateStatus(body.status);
+  optionalIsoDate(body.projectDeadline, 'projectDeadline');
+  if (!optionalText(body.projectCode, 'projectCode')) {
+    throw mutationError({
+      status: 422,
+      message: 'Vui lòng nhập mã dự án duy nhất.',
+      failureStage: 'payload_validation',
+      code: 'payload_validation_failed',
+      safeDetails: { field: 'projectCode' },
+    });
+  }
 
-  return {
-    success: true,
-    projectId: project.id,
-    deadlinePersisted: project.deadlinePersisted,
-  };
+  // Duplicate project names are allowed; stable project IDs remain the project identity.
+  return createProjectViaAtomicRpc(body);
 }
 
 export async function updateProject(

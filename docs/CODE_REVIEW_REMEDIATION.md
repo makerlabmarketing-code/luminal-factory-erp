@@ -71,3 +71,11 @@ No previous Slice 1 role/workspace matrix finding was reopened. No SQL, RLS, mig
 `REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. Corrective Slice 3A used AGENTS.md, the ERP/Supabase references, roadmap, handoffs, remediation ledger, current code, and regression tests as the available review source.
 
 The app now blocks project creation that would require multi-row atomic persistence before inserting the project. Full create-project/task/subtask/comment persistence remains `LIVE_APPROVAL_REQUIRED` pending approved transactional RPC/schema work. No SQL, migration, RLS, grant, backfill, destructive cleanup, feature flag enablement, deployment, or live data mutation was performed.
+
+## 2026-07-21 Corrective Slice 3A live delivery status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations were still not exposed in this environment.
+
+Live approval was granted for the reviewed Corrective Slice 3A atomic package. The project target was confirmed as Supabase project `kwfmfmpgpbfewpiizesv` named `Luminal Factory`. The approved RPC/schema package was applied through the Supabase Management API HTTPS query endpoint, validation confirmed the RPC signature/grants, project-code column/index, absence of broad anon browser mutation policy, and no orphan project workflow rows in the checked tables.
+
+The previous `LIVE_APPROVAL_REQUIRED` status for transactional project creation is now remediated in code and live schema, pending external Code Review availability. No Corrective Slice 3B work was started.

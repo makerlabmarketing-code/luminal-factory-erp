@@ -273,3 +273,14 @@ Corrective Slice 3A found that current project creation still creates projects a
 Draft-only forward, rollback, validation, and backfill artifacts were prepared under `supabase/drafts/20260721_project_creation_atomic_*`. No SQL, migration, RLS change, RPC deployment, grant, backfill, destructive cleanup, or live data mutation was executed.
 
 Future Corrective Slice 3B remains recorded only: finance beneficiary, payer/executor, creator, reimbursement requester/recipient, employee-derived payment QR, receipt/invoice uploads, reimbursement workflow, approval states, and payment states.
+
+## 2026-07-21 Corrective Slice 3A live transactional project creation
+
+Completed with live approval through the Supabase Management API HTTPS SQL mutation path for project `kwfmfmpgpbfewpiizesv` (`Luminal Factory`):
+
+- Added `projects.project_code`, backfilled legacy rows as `LEGACY-<id>`, required non-blank codes, and created the unique `projects_project_code_unique_idx` expression index.
+- Deployed `public.create_project_atomic(p_payload jsonb)` and restricted execution to `authenticated`; `anon` does not have execute privilege.
+- The RPC derives the actor from `auth.uid()`, rejects client-supplied actor fields, checks `ADMIN_WORKSPACE` + `PROJECT_MANAGE`, allows duplicate project names, enforces unique stable project codes, validates member/assignee employee eligibility, creates project owner membership, phases, tasks, subtasks, comments, activity, and assignment notifications in one transaction boundary.
+- Application project creation now calls the transactional RPC with the authenticated server client and no longer uses the legacy direct project insert path when creating new projects.
+
+Rollback remains the reviewed rollback SQL artifact and requires separate approval unless validation shows the schema is unsafe.

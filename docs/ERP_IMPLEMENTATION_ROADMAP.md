@@ -812,3 +812,24 @@ Validation target for this remediation PR: targeted Vitest, `npm test`, `npm run
 - Database impact: none executed. No schema, RLS, migration, RPC, grant, backfill, destructive cleanup, feature flag enablement, deployment, or live data mutation was run.
 - Future Corrective Slice 3B recorded only: finance beneficiary, payer/executor, record creator, reimbursement requester/recipient, employee-derived payment QR, receipt and invoice uploads, reimbursement request workflow, approval states, and payment states.
 - Next step: review/approve the transactional RPC/schema package, then resume Slice 3A implementation after `LIVE_APPROVAL_REQUIRED` is cleared.
+
+## 2026-07-21 Corrective Slice 3A transactional project creation complete
+
+Status: ✅ Hoàn thành
+
+Completed scope:
+
+- Applied the approved live Corrective Slice 3A atomic project creation package to Supabase project `kwfmfmpgpbfewpiizesv` (`Luminal Factory`) through the Supabase Management API HTTPS mutation path.
+- Added required stable `projects.project_code` support and a unique code index while preserving duplicate project display names.
+- Deployed `public.create_project_atomic(p_payload jsonb)` with authenticated-only execute grants.
+- Wired application project creation to the real transactional RPC and removed the legacy direct project-insert success path for new project creation.
+- Updated reviewed forward, rollback, and validation artifacts for the applied package.
+
+Validation evidence:
+
+- Live read-only validation confirmed RPC presence/signature, authenticated execute grant, anon execute denial, required project-code column, unique index, no broad anon browser mutation policies, and no orphan phases/tasks/members/comments/notifications in checked project workflow tables.
+- Repository validation must remain the gate before PR delivery: targeted Vitest, `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check`.
+
+Database impact: approved schema/RPC/grant mutation only for Corrective Slice 3A.
+Security impact: server/authenticated RPC derives actor from `auth.uid()` and checks existing workspace/permission helpers; no broad browser write policy was introduced.
+Blocking: `REVIEW_SOURCE_UNAVAILABLE` for connected Code Review workflow findings. Do not begin Corrective Slice 3B from this slice.
