@@ -791,3 +791,12 @@ Validation target for this remediation PR: targeted Vitest, `npm test`, `npm run
 - Database impact: none. No schema, RLS, migration, permission backfill, Auth mutation, or live data mutation was run.
 - Security impact: read-only project/phase loading now uses read permissions; protected owner access remains separate from Application Admin permissions; workspace access rows remain independent.
 - Corrective Slice 2 and Corrective Slice 3 were recorded in the handoff only and not implemented.
+
+## 2026-07-21 Corrective Slice 2 employee profile and account lifecycle
+
+- Corrective Slice 2: Hoàn thành application-only. Employee profile creation is separated from Auth invitation: create persists `employees` with `auth_user_id = null`, shows `Chưa kết nối`, and does not send an invitation unless `Mời sử dụng hệ thống` is explicitly selected later.
+- Validation and API contract now return stable safe codes and sanitized failure stages for required fields, invalid email/status, duplicate active email, soft-deleted duplicate review/restore, missing `EMPLOYEE_MANAGE`, persistence failure, invitation failure, and Auth connection failure.
+- Quick edit is limited to identity/contact/job/status fields; salary, bank, contract, permission, workspace, salary history, HR document, and audit-history work remains dedicated profile/full-detail scope.
+- Account connection remains behind `ACCOUNT_MANAGE`; invitation and password reset are separate actions, retryable, and do not grant Staff Workspace, Admin Workspace, presets, or custom permissions merely by connecting Auth.
+- No schema, RLS, migration, salary-history/bank-detail table, Auth backfill, permission backfill, live mutation, deployment, or production SQL was executed.
+- Future Corrective Slice 3 remains recorded only: task assignee selection, task deadline/status, finance beneficiary, payer/executor, creator, reimbursement requester/recipient, employee-derived payment QR, receipts, and reimbursement requests.

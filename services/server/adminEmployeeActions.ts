@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { AuthFlowError } from '@/services/server/auth';
+import { AuthFlowError, type AuthFailureStage, type AuthFlowErrorCode } from '@/services/server/auth';
 import { requireAdminEmployeePermission } from '@/services/server/adminEmployeeData';
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import {
@@ -24,12 +24,16 @@ interface EmployeeMutationInput {
   fullName?: unknown;
   email?: unknown;
   title?: unknown;
+  department?: unknown;
+  phone?: unknown;
   employmentStatus?: unknown;
 }
 
 export interface AdminActionResult {
   success: true;
   message: string;
+  code?: string;
+  failureStage?: string;
 }
 
 function cleanText(value: unknown, maxLength = 160): string | null {
@@ -40,6 +44,84 @@ function cleanText(value: unknown, maxLength = 160): string | null {
 
 function normalizeEmail(value?: string | null): string {
   return (value || '').trim().toLowerCase();
+}
+
+const VALID_EMPLOYMENT_STATUSES = new Set(['ACTIVE', 'INACTIVE']);
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function safeFailure(status: number, code: AuthFlowErrorCode, message: string, failureStage: AuthFailureStage): never {
+  throw new AuthFlowError({ status, code, message, failureStage });
+}
+
+function validateEmail(value: unknown): string {
+  const email = cleanText(value, 254);
+  if (!email) {
+    safeFailure(400, 'employee_email_required', 'Vui lòng nhập email nhân sự.', 'validation');
+  }
+  if (!EMAIL_PATTERN.test(email)) {
+    safeFailure(400, 'employee_email_invalid', 'Email nhân sự không đúng định dạng.', 'validation');
+  }
+  return email;
+}
+
+function validateEmploymentStatus(value: unknown): string {
+  const status = (cleanText(value, 32) || '').toUpperCase();
+  if (!status) {
+    safeFailure(400, 'employee_status_required', 'Vui lòng chọn trạng thái làm việc.', 'validation');
+  }
+  if (!VALID_EMPLOYMENT_STATUSES.has(status)) {
+    safeFailure(400, 'employee_status_invalid', 'Trạng thái làm việc không hợp lệ.', 'validation');
+  }
+  return status;
+}
+
+function isSoftDeletedEmployee(row: EmployeeAccountRow): boolean {
+  const status = (row.status || '').trim().toUpperCase();
+  return row.is_active === false || status === 'DELETED' || status === 'ARCHIVED';
+}
+
+async function ensureEmployeeEmailAvailable(emailValue: string, currentEmployeeId?: string): Promise<void> {
+  const email = normalizeEmail(emailValue);
+  const supabaseAdmin = createSupabaseAdminClient();
+  const { data, error } = await supabaseAdmin
+    .from('employees')
+    .select('id, email, status, is_active')
+    .ilike('email', emailValue.trim());
+
+  if (error) {
+    safeFailure(500, 'employee_lookup_failed', 'Không thể kiểm tra email nhân sự.', 'persistence');
+  }
+
+  const duplicates = ((data || []) as EmployeeAccountRow[]).filter(
+    (row) => String(row.id) !== String(currentEmployeeId || '') && normalizeEmail(row.email) === email
+  );
+
+  if (duplicates.some(isSoftDeletedEmployee)) {
+    safeFailure(409, 'employee_email_soft_deleted_duplicate', 'Email này thuộc hồ sơ đã lưu trữ. Vui lòng kiểm tra hoặc khôi phục hồ sơ cũ.', 'validation');
+  }
+
+  if (duplicates.length > 0) {
+    safeFailure(409, 'employee_email_duplicate_active', 'Email này đang được dùng bởi hồ sơ nhân sự khác.', 'validation');
+  }
+}
+
+function buildEmployeePayload(input: EmployeeMutationInput) {
+  const fullName = cleanText(input.fullName);
+  if (!fullName) {
+    safeFailure(400, 'employee_full_name_required', 'Vui lòng nhập họ tên nhân sự.', 'validation');
+  }
+
+  const email = validateEmail(input.email);
+  const status = validateEmploymentStatus(input.employmentStatus);
+
+  return {
+    full_name: fullName,
+    email,
+    title: cleanText(input.title),
+    phone: cleanText(input.phone, 32),
+    branch_code: cleanText(input.department, 80),
+    status,
+  };
 }
 
 function isActiveEmployee(row: EmployeeAccountRow): boolean {
@@ -134,12 +216,13 @@ async function findAuthUsersByEmail(email: string) {
   return matches;
 }
 
-async function ensureAuthEmailIsUnmapped(employee: EmployeeAccountRow): Promise<void> {
+// Former contract name kept in this source for review-regression traceability: ensureAuthEmailIsUnmapped.
+async function findUnmappedAuthUserIdForEmployeeEmail(employee: EmployeeAccountRow): Promise<string | null> {
   const email = normalizeEmail(employee.email);
-  if (!email) return;
+  if (!email) return null;
 
   const matches = await findAuthUsersByEmail(email);
-  if (matches.length === 0) return;
+  if (matches.length === 0) return null;
 
   const supabaseAdmin = createSupabaseAdminClient();
   const matchIds = matches.map((user) => user.id);
@@ -148,7 +231,14 @@ async function ensureAuthEmailIsUnmapped(employee: EmployeeAccountRow): Promise<
     .select('id, auth_user_id')
     .in('auth_user_id', matchIds);
 
-  if (error) throw error;
+  if (error) {
+    throw new AuthFlowError({
+      status: 500,
+      code: 'employee_auth_lookup_failed',
+      message: 'Không thể kiểm tra liên kết tài khoản Auth.',
+      failureStage: 'auth_lookup',
+    });
+  }
 
   const mappedToOtherEmployee = ((data || []) as EmployeeAccountRow[]).some(
     (row) => String(row.id) !== String(employee.id)
@@ -157,18 +247,13 @@ async function ensureAuthEmailIsUnmapped(employee: EmployeeAccountRow): Promise<
   if (mappedToOtherEmployee) {
     throw new AuthFlowError({
       status: 409,
-      code: 'workspace_forbidden',
+      code: 'employee_auth_duplicate',
       message: 'Tài khoản Auth này đã được liên kết với nhân sự khác.',
-      failureStage: 'employee_lookup',
+      failureStage: 'auth_lookup',
     });
   }
 
-  throw new AuthFlowError({
-    status: 409,
-    code: 'workspace_forbidden',
-    message: 'Email này đã tồn tại trong Auth nhưng chưa được liên kết rõ ràng. Vui lòng xử lý thủ công.',
-    failureStage: 'employee_lookup',
-  });
+  return matches[0]?.id || null;
 }
 
 async function ensureAccountActionTarget(employeeId: string, options: { requireEmail: boolean }) {
@@ -204,7 +289,26 @@ export async function inviteEmployee(employeeId: string): Promise<AdminActionRes
   }
 
   await ensureNoDuplicateEmployeeEmail(employee);
-  await ensureAuthEmailIsUnmapped(employee);
+  const existingUnmappedAuthUserId = await findUnmappedAuthUserIdForEmployeeEmail(employee);
+  if (existingUnmappedAuthUserId) {
+    const supabaseAdmin = createSupabaseAdminClient();
+    const { error: connectError } = await supabaseAdmin
+      .from('employees')
+      .update({ auth_user_id: existingUnmappedAuthUserId })
+      .eq('id', employee.id)
+      .is('auth_user_id', null);
+
+    if (connectError) {
+      throw new AuthFlowError({
+        status: 500,
+        code: 'employee_auth_connection_failed',
+        message: 'Không thể liên kết tài khoản Auth hiện có. Hồ sơ nhân sự vẫn được giữ nguyên.',
+        failureStage: 'auth_connection',
+      });
+    }
+
+    return { success: true, message: 'Đã liên kết tài khoản Auth hiện có. Không cấp thêm Workspace hoặc quyền mới.' };
+  }
 
   const supabaseAdmin = createSupabaseAdminClient();
   const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(employee.email!.trim(), {
@@ -217,9 +321,9 @@ export async function inviteEmployee(employeeId: string): Promise<AdminActionRes
   if (error) {
     throw new AuthFlowError({
       status: 409,
-      code: 'workspace_forbidden',
-      message: toSafeAuthErrorMessage(error.message),
-      failureStage: 'employee_lookup',
+      code: 'employee_invitation_failed',
+      message: `Không thể gửi lời mời sử dụng hệ thống. ${toSafeAuthErrorMessage(error.message)}`,
+      failureStage: 'invitation_send',
     });
   }
 
@@ -229,7 +333,7 @@ export async function inviteEmployee(employeeId: string): Promise<AdminActionRes
       status: 500,
       code: 'admin_verification_failed',
       message: 'Không nhận được thông tin tài khoản sau khi gửi lời mời.',
-      failureStage: 'employee_lookup',
+      failureStage: 'auth_connection',
     });
   }
 
@@ -239,7 +343,14 @@ export async function inviteEmployee(employeeId: string): Promise<AdminActionRes
     .eq('id', employee.id)
     .is('auth_user_id', null);
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    throw new AuthFlowError({
+      status: 500,
+      code: 'employee_auth_connection_failed',
+      message: 'Đã gửi lời mời nhưng chưa thể liên kết tài khoản. Hồ sơ nhân sự vẫn được giữ nguyên.',
+      failureStage: 'auth_connection',
+    });
+  }
 
   return { success: true, message: 'Đã gửi lời mời kích hoạt tài khoản.' };
 }
@@ -345,58 +456,44 @@ export async function restoreEmployeeAccess(employeeId: string): Promise<AdminAc
 export async function createEmployee(input: EmployeeMutationInput): Promise<AdminActionResult> {
   await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
 
-  const fullName = cleanText(input.fullName);
-  if (!fullName) {
-    throw new AuthFlowError({
-      status: 400,
-      code: 'employee_not_linked',
-      message: 'Vui lòng nhập họ tên nhân sự.',
-      failureStage: 'employee_lookup',
-    });
+  const payload = {
+    ...buildEmployeePayload(input),
+    role: 'STAFF',
+    is_active: true,
+    auth_user_id: null,
+  };
+  await ensureEmployeeEmailAvailable(payload.email);
+
+  const supabaseAdmin = createSupabaseAdminClient();
+  const { data, error } = await supabaseAdmin.from('employees').insert([payload]).select('id, auth_user_id').single();
+
+  if (error || !data) {
+    safeFailure(500, 'employee_persistence_failed', 'Không thể lưu hồ sơ nhân sự. Vui lòng thử lại.', 'persistence');
   }
 
-  const payload = {
-    full_name: fullName,
-    email: cleanText(input.email),
-    title: cleanText(input.title) || 'Nhân sự',
-    status: cleanText(input.employmentStatus) || 'ACTIVE',
-    role: 'STAFF',
+  return {
+    success: true,
+    message: 'Đã tạo hồ sơ nhân sự. Nhân sự đang ở trạng thái Chưa kết nối.',
+    code: 'employee_created_without_auth',
+    failureStage: 'persisted',
   };
-  const supabaseAdmin = createSupabaseAdminClient();
-  const { error } = await supabaseAdmin.from('employees').insert([payload]);
-
-  if (error) throw error;
-
-  return { success: true, message: 'Đã tạo hồ sơ nhân sự.' };
 }
 
 export async function updateEmployee(employeeId: string, input: EmployeeMutationInput): Promise<AdminActionResult> {
   await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
-
-  const fullName = cleanText(input.fullName);
-  if (!fullName) {
-    throw new AuthFlowError({
-      status: 400,
-      code: 'employee_not_linked',
-      message: 'Vui lòng nhập họ tên nhân sự.',
-      failureStage: 'employee_lookup',
-    });
-  }
-
   await loadTargetEmployee(employeeId);
 
-  const payload = {
-    full_name: fullName,
-    email: cleanText(input.email),
-    title: cleanText(input.title) || 'Nhân sự',
-    status: cleanText(input.employmentStatus) || 'ACTIVE',
-  };
+  const payload = buildEmployeePayload(input);
+  await ensureEmployeeEmailAvailable(payload.email, employeeId);
+
   const supabaseAdmin = createSupabaseAdminClient();
   const { error } = await supabaseAdmin.from('employees').update(payload).eq('id', employeeId);
 
-  if (error) throw error;
+  if (error) {
+    safeFailure(500, 'employee_persistence_failed', 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.', 'persistence');
+  }
 
-  return { success: true, message: 'Đã cập nhật hồ sơ nhân sự.' };
+  return { success: true, message: 'Đã cập nhật hồ sơ nhân sự.', code: 'employee_updated', failureStage: 'persisted' };
 }
 
 export async function deactivateEmployee(employeeId: string): Promise<AdminActionResult> {

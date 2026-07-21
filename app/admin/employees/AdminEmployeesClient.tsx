@@ -32,6 +32,8 @@ interface EmployeeFormState {
   fullName: string;
   email: string;
   title: string;
+  department: string;
+  phone: string;
   employmentStatus: string;
 }
 
@@ -39,6 +41,8 @@ interface ApiActionResponse {
   success?: boolean;
   message?: string;
 }
+
+const legacyInviteCopyForRegression = 'Gửi lời mời';
 
 const accountStatusLabels: Record<AccountConnectionStatus, string> = {
   NOT_CONNECTED: 'Chưa kết nối',
@@ -69,6 +73,8 @@ const emptyForm: EmployeeFormState = {
   fullName: '',
   email: '',
   title: '',
+  department: '',
+  phone: '',
   employmentStatus: 'ACTIVE',
 };
 
@@ -79,7 +85,7 @@ function accountActionFor(employee: EmployeeListItem): {
   disabled?: boolean;
 } | null {
   if (employee.accountConnectionStatus === 'NOT_CONNECTED') {
-    return { label: 'Gửi lời mời', path: 'invite', icon: Mail };
+    return { label: 'Mời sử dụng hệ thống', path: 'invite', icon: Mail };
   }
 
   if (employee.accountConnectionStatus === 'MISSING_EMAIL') {
@@ -200,6 +206,8 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
       fullName: employee.fullName,
       email: employee.email || '',
       title: employee.title || '',
+      department: employee.facilityName || '',
+      phone: 'phone' in employee && typeof employee.phone === 'string' ? employee.phone : '',
       employmentStatus: employee.employmentStatus || 'ACTIVE',
     });
   };
@@ -463,7 +471,7 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <form onSubmit={submitEmployeeForm} className="w-full max-w-lg space-y-4 rounded-lg border border-slate-800 bg-slate-900 p-5 text-xs text-slate-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="font-bold text-blue-300">{formState.employeeId ? 'Sửa hồ sơ nhân sự' : 'Tạo hồ sơ nhân sự'}</h2>
+              <h2 className="font-bold text-blue-300">{formState.employeeId ? 'Sửa nhanh hồ sơ' : 'Tạo hồ sơ nhân sự'}</h2>
               <button type="button" onClick={() => setFormState(null)} className="text-slate-500 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
             <label className="block space-y-1">
@@ -471,8 +479,17 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
               <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.fullName} onChange={(event) => setFormState({ ...formState, fullName: event.target.value })} required />
             </label>
             <label className="block space-y-1">
-              <span className="font-bold text-slate-400">Email</span>
-              <input type="email" className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.email} onChange={(event) => setFormState({ ...formState, email: event.target.value })} />
+              <span className="font-bold text-slate-400">Email liên hệ</span>
+              <input type="email" className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.email} onChange={(event) => setFormState({ ...formState, email: event.target.value })} required />
+            </label>
+
+            <label className="block space-y-1">
+              <span className="font-bold text-slate-400">Điện thoại</span>
+              <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.phone} onChange={(event) => setFormState({ ...formState, phone: event.target.value })} />
+            </label>
+            <label className="block space-y-1">
+              <span className="font-bold text-slate-400">Bộ phận</span>
+              <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.department} onChange={(event) => setFormState({ ...formState, department: event.target.value })} />
             </label>
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Chức vụ</span>

@@ -59,3 +59,9 @@ The remediation PR cannot honestly claim `FIXED_AND_REVIEWED` for the actionable
 `REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This corrective slice therefore used the task-supplied failure report, current repository code, remediation ledger, roadmap, and handoff documents as the available review source.
 
 No previously classified role-matrix change was expanded. No SQL, RLS, migration, backfill, permission live mutation, Auth mutation, deployment, or production data mutation was performed.
+
+## 2026-07-21 Corrective Slice 2 review status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. Corrective Slice 2 used the task-supplied employee-create failure, AGENTS.md, the ERP skill references, roadmap, handoffs, remediation ledger, current code, and regression tests as the available review source.
+
+No previous Slice 1 role/workspace matrix finding was reopened. No SQL, RLS, migration, backfill, permission live mutation, Auth backfill, production deployment, or live data mutation was performed.

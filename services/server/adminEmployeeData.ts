@@ -34,6 +34,7 @@ export interface EmployeeListItem {
   fullName: string;
   title: string | null;
   email: string | null;
+  phone: string | null;
   employmentStatus: string | null;
   facilityName: string | null;
   accountConnectionStatus: AccountConnectionStatus;
@@ -265,7 +266,7 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
     await Promise.all([
       supabase
         .from('employees')
-        .select('id, full_name, title, email, status, is_active, auth_user_id, branch_code')
+        .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code')
         .order('id', { ascending: false }),
       supabase.from('facilities').select('id, facility_name'),
       supabase
@@ -299,6 +300,7 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
         fullName: employee.full_name || 'Chưa đặt tên',
         title: employee.title || null,
         email: employee.email || null,
+        phone: employee.phone || null,
         employmentStatus: employee.status || null,
         facilityName: resolveFacilityName(employee, facilityRows),
         accountConnectionStatus: status.accountConnectionStatus,

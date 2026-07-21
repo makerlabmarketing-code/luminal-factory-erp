@@ -10,11 +10,14 @@ function toJsonResponse(result: unknown, init?: ResponseInit) {
 
 function toErrorResponse(error: unknown) {
   if (error instanceof AuthFlowError) {
-    return toJsonResponse({ success: false, message: error.message }, { status: error.status });
+    return toJsonResponse(
+      { success: false, message: error.message, code: error.code, failureStage: error.failureStage },
+      { status: error.status }
+    );
   }
 
   return toJsonResponse(
-    { success: false, message: 'Không thể xử lý hồ sơ nhân sự.' },
+    { success: false, message: 'Không thể xử lý hồ sơ nhân sự.', code: 'employee_unhandled_failure', failureStage: 'unknown' },
     { status: 500 }
   );
 }

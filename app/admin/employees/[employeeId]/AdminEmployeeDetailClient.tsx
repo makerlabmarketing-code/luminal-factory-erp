@@ -38,6 +38,8 @@ interface EmployeeFormState {
   fullName: string;
   email: string;
   title: string;
+  department: string;
+  phone: string;
   employmentStatus: string;
 }
 
@@ -98,7 +100,7 @@ function formatDate(value: string | null) {
 
 function accountActionFor(employee: EmployeeDetailDto): { label: string; path: string } | null {
   if (employee.accountConnectionStatus === 'NOT_CONNECTED') {
-    return { label: 'Gửi lời mời', path: 'invite' };
+    return { label: 'Mời sử dụng hệ thống', path: 'invite' };
   }
 
   if (
@@ -157,6 +159,8 @@ export default function AdminEmployeeDetailClient({
       fullName: initialData.fullName,
       email: initialData.email || '',
       title: initialData.title || '',
+      department: initialData.facility || '',
+      phone: initialData.phone || '',
       employmentStatus: initialData.employmentStatus || 'ACTIVE',
     }),
     [initialData]
@@ -409,8 +413,17 @@ export default function AdminEmployeeDetailClient({
               <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.fullName} onChange={(event) => setFormState({ ...formState, fullName: event.target.value })} required />
             </label>
             <label className="block space-y-1">
-              <span className="font-bold text-slate-400">Email</span>
-              <input type="email" className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.email} onChange={(event) => setFormState({ ...formState, email: event.target.value })} />
+              <span className="font-bold text-slate-400">Email liên hệ</span>
+              <input type="email" className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.email} onChange={(event) => setFormState({ ...formState, email: event.target.value })} required />
+            </label>
+
+            <label className="block space-y-1">
+              <span className="font-bold text-slate-400">Điện thoại</span>
+              <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.phone} onChange={(event) => setFormState({ ...formState, phone: event.target.value })} />
+            </label>
+            <label className="block space-y-1">
+              <span className="font-bold text-slate-400">Bộ phận</span>
+              <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.department} onChange={(event) => setFormState({ ...formState, department: event.target.value })} />
             </label>
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Chức vụ</span>

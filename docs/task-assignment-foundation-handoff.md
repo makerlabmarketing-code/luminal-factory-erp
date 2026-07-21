@@ -252,3 +252,16 @@ Future corrective slices recorded but not implemented:
 
 - Corrective Slice 2: create employee profile independently from Auth invitation; quick edit and full employee profile; salary, bank account, beneficiary QR, employment history; invite/connect account as a separate retryable operation.
 - Corrective Slice 3: task assignee and deadline; finance beneficiary, payer, creator and reimbursement workflow; receipts and employee reimbursement requests.
+
+## 2026-07-21 Corrective Slice 2 employee profile and account lifecycle
+
+- Scope: application-only correction for employee profile creation, quick edit, and retryable Auth account connection.
+- Completed: employee profile creation persists `employees` first with `auth_user_id = null`, does not send an Auth invitation, and returns success only after the insert returns the persisted row.
+- Completed: employee create/update now requires full name, email, and employment status; job title, department, phone, employee code, salary and bank details remain optional and outside quick edit/account permission management.
+- Completed: validation returns stable safe codes and Vietnamese messages for missing name/email/status, invalid email, invalid status, active duplicate email, soft-deleted duplicate email, missing `EMPLOYEE_MANAGE`, and persistence failure. Raw Supabase/PostgreSQL errors remain hidden behind sanitized stages.
+- Completed: `Mời sử dụng hệ thống` remains a separate `ACCOUNT_MANAGE` action after the employee exists; invitation errors use invitation-specific messages/stages, preserve the employee profile, and password reset remains a separate action.
+- Completed: connecting an existing unmapped Auth user links `employees.auth_user_id` without creating another employee, without granting Staff Workspace, without granting Admin Workspace, and without mutating permission rows.
+- UI impact: employee list and detail quick-edit modals contain only full name, contact email, phone, job title, department, and employment status; list refreshes after create/update/invite and new unconnected profiles display `Chưa kết nối`.
+- Profile design: existing employee detail tabs preserve the account/permission boundary and keep finance/history surfaces as dedicated placeholders for future schema-backed salary history, bank details, HR documents, and audit history.
+- Future Slice 3 recorded only: task assignee selection, task deadline/status, finance beneficiary, payer/executor, creator, reimbursement requester/recipient, employee-derived payment QR, receipts, and reimbursement requests were not implemented.
+- Database impact: none. No schema, RLS, migration, salary-history table, bank-detail table, Auth backfill, permission backfill, live data mutation, or production deployment was run.
