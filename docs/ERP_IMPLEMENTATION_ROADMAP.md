@@ -771,3 +771,15 @@ Phase Workflow Foundation Migration remains cho duyet.
 - Database impact: draft SQL only. No SQL executed, no migration applied, no RLS/grant/backfill/live data mutation performed.
 - Security impact: no role matrix expansion; server-side authorization boundaries preserved; raw Supabase errors remain sanitized to safe codes.
 - Current gate: `LIVE_APPROVAL_REQUIRED` before deploying the task-create RPC, grants, RLS changes, or any live mutation.
+
+## 2026-07-21 Repository-wide Codex review-debt remediation sweep
+
+Review-debt remediation only; unrelated roadmap implementation was not continued.
+
+- Created `docs/CODE_REVIEW_REMEDIATION.md` as the consolidated remediation evidence table for previously merged Codex review debt inspected during this slice.
+- Code Review workflow findings were unavailable in this environment (`REVIEW_SOURCE_UNAVAILABLE`), so the sweep verified the current main-equivalent checkout against merged handoffs and the required review areas supplied in the task.
+- Verified Task Assignment Foundation, Project identity/workflow, phase metadata compatibility, phase status persistence gates, partial-persistence/fake-success protections, and overlay infrastructure.
+- Fixed the remaining actionable overlay ordering issue by keeping notification toasts at `z-index: 999999` and lowering confirmation backdrops to `999998`, making toast-above-dialog ordering explicit.
+- Preserved all live gates: no SQL, migration, RLS, grant, RPC deployment, backfill, production deployment, or live data mutation was run.
+
+Validation target for this remediation PR: targeted Vitest, `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check`. The actionable overlay fix remains `AWAITING_NEW_CODE_REVIEW` and must not be marked `FIXED_AND_REVIEWED` until a new Codex Review result is available for the remediation PR and no equivalent P0/P1 remains.

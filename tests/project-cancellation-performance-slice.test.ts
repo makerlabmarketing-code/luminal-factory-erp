@@ -17,8 +17,12 @@ describe('project cancellation UI and active list contract', () => {
 
     expect(notification).toMatch(/OVERLAY_Z_INDEX\.notification/);
     expect(notification).toMatch(/OVERLAY_Z_INDEX\.confirmation/);
-    expect(overlays).toMatch(/notification: 999999/);
-    expect(overlays).toMatch(/confirmation: 999999/);
+    const notificationZIndex = Number(overlays.match(/notification: (\d+)/)?.[1]);
+    const confirmationZIndex = Number(overlays.match(/confirmation: (\d+)/)?.[1]);
+
+    expect(notificationZIndex).toBe(999999);
+    expect(confirmationZIndex).toBe(999998);
+    expect(notificationZIndex).toBeGreaterThan(confirmationZIndex);
     expect(notification).toMatch(/bg-black\/85/);
     expect(notification).toMatch(/role="dialog"/);
     expect(notification).toMatch(/aria-modal="true"/);
