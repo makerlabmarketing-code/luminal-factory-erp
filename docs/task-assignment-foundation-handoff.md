@@ -175,3 +175,28 @@ Resolved follow-up review comments from the remediation PR:
 - Project member DTOs now expose assignability based on ACTIVE membership plus employee eligibility, and Project Detail filters assignee options by that flag.
 
 No SQL, migration, RLS, grant, backfill, RPC execution, or live data mutation was run.
+
+## 2026-07-21 Phase 4 project detail empty/error state polish
+
+Continued Phase 4 with an application-only shared state-pattern slice while Phase 3 persistence and the task-create RPC remain at `LIVE_APPROVAL_REQUIRED`.
+
+- Added a reusable `OperationalState` presentation component for Project Detail empty and error states.
+- Replaced the Project Detail load failure panel, no-phase state, no-member state, and selected-phase no-task state with the shared pattern.
+- Preserved server authorization, project/task business logic, feature gates, workflow transitions, and live data behavior.
+- Added static regression coverage for the shared state component, Vietnamese copy, retry action, and Project Detail adoption.
+
+No SQL was executed. No schema, RLS, backfill, RPC, feature flag enablement, deployment, or live data mutation was performed.
+
+Current gate: `LIVE_APPROVAL_REQUIRED` before deploying the task-create RPC, grants, phase status/dependency schema/RLS, backfill, or any live mutation.
+
+## 2026-07-21 dev-only visual monitoring workflow
+
+Added documentation and dev scripts for local agent-session monitoring and UI screenshot evidence:
+
+- `docs/agent-visual-monitoring.md` documents how to use Agent Eye or an equivalent local dashboard, how to capture screenshots, and how to attach evidence to PRs.
+- `npm run agent:monitor` prints the local monitoring checklist without starting production, paid, or cloud-only services.
+- `npm run ui:screenshot` and `npm run ui:verify` call a dev-only Node wrapper that assumes a local Next.js server by default and can start one with `-- --start-server`.
+- Screenshot output goes under `.artifacts/screenshots/`, which is ignored by git.
+- Playwright/Cypress were inspected and are not installed in `package.json`; no heavy browser dependency was added. The screenshot wrapper exits with a clear missing-tool or missing-browser message until local browser tooling is explicitly approved and installed.
+
+No business logic, schema, RLS, backfill, RPC, feature flag, production deployment, or live data mutation was changed.

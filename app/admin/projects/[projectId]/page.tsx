@@ -19,6 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
+import { OperationalState } from '@/component/OperationalState';
 import type { TaskAssignmentDTO, TaskAssignmentStatus } from '@/lib/types/task-assignment';
 import {
   allowedNextTaskStatuses,
@@ -739,12 +740,17 @@ export default function ProjectDetailPage() {
   if (loadFailed) {
     return (
       <div className="min-h-screen bg-slate-950 p-4 text-slate-100 sm:p-6">
-        <div className="mx-auto flex min-h-[50vh] max-w-3xl flex-col items-center justify-center gap-3 rounded-lg border border-slate-800 bg-slate-900 text-center">
-          <AlertTriangle className="h-6 w-6 text-amber-300" />
-          <h1 className="text-base font-black">Không thể tải chi tiết dự án.</h1>
-          <button type="button" onClick={loadData} className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500">
-            Thử lại
-          </button>
+        <div className="mx-auto max-w-3xl py-20">
+          <OperationalState
+            tone="warning"
+            title="Không thể tải chi tiết dự án."
+            description="Dữ liệu dự án chưa sẵn sàng hoặc kết nối bị gián đoạn. Vui lòng thử tải lại."
+            action={(
+              <button type="button" onClick={loadData} className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500">
+                Thử lại
+              </button>
+            )}
+          />
         </div>
       </div>
     );
@@ -863,7 +869,10 @@ export default function ProjectDetailPage() {
                   })}
                 </div>
                 {projectDetail.phases.length === 0 && (
-                  <div className="p-6 text-center text-xs text-slate-500">Dự án chưa có giai đoạn.</div>
+                  <OperationalState
+                    title="Dự án chưa có giai đoạn."
+                    description="Hãy thêm giai đoạn khi quy trình sản xuất đã được duyệt."
+                  />
                 )}
               </div>
             </section>
@@ -885,7 +894,10 @@ export default function ProjectDetailPage() {
               </div>
               <div className="overflow-x-auto p-4">
                 {projectDetail.members.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-700 p-6 text-center text-xs text-slate-500">Chưa có thành viên dự án.</div>
+                  <OperationalState
+                    title="Chưa có thành viên dự án."
+                    description="Thêm thành viên ACTIVE trước khi giao việc bằng mã nhân sự ổn định."
+                  />
                 ) : (
                   <table className="w-full min-w-[760px] text-left text-xs">
                     <thead className="text-slate-500"><tr className="border-b border-slate-800"><th className="py-2 pr-3">Nhân viên</th><th className="py-2 pr-3">Chức vụ</th><th className="py-2 pr-3">Vai trò</th><th className="py-2 pr-3">Trạng thái</th><th className="py-2 pr-3">Ngày tham gia</th><th className="py-2">Thao tác</th></tr></thead>
@@ -1044,7 +1056,10 @@ export default function ProjectDetailPage() {
                       ))}
                     </div>
                     {selectedPhase.tasks.length === 0 && (
-                      <div className="p-6 text-center text-xs text-slate-500">Giai đoạn này chưa có công việc.</div>
+                      <OperationalState
+                        title="Giai đoạn này chưa có công việc."
+                        description="Công việc con sẽ hiển thị ở đây sau khi Task Assignment Foundation trả về dữ liệu theo phase."
+                      />
                     )}
                   </div>
                 </div>
