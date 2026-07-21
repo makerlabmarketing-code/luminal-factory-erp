@@ -406,6 +406,39 @@ Delivery is complete only when:
 - branch push and pull request creation/update succeed
 
 Auto-merge must not proceed while actionable review comments remain unresolved.
+
+### Existing Pull Request Update Policy
+
+When an implementation pull request for the current roadmap slice is still open:
+
+1. Treat that pull request and its feature branch as the active delivery target.
+2. Inspect all newly generated unresolved review comments.
+3. Classify each comment according to the Pull Request Review Comment Policy.
+4. Fix every ACTIONABLE comment using the smallest safe change.
+5. Add or update focused regression tests.
+6. Commit the fixes to the same feature branch.
+7. Update the existing pull request.
+8. Do not create a second pull request for the same roadmap slice.
+9. Re-check the pull request after each update because new automated review comments may appear.
+10. Continue this review-fix-update loop until:
+    - no unresolved ACTIONABLE comments remain
+    - no unresolved P0 or P1 findings remain
+    - all required validation gates pass
+
+Do not treat the pull request as delivery-complete while actionable review conversations remain.
+
+A new pull request may be created only when:
+
+- the previous pull request has already been merged or closed
+- the new work is a separate roadmap slice
+- the original branch can no longer be safely updated
+- or an explicit delivery decision requires a separate pull request
+
+If the existing pull request cannot be updated because the branch, remote, GitHub integration, or permission is unavailable:
+
+- report `EXISTING_PR_UPDATE_BLOCKED`
+- preserve the completed commit
+- do not silently create a duplicate pull request
 ---
 
 ## Working Principles
