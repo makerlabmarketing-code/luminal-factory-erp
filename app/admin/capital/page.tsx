@@ -9,6 +9,10 @@ import LedgerTable from './components/LedgerTable';
 import CapitalShareCard from './components/CapitalShareCard';
 import type { ExpensePaymentSourceOption, FinancialLedgerEntry } from '@/lib/types/finance';
 import {
+  MISSING_EMPLOYEE_PAYMENT_INFO_MESSAGE,
+  buildBeneficiaryVietQrUrl,
+} from '@/lib/financeExpenseWorkflow';
+import {
   CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME,
   DEFAULT_CAPITAL_CONTRIBUTION_TYPES,
   DEFAULT_FINANCIAL_TRANSACTION_TYPES,
@@ -39,6 +43,7 @@ const parseCurrency = (value: string) => {
 
 const COMMON_FUND_SOURCE_ID = 'QUY_CHUNG';
 const SELF_PAID_SOURCE_PREFIX = 'SHAREHOLDER:';
+const DEFAULT_COMPANY_PAYER_NAME = 'Hà';
 
 interface EmployeeOption {
   id: number | string;
@@ -204,7 +209,10 @@ export default function AdminFinancialLedger() {
         .select('id, full_name, bank_name, bank_account_number');
       if (employeesError) throw employeesError;
       setEmployees(emps || []);
-      if (emps && emps.length > 0 && !reporter) setReporter(emps[0].full_name);
+      if (emps && emps.length > 0 && !reporter) {
+        const defaultPayer = emps.find((employee) => employee.full_name?.trim() === DEFAULT_COMPANY_PAYER_NAME) || emps[0];
+        setReporter(defaultPayer.full_name);
+      }
 
       const { data: paymentSourceRows, error: paymentSourceError } = await supabase
         .from('shareholders')
@@ -459,12 +467,22 @@ export default function AdminFinancialLedger() {
 
   const handleGenerateVietQR = (item: FinancialLedgerEntry) => {
     if (item.type === 'CHI_PHI' || item.type === 'CHI_TIEU' || item.type === 'HOAN_UNG') {
-      const matchedStaff = employees.find(e => e.full_name === item.requested_by);
-      if (!matchedStaff || !matchedStaff.bank_account_number || !matchedStaff.bank_name) return showToast('Thiếu hồ sơ', `Nhân sự [${item.requested_by}] chưa khai báo số tài khoản!`, 'error');
-      const cleanCategory = encodeURIComponent(item.category || '');
-      const qrUrl = `https://img.vietqr.io/image/${matchedStaff.bank_name}-${matchedStaff.bank_account_number}-compact2.png?amount=${item.amount}&addInfo=${cleanCategory}`;
-      setActiveQrUrl(qrUrl);
-      setActiveQrTarget({ id: item.id, title: item.type === 'HOAN_UNG' ? '🔄 QUÉT MÃ TẤT TOÁN HOÀN ỨNG' : '❌ QUÉT MÃ THANH TOÁN CHI PHÍ', bankName: matchedStaff.bank_name, accountNo: matchedStaff.bank_account_number, amount: Number(item.amount || 0), category: item.category || '' });
+      const matchedBeneficiary = employees.find(e => e.full_name === item.requested_by);
+      const qrResult = buildBeneficiaryVietQrUrl({
+        beneficiary: matchedBeneficiary
+          ? {
+              employeeId: matchedBeneficiary.id,
+              fullName: matchedBeneficiary.full_name,
+              bankName: matchedBeneficiary.bank_name,
+              bankAccountNumber: matchedBeneficiary.bank_account_number,
+            }
+          : null,
+        amount: item.amount || 0,
+        note: item.category || '',
+      });
+      if (!qrResult.ok) return showToast('Thiếu thông tin nhận tiền', MISSING_EMPLOYEE_PAYMENT_INFO_MESSAGE, 'error');
+      setActiveQrUrl(qrResult.url);
+      setActiveQrTarget({ id: item.id, title: item.type === 'HOAN_UNG' ? 'QR thanh toán hoàn ứng' : 'QR thanh toán cho Người hưởng lợi', bankName: matchedBeneficiary?.bank_name || '', accountNo: matchedBeneficiary?.bank_account_number || '', amount: Number(item.amount || 0), category: item.category || '' });
       setShowQrModal(true);
     } else {
       if (!companyBankAccount) return showToast('Thiếu cấu hình', 'Chưa cấu hình tài khoản công ty nhận tiền!', 'error');
@@ -562,15 +580,17 @@ export default function AdminFinancialLedger() {
       {/* ================= MODAL THÊM MỚI ================= */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-sm space-y-4 text-xs text-slate-200 shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-4 text-xs text-slate-200 shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-2.5"><h3 className="font-bold uppercase tracking-wider text-[11px]">Ghi Hạch Toán Sổ Cái Mới</h3><button onClick={() => setShowAddModal(false)}><X className="w-5 h-5"/></button></div>
-            <div className="space-y-3">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                <h4 className="font-bold text-blue-300">Thông tin khoản chi</h4>
               <div>
-                <label className="text-slate-400">Kỳ báo cáo hạch toán:</label>
+                <label className="text-slate-400">Kỳ hạch toán:</label>
                 <div className="mt-1"><MonthPicker value={formMonthInput} onChange={setFormMonthInput} /></div>
               </div>
               <div>
-                <label className="text-slate-400">Nghiệp vụ hạch toán chính:</label>
+                <label className="text-slate-400">Loại nghiệp vụ:</label>
                 <select
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200"
                   value={type}
@@ -629,19 +649,36 @@ export default function AdminFinancialLedger() {
                 </div>
               )}
 
-              <div><label className="text-slate-400">Nội dung khoản mục chi tiết:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={category} onChange={e => setCategory(e.target.value)} /></div>
-              <div><label className="text-slate-400">Số tiền quy đổi (VND):</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 font-mono text-amber-400 font-bold focus:outline-none" value={amount} onChange={e => setAmount(formatCurrency(e.target.value))} /></div>
+              <div><label className="text-slate-400">Nội dung chi:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={category} onChange={e => setCategory(e.target.value)} /></div>
+              <div><label className="text-slate-400">Số tiền:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 font-mono text-amber-400 font-bold focus:outline-none" value={amount} onChange={e => setAmount(formatCurrency(e.target.value))} /></div>
               <div>
-                <label className="text-slate-400">Nhân sự thực hiện:</label>
+                <label className="text-slate-400">Người thực hiện chi:</label>
                 <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" value={reporter} onChange={e => setReporter(e.target.value)}>
                   <option value="Admin (Hệ thống)">Admin (Hệ thống)</option>
                   {employees.map(e => <option key={e.id} value={e.full_name}>{e.full_name}</option>)}
                 </select>
               </div>
+              </section>
+              <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                <h4 className="font-bold text-emerald-300">Người liên quan</h4>
+                <p className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-[11px] text-amber-200">Người hưởng lợi, Người thực hiện chi và Người tạo phiếu là các vai trò riêng. Với lương/hoàn trả, QR phải dùng Thông tin nhận tiền của Người hưởng lợi.</p>
+                <div className="text-[11px] text-slate-400">Người tạo phiếu: hệ thống xác thực máy chủ (không nhận từ biểu mẫu).</div>
+              </section>
+              <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                <h4 className="font-bold text-cyan-300">Thanh toán</h4>
 
               {(expenseSource !== 'TU_CHI_TRA' && type !== 'VON_GOP') && (
-                <div className="pt-2 animate-fadeIn"><label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-blue-500 transition"><input type="checkbox" checked={isPaid} onChange={e => setIsPaid(e.target.checked)} className="accent-blue-500 w-4 h-4 cursor-pointer" /><span className="text-slate-300 font-bold">{isPaid ? '✅ Tiền đã tất toán / đã trả' : '⏳ Khoản này đang treo nợ chờ chi'}</span></label></div>
+                <div className="pt-2 animate-fadeIn"><label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-blue-500 transition"><input type="checkbox" checked={isPaid} onChange={e => setIsPaid(e.target.checked)} className="accent-blue-500 w-4 h-4 cursor-pointer" /><span className="text-slate-300 font-bold">{isPaid ? '✅ Đã thanh toán' : '⏳ Chờ duyệt'}</span></label></div>
               )}
+              </section>
+              <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
+                <h4 className="font-bold text-purple-300">Chứng từ</h4>
+                <p className="text-[11px] text-slate-400">Hỗ trợ ảnh hóa đơn, PDF, bằng chứng chuyển khoản và chứng từ nhân sự gửi. Tệp được kiểm tra loại, dung lượng, tên tệp và quyền truy cập trước khi lưu.</p>
+              </section>
+              <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
+                <h4 className="font-bold text-amber-300">Phê duyệt và lịch sử</h4>
+                <p className="text-[11px] text-slate-400">Chờ duyệt, Từ chối, Đã thanh toán và lịch sử kiểm toán sẽ được ghi qua biên máy chủ sau khi gói schema/RLS được duyệt.</p>
+              </section>
             </div>
             <div className="pt-2 border-t border-slate-800 flex gap-2"><button onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition">Hủy</button><button onClick={handleInsertLedger} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg">Ghi Sổ</button></div>
           </div>
@@ -651,15 +688,17 @@ export default function AdminFinancialLedger() {
       {/* ================= MODAL CHỈNH SỬA ================= */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-sm space-y-4 text-xs text-slate-200 shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-4 text-xs text-slate-200 shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-2.5"><h3 className="font-bold uppercase tracking-wider text-[11px]">Sửa thông tin hạch toán</h3><button onClick={() => { setShowEditModal(false); setEditingId(null); }}><X className="w-5 h-5"/></button></div>
-            <div className="space-y-3">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                <h4 className="font-bold text-blue-300">Thông tin khoản chi</h4>
               <div>
-                <label className="text-slate-400">Kỳ báo cáo hạch toán:</label>
+                <label className="text-slate-400">Kỳ hạch toán:</label>
                 <div className="mt-1"><MonthPicker value={editMonthInput} onChange={setEditMonthInput} /></div>
               </div>
               <div>
-                <label className="text-slate-400">Nghiệp vụ hạch toán chính:</label>
+                <label className="text-slate-400">Loại nghiệp vụ:</label>
                 <select
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200"
                   value={editType}
@@ -715,10 +754,10 @@ export default function AdminFinancialLedger() {
                 </div>
               )}
 
-              <div><label className="text-slate-400">Nội dung khoản mục chi tiết:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={editCategory} onChange={e => setEditCategory(e.target.value)} /></div>
-              <div><label className="text-slate-400">Số tiền sửa (VND):</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 font-mono text-amber-400 font-bold focus:outline-none" value={editAmount} onChange={e => setEditAmount(formatCurrency(e.target.value))} /></div>
+              <div><label className="text-slate-400">Nội dung chi:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={editCategory} onChange={e => setEditCategory(e.target.value)} /></div>
+              <div><label className="text-slate-400">Số tiền:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 font-mono text-amber-400 font-bold focus:outline-none" value={editAmount} onChange={e => setEditAmount(formatCurrency(e.target.value))} /></div>
               <div className="animate-fadeIn">
-                <label className="text-slate-400">Nhân sự thực hiện:</label>
+                <label className="text-slate-400">Người thực hiện chi:</label>
                 <select
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200"
                   value={editReporter}
@@ -730,7 +769,19 @@ export default function AdminFinancialLedger() {
                   ))}
                 </select>
               </div>
-              <div className="pt-2"><label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-blue-500 transition"><input type="checkbox" checked={editIsPaid} onChange={e => setEditIsPaid(e.target.checked)} className="accent-blue-500 w-4 h-4 cursor-pointer" /><span className="text-slate-300 font-bold">Đã chi trả tất toán</span></label></div>
+              </section>
+              <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                <h4 className="font-bold text-cyan-300">Thanh toán</h4>
+              <div className="pt-2"><label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-blue-500 transition"><input type="checkbox" checked={editIsPaid} onChange={e => setEditIsPaid(e.target.checked)} className="accent-blue-500 w-4 h-4 cursor-pointer" /><span className="text-slate-300 font-bold">Đã thanh toán</span></label></div>
+              </section>
+              <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
+                <h4 className="font-bold text-purple-300">Chứng từ</h4>
+                <p className="text-[11px] text-slate-400">Hỗ trợ ảnh hóa đơn, PDF, bằng chứng chuyển khoản và chứng từ nhân sự gửi. Tệp được kiểm tra loại, dung lượng, tên tệp và quyền truy cập trước khi lưu.</p>
+              </section>
+              <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
+                <h4 className="font-bold text-amber-300">Phê duyệt và lịch sử</h4>
+                <p className="text-[11px] text-slate-400">Chờ duyệt, Từ chối, Đã thanh toán và lịch sử kiểm toán sẽ được ghi qua biên máy chủ sau khi gói schema/RLS được duyệt.</p>
+              </section>
             </div>
             <div className="pt-2 border-t border-slate-800 flex gap-2"><button onClick={() => { setShowEditModal(false); setEditingId(null); }} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition">Hủy</button><button onClick={handleSaveEdit} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg">Cập Nhật</button></div>
           </div>

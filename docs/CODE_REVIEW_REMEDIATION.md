@@ -79,3 +79,9 @@ The app now blocks project creation that would require multi-row atomic persiste
 Live approval was granted for the reviewed Corrective Slice 3A atomic package. The project target was confirmed as Supabase project `kwfmfmpgpbfewpiizesv` named `Luminal Factory`. The approved RPC/schema package was applied through the Supabase Management API HTTPS query endpoint, validation confirmed the RPC signature/grants, project-code column/index, absence of broad anon browser mutation policy, and no orphan project workflow rows in the checked tables.
 
 The previous `LIVE_APPROVAL_REQUIRED` status for transactional project creation is now remediated in code and live schema, pending external Code Review availability. No Corrective Slice 3B work was started.
+
+## 2026-07-21 Corrective Slice 3B review source status
+
+- REVIEW_SOURCE_UNAVAILABLE: no current Codex GitHub Code Review findings or unresolved PR conversations were available inside this execution environment.
+- Self-review classification: no actionable P0/P1 findings were identified in the application-only finance workflow contract, dialog copy, draft SQL artifacts, or focused regression tests.
+- Delivery note: no auto-merge was attempted from the shell; PR metadata was prepared through the approved `make_pr` tool after commit.
