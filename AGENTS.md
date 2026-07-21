@@ -315,23 +315,30 @@ If any validation gate fails:
 After all required validation gates pass, Codex should:
 
 1. Commit the completed work.
-2. Push the current feature branch.
+2. Push the current feature branch through approved GitHub tooling.
 3. Create or update the pull request.
-4. Enable auto-merge for the pull request.
+4. Enable auto-merge when the available GitHub integration supports it.
 5. Allow GitHub to merge only after all required checks, reviews, and branch protection rules pass.
-6. Do not bypass branch protection or required checks.
-7. If auto-merge cannot be enabled, report the exact blocker.
+6. Never merge or push directly to `main`.
 
-Stop and report when any of the following occurs:
+If auto-merge is unavailable in the current integration:
 
-- merge conflict
-- failed required check
-- missing required approval
-- branch protection blocker
-- unavailable GitHub remote or permission
-- unexpected changes on the target branch
+- report `AUTO_MERGE_UNAVAILABLE`
+- provide the created PR metadata or PR link when available
+- do not treat this alone as an implementation failure
+- consider the delivery step complete when the branch and PR have been created successfully
 
-After the pull request is merged, continue future roadmap work from the latest `main` branch.
+Stop and report only when:
+
+- the branch cannot be pushed
+- the pull request cannot be created
+- a merge conflict exists
+- a required check fails
+- required approval is missing
+- branch protection blocks delivery
+- unexpected target-branch changes create risk
+
+After the pull request is merged, future roadmap work must continue from the latest `main` branch.
 ---
 
 ## Working Principles
