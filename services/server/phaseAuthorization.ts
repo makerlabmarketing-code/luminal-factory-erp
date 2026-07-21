@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import {
   AuthContext,
   AuthFlowError,
+  hasAdminAccess,
   hasPermission,
   hasWorkspaceAccess,
   requireAuthenticatedEmployee,
@@ -128,6 +129,8 @@ async function hasGlobalPhaseAccess(
   authContext: AuthContext,
   action: PhaseAction
 ): Promise<boolean> {
+  if (hasAdminAccess(authContext.employee)) return true;
+
   const hasAdminWorkspace = await hasWorkspaceAccess(authContext, 'ADMIN_WORKSPACE');
   if (!hasAdminWorkspace) return false;
 

@@ -6,6 +6,7 @@ import {
   Edit3,
   KeyRound,
   Mail,
+  MoreHorizontal,
   Search,
   ShieldCheck,
   ShieldOff,
@@ -51,12 +52,6 @@ const presetLabels: Record<AdminAccountListItem['presetCode'], string> = {
   STAFF: 'Nhân viên',
   CUSTOM: 'Tùy chỉnh',
   NONE: 'Chưa cấp',
-};
-
-const accessStatusLabels: Record<AdminAccountListItem['accessStatus'], string> = {
-  ACTIVE: 'Đang cấp quyền',
-  REVOKED: 'Đã thu hồi',
-  NO_ACCESS: 'Chưa cấp quyền',
 };
 
 function workspaceBadge(active: boolean, label: string) {
@@ -303,23 +298,22 @@ export default function AdminAccountsClient({
             Danh sách tài khoản ({filteredAccounts.length})
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1180px] text-left text-xs">
+            <table className="w-full min-w-[920px] text-left text-xs">
               <thead className="border-b border-slate-800 bg-slate-950 text-[10px] uppercase text-slate-400">
                 <tr>
                   <th className="p-4">Nhân sự</th>
-                  <th className="p-4">Nhân sự</th>
-                  <th className="p-4">Auth</th>
-                  <th className="p-4">Workspace</th>
-                  <th className="p-4">Preset</th>
-                  <th className="p-4">Permission</th>
-                  <th className="p-4">Truy cập</th>
+                  <th className="p-4">Kết nối Auth</th>
+                  <th className="p-4">Staff Workspace</th>
+                  <th className="p-4">Admin Workspace</th>
+                  <th className="p-4">Preset quyền</th>
+                  <th className="p-4">Số quyền</th>
                   <th className="p-4 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
                 {filteredAccounts.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-slate-500">
+                    <td colSpan={7} className="p-8 text-center text-slate-500">
                       Không tìm thấy tài khoản phù hợp.
                     </td>
                   </tr>
@@ -339,82 +333,25 @@ export default function AdminAccountsClient({
                             {account.email || 'Chưa có email'}
                           </p>
                         </td>
-                        <td className="p-4">
-                          <span
-                            className={`rounded px-2 py-1 text-[10px] font-bold ${
-                              account.employmentStatus === 'ACTIVE'
-                                ? 'bg-emerald-500/10 text-emerald-300'
-                                : 'bg-red-500/10 text-red-300'
-                            }`}
-                          >
-                            {account.employmentStatus === 'ACTIVE' ? 'Đang làm' : 'Ngừng hoạt động'}
-                          </span>
-                        </td>
                         <td className="p-4 text-slate-300">{accountStatusLabels[account.accountConnectionStatus]}</td>
-                        <td className="p-4">
-                          <div className="flex flex-wrap gap-2">
-                            {workspaceBadge(account.hasStaffWorkspace, 'Staff')}
-                            {workspaceBadge(account.hasAdminWorkspace, 'Admin')}
-                          </div>
-                        </td>
+                        <td className="p-4">{workspaceBadge(account.hasStaffWorkspace, 'Staff')}</td>
+                        <td className="p-4">{workspaceBadge(account.hasAdminWorkspace, 'Admin')}</td>
                         <td className="p-4 text-slate-300">{presetLabels[account.presetCode]}</td>
                         <td className="p-4 text-slate-300">{account.activePermissionCount}</td>
-                        <td className="p-4 text-slate-300">{accessStatusLabels[account.accessStatus]}</td>
-                        <td className="p-4">
-                          <div className="flex flex-wrap justify-end gap-2">
-                            {accountAction && (
-                              <button
-                                type="button"
-                                disabled={Boolean(activeActionKey) || isPending}
-                                onClick={() =>
-                                  runAction(
-                                    `${account.employeeId}:auth`,
-                                    `/api/admin/${accountAction.path}`,
-                                    { method: 'POST' },
-                                    'Đã gửi yêu cầu'
-                                  )
-                                }
-                                className="inline-flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
-                              >
-                                {accountAction.path.includes('reset') ? <KeyRound className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
-                                {activeActionKey === `${account.employeeId}:auth` ? 'Đang gửi...' : accountAction.label}
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              disabled={Boolean(activeActionKey) || isPending}
-                              onClick={() => updateWorkspace(account, 'staff', !account.hasStaffWorkspace)}
-                              className="rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-[10px] font-bold text-emerald-300 hover:bg-slate-800 disabled:opacity-50"
-                            >
-                              {account.hasStaffWorkspace ? 'Thu hồi Staff' : 'Cấp Staff'}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={Boolean(activeActionKey) || isPending}
-                              onClick={() => updateWorkspace(account, 'admin', !account.hasAdminWorkspace)}
-                              className="rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-[10px] font-bold text-blue-300 hover:bg-slate-800 disabled:opacity-50"
-                            >
-                              {account.hasAdminWorkspace ? 'Thu hồi Admin' : 'Cấp Admin'}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={editorLoading || Boolean(activeActionKey)}
-                              onClick={() => openPermissionEditor(account)}
-                              className="inline-flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
-                            >
-                              <Edit3 className="h-3.5 w-3.5" />
-                              Cập nhật permissions
-                            </button>
-                            <button
-                              type="button"
-                              disabled={Boolean(activeActionKey) || isPending}
-                              onClick={() => revokeAll(account)}
-                              className="inline-flex items-center gap-1 rounded-md border border-red-900/50 bg-red-950/20 px-2.5 py-1.5 text-[10px] font-bold text-red-300 hover:bg-red-950/40 disabled:opacity-50"
-                            >
-                              <ShieldOff className="h-3.5 w-3.5" />
-                              Thu hồi toàn bộ
-                            </button>
-                          </div>
+                        <td className="p-4 text-right">
+                          <details className="relative inline-block text-left">
+                            <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 hover:bg-slate-800">
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                              Thao tác
+                            </summary>
+                            <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-lg border border-slate-800 bg-slate-950 py-1 shadow-xl">
+                              <button type="button" disabled={editorLoading || Boolean(activeActionKey)} onClick={() => openPermissionEditor(account)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-900 disabled:opacity-50"><Edit3 className="h-3.5 w-3.5" />Quản lý quyền</button>
+                              {accountAction && <button type="button" disabled={Boolean(activeActionKey) || isPending} onClick={() => runAction(`${account.employeeId}:auth`, `/api/admin/${accountAction.path}`, { method: 'POST' }, 'Đã gửi yêu cầu')} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-900 disabled:opacity-50">{accountAction.path.includes('reset') ? <KeyRound className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}Gửi link đặt lại mật khẩu</button>}
+                              <button type="button" disabled={Boolean(activeActionKey) || isPending} onClick={() => updateWorkspace(account, 'staff', !account.hasStaffWorkspace)} className="w-full px-3 py-2 text-left text-[11px] font-bold text-emerald-300 hover:bg-slate-900 disabled:opacity-50">{account.hasStaffWorkspace ? 'Thu hồi Staff Workspace' : 'Cấp Staff Workspace'}</button>
+                              <button type="button" disabled={Boolean(activeActionKey) || isPending} onClick={() => updateWorkspace(account, 'admin', !account.hasAdminWorkspace)} className="w-full px-3 py-2 text-left text-[11px] font-bold text-blue-300 hover:bg-slate-900 disabled:opacity-50">{account.hasAdminWorkspace ? 'Thu hồi Admin Workspace' : 'Cấp Admin Workspace'}</button>
+                              <button type="button" disabled={Boolean(activeActionKey) || isPending} onClick={() => revokeAll(account)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-red-300 hover:bg-red-950/30 disabled:opacity-50"><ShieldOff className="h-3.5 w-3.5" />Thu hồi toàn bộ truy cập</button>
+                            </div>
+                          </details>
                         </td>
                       </tr>
                     );

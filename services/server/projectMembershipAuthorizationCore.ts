@@ -113,6 +113,15 @@ export const ADMIN_PROJECT_MEMBERSHIP_CAPABILITIES: ProjectMembershipCapabilitie
   canCancelProject: true,
 };
 
+export const GLOBAL_PROJECT_VIEW_CAPABILITIES: ProjectMembershipCapabilities = {
+  canViewProject: true,
+  canEditProject: false,
+  canManageMembers: false,
+  canManagePhases: false,
+  canManageTasks: false,
+  canCancelProject: false,
+};
+
 export function isProjectMembershipRoleCode(value: unknown): value is ProjectMembershipRoleCode {
   return typeof value === 'string' && ROLE_SET.has(value);
 }

@@ -235,3 +235,20 @@ Completed:
 No SQL was executed. No schema, RLS, backfill, RPC, feature flag, deployment, or live data mutation was performed.
 
 Current gate remains `LIVE_APPROVAL_REQUIRED` before deploying the task-create RPC, grants, phase status/dependency schema/RLS, backfill, or any live mutation.
+
+## 2026-07-21 Corrective Slice 1 authorization and workspace semantics
+
+Completed application-only corrective slice from the latest main-equivalent branch:
+
+- Phase read authorization now separates read-only loading from mutation authorization. `ADMIN_WORKSPACE` with `PROJECT_VIEW` or `PROJECT_MANAGE` can load all project phases without ordinary project membership; mutation actions still require `PROJECT_MANAGE` or approved project roles.
+- System Owner legacy protected access remains a global project/phase override and remains guarded by the existing last-administrator protection so ownership is not accidentally self-revoked through account permission changes.
+- Project membership authorization now has an explicit read-only global capability for Application Admin project loading so `PROJECT_VIEW` does not imply edit/member/phase/task/cancel capabilities.
+- Project workflow loading preserves already loaded project rows as sanitized placeholder workflow records if the phase request fails, including stable error code, failure stage, and Vietnamese message without raw database details.
+- Account workspace UI now treats Staff Workspace and Admin Workspace as independent badges/actions from a single row actions menu. Revoking both workspaces revokes ERP access rows and permissions but does not delete the Supabase Auth account.
+
+No SQL, migration, RLS change, permission backfill, Auth mutation, production deployment, or live data mutation was run.
+
+Future corrective slices recorded but not implemented:
+
+- Corrective Slice 2: create employee profile independently from Auth invitation; quick edit and full employee profile; salary, bank account, beneficiary QR, employment history; invite/connect account as a separate retryable operation.
+- Corrective Slice 3: task assignee and deadline; finance beneficiary, payer, creator and reimbursement workflow; receipts and employee reimbursement requests.

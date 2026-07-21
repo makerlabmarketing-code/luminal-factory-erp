@@ -781,3 +781,13 @@ Review-debt remediation only; unrelated roadmap implementation was not continued
 - Preserved all live gates: no SQL, migration, RLS, grant, RPC deployment, backfill, production deployment, or live data mutation was run.
 
 Validation target for this remediation PR: targeted Vitest, `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check`. The actionable overlay fix remains `AWAITING_NEW_CODE_REVIEW` and must not be marked `FIXED_AND_REVIEWED` until a new Codex Review result is available for the remediation PR and no equivalent P0/P1 remains.
+
+## 2026-07-21 Corrective Slice 1 project authorization and workspace semantics
+
+- Scope: application-only correction for project authorization, phase loading failure handling, and account workspace semantics.
+- Completed: System Owner global project/phase access preserved; Application Admin `ADMIN_WORKSPACE` + `PROJECT_VIEW` can read all projects/phases without project membership; Application Admin read access does not grant mutation capabilities; Project Manager/Creative Lead/Contributor membership boundaries remain unchanged.
+- Completed: phase request failures preserve already loaded project data through sanitized placeholder workflow records with error code, failure stage, and Vietnamese message; phase route responses do not expose raw Supabase/PostgreSQL error text.
+- Completed: account list simplified to employee identity, Auth state, Staff Workspace badge, Admin Workspace badge, preset, permission count, and one actions menu for permission, password reset, workspace grant/revoke, and full access revoke.
+- Database impact: none. No schema, RLS, migration, permission backfill, Auth mutation, or live data mutation was run.
+- Security impact: read-only project/phase loading now uses read permissions; protected owner access remains separate from Application Admin permissions; workspace access rows remain independent.
+- Corrective Slice 2 and Corrective Slice 3 were recorded in the handoff only and not implemented.
