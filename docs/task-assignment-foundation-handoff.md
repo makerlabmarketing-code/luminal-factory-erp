@@ -127,3 +127,14 @@ Completed application-only workflow state-machine preparation:
 No SQL was executed. No schema, RLS, role matrix, or live data mutation was added. Completing/unlocking phases remains blocked until an approved phase status/dependency mutation contract and persistence plan exist.
 
 Next Phase 3 slice: prepare the phase status/dependency mutation design, migration/rollback/validation SQL, RLS impact and audit-history plan, then stop at `LIVE_APPROVAL_REQUIRED` before any live schema or data mutation.
+
+## 2026-07-21 Phase 3 phase status/dependency mutation design
+
+Prepared but did not run the next Phase 3 persistence package:
+
+- Documented the active Phase 3 slice, acceptance criteria, exit criteria, server mutation contract, status model, transition matrix, database impact, RLS impact, audit-history requirements, and compatibility plan in `docs/phase-status-dependency-mutation-design.md`.
+- Added draft-only forward, rollback, and validation SQL artifacts under `supabase/drafts/20260721_phase_status_dependency_*`.
+- Kept browser writes out of scope; phase status mutation remains planned for server route + existing phase authorization boundary.
+- Preserved the current role matrix: `CREATIVE_LEAD` remains view-only unless an approved role change is made later.
+
+No SQL was executed. No schema, RLS, role matrix, deployment, or live data mutation was performed. The next step is `LIVE_APPROVAL_REQUIRED` for review/approval before any phase status/dependency migration, RLS change, backfill, or production data mutation.
