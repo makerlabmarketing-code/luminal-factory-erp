@@ -53,3 +53,9 @@ Final status vocabulary used here: `FIXED_AND_REVIEWED`, `ALREADY_FIXED_AND_VERI
 Delivered only the overlay ordering fix plus this consolidated evidence ledger and roadmap status update. No roadmap implementation, migration, RLS, RPC deployment, backfill, production SQL, live mutation, permission expansion, or old PR modification was performed.
 
 The remediation PR cannot honestly claim `FIXED_AND_REVIEWED` for the actionable overlay finding until a new Codex Review result is available and confirms no equivalent P0/P1 remains. Current re-review findings are `REVIEW_SOURCE_UNAVAILABLE`, not evidence of review completion.
+
+## 2026-07-21 Corrective Slice 1 review status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This corrective slice therefore used the task-supplied failure report, current repository code, remediation ledger, roadmap, and handoff documents as the available review source.
+
+No previously classified role-matrix change was expanded. No SQL, RLS, migration, backfill, permission live mutation, Auth mutation, deployment, or production data mutation was performed.

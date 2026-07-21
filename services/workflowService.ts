@@ -5,7 +5,7 @@ import type {
   WorkflowProjectInsertInput,
   WorkflowSetting,
 } from '@/lib/types/workflow';
-import { workflowRepository } from '@/services/repositories/workflowRepository';
+import { WorkflowRequestError, workflowRepository } from '@/services/repositories/workflowRepository';
 
 export interface WorkflowWarning {
   code: 'phase_create_failed' | 'task_template_partial_failed';
@@ -36,6 +36,31 @@ const CLOSED_PROJECT_STATUSES = new Set(['CANCELLED', 'ARCHIVED']);
 
 function isClosedProjectStatus(status?: string | null): boolean {
   return CLOSED_PROJECT_STATUSES.has(String(status || '').trim().toUpperCase());
+}
+
+
+function toProjectPlaceholderSetting(project: WorkflowProject, warning?: WorkflowRequestError): WorkflowSetting {
+  return {
+    id: `project-${project.id}-phase-load-placeholder`,
+    key: `PROJECT_${project.id}_PHASE_LOAD_PLACEHOLDER`,
+    project_id: project.id,
+    value: project.status || null,
+    group_name: 'PRODUCTION_WORKFLOW_PROJECT_PLACEHOLDER',
+    config_name: `${project.name} - Chưa tải được giai đoạn`,
+    param_type: project.project_deadline || '',
+    description: JSON.stringify({
+      project_drive_link: project.drive_link || '',
+      project_deadline: project.project_deadline || '',
+      project_created_at: project.created_at || null,
+      project_status: project.status || null,
+      stage_name: 'Chưa tải được giai đoạn',
+      stage_type: 'PHASE_LOAD_FAILED',
+      phase_load_error_code: warning?.code || 'phase_load_failed',
+      phase_load_failure_stage: warning?.failureStage || 'unknown',
+      phase_load_message: 'Không thể tải giai đoạn.',
+      tasks_list: [],
+    }),
+  };
 }
 
 function toWorkflowSetting(project: WorkflowProject, phase: WorkflowPhase): WorkflowSetting {
@@ -144,14 +169,29 @@ export async function getWorkflowItems(options: WorkflowItemsOptions = {}): Prom
     ? allProjects
     : allProjects.filter((project) => !isClosedProjectStatus(project.status));
   const projectIds = projects.map((project) => project.id);
-  const [phases, legacyTasks] = await Promise.all([
-    workflowRepository.listPhasesByProjectIds(projectIds),
+  const [phaseResult, legacyTasks] = await Promise.all([
+    workflowRepository.listPhasesByProjectIds(projectIds)
+      .then((phases) => ({ phases, warning: null as WorkflowRequestError | null }))
+      .catch((error: unknown) => ({
+        phases: [] as WorkflowPhase[],
+        warning: error instanceof WorkflowRequestError
+          ? error
+          : new WorkflowRequestError('Không thể tải giai đoạn.', 500, 'phase_load_failed', 'unknown'),
+      })),
     workflowRepository.listLegacyTasks(),
   ]);
+  const { phases, warning: phaseLoadWarning } = phaseResult;
   const projectNames = new Set(projects.map((project) => project.name));
   const visibleLegacyTasks = includeClosedProjects
     ? legacyTasks
     : legacyTasks.filter((task) => projectNames.has(task.projectName || task.project_name || ''));
+
+  if (phaseLoadWarning) {
+    return [
+      ...projects.map((project) => toProjectPlaceholderSetting(project, phaseLoadWarning)),
+      ...visibleLegacyTasks.map(toLegacyWorkflowSetting),
+    ];
+  }
 
   if (phases.length === 0) {
     return visibleLegacyTasks.map(toLegacyWorkflowSetting);

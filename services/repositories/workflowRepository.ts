@@ -14,12 +14,14 @@ type LegacyWorkflowTask = WorkflowTask & {
 export class WorkflowRequestError extends Error {
   status: number;
   code?: string;
+  failureStage?: string;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(message: string, status: number, code?: string, failureStage?: string) {
     super(message);
     this.name = 'WorkflowRequestError';
     this.status = status;
     this.code = code;
+    this.failureStage = failureStage;
   }
 }
 
@@ -228,11 +230,19 @@ async function requestProjectMutation<TResponse>(
       typeof payload.code === 'string'
         ? payload.code
         : undefined;
+    const failureStage =
+      payload &&
+      typeof payload === 'object' &&
+      'failure_stage' in payload &&
+      typeof payload.failure_stage === 'string'
+        ? payload.failure_stage
+        : undefined;
 
     throw new WorkflowRequestError(
-      message || 'Khong the cap nhat du an.',
+      message || 'Không thể cập nhật dự án.',
       response.status,
-      code
+      code,
+      failureStage
     );
   }
 

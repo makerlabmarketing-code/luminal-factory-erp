@@ -1,13 +1,14 @@
 import 'server-only';
 
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
-import { AuthContext, AuthFlowError, hasPermission, hasWorkspaceAccess, requireAuthenticatedEmployee } from '@/services/server/auth';
+import { AuthContext, AuthFlowError, hasAdminAccess, hasPermission, hasWorkspaceAccess, requireAuthenticatedEmployee } from '@/services/server/auth';
 import {
   ProjectMembershipAction,
   ProjectMembershipCapabilities,
   ProjectMembershipRoleCode,
   canProjectMembershipPerformAction,
   capabilitiesForProjectRole,
+  GLOBAL_PROJECT_VIEW_CAPABILITIES,
   resolveSingleActiveProjectMembershipRole,
 } from '@/services/server/projectMembershipAuthorizationCore';
 
@@ -59,6 +60,8 @@ async function loadProjectRole(projectId: number, employeeId: number): Promise<P
 }
 
 async function hasGlobalProjectManage(authContext: AuthContext): Promise<boolean> {
+  if (hasAdminAccess(authContext.employee)) return true;
+
   const [adminWorkspace, projectManage] = await Promise.all([
     hasWorkspaceAccess(authContext, 'ADMIN_WORKSPACE'),
     hasPermission(authContext, 'PROJECT_MANAGE'),
@@ -66,27 +69,43 @@ async function hasGlobalProjectManage(authContext: AuthContext): Promise<boolean
   return adminWorkspace && projectManage;
 }
 
+async function hasGlobalProjectView(authContext: AuthContext): Promise<boolean> {
+  if (hasAdminAccess(authContext.employee)) return true;
+
+  const [adminWorkspace, projectManage, projectView] = await Promise.all([
+    hasWorkspaceAccess(authContext, 'ADMIN_WORKSPACE'),
+    hasPermission(authContext, 'PROJECT_MANAGE'),
+    hasPermission(authContext, 'PROJECT_VIEW'),
+  ]);
+  return adminWorkspace && (projectManage || projectView);
+}
+
 export async function getProjectMembershipAuthorization(projectId: number): Promise<ProjectMembershipAuthorizationContext> {
   const authContext = await resolveAuthContext();
   const employeeId = actorEmployeeId(authContext);
-  const [projectStatus, globalManage, role] = await Promise.all([
+  const [projectStatus, globalManage, globalView, role] = await Promise.all([
     loadProjectStatus(projectId),
     hasGlobalProjectManage(authContext),
+    hasGlobalProjectView(authContext),
     loadProjectRole(projectId, employeeId),
   ]);
   const projectRole = globalManage ? 'GLOBAL_PROJECT_MANAGE' : role;
+  const capabilities = globalView && !globalManage && !role
+    ? GLOBAL_PROJECT_VIEW_CAPABILITIES
+    : capabilitiesForProjectRole(projectRole, projectStatus);
   return {
     authContext,
     actorEmployeeId: employeeId,
     projectId,
     projectStatus,
     projectRole,
-    capabilities: capabilitiesForProjectRole(projectRole, projectStatus),
+    capabilities,
   };
 }
 
 export async function requireProjectMembershipAction(projectId: number, action: ProjectMembershipAction): Promise<ProjectMembershipAuthorizationContext> {
   const context = await getProjectMembershipAuthorization(projectId);
+  if (action === 'PROJECT_VIEW' && context.capabilities.canViewProject) return context;
   if (!canProjectMembershipPerformAction(context.projectRole, action, context.projectStatus)) {
     throw projectMembershipAuthError(403, 'permission_forbidden', 'Bạn không có quyền thực hiện thao tác này.');
   }
