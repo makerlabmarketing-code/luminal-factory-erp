@@ -171,3 +171,9 @@ No SQL, migration, RLS change, backfill, permission live mutation, Supabase Mana
 | Live SQL, deployment, or inventory mutation must not occur during package preparation. | ACTIONABLE | User explicitly prohibited live mutation, SQL execution, deployment, and inventory quantity mutation. | No SQL was executed; artifacts are draft-only and include no stock decrement, procurement transaction, public attachment access, or broad browser write policies. |
 
 No migration, SQL execution, RLS mutation, RPC deployment, backfill, production data mutation, inventory mutation, or deployment was performed. Corrective Slice 6 remains stopped at `LIVE_APPROVAL_REQUIRED`.
+
+## 2026-07-22 Corrective Slice 6 live persistence execution review
+
+| Finding ID | Scope | Base | Severity | Finding | Evidence | Classification | Remediation / status | Validation | Review source status | Final status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| #slice-6-live-network | Corrective Slice 6 production-order persistence package | `71843ed` | P1 | Approved live package could not be applied from the current environment because the Supabase database connection path is unreachable. | `npx supabase db query --linked --file supabase/drafts/corrective-slice-6-production-order-persistence/forward.sql` failed during linked DB connection with `internalConnectMultipleTimeout`; TCP probe to `aws-1-ap-northeast-1.pooler.supabase.com:5432` returned `Network is unreachable`. | BUSINESS_DECISION_REQUIRED / ENVIRONMENT_BLOCKED | No package redesign or application-logic change made. Rerun the exact reviewed package from an approved environment with database connectivity. | Repository validation run locally; live SQL validation remains blocked until connectivity is restored. | REVIEW_SOURCE_UNAVAILABLE until operator runs/provides current PR review findings. | BLOCKED_PENDING_LIVE_EXECUTION |

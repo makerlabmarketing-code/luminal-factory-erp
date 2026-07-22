@@ -927,3 +927,11 @@ Stop point: Corrective Slice 6 only. Future schema/RPC/inventory persistence rem
 - **Design:** Reuses existing `projects`, `phases`, `tasks`, `project_members`, `project_activity`, and `task_notifications`; adds durable production-order/template/stage/member/dependency/attachment metadata tables only where no compatible existing owner exists.
 - **Safety:** No SQL was executed, no migration was run, no deployment occurred, no live data changed, no inventory quantity mutation was introduced, and no public attachment access or broad browser write policy was prepared.
 - **Next gate:** Before application wiring or live rollout, rerun read-only pre-validation and apply only this reviewed package after explicit `LIVE_APPROVAL_REQUIRED` approval.
+
+### 2026-07-22 Corrective Slice 6 live package execution attempt
+
+- **Status:** `LIVE_EXECUTION_BLOCKED_BY_DATABASE_NETWORK`.
+- **Approved scope preserved:** attempted only the reviewed Corrective Slice 6 production-order persistence package under `supabase/drafts/corrective-slice-6-production-order-persistence/`; no application logic, workflow redesign, inventory mutation, Slice 7 work, or unreviewed SQL was performed.
+- **Execution blocker:** `npx supabase db query --linked --file supabase/drafts/corrective-slice-6-production-order-persistence/forward.sql` reached linked-project login-role initialization, then failed repeatedly during database connection with `TypeError: null is not an object (evaluating 'context')` from `internalConnectMultipleTimeout`. A direct TCP probe to `aws-1-ap-northeast-1.pooler.supabase.com:5432` returned `Network is unreachable`.
+- **Validation impact:** live post-apply verification for production order creation, workflow template creation, stage transitions, production member assignment, attachment metadata, notification outbox, permission enforcement, duplicate protection, and rollback safety remains incomplete because the approved SQL package could not be applied from this environment.
+- **Next gate:** rerun the exact reviewed Slice 6 package from a network path that can reach the Supabase database/pooler, then run the complete validation suite. Do not continue Slice 7.

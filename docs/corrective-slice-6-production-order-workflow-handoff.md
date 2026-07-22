@@ -88,3 +88,16 @@ Package contents:
 - `REVIEW.md` recording self-review of reuse, authorization, workflow enforcement, rollback, and no-inventory-mutation boundaries.
 
 No live mutation was performed. The next step is read-only pre-validation followed by an explicit live-approval gate for this exact reviewed package.
+
+## 2026-07-22 Live persistence execution attempt
+
+Scope approved: only the reviewed `supabase/drafts/corrective-slice-6-production-order-persistence/` package, including forward SQL, transactional RPCs, rollback, validation, compatibility views, RLS/security, attachment metadata policy, notification outbox integration, grants, indexes, and constraints.
+
+Execution result: `LIVE_EXECUTION_BLOCKED_BY_DATABASE_NETWORK`.
+
+- `npx supabase db query --linked --file supabase/drafts/corrective-slice-6-production-order-persistence/forward.sql` reached the linked-project login-role step, then the CLI repeatedly failed inside its database connection attempt with `TypeError: null is not an object (evaluating 'context')` from `internalConnectMultipleTimeout`.
+- A direct TCP probe to `aws-1-ap-northeast-1.pooler.supabase.com:5432` failed with `Network is unreachable`, confirming the SQL execution path is unavailable from this environment rather than a reviewed-package redesign issue.
+- No application logic was changed, no Slice 7 work was started, and no unreviewed SQL was substituted.
+- Because the forward package did not execute, post-apply SQL validation, production-order creation, workflow template creation, stage transitions, production member assignment, attachment metadata, notification outbox, permission enforcement, duplicate protection, and rollback-safety verification could not be completed against the live database in this run.
+
+Next allowed action: rerun the exact reviewed package from an environment with database connectivity, starting with `npx supabase db query --linked --file supabase/drafts/corrective-slice-6-production-order-persistence/forward.sql`, then apply the remaining reviewed files in package order and run `validation.sql`. Do not continue Slice 7 until Slice 6 live validation succeeds.
