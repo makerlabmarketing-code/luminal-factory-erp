@@ -36,7 +36,7 @@ Current stop condition for those artifacts: `LIVE_APPROVAL_REQUIRED`.
 
 ## Management API verification exception
 
-If Supabase Management API verification returns Cloudflare Error 1010 / `browser_signature_banned`, record `MANAGEMENT_API_UNAVAILABLE`. This is an environment limitation, not a slice failure. Skip only Management API verification and continue using the reviewed SQL package, repository artifacts, rollback scripts, validation SQL, compatibility plan, and application contract. Do not downgrade safety, run unapproved live SQL, mutate RLS, backfill data, deploy RPCs, or bypass `LIVE_APPROVAL_REQUIRED`.
+If Supabase Management API verification returns Cloudflare Error 1010 / `browser_signature_banned`, HTTP 403 from `api.supabase.com` with that confirmed infrastructure restriction, or another confirmed infrastructure restriction unrelated to repository correctness, record `MANAGEMENT_API_UNAVAILABLE`. This is an environment limitation, not a slice failure. Skip only Management API project metadata and health verification; continue using the reviewed migration package, rollback package, validation SQL, compatibility/backfill plan, application contract, and reviewed RPC contract. Do not downgrade safety, run unapproved live SQL, mutate RLS, backfill data, deploy RPCs, bypass `LIVE_APPROVAL_REQUIRED`, or ignore validation failures unrelated to the Management API limitation.
 
 ## Validation notes
 

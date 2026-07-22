@@ -146,6 +146,14 @@ Potential production-workflow entities may include:
 
 No production migration should run without explicit approval.
 
+## Management API Fallback
+
+When Supabase Management API verification returns Cloudflare Error 1010 (`browser_signature_banned`), HTTP 403 from `api.supabase.com` with that confirmed infrastructure restriction, or another confirmed infrastructure restriction unrelated to repository correctness, record `MANAGEMENT_API_UNAVAILABLE`. This is an environment limitation, not evidence of an invalid token, invalid project reference, or repository failure.
+
+Skip only project metadata verification and Management API health verification. Continue application-only implementation and planning from the reviewed repository artifacts: migration package, rollback package, validation SQL, compatibility/backfill plan, application contract, and reviewed RPC contract.
+
+Do not run live SQL, deploy RPCs, mutate RLS, backfill data, or bypass `LIVE_APPROVAL_REQUIRED` because Management API verification is unavailable. Do not ignore validation failures from repository tests, static analysis, SQL validation artifacts, application contracts, or any path unrelated to the Management API limitation. Document the skipped verification in the roadmap, handoff, and remediation ledger.
+
 ## Shared Storefront Contract
 
 ERP and storefront may eventually use the same Supabase project.

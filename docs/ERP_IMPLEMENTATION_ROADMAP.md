@@ -904,6 +904,6 @@ Status: ✅ Hoàn thành application-only.
 
 No SQL, migration, RLS change, RPC creation, inventory mutation, backfill, feature flag enablement, live data mutation, destructive cleanup, deployment, or production mutation was run.
 
-Management API verification status: `MANAGEMENT_API_UNAVAILABLE` when Supabase Management API returns Cloudflare Error 1010 / `browser_signature_banned`. This records the environment limitation only; do not fail or downgrade the slice for that response. Skip only Management API verification and continue from the reviewed SQL package, repository artifacts, rollback scripts, validation SQL, compatibility plan, and application contract while preserving all live approval and safety gates.
+Management API verification status: `MANAGEMENT_API_UNAVAILABLE` for Cloudflare Error 1010 / `browser_signature_banned` or another confirmed infrastructure restriction unrelated to repository correctness. Skip only Management API project metadata and health verification; continue from the reviewed migration package, rollback package, validation SQL, compatibility/backfill plan, application contract, and reviewed RPC contract. Live SQL/RPC deployment still requires explicit `LIVE_APPROVAL_REQUIRED`, and validation failures unrelated to the Management API limitation must not be ignored.
 
 Stop point: Corrective Slice 6 only. Future schema/RPC/inventory persistence remains `LIVE_APPROVAL_REQUIRED` with forward, rollback, validation, security, and backfill artifacts before execution.
