@@ -116,3 +116,9 @@ Self-review classification: no actionable P0/P1 findings were identified in the 
 | DENY precedence, no client-side permission escalation, no accidental workspace mutation, System Owner protection, preset/workspace independence, and separate reimbursement approval/payment-confirmation permissions. | ALREADY_FIXED_AND_VERIFIED | Existing server guards and regression tests cover DENY precedence, server-only account mutations, System Owner mutation blocks, preset-only permission updates, workspace action separation, and reimbursement transition permission separation. | No additional remediation required. |
 
 No schema, RLS, workspace grant, employee permission assignment, backfill, deployment, destructive operation, or production data mutation was performed. Corrective Slice 6 was not started.
+
+## 2026-07-22 Corrective Slice 6 review source status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. Corrective Slice 6 used the task-supplied production-order workflow requirements, AGENTS.md, ERP/Supabase/UI/workflow/coding references, roadmap, Slice 4 and Slice 5 handoffs, remediation ledger, current code, and focused regression tests as the available review source.
+
+Self-review classification: no actionable P0/P1 findings were identified in the application-only production order workflow contract, reusable template preview, stage-gating helpers, atomic persistence adapter boundary, notification de-duplication, dashboard/detail helpers, handoff, or focused regression tests. Durable production-order schema/RPC/RLS/inventory persistence remains `LIVE_APPROVAL_REQUIRED` and was not executed.
