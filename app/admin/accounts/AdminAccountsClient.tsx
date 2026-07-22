@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useMemo, useState, useTransition } from 'react';
+import Link from "next/link";
+import { useMemo, useState, useTransition } from "react";
 import {
   Edit3,
   KeyRound,
@@ -11,47 +11,49 @@ import {
   ShieldCheck,
   ShieldOff,
   X,
-} from 'lucide-react';
-import { ButtonLoadingState, useGlobalLoading } from '@/component/GlobalLoading';
-import { useNotification } from '@/component/NotificationContext';
+} from "lucide-react";
+import {
+  ButtonLoadingState,
+  useGlobalLoading,
+} from "@/component/GlobalLoading";
+import { useNotification } from "@/component/NotificationContext";
 import type {
   AdminAccountDetailDto,
   AdminAccountListItem,
   AdminAccountManagementData,
-} from '@/services/server/adminAccountManagement';
+} from "@/services/server/adminAccountManagement";
 import {
   PERMISSION_GROUPS,
   type AccountPresetCode,
   type PermissionCode,
   type PermissionEditorState,
-} from '@/lib/account-permissions';
+} from "@/lib/account-permissions";
 
 interface ApiActionResponse {
   success?: boolean;
   message?: string;
 }
 
-type AccountConnectionStatus = AdminAccountListItem['accountConnectionStatus'];
+type AccountConnectionStatus = AdminAccountListItem["accountConnectionStatus"];
 
 const accountStatusLabels: Record<AccountConnectionStatus, string> = {
-  NOT_CONNECTED: 'Chưa kết nối',
-  MISSING_EMAIL: 'Thiếu email',
-  INVITED: 'Đã gửi lời mời',
-  PENDING_PASSWORD: 'Chờ đặt mật khẩu',
-  CONNECTED: 'Đã kết nối',
-  ACCESS_REVOKED: 'Đã thu hồi',
-  LINK_ERROR: 'Lỗi liên kết',
+  NOT_CONNECTED: "Chưa kết nối",
+  MISSING_EMAIL: "Thiếu email",
+  INVITED: "Đã gửi lời mời",
+  PENDING_PASSWORD: "Chờ đặt mật khẩu",
+  CONNECTED: "Đã kết nối",
+  ACCESS_REVOKED: "Đã thu hồi",
+  LINK_ERROR: "Lỗi liên kết",
 };
 
-const presetLabels: Record<AdminAccountListItem['presetCode'], string> = {
-  ADMINISTRATOR: 'Quản trị viên',
-  HR_MANAGER: 'Quản lý nhân sự',
-  PROJECT_MANAGER: 'Quản lý dự án',
-  CREATIVE_LEAD: 'Creative Lead',
-  OPERATIONS: 'Vận hành',
-  STAFF: 'Nhân viên',
-  CUSTOM: 'Tùy chỉnh',
-  NONE: 'Chưa cấp',
+const presetLabels: Record<AdminAccountListItem["presetCode"], string> = {
+  ADMINISTRATOR: "Quản trị viên",
+  HR_MANAGER: "Nhân sự",
+  PROJECT_MANAGER: "Quản lý dự án",
+  CREATIVE_LEAD: "Trưởng nhóm sáng tạo",
+  STAFF: "Nhân viên",
+  CUSTOM: "Tùy chỉnh",
+  NONE: "Chưa cấp",
 };
 
 function workspaceBadge(active: boolean, label: string) {
@@ -59,8 +61,8 @@ function workspaceBadge(active: boolean, label: string) {
     <span
       className={`rounded border px-2 py-1 text-[10px] font-bold ${
         active
-          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-          : 'border-slate-700 bg-slate-950 text-slate-500'
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+          : "border-slate-700 bg-slate-950 text-slate-500"
       }`}
     >
       {label}
@@ -68,21 +70,29 @@ function workspaceBadge(active: boolean, label: string) {
   );
 }
 
-function accountActionFor(account: AdminAccountListItem): { label: string; path: string } | null {
-  if (account.accountConnectionStatus === 'NOT_CONNECTED') {
-    return { label: 'Mời sử dụng hệ thống', path: `employees/${account.employeeId}/invite` };
+function accountActionFor(
+  account: AdminAccountListItem,
+): { label: string; path: string } | null {
+  if (account.accountConnectionStatus === "NOT_CONNECTED") {
+    return {
+      label: "Mời sử dụng hệ thống",
+      path: `employees/${account.employeeId}/invite`,
+    };
   }
 
   if (
-    account.accountConnectionStatus === 'INVITED' ||
-    account.accountConnectionStatus === 'PENDING_PASSWORD'
+    account.accountConnectionStatus === "INVITED" ||
+    account.accountConnectionStatus === "PENDING_PASSWORD"
   ) {
-    return { label: 'Gửi lại lời mời', path: `employees/${account.employeeId}/resend-invite` };
+    return {
+      label: "Gửi lại lời mời",
+      path: `employees/${account.employeeId}/resend-invite`,
+    };
   }
 
-  if (account.accountConnectionStatus === 'CONNECTED') {
+  if (account.accountConnectionStatus === "CONNECTED") {
     return {
-      label: 'Gửi link đặt lại mật khẩu',
+      label: "Gửi link đặt lại mật khẩu",
       path: `employees/${account.employeeId}/send-password-reset`,
     };
   }
@@ -90,27 +100,32 @@ function accountActionFor(account: AdminAccountListItem): { label: string; path:
   return null;
 }
 
-async function parseActionResponse(response: Response): Promise<ApiActionResponse> {
-  const payload = (await response.json().catch(() => ({}))) as ApiActionResponse;
+async function parseActionResponse(
+  response: Response,
+): Promise<ApiActionResponse> {
+  const payload = (await response
+    .json()
+    .catch(() => ({}))) as ApiActionResponse;
 
   if (!response.ok || payload.success === false) {
     return {
       success: false,
-      message: payload.message || 'Không thể thực hiện thao tác.',
+      message: payload.message || "Không thể thực hiện thao tác.",
     };
   }
 
   return {
     success: true,
-    message: payload.message || 'Đã thực hiện thao tác.',
+    message: payload.message || "Đã thực hiện thao tác.",
   };
 }
 
 function permissionStateClass(state: PermissionEditorState) {
-  if (state === 'ALLOW') return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
-  if (state === 'DENY') return 'border-red-500/40 bg-red-500/10 text-red-300';
+  if (state === "ALLOW")
+    return "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
+  if (state === "DENY") return "border-red-500/40 bg-red-500/10 text-red-300";
 
-  return 'border-slate-700 bg-slate-950 text-slate-400';
+  return "border-slate-700 bg-slate-950 text-slate-400";
 }
 
 export default function AdminAccountsClient({
@@ -120,12 +135,17 @@ export default function AdminAccountsClient({
 }) {
   const { showToast, showConfirm } = useNotification();
   const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
-  const [editorAccount, setEditorAccount] = useState<AdminAccountDetailDto | null>(null);
+  const [editorAccount, setEditorAccount] =
+    useState<AdminAccountDetailDto | null>(null);
   const [editorLoading, setEditorLoading] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<AccountPresetCode>('STAFF');
-  const [permissionDraft, setPermissionDraft] = useState<Record<PermissionCode, PermissionEditorState> | null>(null);
+  const [selectedPreset, setSelectedPreset] =
+    useState<AccountPresetCode>("STAFF");
+  const [permissionDraft, setPermissionDraft] = useState<Record<
+    PermissionCode,
+    PermissionEditorState
+  > | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const filteredAccounts = useMemo(() => {
@@ -135,7 +155,7 @@ export default function AdminAccountsClient({
     return initialData.accounts.filter(
       (account) =>
         account.fullName.toLowerCase().includes(query) ||
-        (account.email || '').toLowerCase().includes(query)
+        (account.email || "").toLowerCase().includes(query),
     );
   }, [initialData.accounts, searchTerm]);
 
@@ -147,31 +167,39 @@ export default function AdminAccountsClient({
     key: string,
     path: string,
     options: RequestInit,
-    successTitle: string
+    successTitle: string,
   ) => {
     if (activeActionKey) return;
     setActiveActionKey(key);
-    showGlobalLoading('Đang lưu thay đổi...');
+    showGlobalLoading("Đang lưu thay đổi...");
 
     try {
       const response = await fetch(path, {
         ...options,
         headers: {
-          Accept: 'application/json',
-          ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+          Accept: "application/json",
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
           ...options.headers,
         },
-        credentials: 'include',
-        cache: 'no-store',
+        credentials: "include",
+        cache: "no-store",
       });
       const result = await parseActionResponse(response);
 
       if (!result.success) {
-        showToast('Không thành công', result.message || 'Không thể thực hiện thao tác.', 'error');
+        showToast(
+          "Không thành công",
+          result.message || "Không thể thực hiện thao tác.",
+          "error",
+        );
         return;
       }
 
-      showToast(successTitle, result.message || 'Đã thực hiện thao tác.', 'success');
+      showToast(
+        successTitle,
+        result.message || "Đã thực hiện thao tác.",
+        "success",
+      );
       refreshPage();
     } finally {
       setActiveActionKey(null);
@@ -184,27 +212,39 @@ export default function AdminAccountsClient({
     setEditorAccount(null);
     setPermissionDraft(null);
     setSelectedPreset(
-      account.presetCode === 'CUSTOM' || account.presetCode === 'NONE' ? 'STAFF' : account.presetCode
+      account.presetCode === "CUSTOM" || account.presetCode === "NONE"
+        ? "STAFF"
+        : account.presetCode,
     );
 
     try {
-      const response = await fetch(`/api/admin/accounts/${account.employeeId}`, {
-        headers: { Accept: 'application/json' },
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      const detail = (await response.json()) as AdminAccountDetailDto & ApiActionResponse;
+      const response = await fetch(
+        `/api/admin/accounts/${account.employeeId}`,
+        {
+          headers: { Accept: "application/json" },
+          credentials: "include",
+          cache: "no-store",
+        },
+      );
+      const detail = (await response.json()) as AdminAccountDetailDto &
+        ApiActionResponse;
       if (!response.ok || detail.success === false) {
-        showToast('Không thành công', detail.message || 'Không thể tải permission.', 'error');
+        showToast(
+          "Không thành công",
+          detail.message || "Không thể tải permission.",
+          "error",
+        );
         return;
       }
 
       setEditorAccount(detail);
       setPermissionDraft(
-        Object.fromEntries(detail.permissions.map((permission) => [permission.code, permission.state])) as Record<
-          PermissionCode,
-          PermissionEditorState
-        >
+        Object.fromEntries(
+          detail.permissions.map((permission) => [
+            permission.code,
+            permission.state,
+          ]),
+        ) as Record<PermissionCode, PermissionEditorState>,
       );
     } finally {
       setEditorLoading(false);
@@ -218,10 +258,10 @@ export default function AdminAccountsClient({
       `${editorAccount.employeeId}:preset`,
       `/api/admin/accounts/${editorAccount.employeeId}/apply-preset`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ presetCode: selectedPreset }),
       },
-      'Đã áp dụng preset'
+      "Đã áp dụng preset",
     );
   };
 
@@ -232,40 +272,46 @@ export default function AdminAccountsClient({
       `${editorAccount.employeeId}:permissions`,
       `/api/admin/accounts/${editorAccount.employeeId}/permissions`,
       {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify({ permissions: permissionDraft }),
       },
-      'Đã cập nhật permissions'
+      "Đã cập nhật quyền",
     );
   };
 
-  const updateWorkspace = (account: AdminAccountListItem, workspace: 'staff' | 'admin', enabled: boolean) => {
-    const staffWorkspace = workspace === 'staff' ? enabled : account.hasStaffWorkspace;
-    const adminWorkspace = workspace === 'admin' ? enabled : account.hasAdminWorkspace;
+  const updateWorkspace = (
+    account: AdminAccountListItem,
+    workspace: "staff" | "admin",
+    enabled: boolean,
+  ) => {
+    const staffWorkspace =
+      workspace === "staff" ? enabled : account.hasStaffWorkspace;
+    const adminWorkspace =
+      workspace === "admin" ? enabled : account.hasAdminWorkspace;
 
     runAction(
       `${account.employeeId}:workspace:${workspace}:${enabled}`,
       `/api/admin/accounts/${account.employeeId}/workspaces`,
       {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify({ staffWorkspace, adminWorkspace }),
       },
-      'Đã cập nhật workspace'
+      "Đã cập nhật workspace",
     );
   };
 
   const revokeAll = (account: AdminAccountListItem) => {
     showConfirm(
-      'Thu hồi toàn bộ quyền truy cập',
+      "Thu hồi toàn bộ quyền truy cập",
       `Bạn có chắc muốn thu hồi toàn bộ quyền truy cập của ${account.fullName}?`,
       async () => {
         await runAction(
           `${account.employeeId}:revoke-all`,
           `/api/admin/accounts/${account.employeeId}/revoke-access`,
-          { method: 'POST' },
-          'Đã thu hồi quyền'
+          { method: "POST" },
+          "Đã thu hồi quyền",
         );
-      }
+      },
     );
   };
 
@@ -321,7 +367,10 @@ export default function AdminAccountsClient({
                   filteredAccounts.map((account) => {
                     const accountAction = accountActionFor(account);
                     return (
-                      <tr key={account.employeeId} className="hover:bg-slate-950/30">
+                      <tr
+                        key={account.employeeId}
+                        className="hover:bg-slate-950/30"
+                      >
                         <td className="p-4">
                           <Link
                             href={`/admin/employees/${account.employeeId}`}
@@ -330,14 +379,24 @@ export default function AdminAccountsClient({
                             {account.fullName}
                           </Link>
                           <p className="mt-1 font-mono text-[10px] text-slate-500">
-                            {account.email || 'Chưa có email'}
+                            {account.email || "Chưa có email"}
                           </p>
                         </td>
-                        <td className="p-4 text-slate-300">{accountStatusLabels[account.accountConnectionStatus]}</td>
-                        <td className="p-4">{workspaceBadge(account.hasStaffWorkspace, 'Staff')}</td>
-                        <td className="p-4">{workspaceBadge(account.hasAdminWorkspace, 'Admin')}</td>
-                        <td className="p-4 text-slate-300">{presetLabels[account.presetCode]}</td>
-                        <td className="p-4 text-slate-300">{account.activePermissionCount}</td>
+                        <td className="p-4 text-slate-300">
+                          {accountStatusLabels[account.accountConnectionStatus]}
+                        </td>
+                        <td className="p-4">
+                          {workspaceBadge(account.hasStaffWorkspace, "Staff")}
+                        </td>
+                        <td className="p-4">
+                          {workspaceBadge(account.hasAdminWorkspace, "Admin")}
+                        </td>
+                        <td className="p-4 text-slate-300">
+                          {presetLabels[account.presetCode]}
+                        </td>
+                        <td className="p-4 text-slate-300">
+                          {account.activePermissionCount}
+                        </td>
                         <td className="p-4 text-right">
                           <details className="relative inline-block text-left">
                             <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 hover:bg-slate-800">
@@ -345,11 +404,82 @@ export default function AdminAccountsClient({
                               Thao tác
                             </summary>
                             <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-lg border border-slate-800 bg-slate-950 py-1 shadow-xl">
-                              <button type="button" disabled={editorLoading || Boolean(activeActionKey)} onClick={() => openPermissionEditor(account)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-900 disabled:opacity-50"><Edit3 className="h-3.5 w-3.5" />Quản lý quyền</button>
-                              {accountAction && <button type="button" disabled={Boolean(activeActionKey) || isPending} onClick={() => runAction(`${account.employeeId}:auth`, `/api/admin/${accountAction.path}`, { method: 'POST' }, 'Đã gửi yêu cầu')} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-900 disabled:opacity-50">{accountAction.path.includes('reset') ? <KeyRound className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}Gửi link đặt lại mật khẩu</button>}
-                              <button type="button" disabled={Boolean(activeActionKey) || isPending} onClick={() => updateWorkspace(account, 'staff', !account.hasStaffWorkspace)} className="w-full px-3 py-2 text-left text-[11px] font-bold text-emerald-300 hover:bg-slate-900 disabled:opacity-50">{account.hasStaffWorkspace ? 'Thu hồi Staff Workspace' : 'Cấp Staff Workspace'}</button>
-                              <button type="button" disabled={Boolean(activeActionKey) || isPending} onClick={() => updateWorkspace(account, 'admin', !account.hasAdminWorkspace)} className="w-full px-3 py-2 text-left text-[11px] font-bold text-blue-300 hover:bg-slate-900 disabled:opacity-50">{account.hasAdminWorkspace ? 'Thu hồi Admin Workspace' : 'Cấp Admin Workspace'}</button>
-                              <button type="button" disabled={Boolean(activeActionKey) || isPending} onClick={() => revokeAll(account)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-red-300 hover:bg-red-950/30 disabled:opacity-50"><ShieldOff className="h-3.5 w-3.5" />Thu hồi toàn bộ truy cập</button>
+                              <button
+                                type="button"
+                                disabled={
+                                  editorLoading || Boolean(activeActionKey)
+                                }
+                                onClick={() => openPermissionEditor(account)}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-900 disabled:opacity-50"
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                                Xem chi tiết quyền
+                              </button>
+                              {accountAction && (
+                                <button
+                                  type="button"
+                                  disabled={
+                                    Boolean(activeActionKey) || isPending
+                                  }
+                                  onClick={() =>
+                                    runAction(
+                                      `${account.employeeId}:auth`,
+                                      `/api/admin/${accountAction.path}`,
+                                      { method: "POST" },
+                                      "Đã gửi yêu cầu",
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-900 disabled:opacity-50"
+                                >
+                                  {accountAction.path.includes("reset") ? (
+                                    <KeyRound className="h-3.5 w-3.5" />
+                                  ) : (
+                                    <Mail className="h-3.5 w-3.5" />
+                                  )}
+                                  {accountAction.label}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={Boolean(activeActionKey) || isPending}
+                                onClick={() =>
+                                  updateWorkspace(
+                                    account,
+                                    "staff",
+                                    !account.hasStaffWorkspace,
+                                  )
+                                }
+                                className="w-full px-3 py-2 text-left text-[11px] font-bold text-emerald-300 hover:bg-slate-900 disabled:opacity-50"
+                              >
+                                {account.hasStaffWorkspace
+                                  ? "Thu hồi Staff Workspace"
+                                  : "Cấp Staff Workspace"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={Boolean(activeActionKey) || isPending}
+                                onClick={() =>
+                                  updateWorkspace(
+                                    account,
+                                    "admin",
+                                    !account.hasAdminWorkspace,
+                                  )
+                                }
+                                className="w-full px-3 py-2 text-left text-[11px] font-bold text-blue-300 hover:bg-slate-900 disabled:opacity-50"
+                              >
+                                {account.hasAdminWorkspace
+                                  ? "Thu hồi Admin Workspace"
+                                  : "Cấp Admin Workspace"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={Boolean(activeActionKey) || isPending}
+                                onClick={() => revokeAll(account)}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-red-300 hover:bg-red-950/30 disabled:opacity-50"
+                              >
+                                <ShieldOff className="h-3.5 w-3.5" />
+                                Thu hồi toàn bộ truy cập
+                              </button>
                             </div>
                           </details>
                         </td>
@@ -368,12 +498,16 @@ export default function AdminAccountsClient({
           <section className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg border border-slate-800 bg-slate-900 p-5 text-xs text-slate-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
-                <h2 className="font-bold text-blue-300">Cập nhật permissions</h2>
+                <h2 className="font-bold text-blue-300">Cập nhật quyền</h2>
                 <p className="mt-1 text-slate-500">
-                  {editorAccount?.fullName || 'Đang tải dữ liệu'}
+                  {editorAccount?.fullName || "Đang tải dữ liệu"}
                 </p>
               </div>
-              <button type="button" onClick={() => setEditorAccount(null)} className="text-slate-500 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setEditorAccount(null)}
+                className="text-slate-500 hover:text-white"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -389,10 +523,16 @@ export default function AdminAccountsClient({
               <div className="space-y-5 pt-4">
                 <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
                   <label className="block space-y-2">
-                    <span className="font-bold text-slate-300">Permission preset</span>
+                    <span className="font-bold text-slate-300">
+                      Preset quyền
+                    </span>
                     <select
                       value={selectedPreset}
-                      onChange={(event) => setSelectedPreset(event.target.value as AccountPresetCode)}
+                      onChange={(event) =>
+                        setSelectedPreset(
+                          event.target.value as AccountPresetCode,
+                        )
+                      }
                       className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none"
                     >
                       {initialData.presets.map((preset) => (
@@ -409,7 +549,9 @@ export default function AdminAccountsClient({
                     className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50"
                   >
                     <ButtonLoadingState
-                      loading={activeActionKey === `${editorAccount.employeeId}:preset`}
+                      loading={
+                        activeActionKey === `${editorAccount.employeeId}:preset`
+                      }
                       loadingText="Đang áp dụng..."
                       idleText="Áp dụng preset"
                     />
@@ -418,20 +560,38 @@ export default function AdminAccountsClient({
 
                 <div className="grid gap-4 md:grid-cols-2">
                   {PERMISSION_GROUPS.map((group) => (
-                    <div key={group.label} className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
-                      <h3 className="font-bold text-slate-200">{group.label}</h3>
+                    <div
+                      key={group.label}
+                      className="rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+                    >
+                      <h3 className="font-bold text-slate-200">
+                        {group.label}
+                      </h3>
                       <div className="mt-3 space-y-3">
                         {group.permissions.map((permission) => {
                           const state = permissionDraft[permission.code];
                           return (
-                            <div key={permission.code} className="rounded border border-slate-800 bg-slate-950 p-3">
+                            <div
+                              key={permission.code}
+                              className="rounded border border-slate-800 bg-slate-950 p-3"
+                            >
                               <div className="flex items-start justify-between gap-3">
                                 <div>
-                                  <p className="font-bold text-slate-200">{permission.label}</p>
-                                  <p className="mt-1 font-mono text-[10px] text-slate-500">{permission.code}</p>
+                                  <p className="font-bold text-slate-200">
+                                    {permission.label}
+                                  </p>
+                                  <p className="mt-1 font-mono text-[10px] text-slate-500">
+                                    {permission.code}
+                                  </p>
                                 </div>
-                                <span className={`rounded border px-2 py-1 text-[10px] font-bold ${permissionStateClass(state)}`}>
-                                  {state === 'ALLOW' ? 'ALLOW' : state === 'DENY' ? 'DENY' : 'INHERITED'}
+                                <span
+                                  className={`rounded border px-2 py-1 text-[10px] font-bold ${permissionStateClass(state)}`}
+                                >
+                                  {state === "ALLOW"
+                                    ? "Cho phép"
+                                    : state === "DENY"
+                                      ? "Từ chối"
+                                      : "Không đặt"}
                                 </span>
                               </div>
                               <div className="mt-3 flex gap-2">
@@ -440,32 +600,34 @@ export default function AdminAccountsClient({
                                   onClick={() =>
                                     setPermissionDraft({
                                       ...permissionDraft,
-                                      [permission.code]: state === 'ALLOW' ? 'NONE' : 'ALLOW',
+                                      [permission.code]:
+                                        state === "ALLOW" ? "NONE" : "ALLOW",
                                     })
                                   }
                                   className={`flex-1 rounded-md border px-3 py-2 font-bold ${
-                                    state === 'ALLOW'
-                                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-                                      : 'border-slate-700 text-slate-400 hover:bg-slate-800'
+                                    state === "ALLOW"
+                                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
+                                      : "border-slate-700 text-slate-400 hover:bg-slate-800"
                                   }`}
                                 >
-                                  ALLOW
+                                  Cho phép
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() =>
                                     setPermissionDraft({
                                       ...permissionDraft,
-                                      [permission.code]: state === 'DENY' ? 'NONE' : 'DENY',
+                                      [permission.code]:
+                                        state === "DENY" ? "NONE" : "DENY",
                                     })
                                   }
                                   className={`flex-1 rounded-md border px-3 py-2 font-bold ${
-                                    state === 'DENY'
-                                      ? 'border-red-500 bg-red-500/10 text-red-300'
-                                      : 'border-slate-700 text-slate-400 hover:bg-slate-800'
+                                    state === "DENY"
+                                      ? "border-red-500 bg-red-500/10 text-red-300"
+                                      : "border-slate-700 text-slate-400 hover:bg-slate-800"
                                   }`}
                                 >
-                                  DENY
+                                  Từ chối
                                 </button>
                               </div>
                             </div>
@@ -491,9 +653,12 @@ export default function AdminAccountsClient({
                     className="flex-1 rounded-lg bg-blue-600 p-3 font-bold text-white hover:bg-blue-700 disabled:opacity-50"
                   >
                     <ButtonLoadingState
-                      loading={activeActionKey === `${editorAccount.employeeId}:permissions`}
+                      loading={
+                        activeActionKey ===
+                        `${editorAccount.employeeId}:permissions`
+                      }
                       loadingText="Đang lưu..."
-                      idleText="Lưu permissions"
+                      idleText="Lưu quyền"
                     />
                   </button>
                 </div>
