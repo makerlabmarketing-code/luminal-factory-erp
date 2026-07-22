@@ -919,3 +919,11 @@ Stop point: Corrective Slice 6 only. Future schema/RPC/inventory persistence rem
 - **Blocker:** The repository does not contain the reviewed Corrective Slice 6 forward, rollback, validation, compatibility/backfill, RLS/security, attachment-policy, notification-outbox, or RPC artifacts required by the approved live scope.
 - **Safety result:** Stopped before live mutation as required. No production SQL, RLS mutation, RPC deployment, backfill, inventory quantity mutation, application durable-adapter wiring, persistence-gate removal, deployment, or live data mutation was executed.
 - **Next allowed action:** Provide or commit the reviewed Corrective Slice 6 persistence artifact package, then rerun read-only pre-validation before applying the approved package through the Management API database query path.
+
+### 2026-07-22 Corrective Slice 6 reviewed persistence package
+
+- **Status:** `LIVE_APPROVAL_REQUIRED`.
+- **Completed:** Prepared the reviewed draft persistence package at `supabase/drafts/corrective-slice-6-production-order-persistence/` with `forward.sql`, `rollback.sql`, `validation.sql`, `compatibility.sql`, `security/RLS.sql`, `attachment-policy.sql`, `notification-outbox.sql`, `backfill-plan.md`, and `REVIEW.md`.
+- **Design:** Reuses existing `projects`, `phases`, `tasks`, `project_members`, `project_activity`, and `task_notifications`; adds durable production-order/template/stage/member/dependency/attachment metadata tables only where no compatible existing owner exists.
+- **Safety:** No SQL was executed, no migration was run, no deployment occurred, no live data changed, no inventory quantity mutation was introduced, and no public attachment access or broad browser write policy was prepared.
+- **Next gate:** Before application wiring or live rollout, rerun read-only pre-validation and apply only this reviewed package after explicit `LIVE_APPROVAL_REQUIRED` approval.

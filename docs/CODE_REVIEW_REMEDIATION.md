@@ -159,3 +159,15 @@ No SQL, migration, RLS change, backfill, permission live mutation, Supabase Mana
 Self-review classification: no newly actionable P0/P1 findings were identified in this application-only Project Detail accessibility polish. The slice adds progressbar semantics, dialog title/description wiring, and explicit form label associations while preserving Project Detail membership/task mutation authority and the existing Phase 3/RPC/schema gates.
 
 No SQL, migration, RLS change, backfill, permission live mutation, Supabase Management API verification, deployment, or production data mutation was performed. Supabase Management API project metadata/health verification remains skipped under `MANAGEMENT_API_UNAVAILABLE` when Cloudflare Error 1010/HTTP 403 infrastructure restrictions occur; this slice did not require Management API access.
+
+## 2026-07-22 Corrective Slice 6 persistence package preparation
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This remediation addresses the previous PR feedback by replacing the missing-artifact stop with a complete reviewed draft persistence package and preserving the no-live-mutation boundary.
+
+| Finding | Classification | Evidence | Remediation |
+| --- | --- | --- | --- |
+| Corrective Slice 6 live continuation stopped because the reviewed persistence package was missing. | ACTIONABLE | Previous handoff and roadmap recorded `BLOCKED_MISSING_REVIEWED_ARTIFACT`. | Prepared the reviewed draft package under `supabase/drafts/corrective-slice-6-production-order-persistence/` with forward, rollback, validation, compatibility, RLS/security, attachment-policy, notification-outbox, backfill plan, and package review artifacts. |
+| Risk of duplicate systems for project/task/member/activity/notification. | ACTIONABLE | User explicitly required reuse of existing foundations. | Package reuses `projects`, `phases`, `tasks`, `project_members`, `project_activity`, and `task_notifications`; only production-order-specific tables and protected attachment metadata are added. |
+| Live SQL, deployment, or inventory mutation must not occur during package preparation. | ACTIONABLE | User explicitly prohibited live mutation, SQL execution, deployment, and inventory quantity mutation. | No SQL was executed; artifacts are draft-only and include no stock decrement, procurement transaction, public attachment access, or broad browser write policies. |
+
+No migration, SQL execution, RLS mutation, RPC deployment, backfill, production data mutation, inventory mutation, or deployment was performed. Corrective Slice 6 remains stopped at `LIVE_APPROVAL_REQUIRED`.

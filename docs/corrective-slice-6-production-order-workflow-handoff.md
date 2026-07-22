@@ -68,3 +68,23 @@ Required reviewed artifacts still missing from the repository:
 - Corrective Slice 6 notification-outbox integration package.
 
 Per the task stop conditions, the missing reviewed artifacts block live persistence, SQL validation, RPC rollout, and application wiring. No production SQL, RLS mutation, RPC deployment, backfill, inventory quantity mutation, application persistence-gate removal, deployment, or live data mutation was executed.
+
+## 2026-07-22 reviewed persistence package prepared
+
+Status: `LIVE_APPROVAL_REQUIRED`.
+
+Prepared the complete draft persistence package under `supabase/drafts/corrective-slice-6-production-order-persistence/` without executing SQL, running a migration, deploying, backfilling, or mutating live data.
+
+Package contents:
+
+- `forward.sql` for durable production orders, workflow templates, template stages, production stages, production members, stage dependencies, material requirement placeholders, protected attachment metadata, activity integration, notification integration, and transactional RPCs.
+- `rollback.sql` with guarded preconditions that block destructive rollback when operational production rows, production activity, production notification rows, or attachment metadata exist.
+- `validation.sql` with read-only object, uniqueness, RLS/grant, orphan, circular-dependency, active-stage, rollback-readiness, and inventory non-mutation checks.
+- `compatibility.sql` for security-invoker list/detail views over durable production persistence.
+- `security/RLS.sql` for select-only authenticated RLS plus restricted RPC execution grants.
+- `attachment-policy.sql` for protected metadata access only; no public storage/object access is created.
+- `notification-outbox.sql` to reuse `task_notifications` with production context and a `dedupe_key`; no parallel notification system is introduced.
+- `backfill-plan.md` documenting that no automatic legacy backfill is safe without a future approved deterministic mapping.
+- `REVIEW.md` recording self-review of reuse, authorization, workflow enforcement, rollback, and no-inventory-mutation boundaries.
+
+No live mutation was performed. The next step is read-only pre-validation followed by an explicit live-approval gate for this exact reviewed package.
