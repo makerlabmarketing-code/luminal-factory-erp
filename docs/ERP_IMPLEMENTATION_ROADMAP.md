@@ -880,3 +880,14 @@ Status: application contract and reviewed artifact preparation complete; live ro
 - Repaired Slice 5 forward, rollback, and validation SQL artifacts under `supabase/drafts/20260722_corrective_slice_5_permission_catalog_*` so they match the approved eight-key application contract and include preset-mapping validation, conflict/compatibility notes, workspace-grant no-change validation, System Owner protection validation, unexpected-access validation, and DENY-precedence validation.
 
 No SQL was executed. No live permission catalog, employee permission row, workspace grant, RLS, migration, backfill, deployment, or production data was mutated. Current gate: `LIVE_APPROVAL_REQUIRED` before reviewed permission-catalog rollout.
+
+## 2026-07-22 Corrective Slice 5 live permission catalog rollout
+
+Status: ✅ Live catalog package applied through the Supabase Management API HTTPS database query path; no deployment performed.
+
+- Pre-validation passed before rollout: live schema contained the required permission and employee-permission columns, `public.permissions` kept a primary-key duplicate guard, the eight approved task/reimbursement keys were absent, no employee permission rows referenced those keys, and `public.has_permission(text)` retained DENY precedence.
+- Applied only the reviewed forward artifact `supabase/drafts/20260722_corrective_slice_5_permission_catalog_forward.sql` under the granted `LIVE_APPROVAL` boundary for the eight approved keys: `TASK_VIEW`, `TASK_MANAGE`, `TASK_ASSIGN`, `TASK_REVIEW`, `REIMBURSEMENT_SUBMIT`, `REIMBURSEMENT_REVIEW`, `REIMBURSEMENT_APPROVE`, and `REIMBURSEMENT_MARK_PAID`.
+- Post-validation passed: live catalog now has exactly 25 canonical application permission rows, each approved key exists exactly once, no unknown duplicate key exists, application contract and live catalog align, reviewed preset mappings contain only approved application keys, and DENY precedence remains intact.
+- Guard validation passed: `employee_permissions` stayed at 17 rows, `employee_workspace_access` stayed at 4 rows, approved keys have no employee permission assignments, no workspace grant changed, no unexpected preset expansion occurred, and System Owner protection remains an application guard.
+
+No deploy, RLS mutation, workspace mutation, employee permission assignment, preset application, backfill, rollback, destructive operation, or direct `main` push was performed.

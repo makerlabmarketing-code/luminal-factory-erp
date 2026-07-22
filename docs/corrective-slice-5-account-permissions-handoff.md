@@ -46,3 +46,26 @@ Completed application-contract preparation before live permission-catalog rollou
 - Repaired the Slice 5 reviewed SQL artifacts so the forward package only adds the approved eight keys, rollback refuses to remove keys that are referenced by employee permission rows, and validation checks contract parity, approved preset mappings, unchanged workspace grants, System Owner protection, unexpected access, and DENY precedence.
 
 No SQL was executed. No live permission data was mutated. Stop condition remains `LIVE_APPROVAL_REQUIRED` before applying the reviewed permission-catalog package.
+
+## 2026-07-22 live permission catalog rollout
+
+LIVE approval was granted for only the reviewed eight-key permission catalog package and reviewed preset mappings. The forward artifact was applied through the Supabase Management API HTTPS database query path; no deployment was performed.
+
+Pre-validation passed before execution:
+
+- Required permission catalog and employee-permission columns matched the expected live schema.
+- `public.permissions` retained its primary-key duplicate guard.
+- The eight approved task/reimbursement keys were absent before forward execution.
+- No existing `employee_permissions` rows referenced the approved keys before forward execution.
+- `public.has_permission(text)` retained DENY precedence.
+
+Post-validation passed after execution:
+
+- The approved keys exist exactly once in `public.permissions`.
+- The live catalog contains exactly the 25 canonical application permission keys and aligns with the application contract.
+- Reviewed preset mappings contain only approved application keys.
+- `employee_permissions` stayed at 17 rows and has no approved-key assignments.
+- `employee_workspace_access` stayed at 4 rows.
+- No workspace grant, employee permission assignment, preset application, System Owner row, RLS policy, schema object, backfill, deployment, or production workspace mutation was performed.
+
+Rollback path: use `supabase/drafts/20260722_corrective_slice_5_permission_catalog_rollback.sql` only with separate live approval. The rollback artifact refuses to remove approved catalog keys once employee permission rows reference them.
