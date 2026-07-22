@@ -31,6 +31,7 @@ import {
   phaseGateState,
   taskProgressPercent,
 } from '@/lib/workflow-project-phase';
+import { isTaskOverdue, summarizeProjectExecution, taskDependencyLabel } from '@/lib/project-execution-summary';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
 import {
   cancelWorkflowProject,
@@ -52,6 +53,7 @@ interface PhaseRecord {
   tasks: DisplayTask[];
   taskCount: number;
   completedTaskCount: number;
+  overdueTaskCount: number;
   progressPercent: number;
   lastActivityAt: string | null;
   gateMessage: string | null;
@@ -177,7 +179,7 @@ function persistedPhaseStatus(item: WorkflowSetting): PhaseDisplayStatus | null 
 }
 
 function deriveSequentialPhaseStatuses(
-  phases: Array<Omit<PhaseRecord, 'status' | 'taskCount' | 'completedTaskCount' | 'progressPercent' | 'lastActivityAt' | 'gateMessage' | 'canCompletePhase' | 'isLocked' | 'isCompleted'>>
+  phases: Array<Omit<PhaseRecord, 'status' | 'taskCount' | 'completedTaskCount' | 'overdueTaskCount' | 'progressPercent' | 'lastActivityAt' | 'gateMessage' | 'canCompletePhase' | 'isLocked' | 'isCompleted'>>
 ): PhaseDisplayStatus[] {
   let canOpenNext = true;
   let activeAssigned = false;
@@ -261,6 +263,21 @@ function getTaskDeadlineValue(task: DisplayTask): string | null | undefined {
 
 function getTaskStatusValue(task: DisplayTask): string | null | undefined {
   return isTaskAssignmentDTO(task) ? task.status : task.status || task.currentPhaseText;
+}
+
+function getTaskPriorityLabel(task: DisplayTask): string {
+  if (isTaskAssignmentDTO(task)) return task.priority || 'Bình thường';
+  return 'Bình thường';
+}
+
+function getTaskDependencyLabel(task: DisplayTask): string {
+  if (isTaskAssignmentDTO(task)) return taskDependencyLabel(task);
+  return 'Không có phụ thuộc';
+}
+
+function getTaskLastUpdateLabel(task: DisplayTask): string {
+  if (isTaskAssignmentDTO(task)) return formatDateTime(task.lastActivityAt);
+  return 'Chưa có dữ liệu';
 }
 
 function getTaskProgressLabel(task: DisplayTask): string {
@@ -425,6 +442,7 @@ export default function ProjectDetailPage() {
       const mappedTasks = phase.item.phase_id && assignmentTasks.length === 0 ? legacyTaskGroups.get(phase.item.phase_id) || [] : [];
       const tasks: DisplayTask[] = [...assignmentTasks, ...phase.tasks, ...mappedTasks];
       const completedTaskCount = tasks.filter(isTaskCompleted).length;
+      const overdueTaskCount = tasks.filter((task) => isTaskOverdue({ deadline: getTaskDeadlineValue(task), status: getTaskStatusValue(task) })).length;
       const status = statuses[index] || 'LOCKED';
       const progressValues = tasks.map((task) => isTaskAssignmentDTO(task) ? task.progressPercent : isTaskCompleted(task) ? 100 : 0);
       const progressPercent = calculatePhaseProgress(progressValues, status === 'COMPLETED');
@@ -441,6 +459,7 @@ export default function ProjectDetailPage() {
         tasks,
         taskCount: tasks.length,
         completedTaskCount,
+        overdueTaskCount,
         progressPercent,
         lastActivityAt,
         gateMessage: gate.gatingMessage,
@@ -467,6 +486,15 @@ export default function ProjectDetailPage() {
   const progressPercent = calculateProjectProgress(phasesWithGates.map((phase) => phase.progressPercent));
   const totalTaskCount = phasesWithGates.reduce((sum, phase) => sum + phase.taskCount, 0) + unassignedTasks.length;
   const completedTaskCount = phasesWithGates.reduce((sum, phase) => sum + phase.completedTaskCount, 0) + unassignedTasks.filter(isTaskCompleted).length;
+  const executionMetrics = summarizeProjectExecution([...phasesWithGates.flatMap((phase) => phase.tasks), ...unassignedTasks].map((task) => ({
+    taskId: isTaskAssignmentDTO(task) ? task.taskId : task.id ? Number(task.id) : null,
+    parentTaskId: isTaskAssignmentDTO(task) ? task.parentTaskId : null,
+    assigneeEmployeeId: isTaskAssignmentDTO(task) ? task.assigneeEmployeeId : task.assignee_id ? Number(task.assignee_id) : null,
+    assigneeFullName: getTaskAssigneeLabel(task),
+    deadline: getTaskDeadlineValue(task) || null,
+    status: getTaskStatusValue(task) || null,
+    lastActivityAt: isTaskAssignmentDTO(task) ? task.lastActivityAt : null,
+  })));
   const nearestDeadline = [...phasesWithGates.flatMap((phase) => phase.tasks.map(getTaskDeadlineValue)), ...unassignedTasks.map(getTaskDeadlineValue)]
     .filter((value): value is string => Boolean(value))
     .sort()[0] || null;
@@ -832,7 +860,7 @@ export default function ProjectDetailPage() {
                 <div className="h-full rounded-full bg-cyan-400" style={{ width: `${projectDetail.progressPercent}%` }} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-3 lg:grid-cols-6">
               <div>
                 <p className="text-slate-500">Giai đoạn</p>
                 <p className="font-bold text-slate-100">{completedPhaseCount}/{projectDetail.phases.length}</p>
@@ -848,6 +876,14 @@ export default function ProjectDetailPage() {
               <div>
                 <p className="text-slate-500">Hiện tại</p>
                 <p className="font-bold text-slate-100">{activePhase?.phaseName || 'Chưa có'}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Bị vướng</p>
+                <p className="font-bold text-slate-100">{executionMetrics.blockedTasks}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Quá hạn</p>
+                <p className="font-bold text-slate-100">{executionMetrics.overdueTasks}</p>
               </div>
             </div>
           </div>
@@ -1026,7 +1062,9 @@ export default function ProjectDetailPage() {
                   <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
                     <ProjectDetailField label="Deadline" value={formatDate(selectedPhase.description.stage_deadline || selectedPhase.description.project_deadline)} />
                     <ProjectDetailField label="Người phụ trách phase" value={selectedPhase.description.stage_owner || 'Chưa gán'} />
-                    <ProjectDetailField label="Tiến độ phase" value={`${selectedPhase.progressPercent}% · ${selectedPhase.completedTaskCount}/${selectedPhase.taskCount} công việc`} />
+                    <ProjectDetailField label="Tiến độ phase" value={`${selectedPhase.progressPercent}%`} />
+                    <ProjectDetailField label="Số công việc" value={`${selectedPhase.taskCount} tổng · ${selectedPhase.completedTaskCount} xong · ${selectedPhase.overdueTaskCount} quá hạn`} />
+                    <ProjectDetailField label="Trạng thái phase" value={phaseStatusLabel(selectedPhase.status)} />
                     <ProjectDetailField label="Hoạt động gần nhất" value={formatDateTime(selectedPhase.lastActivityAt)} />
                   </dl>
 
@@ -1042,6 +1080,9 @@ export default function ProjectDetailPage() {
                           <th className="py-2 pr-3">Người phụ trách</th>
                           <th className="py-2 pr-3">Deadline</th>
                           <th className="py-2 pr-3">Trạng thái</th>
+                          <th className="py-2 pr-3">Ưu tiên</th>
+                          <th className="py-2 pr-3">Phụ thuộc</th>
+                          <th className="py-2 pr-3">Cập nhật cuối</th>
                           <th className="py-2 pr-3">Tiến độ</th>
                           <th className="py-2 pr-3">Bình luận</th>
                           <th className="py-2">Thao tác</th>
@@ -1054,6 +1095,9 @@ export default function ProjectDetailPage() {
                             <td className="py-3 pr-3">{getTaskAssigneeLabel(task)}</td>
                             <td className="py-3 pr-3">{getTaskDeadlineLabel(task)}</td>
                             <td className="py-3 pr-3">{taskStatusLabel(getTaskStatusValue(task))}</td>
+                            <td className="py-3 pr-3">{getTaskPriorityLabel(task)}</td>
+                            <td className="py-3 pr-3">{getTaskDependencyLabel(task)}</td>
+                            <td className="py-3 pr-3">{getTaskLastUpdateLabel(task)}</td>
                             <td className="py-3 pr-3">{getTaskProgressLabel(task)}</td>
                             <td className="py-3 pr-3">{getTaskCommentLabel(task)}</td>
                             <td className="py-3">
@@ -1078,6 +1122,9 @@ export default function ProjectDetailPage() {
                             <TaskMobileField label="Người phụ trách" value={getTaskAssigneeLabel(task)} />
                             <TaskMobileField label="Người đóng gói" value={getTaskPackerLabel(task) || 'Chưa gán'} />
                             <TaskMobileField label="Deadline" value={getTaskDeadlineLabel(task)} />
+                            <TaskMobileField label="Ưu tiên" value={getTaskPriorityLabel(task)} />
+                            <TaskMobileField label="Phụ thuộc" value={getTaskDependencyLabel(task)} />
+                            <TaskMobileField label="Cập nhật cuối" value={getTaskLastUpdateLabel(task)} />
                             <TaskMobileField label="Tiến độ" value={getTaskProgressLabel(task)} />
                             <TaskMobileField label="Bình luận" value={getTaskCommentLabel(task)} />
                           </dl>
@@ -1154,6 +1201,19 @@ export default function ProjectDetailPage() {
                   <button disabled={!canManageProject} onClick={handleSaveDriveLink} className="w-full rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">Lưu thông tin</button>
                 </div>
               </dl>
+            </section>
+
+            <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+              <h2 className="text-sm font-black text-slate-100">Tải công việc thành viên</h2>
+              <div className="mt-3 space-y-2 text-xs">
+                {executionMetrics.memberWorkload.slice(0, 5).map((workload) => (
+                  <div key={workload.employeeId} className="flex items-center justify-between rounded border border-slate-800 bg-slate-950 px-3 py-2">
+                    <span className="font-bold text-slate-200">{workload.assigneeFullName}</span>
+                    <span className="text-slate-400">{workload.taskCount} việc · {workload.overdueCount} quá hạn</span>
+                  </div>
+                ))}
+                {executionMetrics.memberWorkload.length === 0 && <p className="text-slate-500">Chưa có công việc được giao.</p>}
+              </div>
             </section>
 
             <section className="rounded-lg border border-amber-900 bg-amber-950/20 p-4 text-xs text-amber-100">

@@ -85,3 +85,9 @@ The previous `LIVE_APPROVAL_REQUIRED` status for transactional project creation 
 - REVIEW_SOURCE_UNAVAILABLE: no current Codex GitHub Code Review findings or unresolved PR conversations were available inside this execution environment.
 - Self-review classification: no actionable P0/P1 findings were identified in the application-only finance workflow contract, dialog copy, draft SQL artifacts, or focused regression tests.
 - Delivery note: no auto-merge was attempted from the shell; PR metadata was prepared through the approved `make_pr` tool after commit.
+
+## 2026-07-21 Corrective Slice 4 review source status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. Corrective Slice 4 used the task-supplied project execution issues, AGENTS.md, ERP/Supabase references, roadmap, handoffs, remediation ledger, current code, and focused regression tests as the available review source.
+
+Self-review classification: no actionable P0/P1 findings were identified in the application-only Project Detail metrics, assignment override guard, execution-summary helper, or focused regression tests. Phase status persistence and atomic task creation remain live-approval gates and were not enabled in this slice.

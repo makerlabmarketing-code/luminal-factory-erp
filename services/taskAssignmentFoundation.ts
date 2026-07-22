@@ -58,14 +58,20 @@ export const TASK_ASSIGNMENT_UPDATE_KEYS = new Set([
   "parentTaskId",
   "deadline",
   "comment",
+  "overrideCompleted",
+  "overrideReason",
 ]);
 export const TASK_ASSIGNMENT_ASSIGN_KEYS = new Set([
   "assigneeEmployeeId",
   "comment",
+  "overrideCompleted",
+  "overrideReason",
 ]);
 export const TASK_ASSIGNMENT_STATUS_KEYS = new Set([
   "status",
   "comment",
+  "overrideCompleted",
+  "overrideReason",
 ]);
 
 export { TASK_STATUS_TRANSITIONS as TASK_ASSIGNMENT_NORMAL_TRANSITIONS, canTransitionTaskStatus };
@@ -112,6 +118,17 @@ function requiredPositiveInteger(value: unknown, field: string): number {
   }
 
   return numericValue;
+}
+
+
+function optionalBoolean(value: unknown, field: string): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "boolean") {
+    throw new TaskAssignmentValidationError([
+      { field, message: "Giá trị phải là đúng hoặc sai." },
+    ]);
+  }
+  return value;
 }
 
 function optionalText(
@@ -214,6 +231,10 @@ export function validateTaskAssignmentUpdatePayload(
     payload.deadline = optionalIsoDate(body.deadline) ?? null;
   if (body.comment !== undefined)
     payload.comment = optionalText(body.comment, "comment", 2000) ?? null;
+  if (body.overrideCompleted !== undefined)
+    payload.overrideCompleted = optionalBoolean(body.overrideCompleted, "overrideCompleted");
+  if (body.overrideReason !== undefined)
+    payload.overrideReason = optionalText(body.overrideReason, "overrideReason", 500) ?? null;
 
   return payload;
 }
@@ -237,6 +258,8 @@ export function validateTaskAssignmentAssignPayload(
       optionalPositiveInteger(body.assigneeEmployeeId, "assigneeEmployeeId") ??
       null,
     comment: optionalText(body.comment, "comment", 2000) ?? null,
+    overrideCompleted: optionalBoolean(body.overrideCompleted, "overrideCompleted") ?? false,
+    overrideReason: optionalText(body.overrideReason, "overrideReason", 500) ?? null,
   };
 }
 
@@ -254,5 +277,7 @@ export function validateTaskAssignmentStatusPayload(
   return {
     status: body.status,
     comment: optionalText(body.comment, "comment", 2000) ?? null,
+    overrideCompleted: optionalBoolean(body.overrideCompleted, "overrideCompleted") ?? false,
+    overrideReason: optionalText(body.overrideReason, "overrideReason", 500) ?? null,
   };
 }

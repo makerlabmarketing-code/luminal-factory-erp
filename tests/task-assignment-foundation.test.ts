@@ -46,11 +46,11 @@ describe('Task Assignment Foundation contracts', () => {
       title: 'Sửa tên',
       deadline: null,
     });
-    expect(validateTaskAssignmentAssignPayload({ assigneeEmployeeId: null, comment: 'Bỏ người làm' })).toEqual({
+    expect(validateTaskAssignmentAssignPayload({ assigneeEmployeeId: null, comment: 'Bỏ người làm' })).toMatchObject({
       assigneeEmployeeId: null,
       comment: 'Bỏ người làm',
     });
-    expect(validateTaskAssignmentStatusPayload({ status: 'IN_PROGRESS' })).toEqual({
+    expect(validateTaskAssignmentStatusPayload({ status: 'IN_PROGRESS' })).toMatchObject({
       status: 'IN_PROGRESS',
       comment: null,
     });

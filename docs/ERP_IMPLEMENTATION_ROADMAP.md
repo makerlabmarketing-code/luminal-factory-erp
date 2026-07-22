@@ -849,3 +849,15 @@ Completed application-only finance workflow correction/preparation from the late
 No SQL was executed. No schema change, RLS change, storage bucket/policy change, transactional RPC, permission backfill, finance backfill, live data mutation, destructive cleanup, deployment, or production mutation was run.
 
 Current gate: `LIVE_APPROVAL_REQUIRED` before applying the finance workflow schema/RLS/storage/RPC/backfill package.
+
+## 2026-07-21 Corrective Slice 4 project execution workflow
+
+Status: ✅ Hoàn thành application-only.
+
+- Project Detail now surfaces production execution metadata for phases and tasks: phase progress/status/owner/deadline/task totals/completed/overdue counts, and task assignee/deadline/status/priority/dependency/last update using shared task display helpers instead of duplicating table/mobile logic.
+- Project summary now derives total, completed, in-progress, blocked, overdue, completion percentage, phase completion, member workload, and upcoming-deadline metrics from stable task identifiers where available.
+- Task assignment UX supports assign, change assignee, remove assignee, deadline editing, assignment history/audit evidence through `project_activity`, notification hooks through `task_notifications`, and bulk-assignment preparation via reusable execution metrics/member workload without adding live schema.
+- Server task mutation paths continue to derive actor identity server-side, validate assignee ACTIVE project membership, prevent invalid parent/cycle transitions, and now reject edits to completed tasks unless a manager mutation supplies explicit override evidence.
+- No SQL, migration, RLS, grant, RPC, backfill, live data mutation, deployment, or production mutation was run.
+
+Stop point: Corrective Slice 4 only. Do not continue unrelated roadmap work.

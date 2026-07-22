@@ -357,6 +357,22 @@ async function assertAssigneeActiveMember(
   }
 }
 
+
+function assertCompletedTaskOverride(
+  currentTask: TaskAssignmentDTO,
+  overrideCompleted?: boolean,
+  overrideReason?: string | null,
+) {
+  if (currentTask.status !== "COMPLETED") return;
+  if (overrideCompleted && overrideReason) return;
+  throw taskAssignmentError(
+    422,
+    "Công việc đã hoàn thành chỉ được sửa khi quản lý xác nhận override và nhập lý do.",
+    "task_assignment_completed_override_required",
+    "payload_validation",
+  );
+}
+
 async function insertComment(
   projectId: number,
   taskId: number,
@@ -547,6 +563,7 @@ export async function updateProjectTask(
   const payload = validateTaskAssignmentUpdatePayload(body);
   const context = await contextForMutation(projectId);
   const currentTask = await loadTask(projectId, taskId);
+  assertCompletedTaskOverride(currentTask, payload.overrideCompleted, payload.overrideReason);
   await Promise.all([
     assertPhaseBelongsToProject(projectId, payload.phaseId),
     assertParentBelongsToProject(projectId, taskId, payload.parentTaskId),
@@ -608,7 +625,7 @@ export async function updateProjectTask(
       taskId,
       context.actorEmployeeId,
       "TASK_UPDATED",
-      { changedFields },
+      { changedFields, overrideReason: payload.overrideReason ?? null },
     );
   return { success: true, task: await loadTask(projectId, taskId) };
 }
@@ -623,6 +640,7 @@ export async function assignProjectTask(
   const payload = validateTaskAssignmentAssignPayload(body);
   const context = await contextForMutation(projectId);
   const currentTask = await loadTask(projectId, taskId);
+  assertCompletedTaskOverride(currentTask, payload.overrideCompleted, payload.overrideReason);
   if (currentTask.assigneeEmployeeId === payload.assigneeEmployeeId) {
     await insertComment(projectId, taskId, context.actorEmployeeId, payload.comment);
     return { success: true, task: await loadTask(projectId, taskId) };
@@ -660,7 +678,7 @@ export async function assignProjectTask(
     taskId,
     context.actorEmployeeId,
     "TASK_ASSIGNED",
-    { assigneeEmployeeId: payload.assigneeEmployeeId },
+    { assigneeEmployeeId: payload.assigneeEmployeeId, previousAssigneeEmployeeId: currentTask.assigneeEmployeeId, overrideReason: payload.overrideReason ?? null },
   );
   await insertAssignmentNotification(
     projectId,
@@ -681,7 +699,8 @@ export async function changeProjectTaskStatus(
   const payload = validateTaskAssignmentStatusPayload(body);
   const context = await contextForMutation(projectId);
   const currentTask = await loadTask(projectId, taskId);
-  if (!canTransitionTaskStatus(currentTask.status, payload.status)) {
+  const isOverrideTransition = currentTask.status === "COMPLETED" && Boolean(payload.overrideCompleted && payload.overrideReason);
+  if (!isOverrideTransition && !canTransitionTaskStatus(currentTask.status, payload.status)) {
     throw taskAssignmentError(
       422,
       "Chuyển trạng thái công việc không hợp lệ.",
@@ -727,7 +746,7 @@ export async function changeProjectTaskStatus(
       taskId,
       context.actorEmployeeId,
       "STATUS_CHANGED",
-      { oldStatus: currentTask.status, newStatus: payload.status },
+      { oldStatus: currentTask.status, newStatus: payload.status, overrideReason: payload.overrideReason ?? null },
     );
   return { success: true, task: await loadTask(projectId, taskId) };
 }

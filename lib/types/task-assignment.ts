@@ -38,6 +38,9 @@ export interface TaskAssignmentDTO {
   progressPercent: number;
   commentCount: number;
   lastActivityAt: string | null;
+  priority?: string | null;
+  assignmentHistoryCount?: number;
+  activityCount?: number;
 }
 
 export interface TaskAssignmentCreatePayload {
@@ -57,16 +60,22 @@ export interface TaskAssignmentUpdatePayload {
   parentTaskId?: number | null;
   deadline?: string | null;
   comment?: string | null;
+  overrideCompleted?: boolean;
+  overrideReason?: string | null;
 }
 
 export interface TaskAssignmentAssignPayload {
   assigneeEmployeeId: number | null;
   comment?: string | null;
+  overrideCompleted?: boolean;
+  overrideReason?: string | null;
 }
 
 export interface TaskAssignmentStatusPayload {
   status: TaskAssignmentStatus;
   comment?: string | null;
+  overrideCompleted?: boolean;
+  overrideReason?: string | null;
 }
 
 export interface TaskAssignmentRepository {
