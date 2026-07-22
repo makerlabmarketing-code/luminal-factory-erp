@@ -891,3 +891,17 @@ Status: ✅ Live catalog package applied through the Supabase Management API HTT
 - Guard validation passed: `employee_permissions` stayed at 17 rows, `employee_workspace_access` stayed at 4 rows, approved keys have no employee permission assignments, no workspace grant changed, no unexpected preset expansion occurred, and System Owner protection remains an application guard.
 
 No deploy, RLS mutation, workspace mutation, employee permission assignment, preset application, backfill, rollback, destructive operation, or direct `main` push was performed.
+
+## 2026-07-22 Corrective Slice 6 production order and colorway workflow
+
+Status: ✅ Hoàn thành application-only.
+
+- Added a production-order workflow domain contract for stable production order IDs/codes, product or collection, colorway, linked project, quantity, deadline, priority, status, managers/leads/members, notes, attachments, activity, material requirement placeholders, and notification de-duplication.
+- Added reusable approved workflow-template preview support, including the artisan keycap workflow as data rather than UI-hardcoded steps; blank and clone sources remain supported through the same preview boundary.
+- Added sequential stage-gating helpers for READY/LOCKED/IN_PROGRESS/PENDING_REVIEW/COMPLETED/SKIPPED_WITH_APPROVAL behavior, required-task completion checks, review approval checks, locked-stage edit prevention, duplicate active-stage prevention, active member assignment validation, override reasons, and progress/dashboard/detail summaries.
+- Production-order persistence is intentionally exposed through a single atomic adapter boundary that checks duplicate production codes before delegating to the approved transactional persistence seam. No second competing persistence path was added.
+- Inventory/material integration remains a placeholder list on the production order draft only; no stock mutation or parallel inventory system was introduced.
+
+No SQL, migration, RLS change, RPC creation, inventory mutation, backfill, feature flag enablement, live data mutation, destructive cleanup, deployment, or production mutation was run.
+
+Stop point: Corrective Slice 6 only. Future schema/RPC/inventory persistence remains `LIVE_APPROVAL_REQUIRED` with forward, rollback, validation, security, and backfill artifacts before execution.
