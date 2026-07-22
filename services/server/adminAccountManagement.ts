@@ -507,10 +507,24 @@ async function grantWorkspace(
     .eq("workspace", workspace)
     .eq("status", "ACTIVE")
     .is("revoked_at", null)
-    .limit(1);
+    .order("id", { ascending: true });
 
   if (activeError) throw activeError;
-  if (activeRows && activeRows.length > 0) return;
+  if (activeRows && activeRows.length > 0) {
+    const duplicateIds = activeRows
+      .slice(1)
+      .flatMap((row) => (row.id ? [row.id] : []));
+    if (duplicateIds.length > 0) {
+      const { error: duplicateRevokeError } = await supabaseAdmin
+        .from("employee_workspace_access")
+        .update({ status: "INACTIVE", revoked_at: new Date().toISOString() })
+        .in("id", duplicateIds);
+
+      if (duplicateRevokeError) throw duplicateRevokeError;
+    }
+
+    return;
+  }
 
   const { error } = await supabaseAdmin
     .from("employee_workspace_access")
@@ -574,10 +588,24 @@ async function setPermissionState(
     .eq("effect", state)
     .eq("status", "ACTIVE")
     .is("revoked_at", null)
-    .limit(1);
+    .order("id", { ascending: true });
 
   if (activeError) throw activeError;
-  if (activeRows && activeRows.length > 0) return;
+  if (activeRows && activeRows.length > 0) {
+    const duplicateIds = activeRows
+      .slice(1)
+      .flatMap((row) => (row.id ? [row.id] : []));
+    if (duplicateIds.length > 0) {
+      const { error: duplicateRevokeError } = await supabaseAdmin
+        .from("employee_permissions")
+        .update({ status: "INACTIVE", revoked_at: new Date().toISOString() })
+        .in("id", duplicateIds);
+
+      if (duplicateRevokeError) throw duplicateRevokeError;
+    }
+
+    return;
+  }
 
   const { error } = await supabaseAdmin.from("employee_permissions").insert({
     employee_id: targetEmployeeId,

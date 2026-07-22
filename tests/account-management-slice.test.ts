@@ -155,6 +155,20 @@ describe("account and permission management slice", () => {
     expect(service).not.toMatch(/delete\(\)/);
   });
 
+  it("collapses duplicate active workspace and permission rows before reporting success", () => {
+    const service = source("services/server/adminAccountManagement.ts");
+
+    expect(service).toMatch(
+      /activeRows[\s\S]*\.slice\(1\)[\s\S]*\.flatMap\(\(row\) => \(row\.id/,
+    );
+    expect(service).toMatch(
+      /from\(["']employee_workspace_access["']\)[\s\S]*duplicateRevokeError[\s\S]*\.in\(["']id["'], duplicateIds\)/,
+    );
+    expect(service).toMatch(
+      /from\(["']employee_permissions["']\)[\s\S]*duplicateRevokeError[\s\S]*\.in\(["']id["'], duplicateIds\)/,
+    );
+  });
+
   it("does not expose privileged credentials or browser Supabase mutations", () => {
     const client = source("app/admin/accounts/AdminAccountsClient.tsx");
     const adminClient = source("utils/supabase/admin.ts");

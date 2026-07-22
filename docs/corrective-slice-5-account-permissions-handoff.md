@@ -75,3 +75,9 @@ Rollback path: use `supabase/drafts/20260722_corrective_slice_5_permission_catal
 A self-review of the latest-main live catalog rollout artifacts found one actionable validation weakness: the unexpected-access check used `created_at >= statement_timestamp()`, which could miss approved-key `employee_permissions` rows created before the validation statement. The validation artifact now fails whenever any employee permission row references the eight approved task/reimbursement keys, matching the live rollout acceptance condition that no account received those assignments.
 
 No SQL was executed. No live permission catalog row, employee permission row, workspace grant, RLS policy, schema object, backfill, deployment, or production data was mutated. Corrective Slice 6 was not started.
+
+## 2026-07-22 consolidated review-debt remediation sweep
+
+The latest-main account-management grant paths were hardened so an otherwise idempotent workspace grant or permission-state save no longer leaves duplicate active rows untouched after finding one existing row. `grantWorkspace` and `setPermissionState` now load all matching active rows in deterministic ID order, retain the first row, and revoke any duplicate active rows before returning success.
+
+No permission expansion, preset semantics change, workspace grant/backfill, SQL, RLS, schema mutation, deployment, or live data mutation was performed. The new remediation status remains `FIXED_PENDING_REVIEW` until a fresh Codex Code Review result is available for the remediation PR.
