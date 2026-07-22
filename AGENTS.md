@@ -327,6 +327,29 @@ If any stop condition occurs:
 - report the blocker
 - do not push
 
+## Supabase Management API Fallback
+
+If the Supabase Management API returns Cloudflare Error 1010 (`browser_signature_banned`), HTTP 403 from `api.supabase.com` with that confirmed infrastructure restriction, or another confirmed infrastructure restriction unrelated to repository correctness:
+
+1. Record `MANAGEMENT_API_UNAVAILABLE`.
+2. Do not treat this as a repository failure.
+3. Skip only:
+   - project metadata verification through the Management API
+   - Management API health verification
+4. Continue using the reviewed repository artifacts:
+   - migration package
+   - rollback package
+   - validation SQL
+   - compatibility/backfill plan
+   - application contract
+   - reviewed RPC contract
+5. Continue application-only implementation normally.
+6. Live SQL/RPC deployment still requires explicit `LIVE_APPROVAL_REQUIRED`.
+7. Never silently ignore validation failures unrelated to the Management API.
+8. Clearly document the skipped verification inside the roadmap, handoff, and remediation ledger.
+
+Do not weaken any production safety gate because Management API verification is unavailable.
+
 ### Pull Request and Auto-Merge
 
 After all required validation gates pass, Codex should:

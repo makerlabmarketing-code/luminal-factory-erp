@@ -34,6 +34,10 @@ Before durable production-order persistence or inventory usage can be enabled, p
 
 Current stop condition for those artifacts: `LIVE_APPROVAL_REQUIRED`.
 
+## Management API verification exception
+
+If Supabase Management API verification returns Cloudflare Error 1010 / `browser_signature_banned`, HTTP 403 from `api.supabase.com` with that confirmed infrastructure restriction, or another confirmed infrastructure restriction unrelated to repository correctness, record `MANAGEMENT_API_UNAVAILABLE`. This is an environment limitation, not a slice failure. Skip only Management API project metadata and health verification; continue using the reviewed migration package, rollback package, validation SQL, compatibility/backfill plan, application contract, and reviewed RPC contract. Do not downgrade safety, run unapproved live SQL, mutate RLS, backfill data, deploy RPCs, bypass `LIVE_APPROVAL_REQUIRED`, or ignore validation failures unrelated to the Management API limitation.
+
 ## Validation notes
 
 Focused regression coverage was added in `tests/production-order-workflow.test.ts` for template preview, atomic creation adapter behavior, stable identity, duplicate production code rejection, sequential stage gating, review requirement, locked-stage edit prevention, override reason, assignment eligibility, required-task completion, progress calculation, blocked/overdue summaries, duplicate notifications, mobile-safe detail structure, and no partial persistence.
