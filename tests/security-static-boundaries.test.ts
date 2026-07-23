@@ -391,6 +391,51 @@ describe('static security boundaries', () => {
     expect(promotedCopies).toEqual([]);
   });
 
+
+  it('keeps the own-row RLS package reviewed and draft-only', () => {
+    const forward = readFileSync(
+      join(repositoryRoot, 'supabase/drafts/20260723_own_row_rls_forward.sql'),
+      'utf8'
+    );
+    const rollback = readFileSync(
+      join(repositoryRoot, 'supabase/drafts/20260723_own_row_rls_rollback.sql'),
+      'utf8'
+    );
+    const validation = readFileSync(
+      join(repositoryRoot, 'supabase/drafts/20260723_own_row_rls_validation.sql'),
+      'utf8'
+    );
+    const compatibility = readFileSync(
+      join(repositoryRoot, 'supabase/drafts/20260723_own_row_rls_compatibility.md'),
+      'utf8'
+    );
+    const security = readFileSync(
+      join(repositoryRoot, 'supabase/drafts/20260723_own_row_rls_security.md'),
+      'utf8'
+    );
+
+    expect(forward).toMatch(/create policy "employees staff own profile select"/);
+    expect(forward).toMatch(/auth_user_id = \(select auth\.uid\(\)\)/);
+    expect(forward).toMatch(/public\.has_workspace_access\('STAFF_WORKSPACE'\)/);
+    expect(forward).toMatch(/alter table public\.employees enable row level security/);
+    expect(forward).toMatch(/alter table public\.attendance enable row level security/);
+    expect(forward).toMatch(/alter table public\.attendance_logs enable row level security/);
+    expect(forward).not.toMatch(/to anon|for all|delete\s+from|truncate|drop table|update public\.(employees|attendance|attendance_logs)/i);
+    expect(rollback).toMatch(/drop policy if exists "employees staff own profile select"/);
+    expect(rollback).not.toMatch(/disable row level security|drop table|delete\s+from|truncate/i);
+    expect(validation).toMatch(/employees_no_broad_authenticated_policy/);
+    expect(validation).toMatch(/attendance_own_row_policies_still_exist/);
+    expect(compatibility).toMatch(/No automated backfill is included/);
+    expect(security).toMatch(/No `TO authenticated` policy without row ownership or permission predicate/);
+
+    const migrations = collectFiles(join(repositoryRoot, 'supabase/migrations'));
+    const promotedCopies = migrations.filter((file) =>
+      readFileSync(file, 'utf8').includes('Batch 3E1: own-row RLS package')
+    );
+
+    expect(promotedCopies).toEqual([]);
+  });
+
   it('uses the publishable Supabase key even when a legacy anon key is present', () => {
     const previousPublishable = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     const previousAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

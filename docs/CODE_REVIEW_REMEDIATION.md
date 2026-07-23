@@ -286,3 +286,11 @@ No SQL, direct PostgreSQL TCP retry, RLS mutation, schema mutation, facility dat
 Self-review classification: no newly actionable P0/P1 finding was identified in the draft-only Batch 3D2 package. The package prepares forward, rollback, validation, compatibility/backfill, security, and tests for removing the two legacy broad `system_settings` policies; it does not promote SQL to `supabase/migrations/`, execute SQL, mutate live RLS, add grants, expose privileged credentials, or reintroduce runtime `system_settings` dependencies.
 
 No SQL, migration execution, migration promotion, RLS mutation, RPC deployment, backfill, deployment, destructive operation, direct PostgreSQL TCP retry, or production data mutation was performed. Batch 3D2 remains `LIVE_APPROVAL_REQUIRED` before Supabase GitHub Integration delivery.
+
+## 2026-07-23 Batch 3E1 own-row RLS package review source status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This continuation inspected the current latest-main checkout, AGENTS.md, ERP/Supabase/workflow/coding references, the roadmap, current employee/attendance RLS migrations, and focused static regression tests as available review sources.
+
+Self-review classification: no newly actionable P0/P1 finding was identified in the draft-only Batch 3E1 package. The package prepares forward, rollback, validation, compatibility/backfill, security, and tests for Staff own-row access on `employees`, `attendance`, and `attendance_logs`; it does not promote SQL to `supabase/migrations/`, execute SQL, mutate live RLS, add anon or broad authenticated policies, expose privileged credentials, alter payroll/finance authorization, or change attendance calculations/source-of-truth.
+
+No SQL, migration execution, migration promotion, RLS mutation, RPC deployment, backfill, deployment, destructive operation, direct PostgreSQL TCP retry, Auth mutation, permission mutation, employee data mutation, attendance data mutation, payroll mutation, finance mutation, or production data mutation was performed. Batch 3E1 remains `LIVE_APPROVAL_REQUIRED` before Supabase GitHub Integration delivery.

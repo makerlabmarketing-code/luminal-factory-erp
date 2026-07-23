@@ -103,3 +103,15 @@ Prepared the next safe security package for the previously documented `system_se
 - Security notes record that no grants, service-role exposure, SECURITY DEFINER function, browser write policy, Auth mutation, storage policy, or live data mutation is introduced.
 
 No SQL was executed, no migration was promoted, and no production RLS was changed. Promote the reviewed forward SQL into `supabase/migrations/` only after `LIVE_APPROVAL_REQUIRED` is cleared for Supabase GitHub Integration delivery.
+
+## 2026-07-23 Batch 3E1 own-row RLS package
+
+Prepared the next safe security package after Batch 3D2 reached its live gate:
+
+- Draft forward SQL adds the missing Staff own-profile `employees` SELECT policy through `employees.auth_user_id = auth.uid()` plus `STAFF_WORKSPACE` access.
+- The package defensively keeps RLS enabled on `employees`, `attendance`, and `attendance_logs` while preserving the existing admin employee-view and attendance recovery policies.
+- Rollback drops only the new employee own-profile policy and does not disable RLS or mutate data.
+- Validation checks employee/attendance RLS, the own-profile policy predicate, absence of broad authenticated employee SELECT policy, and continued attendance own-row policy coverage.
+- Compatibility/backfill and security notes document that unmapped employees remain blocked until approved identity mapping exists; no automated backfill, payroll/finance change, Auth mutation, permission mutation, attendance calculation change, or source-of-truth change is included.
+
+No SQL was executed, no migration was promoted, and no production RLS was changed. Promote the reviewed forward SQL into `supabase/migrations/` only after `LIVE_APPROVAL_REQUIRED` is cleared for Supabase GitHub Integration delivery.
