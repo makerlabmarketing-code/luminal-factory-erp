@@ -33,3 +33,16 @@ No SQL, schema change, RLS mutation, RPC deployment, catalog backfill, facility 
 ## Next safe follow-up
 
 If approved as a separate PR, continue with server-backed facility CRUD hardening and active/inactive filtering using the existing `facilities` table, including forward/rollback/validation artifacts if the live schema does not already contain active-state and stable-code columns.
+
+## 2026-07-23 Facility administration server-boundary follow-up
+
+Completed as a safe application-only continuation:
+
+- The admin facility page now calls `/api/admin/facilities` for list/create/update/delete instead of mutating `facilities` directly from the browser.
+- Facility reads and mutations now pass through `services/server/adminFacilities.ts`, which requires `ADMIN_WORKSPACE` and system-settings or attendance-management permission checks.
+- Facility reads use an explicit select list for the existing live columns: `id, facility_name, address, lat, lng, radius`.
+- Staff Attendance remains tied to the existing shared `facilities` source for GPS matching.
+
+No SQL, schema change, RLS mutation, RPC deployment, catalog backfill, facility live mutation outside the app request path, permission mutation, Auth mutation, destructive operation, production deployment, or backfill was executed.
+
+Still pending for a separate approval gate: active/inactive facility state, stable facility codes, RLS/catalog changes, and any facility backfill. Those require forward, rollback, validation, compatibility, security, and backfill artifacts before `LIVE_APPROVAL_REQUIRED` can be resolved.

@@ -66,7 +66,7 @@ describe("administration information architecture correction slice", () => {
   });
 
   it("keeps workplace attendance on the shared facilities source", () => {
-    const facilities = source("app/admin/facilities/page.tsx");
+    const facilities = source("services/server/adminFacilities.ts");
     const staffAttendanceRoute = source("app/api/staff/attendance/route.ts");
 
     expect(facilities).toMatch(/from\('facilities'\)/);
@@ -80,3 +80,22 @@ describe("administration information architecture correction slice", () => {
     );
   });
 });
+
+  it("routes facility administration through the server API boundary", () => {
+    const page = source("app/admin/facilities/page.tsx");
+    const route = source("app/api/admin/facilities/route.ts");
+    const service = source("services/server/adminFacilities.ts");
+
+    expect(page).toMatch(/fetch\('\/api\/admin\/facilities'/);
+    expect(page).not.toMatch(/from\('facilities'\)/);
+    expect(page).not.toMatch(/import \{ supabase \}/);
+    expect(route).toMatch(/listAdminFacilities/);
+    expect(route).toMatch(/createAdminFacility/);
+    expect(route).toMatch(/updateAdminFacility/);
+    expect(route).toMatch(/deleteAdminFacility/);
+    expect(service).toMatch(/requireWorkspaceAccess\('ADMIN_WORKSPACE'\)/);
+    expect(service).toMatch(/SYSTEM_SETTINGS_MANAGE/);
+    expect(service).toMatch(/ATTENDANCE_MANAGE/);
+    expect(service).toMatch(/const FACILITY_SELECT = 'id, facility_name, address, lat, lng, radius'/);
+    expect(service).not.toMatch(/select\('\*'\)/);
+  });

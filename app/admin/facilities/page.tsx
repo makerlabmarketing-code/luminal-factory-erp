@@ -1,21 +1,35 @@
 // app/admin/facilities/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/utils/supabase/client';
 import { useNotification } from '@/component/NotificationContext';
-import { fetchCoordinatesFromAddress } from '@/ultis/geocoding'; 
+import { fetchCoordinatesFromAddress } from '@/ultis/geocoding';
 import { MapPin, Plus, Trash2, Edit2, X, RefreshCcw, Navigation, Loader2 } from 'lucide-react';
+
+type AdminFacility = {
+  id: number | string;
+  facilityName: string;
+  address: string | null;
+  lat: number | string | null;
+  lng: number | string | null;
+  radius: number | string | null;
+};
+
+type FacilityApiResult = {
+  success?: boolean;
+  message?: string;
+  facilities?: AdminFacility[];
+};
 
 export default function AdminFacilitiesManagement() {
   const { showToast, showConfirm } = useNotification();
-  const [branches, setBranches] = useState<any[]>([]);
+  const [branches, setBranches] = useState<AdminFacility[]>([]);
   const [loading, setLoading] = useState(true);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  
+
   // States for CRUD
   const [isEditing, setIsEditing] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | string | null>(null);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [lat, setLat] = useState('');
@@ -25,23 +39,24 @@ export default function AdminFacilitiesManagement() {
   const loadFacilities = async () => {
     setLoading(true);
     try {
-      // ĐỔI SANG ĐỌC TỪ BẢNG FACILITIES CHUẨN
-      const { data, error } = await supabase
-        .from('facilities')
-        .select('*')
-        .order('id', { ascending: true });
-        
-      if (error) throw error;
-      setBranches(data || []);
-    } catch (e: any) {
-      console.error(e);
-      showToast('Lỗi tải dữ liệu', e.message, 'error');
+      const response = await fetch('/api/admin/facilities', { cache: 'no-store' });
+      const result = (await response.json().catch(() => ({}))) as FacilityApiResult;
+
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || 'Không thể tải danh sách cơ sở làm việc.');
+      }
+
+      setBranches(result.facilities || []);
+    } catch (error) {
+      console.error(error);
+      showToast('Lỗi tải dữ liệu', 'Không thể tải danh sách cơ sở làm việc.', 'error');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  useEffect(() => { 
-    loadFacilities(); 
+  useEffect(() => {
+    loadFacilities();
   }, []);
 
   const handleGeocode = async () => {
@@ -64,23 +79,23 @@ export default function AdminFacilitiesManagement() {
   };
 
   const handleOpenAdd = () => {
-    setIsEditing(false); 
+    setIsEditing(false);
     setEditingId(null);
-    setName(''); 
-    setAddress(''); 
-    setLat(''); 
-    setLng(''); 
+    setName('');
+    setAddress('');
+    setLat('');
+    setLng('');
     setRadius('20');
     setShowModal(true);
   };
 
-  const handleOpenEdit = (b: any) => {
-    setIsEditing(true); 
-    setEditingId(b.id); 
-    setName(b.facility_name); 
-    setAddress(b.address || ''); 
-    setLat(b.lat?.toString() || ''); 
-    setLng(b.lng?.toString() || ''); 
+  const handleOpenEdit = (b: AdminFacility) => {
+    setIsEditing(true);
+    setEditingId(b.id);
+    setName(b.facilityName);
+    setAddress(b.address || '');
+    setLat(b.lat?.toString() || '');
+    setLng(b.lng?.toString() || '');
     setRadius(b.radius?.toString() || '20');
     setShowModal(true);
   };
@@ -92,54 +107,52 @@ export default function AdminFacilitiesManagement() {
     }
 
     const payload = {
-      facility_name: name.trim(),
+      id: editingId,
+      facilityName: name.trim(),
       address: address.trim(),
       lat: Number(lat),
       lng: Number(lng),
-      radius: Number(radius)
+      radius: Number(radius),
     };
 
     try {
-      if (isEditing && editingId) {
-        // CẬP NHẬT
-        const { error } = await supabase
-          .from('facilities')
-          .update(payload)
-          .eq('id', editingId);
-        
-        if (error) throw error;
-        showToast('Thành công', 'Đã cập nhật dữ liệu cơ sở thành công!', 'success');
-      } else {
-        // THÊM MỚI
-        const { error } = await supabase
-          .from('facilities')
-          .insert([payload]);
-          
-        if (error) throw error;
-        showToast('Thành công', '✨ Đã thêm mới cơ sở chi nhánh vào rào chắn GPS Geofencing!', 'success');
+      const response = await fetch('/api/admin/facilities', {
+        method: isEditing && editingId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json().catch(() => ({}))) as FacilityApiResult;
+
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || 'Không thể lưu cơ sở làm việc.');
       }
 
-      setShowModal(false); 
+      showToast('Thành công', isEditing ? 'Đã cập nhật cơ sở làm việc.' : 'Đã thêm cơ sở làm việc mới.', 'success');
+      setShowModal(false);
       loadFacilities();
-    } catch (err: any) {
-      showToast('Lỗi đám mây', err.message, 'error');
+    } catch (err) {
+      showToast('Lỗi lưu dữ liệu', err instanceof Error ? err.message : 'Không thể lưu cơ sở làm việc.', 'error');
     }
   };
 
-  const handleDelete = (id: number) => {
-    showConfirm('Xác nhận gỡ cơ sở', 'Sếp có chắc chắn muốn xóa vĩnh viễn chi nhánh này không? Nhân sự gán vào cơ sở này sẽ không thể chấm công.', async () => {
+  const handleDelete = (id: number | string) => {
+    showConfirm('Xác nhận xóa cơ sở', 'Bạn có chắc muốn xóa cơ sở này không? Nhân sự đang gán vào cơ sở này có thể không chấm công được.', async () => {
       try {
-        const { error } = await supabase
-          .from('facilities')
-          .delete()
-          .eq('id', id);
-        
-        if (error) throw error;
-        
-        showToast('Đã gỡ bỏ', 'Đã gỡ chi nhánh ra khỏi bản đồ định vị GPS.', 'success');
+        const response = await fetch('/api/admin/facilities', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        const result = (await response.json().catch(() => ({}))) as FacilityApiResult;
+
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || 'Không thể xóa cơ sở làm việc.');
+        }
+
+        showToast('Đã xóa', 'Đã xóa cơ sở làm việc.', 'success');
         loadFacilities();
-      } catch (err: any) {
-        showToast('Lỗi hệ thống', err.message, 'error');
+      } catch (err) {
+        showToast('Lỗi hệ thống', err instanceof Error ? err.message : 'Không thể xóa cơ sở làm việc.', 'error');
       }
     });
   };
@@ -179,11 +192,11 @@ export default function AdminFacilitiesManagement() {
               branches.map(b => (
                 <tr key={b.id} className="hover:bg-slate-950/20 transition">
                   <td className="p-4 font-bold text-slate-200">
-                    🏛️ {b.facility_name} 
+                    🏛️ {b.facilityName}
                     <br/>
                     <span className="text-[9px] text-slate-500 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-850 mt-1 block w-fit">ID: {b.id}</span>
                   </td>
-                  <td className="p-4 text-slate-400 max-w-xs truncate" title={b.address}>{b.address}</td>
+                  <td className="p-4 text-slate-400 max-w-xs truncate" title={b.address || ''}>{b.address}</td>
                   <td className="p-4 font-mono font-bold text-blue-400">{b.lat}</td>
                   <td className="p-4 font-mono font-bold text-blue-400">{b.lng}</td>
                   <td className="p-4 font-bold text-amber-400 font-mono">{b.radius} mét</td>
@@ -205,7 +218,7 @@ export default function AdminFacilitiesManagement() {
               <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px]">KHAI BÁO CHI NHÁNH CƠ SỞ MỚI</h3>
               <button onClick={() => setShowModal(false)}><X className="w-5 h-5 text-slate-500 hover:text-white" /></button>
             </div>
-            
+
             <div className="space-y-3">
               <div>
                 <label className="text-slate-400 font-medium">Tên gợi nhớ cơ sở làm việc:</label>
@@ -215,9 +228,9 @@ export default function AdminFacilitiesManagement() {
                 <label className="text-slate-400 font-medium">Địa chỉ thực tế xưởng:</label>
                 <div className="flex gap-2 mt-1.5">
                   <input type="text" placeholder="Gõ đủ số nhà, tên đường, thành phố..." className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 focus:outline-none text-slate-200" value={address} onChange={e => setAddress(e.target.value)} />
-                  <button 
-                    type="button" 
-                    onClick={handleGeocode} 
+                  <button
+                    type="button"
+                    onClick={handleGeocode}
                     disabled={isGeocoding}
                     className="bg-slate-950 border border-slate-850 text-cyan-400 font-bold px-3 py-2 rounded-xl flex items-center gap-1 hover:border-cyan-500/40 transition shrink-0 disabled:opacity-50"
                   >

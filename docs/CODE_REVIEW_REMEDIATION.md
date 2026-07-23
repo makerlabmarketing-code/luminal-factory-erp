@@ -240,3 +240,11 @@ Self-review classification: no business-rule, permission, schema, RLS, RPC, depl
 `REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This slice used AGENTS.md, ERP/UI/Supabase/workflow references, roadmap, account handoff, remediation ledger, current implementation inspection, and focused static regression tests as available review sources.
 
 Self-review classification: no actionable P0/P1 finding identified in the safe application-only navigation, account-list pagination/copy, system-catalog wording, or attendance-facility source verification changes. Broader schema-backed catalog migration and active/inactive facility persistence remain `LIVE_APPROVAL_REQUIRED` and were not executed.
+
+## 2026-07-23 Facility administration server-boundary hardening review source status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This continuation inspected the current latest-main checkout, the Administration IA handoff, roadmap, remediation ledger, facility administration page, Staff Attendance route, and focused static regression tests as available review sources. No newly actionable P0/P1 Codex Code Review finding was available from those sources.
+
+Self-review classification: no actionable P0/P1 finding remains in this application-only facility administration server-boundary hardening. The admin facility page no longer performs direct browser Supabase mutations for `facilities`; server routes enforce `ADMIN_WORKSPACE` plus system-settings or attendance-management permissions and return Vietnamese safe errors. Active/inactive facility state and stable facility codes remain schema-backed future work requiring `LIVE_APPROVAL_REQUIRED` with forward, rollback, validation, compatibility, security, and backfill artifacts.
+
+No SQL, migration execution, schema mutation, RLS mutation, RPC deployment, storage mutation, facility live backfill, permission mutation, Auth mutation, deployment, destructive operation, or production data mutation was performed.

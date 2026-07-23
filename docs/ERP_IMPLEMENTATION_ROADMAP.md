@@ -1016,3 +1016,23 @@ Next safe action: continue the next safe Phase 4 Project Detail UI/accessibility
 - System catalog UI primary wording is now `Danh mục hệ thống`; primary `DB` terminology was removed from the page/menu labels.
 - Attendance/facility integration remains on the existing shared `facilities` source; no hardcoded workplace list was introduced.
 - No SQL, migration, RLS, RPC, live catalog backfill, facility mutation, Auth mutation, permission mutation, deployment, destructive operation, or production data mutation was executed. Further schema-backed catalog/facility expansion remains `LIVE_APPROVAL_REQUIRED`.
+
+## 2026-07-23 Facility administration server-boundary hardening
+
+Status: application-only facility administration hardening complete. Continued from the latest main-equivalent state after the Administration IA and configuration correction slice, using the approved follow-up from `docs/administration-ia-configuration-handoff.md`.
+
+Completed:
+
+- Moved the admin facility page's list/create/update/delete operations behind `/api/admin/facilities` instead of direct browser Supabase mutations.
+- Added a server-only facility service with `ADMIN_WORKSPACE` plus system-settings or attendance-management permission checks before reading or mutating facilities.
+- Replaced broad `select('*')` facility reads with an explicit `id, facility_name, address, lat, lng, radius` contract.
+- Kept Staff Attendance GPS matching on the existing shared `facilities` table source and did not introduce hardcoded workplace lists.
+- Added focused static regression coverage for the server API boundary, permission checks, and explicit facility select list.
+
+Database impact: none. No schema, RPC, RLS, storage, backfill, migration execution, production SQL, deployment, destructive operation, or live data mutation was performed. Active/inactive facility state remains a future schema-backed enhancement and still requires forward, rollback, validation, compatibility, security, and backfill artifacts before live approval.
+
+Security impact: browser-side facility table mutations were removed from the admin facility page. Server authorization now checks `ADMIN_WORKSPACE` and either `SYSTEM_SETTINGS_*` or `ATTENDANCE_MANAGE` permissions before facility reads/mutations. Existing database RLS is unchanged.
+
+Validation: targeted Vitest, `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check` to be recorded with final command results for this PR.
+
+Next safe action: prepare an approved schema package for facility active/inactive state and stable facility codes, or continue the next approved roadmap feature that does not require live schema/RLS mutation.
