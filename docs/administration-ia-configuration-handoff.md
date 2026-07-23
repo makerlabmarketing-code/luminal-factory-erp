@@ -63,3 +63,21 @@ Artifacts:
 The package proposes `facilities.code`, `facilities.is_active`, a unique facility-code index, and an active-facility partial index. Existing application reads remain compatible because the current `id, facility_name, address, lat, lng, radius` contract is unchanged.
 
 `LIVE_APPROVAL_REQUIRED` remains required before applying the package, promoting a reviewed forward migration for the Supabase GitHub Integration path, filtering inactive facilities in the app, or migrating employee branch matching to stable codes.
+
+## 2026-07-23 Facility active-state GitHub Integration delivery
+
+The reviewed facility active-state/stable-code package received scoped live approval for the Supabase GitHub Integration delivery path only.
+
+Delivered rollout artifact:
+
+- `supabase/migrations/20260723120000_facility_status_code.sql` is an exact promotion of `supabase/drafts/20260723_facility_status_code_forward.sql`.
+
+Preserved safety artifacts:
+
+- Rollback remains separate at `supabase/drafts/20260723_facility_status_code_rollback.sql`.
+- Read-only post-deployment validation remains separate at `supabase/drafts/20260723_facility_status_code_validation.sql`.
+- Compatibility, security, and backfill notes remain under `supabase/drafts/20260723_facility_status_code_*.md`.
+
+No direct production SQL, `supabase db push`, live backfill, RLS mutation, permission mutation, Auth mutation, deployment, destructive operation, unrelated table change, application redesign, inactive-facility filtering, or employee branch remapping was performed. After protected-main merge and Supabase GitHub Integration delivery, run the validation SQL and record PASS/FAIL before enabling any application behavior that depends on `facilities.code` or `facilities.is_active`.
+
+Rollback remains a separate live approval decision using the reviewed rollback artifact. The rollback script intentionally blocks if inactive facility rows exist.

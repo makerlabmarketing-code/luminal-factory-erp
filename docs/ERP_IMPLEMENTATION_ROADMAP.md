@@ -1054,3 +1054,28 @@ Database impact: no live SQL, migration promotion, RLS mutation, RPC deployment,
 Security impact: facility browser writes remain removed from the admin page; this package adds no grants, storage policy, Auth mutation, or broad browser write policy. The prepared validation checks for unsafe authenticated write policies before approval.
 
 Current gate: `LIVE_APPROVAL_REQUIRED` before applying the facility active-state/stable-code package, promoting forward SQL into the Supabase GitHub Integration migration path, filtering inactive facilities in application code, or migrating employee branch mappings to stable facility codes.
+
+## 2026-07-23 Facility active-state GitHub Integration delivery
+
+Status: approved package delivered to the repository for the Supabase GitHub Integration workflow; stop after delivery per explicit operator instruction.
+
+Approval scope: `LIVE_APPROVAL` was granted only for the reviewed facility active-state/stable-code package prepared on 2026-07-23. No application logic redesign, inactive-facility filtering, employee branch remapping, unrelated table change, additional schema change, or direct production SQL execution was performed.
+
+Rollout evidence:
+
+- Promoted only the reviewed forward SQL from `supabase/drafts/20260723_facility_status_code_forward.sql` to `supabase/migrations/20260723120000_facility_status_code.sql` for protected-main delivery through the configured Supabase GitHub Integration.
+- Kept rollback and validation SQL outside `supabase/migrations/` at `supabase/drafts/20260723_facility_status_code_rollback.sql` and `supabase/drafts/20260723_facility_status_code_validation.sql`.
+- No direct `psql`, `supabase db push`, `supabase db query`, live backfill, RLS mutation, permission mutation, Auth mutation, deployment, destructive operation, or production data mutation was executed from this environment.
+
+Validation evidence:
+
+- Static regression coverage now verifies migration parity with the reviewed forward SQL and confirms rollback/validation SQL were not promoted into the canonical migration.
+- Required repository gates were run for this delivery: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check`.
+- Post-merge production validation remains the read-only SQL artifact `supabase/drafts/20260723_facility_status_code_validation.sql` after the Supabase GitHub Integration applies the migration.
+
+Rollback evidence:
+
+- Rollback remains the reviewed companion SQL `supabase/drafts/20260723_facility_status_code_rollback.sql` and blocks rollback if inactive facility rows exist so operational state is not silently lost.
+- Rollback execution requires a separate approved live rollback decision after production state review.
+
+Current stop condition: approved facility package delivered. Do not continue the next roadmap slice from this task.

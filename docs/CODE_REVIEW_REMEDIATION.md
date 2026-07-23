@@ -256,3 +256,15 @@ No SQL, migration execution, schema mutation, RLS mutation, RPC deployment, stor
 Self-review classification: no actionable P0/P1 finding was identified in the draft-only facility active-state/stable-code package. The package prepares forward, rollback, validation, compatibility, security, and backfill artifacts only; it does not promote SQL to `supabase/migrations/`, execute SQL, mutate RLS, add grants, add broad browser write policies, mutate live facility data, or change application filtering before approval.
 
 No SQL, migration execution, migration promotion, schema mutation, RLS mutation, RPC deployment, storage mutation, facility live backfill, permission mutation, Auth mutation, deployment, destructive operation, or production data mutation was performed. Facility active-state rollout remains `LIVE_APPROVAL_REQUIRED`.
+
+## 2026-07-23 Facility active-state GitHub Integration delivery review
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This delivery used the operator-approved package, existing draft artifacts, roadmap, handoff, remediation ledger, and static regression tests as available evidence.
+
+| Finding | Classification | Evidence | Remediation / status |
+| --- | --- | --- | --- |
+| The reviewed facility active-state package is approved only for Supabase GitHub Integration delivery. | ACTIONABLE | Operator granted scoped `LIVE_APPROVAL` for the reviewed package only. | Promoted only `supabase/drafts/20260723_facility_status_code_forward.sql` to `supabase/migrations/20260723120000_facility_status_code.sql`. |
+| Rollback and validation SQL must remain separate from production migrations. | ACTIONABLE | Repository Supabase contract requires rollback/validation artifacts outside `supabase/migrations/`. | Kept rollback and validation under `supabase/drafts/`; updated tests to assert canonical migration parity and exclusion of rollback/read-only validation SQL. |
+| Do not redesign application logic or introduce additional schema changes. | ACTIONABLE | Operator explicitly prohibited redesign and unrelated schema changes. | No application code, unrelated tables, RLS, grants, permissions, Auth, backfill, or inactive-facility filtering were changed. |
+
+No direct SQL, database TCP retry, `supabase db push`, live backfill, RLS mutation, permission mutation, Auth mutation, deployment, destructive operation, production data mutation, unrelated schema change, or next roadmap slice work was performed. Production execution remains delegated to the configured Supabase GitHub Integration after protected-main merge, followed by the reviewed read-only validation SQL.

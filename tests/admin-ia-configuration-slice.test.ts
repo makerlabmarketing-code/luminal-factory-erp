@@ -103,7 +103,7 @@ describe("administration information architecture correction slice", () => {
 describe("facility active-state schema package", () => {
   const draft = (relativePath: string) => source(relativePath);
 
-  it("prepares forward, rollback, validation, compatibility, security, and backfill artifacts without promoting unapproved SQL", () => {
+  it("promotes only the approved forward SQL while keeping rollback and validation separate", () => {
     const forward = draft("supabase/drafts/20260723_facility_status_code_forward.sql");
     const rollback = draft("supabase/drafts/20260723_facility_status_code_rollback.sql");
     const validation = draft("supabase/drafts/20260723_facility_status_code_validation.sql");
@@ -111,6 +111,9 @@ describe("facility active-state schema package", () => {
     const security = draft("supabase/drafts/20260723_facility_status_code_security.md");
     const backfill = draft("supabase/drafts/20260723_facility_status_code_backfill.md");
 
+    const migration = draft("supabase/migrations/20260723120000_facility_status_code.sql");
+
+    expect(migration).toBe(forward);
     expect(forward).toMatch(/LIVE_APPROVAL_REQUIRED/);
     expect(forward).toMatch(/add column if not exists code text/);
     expect(forward).toMatch(/add column if not exists is_active boolean not null default true/);
@@ -130,5 +133,8 @@ describe("facility active-state schema package", () => {
     expect(compatibility).toMatch(/Existing application code remains compatible/);
     expect(security).toMatch(/No browser Supabase write policy/);
     expect(backfill).toMatch(/duplicate normalized facility names/);
+
+    expect(migration).not.toMatch(/Rollback blocked: inactive facility rows exist/);
+    expect(migration).not.toMatch(/set transaction read only/);
   });
 });
