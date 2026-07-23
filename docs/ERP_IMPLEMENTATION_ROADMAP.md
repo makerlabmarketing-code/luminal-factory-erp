@@ -361,8 +361,8 @@ Exit Criteria:
 Codex phải cập nhật khối này sau mỗi batch trong AUTO_RUN_ROADMAP.
 
 - **Workstream:** Project Workflow Completion
-- **Current phase:** Phase 4 - UI Polish / Project Detail accessibility polish
-- **Current status:** ✅ Application-only Project Detail accessibility polish PASS validation in current PR.
+- **Current phase:** Phase 4 - UI Polish / Project Detail Vietnamese-copy polish
+- **Current status:** ✅ Application-only Project Detail Vietnamese-copy polish PASS validation in current PR.
 - **Current blocker:** Phase 3 persistence and task-create RPC remain at `LIVE_APPROVAL_REQUIRED` before schema/RLS/backfill/RPC/grant/live mutation. No live mutation is included in this UI slice.
 - **Next safe action:** Continue Phase 4 detail/accessibility polish or return to Phase 3 persistence only after live approval.
 - **Auto-run target:** Chạy tuần tự Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5, dừng tại mọi `LIVE_APPROVAL_REQUIRED`, P0/P1, migration gate hoặc Git delivery blocker.
@@ -988,3 +988,21 @@ Security impact: project mutation authority remains server-side and unchanged. N
 Validation: targeted Vitest, `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check` PASS.
 
 Stop point: Corrective Slice 8 only. Do not continue beyond Slice 8 without a new explicit roadmap instruction.
+
+## 2026-07-23 Corrective Slice 9 project detail Vietnamese-copy polish
+
+Status: application-only Corrective Slice 9 complete. Continued from the latest main-equivalent state after Corrective Slice 8 with a small Project Detail Vietnamese-copy polish.
+
+Completed:
+
+- Replaced user-visible technical English in Project Detail task-gating, empty-state, unassigned-task, workflow-warning, and dialog helper copy with simple Vietnamese.
+- Preserved allowed brand wording such as Google Drive and kept implementation identifiers unchanged in code.
+- Extended existing static Project Detail regression coverage to prevent the replaced English guidance phrases from returning.
+
+Database impact: none. No schema, RPC, RLS, storage, backfill, migration execution, production SQL, deployment, or live data mutation was performed.
+
+Security impact: project, membership, task, phase, and permission mutation authority remains unchanged. No client-side permission expansion, service-role exposure, workspace grant, employee permission assignment, or production data mutation was introduced.
+
+Validation: targeted Vitest, `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check` PASS.
+
+Next safe action: continue the next safe Phase 4 Project Detail UI/accessibility polish slice, or return to Phase 3 persistence only after explicit live approval.

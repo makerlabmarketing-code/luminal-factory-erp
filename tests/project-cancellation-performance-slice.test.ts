@@ -122,7 +122,7 @@ describe('phase and task edit capability pre-run audit contract', () => {
   it('renders task editing only through the Task Assignment Foundation API contract', () => {
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
 
-    expect(detailPage).toMatch(/Task Assignment Foundation/);
+    expect(detailPage).toMatch(/Nền tảng giao việc chưa sẵn sàng/);
     expect(detailPage).toMatch(/handleSaveTask/);
     expect(detailPage).toContain('/api/admin/projects/${projectId}/tasks');
     expect(detailPage).not.toMatch(/updateWorkflowTask|updateWorkflowTaskField/);
