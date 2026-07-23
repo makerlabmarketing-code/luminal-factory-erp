@@ -913,7 +913,7 @@ export default function ProjectDetailPage() {
 
         {taskLoadBlocked && (
           <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">
-            Task Assignment Foundation chưa sẵn sàng hoặc bạn chỉ có quyền xem giới hạn. Dữ liệu công việc legacy vẫn hiển thị ở chế độ chỉ xem.
+            Nền tảng giao việc chưa sẵn sàng hoặc bạn chỉ có quyền xem giới hạn. Dữ liệu công việc cũ vẫn hiển thị ở chế độ chỉ xem.
           </section>
         )}
 
@@ -992,7 +992,7 @@ export default function ProjectDetailPage() {
                 {projectDetail.members.length === 0 ? (
                   <OperationalState
                     title="Chưa có thành viên dự án."
-                    description="Thêm thành viên ACTIVE trước khi giao việc bằng mã nhân sự ổn định."
+                    description="Thêm thành viên đang hoạt động trước khi giao việc bằng mã nhân sự ổn định."
                   />
                 ) : (
                   <>
@@ -1101,7 +1101,7 @@ export default function ProjectDetailPage() {
                   )}
 
                   <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-400">
-                    Công việc con dùng Task Assignment Foundation khi đã bật migration gate. Nếu chưa bật, màn hình giữ dữ liệu legacy ở chế độ chỉ xem.
+                    Công việc con dùng nền tảng giao việc sau khi cổng dữ liệu được duyệt. Nếu chưa bật, màn hình giữ dữ liệu cũ ở chế độ chỉ xem.
                   </div>
 
                   <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
@@ -1184,7 +1184,7 @@ export default function ProjectDetailPage() {
                     {selectedPhase.tasks.length === 0 && (
                       <OperationalState
                         title="Giai đoạn này chưa có công việc."
-                        description="Công việc con sẽ hiển thị ở đây sau khi Task Assignment Foundation trả về dữ liệu theo phase."
+                        description="Công việc con sẽ hiển thị ở đây sau khi nền tảng giao việc trả về dữ liệu theo giai đoạn."
                       />
                     )}
                   </div>
@@ -1196,7 +1196,7 @@ export default function ProjectDetailPage() {
               <section className="rounded-lg border border-slate-800 bg-slate-900">
                 <div className="border-b border-slate-800 px-4 py-3">
                   <h2 className="text-sm font-black text-slate-100">Công việc chưa phân giai đoạn</h2>
-                  <p className="text-[11px] text-slate-500">Task legacy không có `current_phase` khớp an toàn với tên phase hiện tại.</p>
+                  <p className="text-[11px] text-slate-500">Công việc cũ không có giai đoạn hiện tại khớp an toàn với tên giai đoạn đang dùng.</p>
                 </div>
                 <div className="divide-y divide-slate-800">
                   {projectDetail.unassignedTasks.map((task) => (
@@ -1210,7 +1210,7 @@ export default function ProjectDetailPage() {
                         <p>Người đóng gói: {getTaskPackerLabel(task) || 'Chưa gán'}</p>
                       </div>
                       <div className="text-slate-400">
-                        <p>Phase: {isTaskAssignmentDTO(task) ? 'Chưa gán' : task.currentPhaseText || 'Chưa có'}</p>
+                        <p>Giai đoạn: {isTaskAssignmentDTO(task) ? 'Chưa gán' : task.currentPhaseText || 'Chưa có'}</p>
                         <p>Hạn hoàn thành: {getTaskDeadlineLabel(task)}</p>
                       </div>
                     </div>
@@ -1265,7 +1265,7 @@ export default function ProjectDetailPage() {
             <section className="rounded-lg border border-amber-900 bg-amber-950/20 p-4 text-xs text-amber-100">
               <div className="flex gap-2">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
-                <p>Sequential workflow hiện là thiết kế read-only. Cần migration status/dependency trước khi cho mutate phase bị khóa.</p>
+                <p>Quy trình tuần tự hiện chỉ cho xem. Cần cổng dữ liệu trạng thái và phụ thuộc trước khi cho sửa giai đoạn bị khóa.</p>
               </div>
             </section>
           </aside>
@@ -1276,7 +1276,7 @@ export default function ProjectDetailPage() {
             <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
               <div className="mb-4">
                 <h2 className="text-base font-black text-slate-100" id="add-member-title">Thêm thành viên dự án</h2>
-                <p className="text-xs text-slate-500" id="add-member-description">Chỉ tải danh sách nhân sự ACTIVE khi mở modal.</p>
+                <p className="text-xs text-slate-500" id="add-member-description">Chỉ tải danh sách nhân sự đang hoạt động khi mở hộp thoại.</p>
               </div>
               <div className="space-y-3">
                 <label htmlFor="project-member-employee" className="block text-xs font-bold text-slate-300">Nhân sự</label>
@@ -1284,7 +1284,7 @@ export default function ProjectDetailPage() {
                   <option value="">Chọn nhân sự</option>
                   {candidateEmployees.map((employee) => <option key={employee.employeeId} value={employee.employeeId}>{employee.fullName}{employee.title ? ` · ${employee.title}` : ''}</option>)}
                 </select>
-                {candidateEmployeesLoaded && candidateEmployees.length === 0 && <p className="text-xs text-slate-500">Không còn nhân sự ACTIVE nào chưa có membership ACTIVE.</p>}
+                {candidateEmployeesLoaded && candidateEmployees.length === 0 && <p className="text-xs text-slate-500">Không còn nhân sự đang hoạt động nào chưa là thành viên đang hoạt động.</p>}
                 <label htmlFor="project-member-role" className="block text-xs font-bold text-slate-300">Vai trò dự án</label>
                 <select id="project-member-role" value={memberRoleCode} onChange={(event) => setMemberRoleCode(event.target.value as ProjectMemberDTO['roleCode'])} disabled={memberActionLoading} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100">
                   <option value="PROJECT_OWNER">Chủ dự án</option><option value="PROJECT_MANAGER">Quản lý dự án</option><option value="CREATIVE_LEAD">Lead sáng tạo</option><option value="CONTRIBUTOR">Thành viên</option>
@@ -1300,7 +1300,7 @@ export default function ProjectDetailPage() {
             <div className="w-full max-w-xl rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
               <div className="mb-4">
                 <h2 className="text-base font-black text-slate-100" id="edit-task-title">Sửa công việc con</h2>
-                <p className="text-xs text-slate-500" id="edit-task-description">Người phụ trách phải là thành viên ACTIVE của dự án.</p>
+                <p className="text-xs text-slate-500" id="edit-task-description">Người phụ trách phải là thành viên đang hoạt động của dự án.</p>
               </div>
               <div className="space-y-3 text-xs">
                 <label htmlFor="edit-task-assignee" className="block font-bold text-slate-300">Người phụ trách</label>
