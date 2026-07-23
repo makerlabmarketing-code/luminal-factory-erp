@@ -142,6 +142,50 @@ Avoid unnecessary context expansion.
 
 ---
 
+
+## Work Priority Policy
+
+Codex must select work using this priority order:
+
+1. P0 production blockers
+2. P1 newly actionable Code Review findings
+3. P2 next approved roadmap feature
+4. P3 explicitly reported bugs
+5. P4 UI or copy polish
+6. P5 documentation-only improvements
+
+Rules:
+
+- Work only on the highest-priority available item.
+- Do not start lower-priority polish while higher-priority feature or bug work remains.
+- Completed UX, translation, typography, spacing, and copy polish must not be revisited unless:
+  - a new user-reported bug requires it;
+  - an actionable Code Review finding requires it;
+  - the roadmap explicitly reopens it;
+  - a regression test proves the completed behavior is broken.
+- Cosmetic wording changes alone must not become a roadmap slice.
+- Documentation-only work must not displace approved application work.
+- Do not invent cleanup work merely because no connected review source is available.
+- REVIEW_SOURCE_UNAVAILABLE is not permission to create speculative polish work.
+- Do not reopen completed slices without new evidence.
+- When multiple items have the same priority, prefer:
+  1. production correctness;
+  2. data integrity;
+  3. authorization and security;
+  4. core business workflow;
+  5. user-facing usability;
+  6. cosmetics.
+
+## Roadmap Continuation
+
+When no P0, P1, or explicit reported bug blocks progress:
+
+- continue the next approved roadmap feature;
+- do not create standalone wording, spacing, or documentation slices;
+- stop only at LIVE_APPROVAL_REQUIRED, a real validation failure, a Git delivery blocker, or an explicit business decision.
+
+---
+
 ## Roadmap Execution
 
 The implementation roadmap is the execution authority for project progression.
