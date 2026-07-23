@@ -164,6 +164,7 @@ Rules:
   - the roadmap explicitly reopens it;
   - a regression test proves the completed behavior is broken.
 - Cosmetic wording changes alone must not become a roadmap slice.
+- Documentation-only tasks must not be split out when implementation, migration packaging, validation, review, delivery, or handoff artifacts can be completed inside the active feature slice.
 - Documentation-only work must not displace approved application work.
 - Do not invent cleanup work merely because no connected review source is available.
 - REVIEW_SOURCE_UNAVAILABLE is not permission to create speculative polish work.
@@ -180,9 +181,11 @@ Rules:
 
 When no P0, P1, or explicit reported bug blocks progress:
 
+- inspect newly available actionable Code Review findings before selecting the next slice;
 - continue the next approved roadmap feature;
-- do not create standalone wording, spacing, or documentation slices;
-- stop only at LIVE_APPROVAL_REQUIRED, a real validation failure, a Git delivery blocker, or an explicit business decision.
+- do not create standalone tasks whose only purpose is to prepare blockers, delivery notes, review notes, validation notes, documentation, or handoff artifacts when those artifacts fit inside the feature slice;
+- continue additional application-only work whenever it does not require schema, RPC, RLS, storage, deployment, security approval, or live data mutation;
+- stop only at `LIVE_APPROVAL_REQUIRED`, production deployment, security approval, a real infrastructure blocker, a real validation failure, a Git delivery blocker, or an explicit business decision.
 
 ---
 
@@ -231,21 +234,21 @@ Otherwise continue to the next roadmap task.
 Expected autonomous execution loop:
 
 ```
-Implement
+Inspect review findings
       ↓
-Test
+Implement feature
       ↓
-Review
+Complete migration package if needed
       ↓
-Remediate
+Test and validate
       ↓
-Update Docs
+Document and update roadmap/handoff
       ↓
-Prepare Migration Package (if needed)
+Commit and create/update PR
       ↓
-LIVE_APPROVAL (if needed)
+STOP at approval if production delivery is gated
       ↓
-Continue Next Slice
+After protected-main merge, continue next roadmap slice
 ```
 
 When `LIVE_APPROVAL_REQUIRED` is reached, continue every safe task before stopping, including:
@@ -273,26 +276,24 @@ Normal workflow:
 ```
 Current Phase
       ↓
+Code Review check
+      ↓
 Implementation
       ↓
-Internal Review
+Migration package, if needed
       ↓
-Regression Review
+Regression review and validation
       ↓
-Validation
+Documentation and roadmap update
       ↓
-Documentation Update
+Commit and PR
       ↓
-Roadmap Update
-      ↓
-Commit
-      ↓
-Next Phase
+Approval gate or next phase
 ```
 
-Do not stop after every small implementation.
+Do not stop after every small implementation, and do not split package/review/validation/documentation preparation into standalone tasks when they belong to the same feature.
 
-Only stop at approval gates.
+Only stop at approval gates or the explicit blockers listed in this guide.
 
 ---
 
@@ -334,22 +335,20 @@ Allowed before migration:
 - roadmap updates
 - handoff documents
 
-Then prepare the complete migration package before requesting live approval:
+Then prepare the complete migration delivery package inside the same implementation slice whenever possible:
 
-- forward migration
-- rollback
+- reviewed forward SQL
+- rollback SQL
 - validation SQL
 - compatibility report
 - backfill plan
 - RLS plan
+- tests
+- documentation
 - handoff
 - roadmap update
 
-Then stop at:
-
-```
-LIVE_APPROVAL_REQUIRED
-```
+If the Supabase GitHub Integration is the approved delivery path, commit the reviewed forward SQL under `supabase/migrations/`, keep rollback and validation artifacts outside that directory, create or update the PR, and then stop at the production approval boundary. Do **not** require a separate "Apply migration" task; production execution happens only after the approved PR merges into protected `main` and the Supabase GitHub Integration applies it.
 
 Do **not** stop earlier simply because migration will eventually be required.
 
@@ -445,18 +444,15 @@ When the Supabase Session Pooler host, port, username, project reference, and IP
 If Codex Cloud cannot reach PostgreSQL because database TCP is unavailable, the network is unreachable, IPv6 resolution fails, a firewall blocks access, or the cloud sandbox restricts outbound database connections:
 
 - do not repeatedly retry `psql`, `supabase db push`, `supabase db query`, or pooler probes from Codex Cloud;
-- prepare the migration package;
-- prepare the validation package;
-- prepare the rollback package;
-- update the roadmap;
-- update the handoff;
-- update remediation records;
-- stop before deployment or live mutation;
+- do not repeatedly retry direct PostgreSQL connections;
+- prefer the Supabase GitHub Integration, Management API, CLI metadata, and read-only validation where available;
+- prepare forward SQL, rollback SQL, validation SQL, compatibility/backfill artifacts, documentation, tests, roadmap updates, handoff updates, and remediation records inside the active implementation slice whenever possible;
+- commit, create or update the PR, and stop before direct deployment or live mutation;
 - never classify this as a repository failure;
 - never expose access tokens, database passwords, connection strings, or `.pgpass` contents;
 - keep `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` as setup-only secrets, not ordinary environment variables.
 
-When the Supabase GitHub Integration is configured, treat it as the canonical production migration delivery workflow. Place only approved forward migrations under `supabase/migrations/`, keep rollback and validation artifacts separately, create or update the pull request, and let the protected main-branch merge workflow trigger Supabase production migration delivery. Never attempt production migration directly from Codex Cloud when database connectivity is unavailable. Do not place draft or unapproved SQL under `supabase/migrations/`. Production database changes still require every approval gate.
+When the Supabase GitHub Integration is configured, treat it as the canonical production migration delivery workflow. For a complete reviewed package, prepare forward SQL, rollback, validation, compatibility/backfill artifacts, documentation, and tests; place only approved forward migrations under `supabase/migrations/`; keep rollback and validation artifacts separately; commit; create or update the pull request; then stop. Let the protected main-branch merge workflow trigger Supabase production migration delivery. Never require a follow-up "Apply migration" task and never attempt production migration directly from Codex Cloud when database connectivity is unavailable. Do not place draft or unapproved SQL under `supabase/migrations/`. Production database changes still require every approval gate.
 
 ---
 ## Supabase Management API Fallback
@@ -521,6 +517,7 @@ Before starting any new roadmap slice:
 2. Compare new findings against docs/CODE_REVIEW_REMEDIATION.md.
 3. Do not re-review completed slices.
 4. Skip findings already classified as:
+   - FIXED
    - ALREADY_FIXED_AND_VERIFIED
    - FALSE_POSITIVE_WITH_EVIDENCE
    - NOT_APPLICABLE_WITH_EVIDENCE

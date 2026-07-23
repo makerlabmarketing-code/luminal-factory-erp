@@ -62,7 +62,7 @@ The specification names the affected business rule owner, user-visible behavior,
 
 ## Phase Gates
 
-Do not continue automatically from one phase to the next. Wait for explicit user approval.
+Continue automatically from one safe phase or slice to the next when no approval gate, business decision, security approval, production deployment, real infrastructure blocker, or validation failure is present. Stop at `LIVE_APPROVAL_REQUIRED` only after every safe application, package, test, documentation, roadmap, handoff, and PR-preparation step for the active slice is complete.
 
 ### Guidance Foundation
 
@@ -108,10 +108,12 @@ Scope: one approved phase or one approved safe slice.
 
 Completion criteria:
 
+- newly available actionable Code Review findings have been inspected before starting the slice
 - implementation stays within approved scope
 - business-rule impact is reported
 - Vietnamese label and shared-vocabulary impact is reported when UI is affected
 - database, API, dependency, permission, and migration impact are reported
+- migration packages, rollback notes, validation artifacts, documentation, and handoff updates are produced inside the same feature slice whenever possible instead of split into standalone preparation tasks
 - relevant validation runs or is reported unavailable
 - rollback notes are documented
 - diff is reviewed before commit
@@ -124,8 +126,11 @@ Completion criteria:
 
 - current schema and proposed schema are documented
 - new tables, changed columns, foreign keys, indexes, unique constraints, and policies are listed
-- backfill, compatibility, rollback, and data-loss risks are approved
-- production migration is not run without explicit approval
+- forward SQL, rollback SQL, validation SQL, compatibility/backfill artifacts, documentation, and tests are complete before PR delivery
+- reviewed forward SQL for the Supabase GitHub Integration path is committed under `supabase/migrations/` only after approval for PR-based delivery; rollback and validation artifacts stay outside that directory
+- after commit and PR creation/update, stop at the production approval boundary and let protected-main merge plus Supabase GitHub Integration perform production execution
+- do not create a separate "Apply migration" task for a complete reviewed package
+- direct production migration is not run from Codex Cloud
 
 ### Release Readiness
 
@@ -151,7 +156,7 @@ Do not assume `typecheck`, `check`, or `test` scripts exist. When supported by t
 
 Validation by change type:
 
-- guidance-only: review rendered markdown intent, owner placement, duplication removal, and diff; no build is required
+- guidance-only: review rendered markdown intent, owner placement, duplication removal, internal consistency with AGENTS.md and relevant skill references, and diff; no build is required
 - TypeScript or React code: run lint/type-check/build when available and manually verify the affected workflow when practical
 - pure calculations: add or run focused tests for worked hours, salary, workflow transitions, or financial aggregation when a stable seam exists
 - Supabase clients or queries: verify environment names, auth boundary, RLS or trusted server boundary, typed result shape, and relevant data states

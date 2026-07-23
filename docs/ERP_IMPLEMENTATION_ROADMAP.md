@@ -1079,3 +1079,20 @@ Rollback evidence:
 - Rollback execution requires a separate approved live rollback decision after production state review.
 
 Current stop condition: approved facility package delivered. Do not continue the next roadmap slice from this task.
+
+## 2026-07-23 Repository guidance workflow refresh
+
+Status: guidance update in progress for the current autonomous roadmap workflow.
+
+Completed:
+
+- Clarified that the Supabase GitHub Integration is the canonical production migration delivery path after a reviewed package is complete.
+- Removed the need for a separate "Apply migration" task after forward SQL, rollback, validation, compatibility/backfill artifacts, documentation, tests, commit, and PR delivery are complete.
+- Folded blocker, delivery, review, validation, documentation, and handoff preparation into the active implementation slice whenever possible.
+- Clarified that safe application-only work should continue automatically until `LIVE_APPROVAL_REQUIRED`, production deployment, security approval, a real infrastructure blocker, validation failure, Git delivery blocker, or business decision stops progress.
+- Reaffirmed that newly available actionable Code Review findings are inspected before the next roadmap slice and already-remediated findings classified as `FIXED`, `FALSE_POSITIVE_WITH_EVIDENCE`, or `NOT_APPLICABLE_WITH_EVIDENCE` are not reopened.
+- Reaffirmed that Codex Cloud PostgreSQL TCP failures are expected environment limitations after confirmation, and direct TCP retries should stop in favor of Supabase GitHub Integration, Management API checks, CLI metadata, and read-only validation where available.
+
+Validation: guidance regression coverage was added in `tests/repository-guidance-workflow.test.ts`; final command results are recorded in the delivery response.
+
+Next safe action: after this guidance PR is created, continue the next approved roadmap feature from the latest protected-main state using the refreshed workflow.
