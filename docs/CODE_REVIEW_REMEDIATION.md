@@ -248,3 +248,11 @@ Self-review classification: no actionable P0/P1 finding identified in the safe a
 Self-review classification: no actionable P0/P1 finding remains in this application-only facility administration server-boundary hardening. The admin facility page no longer performs direct browser Supabase mutations for `facilities`; server routes enforce `ADMIN_WORKSPACE` plus system-settings or attendance-management permissions and return Vietnamese safe errors. Active/inactive facility state and stable facility codes remain schema-backed future work requiring `LIVE_APPROVAL_REQUIRED` with forward, rollback, validation, compatibility, security, and backfill artifacts.
 
 No SQL, migration execution, schema mutation, RLS mutation, RPC deployment, storage mutation, facility live backfill, permission mutation, Auth mutation, deployment, destructive operation, or production data mutation was performed.
+
+## 2026-07-23 Facility active-state package review source status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This continuation inspected the current latest-main checkout, the Administration IA handoff, roadmap, remediation ledger, facility server-boundary code, and focused static regression tests as available review sources. No newly actionable P0/P1 Codex Code Review finding was available from those sources.
+
+Self-review classification: no actionable P0/P1 finding was identified in the draft-only facility active-state/stable-code package. The package prepares forward, rollback, validation, compatibility, security, and backfill artifacts only; it does not promote SQL to `supabase/migrations/`, execute SQL, mutate RLS, add grants, add broad browser write policies, mutate live facility data, or change application filtering before approval.
+
+No SQL, migration execution, migration promotion, schema mutation, RLS mutation, RPC deployment, storage mutation, facility live backfill, permission mutation, Auth mutation, deployment, destructive operation, or production data mutation was performed. Facility active-state rollout remains `LIVE_APPROVAL_REQUIRED`.

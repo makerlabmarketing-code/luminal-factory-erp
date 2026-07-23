@@ -1036,3 +1036,21 @@ Security impact: browser-side facility table mutations were removed from the adm
 Validation: targeted Vitest, `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check` to be recorded with final command results for this PR.
 
 Next safe action: prepare an approved schema package for facility active/inactive state and stable facility codes, or continue the next approved roadmap feature that does not require live schema/RLS mutation.
+
+## 2026-07-23 Facility active-state and stable-code schema package
+
+Status: `LIVE_APPROVAL_REQUIRED` after safe artifact preparation. Continued the next approved facility follow-up after the Administration IA correction and facility server-boundary hardening.
+
+Completed safe work:
+
+- Prepared draft-only forward SQL for `public.facilities.code`, `public.facilities.is_active`, a unique facility-code index, and an active-facility partial index.
+- Prepared rollback SQL that blocks rollback if inactive facility decisions would be lost.
+- Prepared read-only validation SQL for column shape, populated/unique codes, active defaults, indexes, and absence of broad authenticated facility write policies.
+- Prepared compatibility, security, and backfill artifacts documenting existing app compatibility, no browser-write policy expansion, duplicate-code review, and rollback/data-loss risks.
+- Added focused static regression coverage proving the package remains draft-only and has the required forward, rollback, validation, compatibility, security, and backfill artifacts.
+
+Database impact: no live SQL, migration promotion, RLS mutation, RPC deployment, storage change, backfill execution, facility live mutation, permission mutation, Auth mutation, destructive operation, production deployment, or production data mutation was performed.
+
+Security impact: facility browser writes remain removed from the admin page; this package adds no grants, storage policy, Auth mutation, or broad browser write policy. The prepared validation checks for unsafe authenticated write policies before approval.
+
+Current gate: `LIVE_APPROVAL_REQUIRED` before applying the facility active-state/stable-code package, promoting forward SQL into the Supabase GitHub Integration migration path, filtering inactive facilities in application code, or migrating employee branch mappings to stable facility codes.

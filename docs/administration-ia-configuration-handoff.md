@@ -46,3 +46,20 @@ Completed as a safe application-only continuation:
 No SQL, schema change, RLS mutation, RPC deployment, catalog backfill, facility live mutation outside the app request path, permission mutation, Auth mutation, destructive operation, production deployment, or backfill was executed.
 
 Still pending for a separate approval gate: active/inactive facility state, stable facility codes, RLS/catalog changes, and any facility backfill. Those require forward, rollback, validation, compatibility, security, and backfill artifacts before `LIVE_APPROVAL_REQUIRED` can be resolved.
+
+## 2026-07-23 Facility active-state and stable-code package
+
+Prepared as draft-only artifacts; no SQL was executed and no forward SQL was promoted to `supabase/migrations/`.
+
+Artifacts:
+
+- `supabase/drafts/20260723_facility_status_code_forward.sql`
+- `supabase/drafts/20260723_facility_status_code_rollback.sql`
+- `supabase/drafts/20260723_facility_status_code_validation.sql`
+- `supabase/drafts/20260723_facility_status_code_compatibility.md`
+- `supabase/drafts/20260723_facility_status_code_security.md`
+- `supabase/drafts/20260723_facility_status_code_backfill.md`
+
+The package proposes `facilities.code`, `facilities.is_active`, a unique facility-code index, and an active-facility partial index. Existing application reads remain compatible because the current `id, facility_name, address, lat, lng, radius` contract is unchanged.
+
+`LIVE_APPROVAL_REQUIRED` remains required before applying the package, promoting a reviewed forward migration for the Supabase GitHub Integration path, filtering inactive facilities in the app, or migrating employee branch matching to stable codes.

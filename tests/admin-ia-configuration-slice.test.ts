@@ -99,3 +99,36 @@ describe("administration information architecture correction slice", () => {
     expect(service).toMatch(/const FACILITY_SELECT = 'id, facility_name, address, lat, lng, radius'/);
     expect(service).not.toMatch(/select\('\*'\)/);
   });
+
+describe("facility active-state schema package", () => {
+  const draft = (relativePath: string) => source(relativePath);
+
+  it("prepares forward, rollback, validation, compatibility, security, and backfill artifacts without promoting unapproved SQL", () => {
+    const forward = draft("supabase/drafts/20260723_facility_status_code_forward.sql");
+    const rollback = draft("supabase/drafts/20260723_facility_status_code_rollback.sql");
+    const validation = draft("supabase/drafts/20260723_facility_status_code_validation.sql");
+    const compatibility = draft("supabase/drafts/20260723_facility_status_code_compatibility.md");
+    const security = draft("supabase/drafts/20260723_facility_status_code_security.md");
+    const backfill = draft("supabase/drafts/20260723_facility_status_code_backfill.md");
+
+    expect(forward).toMatch(/LIVE_APPROVAL_REQUIRED/);
+    expect(forward).toMatch(/add column if not exists code text/);
+    expect(forward).toMatch(/add column if not exists is_active boolean not null default true/);
+    expect(forward).toMatch(/facilities_code_unique_idx/);
+    expect(forward).toMatch(/facilities_active_idx/);
+    expect(forward).not.toMatch(/create policy|grant |storage|auth\.users/i);
+
+    expect(rollback).toMatch(/Rollback blocked: inactive facility rows exist/);
+    expect(rollback).toMatch(/drop column if exists is_active/);
+    expect(rollback).toMatch(/drop column if exists code/);
+
+    expect(validation).toMatch(/set transaction read only/);
+    expect(validation).toMatch(/facility_codes_unique/);
+    expect(validation).toMatch(/no_broad_authenticated_facility_write_policy/);
+    expect(validation).not.toMatch(/^\s*(alter|update|delete|insert|drop|create)\b/im);
+
+    expect(compatibility).toMatch(/Existing application code remains compatible/);
+    expect(security).toMatch(/No browser Supabase write policy/);
+    expect(backfill).toMatch(/duplicate normalized facility names/);
+  });
+});
