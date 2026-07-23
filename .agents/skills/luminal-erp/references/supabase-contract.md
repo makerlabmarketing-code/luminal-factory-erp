@@ -146,6 +146,15 @@ Potential production-workflow entities may include:
 
 No production migration should run without explicit approval.
 
+
+## Database TCP Availability and GitHub Migration Delivery
+
+Do not require direct PostgreSQL TCP connectivity from Codex Cloud. When the Session Pooler configuration is verified and PostgreSQL TCP attempts fail with `Network is unreachable`, classify the condition as `DATABASE_TCP_UNAVAILABLE`. Treat it as an execution-environment limitation, not a credential, IPv6, repository, or malformed-URL failure.
+
+After `DATABASE_TCP_UNAVAILABLE` is confirmed, stop retrying `psql`, `supabase db push`, `supabase db query`, and pooler probes from Codex Cloud. Continue application-only work from reviewed repository artifacts when possible, and record the limitation in the roadmap, handoff, and remediation ledger. Do not weaken schema review, RLS review, rollback, validation, compatibility/backfill, or live-approval requirements.
+
+For reviewed production migrations, use the configured Supabase GitHub Integration path: commit only approved forward SQL under `supabase/migrations/`, keep rollback and validation SQL outside the migrations directory, create or update the pull request, and allow the protected main-branch merge workflow to deliver the production migration. Never place draft or unapproved SQL in `supabase/migrations/`, and never expose `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, connection strings, database passwords, or `.pgpass` contents. Keep Supabase access token and database password values as setup-only secrets rather than ordinary environment variables.
+
 ## Management API Fallback
 
 When Supabase Management API verification returns Cloudflare Error 1010 (`browser_signature_banned`), HTTP 403 from `api.supabase.com` with that confirmed infrastructure restriction, or another confirmed infrastructure restriction unrelated to repository correctness, record `MANAGEMENT_API_UNAVAILABLE`. This is an environment limitation, not evidence of an invalid token, invalid project reference, or repository failure.

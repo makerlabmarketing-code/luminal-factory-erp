@@ -935,3 +935,12 @@ Stop point: Corrective Slice 6 only. Future schema/RPC/inventory persistence rem
 - **Execution blocker:** `npx supabase db query --linked --file supabase/drafts/corrective-slice-6-production-order-persistence/forward.sql` reached linked-project login-role initialization, then failed repeatedly during database connection with `TypeError: null is not an object (evaluating 'context')` from `internalConnectMultipleTimeout`. A direct TCP probe to `aws-1-ap-northeast-1.pooler.supabase.com:5432` returned `Network is unreachable`.
 - **Validation impact:** live post-apply verification for production order creation, workflow template creation, stage transitions, production member assignment, attachment metadata, notification outbox, permission enforcement, duplicate protection, and rollback safety remains incomplete because the approved SQL package could not be applied from this environment.
 - **Next gate:** rerun the exact reviewed Slice 6 package from a network path that can reach the Supabase database/pooler, then run the complete validation suite. Do not continue Slice 7.
+
+### 2026-07-22 Corrective Slice 6 GitHub Integration delivery path
+
+- **Status:** `APPROVED_FORWARD_PROMOTED_FOR_GITHUB_INTEGRATION`.
+- **Environment classification:** `DATABASE_TCP_UNAVAILABLE`. The Supabase IPv4 Session Pooler settings are confirmed correct, but Codex Cloud cannot open outbound PostgreSQL TCP connections and returns `Network is unreachable`. This is not a repository blocker for application-only work and is not a Supabase credential, IPv6, or URL-shape failure.
+- **Delivery path:** promoted the approved reviewed forward package to `supabase/migrations/20260722110928_corrective_slice_6_production_order_persistence.sql`. Rollback and validation artifacts remain outside `supabase/migrations/` under the reviewed Slice 6 package directory.
+- **Production execution:** no direct SQL execution from Codex Cloud. Production migration execution occurs only through the configured Supabase GitHub Integration after the approved pull request merges into protected `main`.
+- **Validation coverage:** static regression coverage confirms the canonical migration matches the reviewed forward package, excludes rollback/validation SQL, excludes unapproved draft SQL markers, avoids broad browser write policies, and contains no inventory quantity mutation.
+- **Stop point:** Corrective Slice 6 delivery only. Do not continue Slice 7 until GitHub Integration migration delivery and post-deployment validation pass.

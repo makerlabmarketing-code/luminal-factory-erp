@@ -101,3 +101,23 @@ Execution result: `LIVE_EXECUTION_BLOCKED_BY_DATABASE_NETWORK`.
 - Because the forward package did not execute, post-apply SQL validation, production-order creation, workflow template creation, stage transitions, production member assignment, attachment metadata, notification outbox, permission enforcement, duplicate protection, and rollback-safety verification could not be completed against the live database in this run.
 
 Next allowed action: rerun the exact reviewed package from an environment with database connectivity, starting with `npx supabase db query --linked --file supabase/drafts/corrective-slice-6-production-order-persistence/forward.sql`, then apply the remaining reviewed files in package order and run `validation.sql`. Do not continue Slice 7 until Slice 6 live validation succeeds.
+
+## 2026-07-22 GitHub Integration migration delivery package
+
+Status: `APPROVED_FORWARD_PROMOTED_FOR_GITHUB_INTEGRATION`.
+
+The confirmed Codex Cloud limitation is `DATABASE_TCP_UNAVAILABLE`: the Supabase IPv4 Session Pooler configuration is correct, but outbound PostgreSQL TCP from Codex Cloud returns `Network is unreachable` for every resolved pooler address. This is an execution-environment limitation, not a credential failure, IPv6 configuration failure, repository defect, or malformed Session Pooler URL. Direct database TCP connectivity was not retried.
+
+The reviewed forward package was promoted to `supabase/migrations/20260722110928_corrective_slice_6_production_order_persistence.sql` for the configured Supabase GitHub Integration path. Production migration execution must occur only after this approved pull request merges into protected `main` and the configured Supabase GitHub Integration applies the migration. Codex Cloud did not execute SQL directly.
+
+Approval-condition confirmation:
+
+- Forward SQL is approved by the current task scope and promoted from the reviewed package without adding rollback or validation SQL to `supabase/migrations/`.
+- Rollback remains preserved separately at `supabase/drafts/corrective-slice-6-production-order-persistence/rollback.sql`.
+- Validation remains preserved separately at `supabase/drafts/corrective-slice-6-production-order-persistence/validation.sql`.
+- RLS/security boundaries remain part of the approved forward delivery package and keep browser writes behind RPC boundaries.
+- Compatibility/backfill behavior remains safe: compatibility views are read-only and automatic legacy backfill remains out of scope.
+- Static regression coverage confirms no inventory quantity mutation exists.
+- No unresolved P0/P1 finding was identified from available review sources; connected Code Review findings remain `REVIEW_SOURCE_UNAVAILABLE` until the PR review workflow runs.
+
+Do not continue Slice 7 until the PR has merged, the Supabase GitHub Integration has delivered this migration, and post-deployment validation has passed.
