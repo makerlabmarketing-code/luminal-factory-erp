@@ -85,3 +85,8 @@ No permission expansion, preset semantics change, workspace grant/backfill, SQL,
 ## 2026-07-23 review remediation sweep
 
 Reviewed the current latest-main Slice 5 account-management evidence without reopening entries already classified as `ALREADY_FIXED_AND_VERIFIED`, `FALSE_POSITIVE_WITH_EVIDENCE`, or `REVIEW_SOURCE_UNAVAILABLE`. The remaining actionable duplicate-active-row finding is fixed in current code by collapsing duplicate active workspace and permission rows during idempotent grant/save paths. No permission expansion, preset semantics change, workspace grant/backfill, SQL, RLS, schema mutation, deployment, or production data mutation was performed. Final reviewed closure still depends on connected Codex Code Review availability for the active remediation PR.
+
+
+## 2026-07-23 latest PR review closure
+
+Reviewed the latest PR diff/comment bundle for the current remediation commit. No inline comment or newly actionable Codex Code Review finding was present for Slice 5. The duplicate-active-row finding remains fixed in code and covered by regression evidence, so Slice 5 is closed for this documentation-only remediation sweep. No permission expansion, SQL, RLS, schema mutation, deployment, production-data mutation, or Slice 7 work was performed.

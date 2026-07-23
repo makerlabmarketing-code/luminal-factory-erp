@@ -944,3 +944,10 @@ Stop point: Corrective Slice 6 only. Future schema/RPC/inventory persistence rem
 - **Production execution:** no direct SQL execution from Codex Cloud. Production migration execution occurs only through the configured Supabase GitHub Integration after the approved pull request merges into protected `main`.
 - **Validation coverage:** static regression coverage confirms the canonical migration matches the reviewed forward package, excludes rollback/validation SQL, excludes unapproved draft SQL markers, avoids broad browser write policies, and contains no inventory quantity mutation.
 - **Stop point:** Corrective Slice 6 delivery only. Do not continue Slice 7 until GitHub Integration migration delivery and post-deployment validation pass.
+
+
+## 2026-07-23 Slice 3 through Slice 6 review-remediation closure
+
+Status: documentation-only review refresh complete. The latest supplied PR diff/comment bundle for the current remediation commit contained no inline comments or newly actionable Codex Code Review findings for Corrective Slice 3, Slice 3B, Slice 4, Slice 5, or Slice 6. Those slices are closed for this remediation sweep. Existing live gates remain unchanged: task atomicity and production-order live execution still require their separate approval/network paths. Slice 7 was not started.
+
+No application code, SQL execution, migration execution, RLS mutation, schema mutation, backfill, deployment, production-data mutation, inventory quantity mutation, or completed-slice redesign was performed.
