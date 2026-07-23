@@ -124,11 +124,11 @@ describe("Corrective Slice 1 project and workspace authorization contracts", () 
     );
     expect(accountManagement).not.toMatch(/deleteUser|admin\.delete/);
     expect(accountClient).toMatch(
-      /Cấp Staff Workspace|Thu hồi Staff Workspace/,
+      /Cấp quyền truy cập cổng nhân viên|Thu hồi quyền truy cập cổng nhân viên/,
     );
     expect(accountClient).toMatch(
-      /Cấp Admin Workspace|Thu hồi Admin Workspace/,
+      /Cấp quyền truy cập trang quản trị|Thu hồi quyền truy cập trang quản trị/,
     );
-    expect(accountClient).toMatch(/Thu hồi toàn bộ truy cập/);
+    expect(accountClient).toMatch(/Thu hồi toàn bộ quyền truy cập/);
   });
 });

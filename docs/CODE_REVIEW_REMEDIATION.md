@@ -234,3 +234,9 @@ No SQL, migration execution, RLS mutation, schema mutation, workspace grant, emp
 `REVIEW_SOURCE_UNAVAILABLE`: connected Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This continuation inspected the current checkout, roadmap, remediation ledger, Project Detail implementation, and existing Vietnamese-copy handoff as available review evidence. No newly actionable P0/P1 finding was available from those sources.
 
 Self-review classification: no business-rule, permission, schema, RLS, RPC, deployment, or live-data finding was introduced. The only actionable local finding was remaining user-visible implementation wording in Project Detail; it was remediated by replacing read-only/derive, deadline, membership ACTIVE/hard-delete, server mutation, and state-machine copy with plain Vietnamese and adding static regression coverage.
+
+## 2026-07-23 Administration IA and configuration correction review source status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This slice used AGENTS.md, ERP/UI/Supabase/workflow references, roadmap, account handoff, remediation ledger, current implementation inspection, and focused static regression tests as available review sources.
+
+Self-review classification: no actionable P0/P1 finding identified in the safe application-only navigation, account-list pagination/copy, system-catalog wording, or attendance-facility source verification changes. Broader schema-backed catalog migration and active/inactive facility persistence remain `LIVE_APPROVAL_REQUIRED` and were not executed.

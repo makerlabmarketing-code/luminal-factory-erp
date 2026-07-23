@@ -21,7 +21,7 @@ describe("account and permission management slice", () => {
 
     expect(page).not.toMatch(/['"]use client['"]/);
     expect(page).toMatch(/getAdminAccountManagementData/);
-    expect(client).toMatch(/Quản lý tài khoản & phân quyền/);
+    expect(client).toMatch(/Tài khoản & quyền truy cập/);
     expect(client).not.toMatch(
       /from\(['"]employee_permissions['"]\)|from\(['"]employee_workspace_access['"]\)|utils\/supabase\/admin|SUPABASE_SECRET_KEY/,
     );
@@ -59,7 +59,14 @@ describe("account and permission management slice", () => {
     expect(
       ACCOUNT_PRESETS.find((preset) => preset.code === "CREATIVE_LEAD")
         ?.permissions,
-    ).toEqual(expect.arrayContaining(["TASK_VIEW", "TASK_MANAGE", "TASK_ASSIGN", "TASK_REVIEW"]));
+    ).toEqual(
+      expect.arrayContaining([
+        "TASK_VIEW",
+        "TASK_MANAGE",
+        "TASK_ASSIGN",
+        "TASK_REVIEW",
+      ]),
+    );
     expect(ACCOUNT_PRESETS.map((preset) => preset.code)).toEqual([
       "ADMINISTRATOR",
       "HR_MANAGER",
@@ -82,7 +89,6 @@ describe("account and permission management slice", () => {
     ]);
   });
 
-
   it("keeps the canonical permission registry complete and duplicate-free", () => {
     const approvedKeys = [
       "TASK_VIEW",
@@ -96,7 +102,9 @@ describe("account and permission management slice", () => {
     ];
 
     expect(ALL_PERMISSION_CODES).toEqual(expect.arrayContaining(approvedKeys));
-    expect(new Set(ALL_PERMISSION_CODES).size).toBe(ALL_PERMISSION_CODES.length);
+    expect(new Set(ALL_PERMISSION_CODES).size).toBe(
+      ALL_PERMISSION_CODES.length,
+    );
 
     const groupedCodes = PERMISSION_GROUPS.flatMap((group) =>
       group.permissions.map((permission) => permission.code),
@@ -105,7 +113,9 @@ describe("account and permission management slice", () => {
     expect(new Set(groupedCodes).size).toBe(groupedCodes.length);
     expect(PERMISSION_GROUPS.flatMap((group) => group.permissions)).toEqual(
       expect.arrayContaining(
-        approvedKeys.map((code) => expect.objectContaining({ code, label: expect.any(String) })),
+        approvedKeys.map((code) =>
+          expect.objectContaining({ code, label: expect.any(String) }),
+        ),
       ),
     );
   });
@@ -214,8 +224,12 @@ it("validates live catalog rollout without time-window loopholes", () => {
     "supabase/drafts/20260722_corrective_slice_5_permission_catalog_validation.sql",
   );
 
-  expect(validation).toMatch(/canonical application contract matches live catalog/);
+  expect(validation).toMatch(
+    /canonical application contract matches live catalog/,
+  );
   expect(validation).toMatch(/no unknown duplicate key exists/);
-  expect(validation).toMatch(/permission_code in \(select code from approved_keys\)/);
+  expect(validation).toMatch(
+    /permission_code in \(select code from approved_keys\)/,
+  );
   expect(validation).not.toMatch(/created_at\s*>=\s*statement_timestamp\(\)/);
 });

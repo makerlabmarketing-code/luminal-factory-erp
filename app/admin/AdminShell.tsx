@@ -1,22 +1,23 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LoadingLink } from '@/component/GlobalLoading';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LoadingLink } from "@/component/GlobalLoading";
 import {
   ArrowLeftRight,
   BriefcaseBusiness,
   CalendarDays,
   ClipboardList,
   Database,
+  FolderKanban,
   LayoutDashboard,
   Mail,
   MapPin,
   PiggyBank,
   ShieldCheck,
   Users,
-} from 'lucide-react';
-import AdminLogoutButton from './AdminLogoutButton';
+} from "lucide-react";
+import AdminLogoutButton from "./AdminLogoutButton";
 
 interface AdminShellProps {
   children: React.ReactNode;
@@ -34,27 +35,48 @@ export default function AdminShell({
 
   const menuGroups = [
     {
-      groupTitle: 'Lương & Công',
+      groupTitle: "Tổng quan",
       items: [
-        { name: 'Tổng quan tài chính', path: '/admin/dashboard', icon: LayoutDashboard },
-        { name: 'Sổ Cái Vốn & Chi Tiêu', path: '/admin/capital', icon: PiggyBank },
-        { name: 'Lịch Chấm Công Ca', path: '/admin/attendance', icon: CalendarDays },
-        { name: 'Gán Việc & Tiến Độ Phase', path: '/admin/tasks', icon: ClipboardList },
+        {
+          name: "Tổng quan vận hành",
+          path: "/admin/dashboard",
+          icon: LayoutDashboard,
+        },
       ],
     },
     {
-      groupTitle: 'Quản Lý Nhân Sự',
+      groupTitle: "Dự án & sản xuất",
       items: [
-        { name: 'Hồ Sơ Nhân Sự Sâu', path: '/admin/employees', icon: Users },
-        { name: 'Tài Khoản & Phân Quyền', path: '/admin/accounts', icon: ShieldCheck },
-        { name: 'Danh Sách Cơ Sở & GPS', path: '/admin/facilities', icon: MapPin },
+        { name: "Dự án", path: "/admin/projects", icon: FolderKanban },
+        {
+          name: "Công việc & tiến độ",
+          path: "/admin/tasks",
+          icon: ClipboardList,
+        },
       ],
     },
     {
-      groupTitle: 'Cấu Hình Hệ Thống',
+      groupTitle: "Nhân sự",
       items: [
-        { name: 'Quản Lý Danh Mục DB', path: '/admin/metadata', icon: Database },
-        { name: 'Mẫu Email Template', path: '/admin/email-editor', icon: Mail },
+        { name: "Hồ sơ nhân sự", path: "/admin/employees", icon: Users },
+        { name: "Chấm công", path: "/admin/attendance", icon: CalendarDays },
+        { name: "Cơ sở làm việc", path: "/admin/facilities", icon: MapPin },
+        {
+          name: "Tài khoản & quyền truy cập",
+          path: "/admin/accounts",
+          icon: ShieldCheck,
+        },
+      ],
+    },
+    {
+      groupTitle: "Tài chính",
+      items: [{ name: "Sổ thu chi", path: "/admin/capital", icon: PiggyBank }],
+    },
+    {
+      groupTitle: "Cấu hình hệ thống",
+      items: [
+        { name: "Danh mục hệ thống", path: "/admin/metadata", icon: Database },
+        { name: "Mẫu email", path: "/admin/email-editor", icon: Mail },
       ],
     },
   ];
@@ -63,8 +85,12 @@ export default function AdminShell({
     <div className="flex min-h-screen bg-slate-950 text-slate-100 font-sans">
       <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0">
         <div className="p-6 border-b border-slate-800">
-          <h2 className="text-lg font-black text-blue-500 tracking-wider">LUMINAL HQ</h2>
-          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Hệ điều hành xưởng in</p>
+          <h2 className="text-lg font-black text-blue-500 tracking-wider">
+            LUMINAL HQ
+          </h2>
+          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+            Hệ điều hành xưởng in
+          </p>
         </div>
 
         <nav className="flex-1 p-4 space-y-5 overflow-y-auto custom-scrollbar">
@@ -75,7 +101,9 @@ export default function AdminShell({
               </span>
 
               {group.items.map((item) => {
-                const isActive = pathname === item.path;
+                const isActive =
+                  pathname === item.path ||
+                  pathname.startsWith(`${item.path}/`);
 
                 return (
                   <Link
@@ -83,8 +111,8 @@ export default function AdminShell({
                     href={item.path}
                     className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition duration-200 ${
                       isActive
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
+                        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                     }`}
                   >
                     <item.icon className="w-4 h-4" />
