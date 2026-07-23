@@ -278,3 +278,11 @@ Prepared the safe application-only side of facility active-state filtering witho
 - Admin facility listing also keeps the legacy select by default, and only includes `code`/`is_active` in the DTO when the same server-side gate is enabled.
 
 No SQL, direct PostgreSQL TCP retry, RLS mutation, schema mutation, facility data mutation, backfill, production deployment, destructive operation, or live data mutation was performed. `LIVE_APPROVAL_REQUIRED` remains for production migration execution/rollback, post-deployment validation, and any live environment variable rollout.
+
+## 2026-07-23 Batch 3D2 system_settings broad-policy package review source status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings and unresolved PR conversations are not exposed in this environment. This continuation used AGENTS.md, ERP/Supabase/workflow/coding references, the roadmap, current security regression tests, and existing migration drift notes as the available review source.
+
+Self-review classification: no newly actionable P0/P1 finding was identified in the draft-only Batch 3D2 package. The package prepares forward, rollback, validation, compatibility/backfill, security, and tests for removing the two legacy broad `system_settings` policies; it does not promote SQL to `supabase/migrations/`, execute SQL, mutate live RLS, add grants, expose privileged credentials, or reintroduce runtime `system_settings` dependencies.
+
+No SQL, migration execution, migration promotion, RLS mutation, RPC deployment, backfill, deployment, destructive operation, direct PostgreSQL TCP retry, or production data mutation was performed. Batch 3D2 remains `LIVE_APPROVAL_REQUIRED` before Supabase GitHub Integration delivery.
