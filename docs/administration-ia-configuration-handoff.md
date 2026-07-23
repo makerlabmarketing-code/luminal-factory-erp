@@ -1,0 +1,35 @@
+# Administration Information Architecture and Configuration Handoff
+
+Date: 2026-07-23
+
+## Scope delivered
+
+- Regrouped the existing admin navigation by business domain while preserving existing route paths and deep links.
+- Renamed technical menu/page language to Vietnamese operational labels:
+  - `Danh Sách Cơ Sở & GPS` → `Cơ sở làm việc`
+  - `Quản Lý Danh Mục DB` → `Danh mục hệ thống`
+  - `Tài Khoản & Phân Quyền` → `Tài khoản & quyền truy cập`
+  - `Gán Việc & Tiến Độ Phase` → `Công việc & tiến độ`
+  - `Sổ Cái Vốn & Chi Tiêu` → `Sổ thu chi`
+  - `Lịch Chấm Công Ca` → `Chấm công`
+- Kept implemented URLs unchanged; no redirects or route renames were required.
+- Kept attendance tied to the existing `facilities` table source used by the Staff Attendance API.
+- Renamed the current catalog page primary title to `Danh mục hệ thống` and removed primary `DB` terminology.
+
+## Catalog inventory notes
+
+Initial static inspection found a mixture of canonical system contracts and configurable business catalogs. This slice did not move hardcoded values into editable data because doing so safely requires live catalog schema/backfill review.
+
+- Core system contracts that must remain code-defined unless an approved specification changes them: permission codes, workspace codes, workflow state-machine statuses, audit/security policy keys.
+- Existing configurable candidate area: `system_metadata` / `DEFAULT_SYSTEM_METADATA_CATEGORIES` remains the current compatibility source for business dictionaries.
+- Derived records that should continue to come from domain tables: employees, facilities, projects, attendance history, finance ledger entries.
+
+## Live boundary
+
+No SQL, schema change, RLS mutation, RPC deployment, catalog backfill, facility data mutation, permission mutation, Auth mutation, destructive operation, production deployment, or live data mutation was executed.
+
+`LIVE_APPROVAL_REQUIRED` remains required before converting additional hardcoded business catalogs into database-backed catalog rows or mutating facility/catalog RLS.
+
+## Next safe follow-up
+
+If approved as a separate PR, continue with server-backed facility CRUD hardening and active/inactive filtering using the existing `facilities` table, including forward/rollback/validation artifacts if the live schema does not already contain active-state and stable-code columns.

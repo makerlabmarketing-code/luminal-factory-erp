@@ -90,3 +90,10 @@ Reviewed the current latest-main Slice 5 account-management evidence without reo
 ## 2026-07-23 latest PR review closure
 
 Reviewed the latest PR diff/comment bundle for the current remediation commit. No inline comment or newly actionable Codex Code Review finding was present for Slice 5. The duplicate-active-row finding remains fixed in code and covered by regression evidence, so Slice 5 is closed for this documentation-only remediation sweep. No permission expansion, SQL, RLS, schema mutation, deployment, production-data mutation, or Slice 7 work was performed.
+
+## 2026-07-23 Administration IA account UX correction
+
+- Account list copy now separates employee identity, account status, employee portal access, admin page access, preset, effective permission count, access status, and actions.
+- Added client-side pagination defaults for 10 rows with 10/20/50 choices so the account list no longer depends on one long fixed table scan.
+- Workspace actions use Vietnamese portal/page-access wording and keep grant/revoke as a single mutually exclusive label per workspace.
+- Permission assignment remains application-only through existing account APIs; no workspace grant, permission row, Auth mutation, SQL, RLS, migration, backfill, deployment, or production data mutation was executed.

@@ -1007,3 +1007,12 @@ Security impact: project, membership, task, phase, and permission mutation autho
 Validation: targeted Vitest, `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check` PASS.
 
 Next safe action: continue the next safe Phase 4 Project Detail UI/accessibility polish slice, or return to Phase 3 persistence only after explicit live approval.
+
+## 2026-07-23 Administration IA and configuration correction slice
+
+- Completed a safe application-only correction for administration information architecture and configuration wording.
+- Admin navigation now groups existing destinations by business domain: Tổng quan, Dự án & sản xuất, Nhân sự, Tài chính, and Cấu hình hệ thống. Existing route paths were preserved.
+- Account management copy now separates cổng nhân viên, trang quản trị, preset vai trò, effective permission count, account status, and access status. Account list pagination defaults to 10 with 10/20/50 choices.
+- System catalog UI primary wording is now `Danh mục hệ thống`; primary `DB` terminology was removed from the page/menu labels.
+- Attendance/facility integration remains on the existing shared `facilities` source; no hardcoded workplace list was introduced.
+- No SQL, migration, RLS, RPC, live catalog backfill, facility mutation, Auth mutation, permission mutation, deployment, destructive operation, or production data mutation was executed. Further schema-backed catalog/facility expansion remains `LIVE_APPROVAL_REQUIRED`.
