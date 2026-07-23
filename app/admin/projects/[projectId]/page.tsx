@@ -886,7 +886,7 @@ export default function ProjectDetailPage() {
                 <p className="font-bold text-slate-100">{projectDetail.status || 'Đang theo dõi'}</p>
               </div>
               <div>
-                <p className="text-slate-500">Deadline tổng</p>
+                <p className="text-slate-500">Hạn tổng</p>
                 <p className="font-bold text-slate-100">{formatDate(firstDescription.project_deadline)}</p>
               </div>
               <div>
@@ -1105,7 +1105,7 @@ export default function ProjectDetailPage() {
                   </div>
 
                   <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
-                    <ProjectDetailField label="Deadline" value={formatDate(selectedPhase.description.stage_deadline || selectedPhase.description.project_deadline)} />
+                    <ProjectDetailField label="Hạn hoàn thành" value={formatDate(selectedPhase.description.stage_deadline || selectedPhase.description.project_deadline)} />
                     <ProjectDetailField label="Người phụ trách phase" value={selectedPhase.description.stage_owner || 'Chưa gán'} />
                     <ProjectDetailField label="Tiến độ phase" value={`${selectedPhase.progressPercent}%`} />
                     <ProjectDetailField label="Số công việc" value={`${selectedPhase.taskCount} tổng · ${selectedPhase.completedTaskCount} xong · ${selectedPhase.overdueTaskCount} quá hạn`} />
@@ -1123,7 +1123,7 @@ export default function ProjectDetailPage() {
                         <tr className="border-b border-slate-800">
                           <th className="py-2 pr-3">Tên công việc</th>
                           <th className="py-2 pr-3">Người phụ trách</th>
-                          <th className="py-2 pr-3">Deadline</th>
+                          <th className="py-2 pr-3">Hạn hoàn thành</th>
                           <th className="py-2 pr-3">Trạng thái</th>
                           <th className="py-2 pr-3">Ưu tiên</th>
                           <th className="py-2 pr-3">Phụ thuộc</th>
@@ -1166,7 +1166,7 @@ export default function ProjectDetailPage() {
                           <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <TaskMobileField label="Người phụ trách" value={getTaskAssigneeLabel(task)} />
                             <TaskMobileField label="Người đóng gói" value={getTaskPackerLabel(task) || 'Chưa gán'} />
-                            <TaskMobileField label="Deadline" value={getTaskDeadlineLabel(task)} />
+                            <TaskMobileField label="Hạn hoàn thành" value={getTaskDeadlineLabel(task)} />
                             <TaskMobileField label="Ưu tiên" value={getTaskPriorityLabel(task)} />
                             <TaskMobileField label="Phụ thuộc" value={getTaskDependencyLabel(task)} />
                             <TaskMobileField label="Cập nhật cuối" value={getTaskLastUpdateLabel(task)} />
@@ -1211,7 +1211,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <div className="text-slate-400">
                         <p>Phase: {isTaskAssignmentDTO(task) ? 'Chưa gán' : task.currentPhaseText || 'Chưa có'}</p>
-                        <p>Deadline: {getTaskDeadlineLabel(task)}</p>
+                        <p>Hạn hoàn thành: {getTaskDeadlineLabel(task)}</p>
                       </div>
                     </div>
                   ))}
@@ -1225,11 +1225,11 @@ export default function ProjectDetailPage() {
               <h2 className="text-sm font-black text-slate-100">Thông tin dự án</h2>
               <dl className="mt-3 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-1">
                 <div>
-                  <p className="text-slate-500">Deadline tổng</p>
+                  <p className="text-slate-500">Hạn tổng</p>
                   <p className="text-slate-100">{formatDate(firstDescription.project_deadline)}</p>
                 </div>
                 <div>
-                  <p className="text-slate-500">Deadline gần nhất</p>
+                  <p className="text-slate-500">Hạn gần nhất</p>
                   <p className="text-slate-100">{formatDate(nearestDeadline)}</p>
                 </div>
                 <div>
@@ -1242,8 +1242,9 @@ export default function ProjectDetailPage() {
                 </div>
                 <div className="space-y-2">
                   <p className="text-slate-500">Google Drive</p>
-                  <input disabled={!canManageProject} value={driveLinkInput} onChange={(event) => setDriveLinkInput(event.target.value)} className="w-full rounded border border-slate-800 bg-slate-950 px-3 py-2 text-xs outline-none disabled:cursor-not-allowed disabled:opacity-60" placeholder="Nhập link Drive" />
-                  <button disabled={!canManageProject} onClick={handleSaveDriveLink} className="w-full rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">Lưu thông tin</button>
+                  <label htmlFor="project-drive-link" className="sr-only">Link Google Drive của dự án</label>
+                  <input id="project-drive-link" disabled={!canManageProject} value={driveLinkInput} onChange={(event) => setDriveLinkInput(event.target.value)} className="w-full rounded border border-slate-800 bg-slate-950 px-3 py-2 text-xs outline-none disabled:cursor-not-allowed disabled:opacity-60" placeholder="Nhập link Drive" />
+                  <button type="button" disabled={!canManageProject} onClick={handleSaveDriveLink} className="w-full rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">Lưu thông tin</button>
                 </div>
               </dl>
             </section>
@@ -1307,7 +1308,7 @@ export default function ProjectDetailPage() {
                   <option value="">Chưa phân công</option>
                   {activeProjectMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}{member.title ? ` · ${member.title}` : ''}</option>)}
                 </select>
-                <label htmlFor="edit-task-deadline" className="block font-bold text-slate-300">Deadline</label>
+                <label htmlFor="edit-task-deadline" className="block font-bold text-slate-300">Hạn hoàn thành</label>
                 <input id="edit-task-deadline" type="date" value={editingTask.deadline} onChange={(event) => setEditingTask({ ...editingTask, deadline: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
                 <label htmlFor="edit-task-status" className="block font-bold text-slate-300">Trạng thái</label>
                 <select id="edit-task-status" value={editingTask.status} onChange={(event) => setEditingTask({ ...editingTask, status: event.target.value as TaskAssignmentStatus })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">

@@ -970,3 +970,21 @@ Security impact: mutation authority remains server-side and unchanged. No client
 Validation: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check` PASS.
 
 Stop point: Corrective Slice 7 only. Do not continue beyond Slice 7 without a new explicit roadmap instruction.
+
+## 2026-07-23 Corrective Slice 8 project detail deadline and Drive accessibility polish
+
+Status: application-only Corrective Slice 8 complete. Continued from the latest main-equivalent state after Corrective Slice 7 with a small Project Detail accessibility and Vietnamese-copy polish.
+
+Completed:
+
+- Replaced remaining user-visible Project Detail deadline labels in the selected-phase task area, unassigned-task summary, project metadata cards, and edit-task modal with Vietnamese wording.
+- Connected the Project Detail Google Drive field to an explicit accessible label and made the save action an explicit non-submit button.
+- Extended the existing static Project Detail accessibility regression coverage for the Drive label, Drive save button type, and remaining raw `Deadline` table/modal labels.
+
+Database impact: none. No schema, RPC, RLS, storage, backfill, migration execution, production SQL, deployment, or live data mutation was performed.
+
+Security impact: project mutation authority remains server-side and unchanged. No client-side permission expansion, service-role exposure, workspace grant, employee permission assignment, or production data mutation was introduced.
+
+Validation: targeted Vitest, `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check` PASS.
+
+Stop point: Corrective Slice 8 only. Do not continue beyond Slice 8 without a new explicit roadmap instruction.

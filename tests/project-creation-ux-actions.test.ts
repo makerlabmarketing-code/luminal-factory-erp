@@ -79,6 +79,10 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(detailPage).toMatch(/htmlFor="edit-task-assignee"/);
     expect(detailPage).toMatch(/id="edit-task-assignee"/);
     expect(detailPage).toMatch(/htmlFor="edit-task-comment"/);
+    expect(detailPage).toMatch(/htmlFor="project-drive-link"/);
+    expect(detailPage).toMatch(/id="project-drive-link"/);
+    expect(detailPage).toMatch(/<button type="button" disabled=\{!canManageProject\} onClick=\{handleSaveDriveLink\}/);
+    expect(detailPage).not.toMatch(/>Deadline</);
     expect(detailPage).toMatch(/aria-labelledby="edit-phase-title"/);
     expect(detailPage).toMatch(/htmlFor="edit-phase-name"/);
     expect(detailPage).toMatch(/id="edit-phase-name"/);
