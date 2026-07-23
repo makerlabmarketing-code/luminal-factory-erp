@@ -39,3 +39,7 @@ Corrective Slice 5 approved the reimbursement permission names for application-c
 - `REIMBURSEMENT_MARK_PAID`
 
 The finance workflow contract keeps approval and paid confirmation separate. A requester cannot approve their own reimbursement by default, and payment confirmation remains distinct from approval. No SQL, schema change, RLS change, backfill, permission mutation, or live data mutation was executed.
+
+## 2026-07-23 review remediation sweep
+
+Reviewed the current latest-main Slice 3B finance workflow evidence without reopening entries already classified as `ALREADY_FIXED_AND_VERIFIED`, `FALSE_POSITIVE_WITH_EVIDENCE`, or `REVIEW_SOURCE_UNAVAILABLE`. No newly actionable finance-workflow finding was identified from available sources, and no reimbursement, receipt, permission, SQL, RLS, schema, backfill, deployment, or production-data mutation was performed.

@@ -81,3 +81,7 @@ No SQL was executed. No live permission catalog row, employee permission row, wo
 The latest-main account-management grant paths were hardened so an otherwise idempotent workspace grant or permission-state save no longer leaves duplicate active rows untouched after finding one existing row. `grantWorkspace` and `setPermissionState` now load all matching active rows in deterministic ID order, retain the first row, and revoke any duplicate active rows before returning success.
 
 No permission expansion, preset semantics change, workspace grant/backfill, SQL, RLS, schema mutation, deployment, or live data mutation was performed. The new remediation status remains `FIXED_PENDING_REVIEW` until a fresh Codex Code Review result is available for the remediation PR.
+
+## 2026-07-23 review remediation sweep
+
+Reviewed the current latest-main Slice 5 account-management evidence without reopening entries already classified as `ALREADY_FIXED_AND_VERIFIED`, `FALSE_POSITIVE_WITH_EVIDENCE`, or `REVIEW_SOURCE_UNAVAILABLE`. The remaining actionable duplicate-active-row finding is fixed in current code by collapsing duplicate active workspace and permission rows during idempotent grant/save paths. No permission expansion, preset semantics change, workspace grant/backfill, SQL, RLS, schema mutation, deployment, or production data mutation was performed. Final reviewed closure still depends on connected Codex Code Review availability for the active remediation PR.
