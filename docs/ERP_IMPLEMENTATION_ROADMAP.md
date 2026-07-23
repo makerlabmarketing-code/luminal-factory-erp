@@ -1116,3 +1116,21 @@ Database impact: none in this application slice. The reviewed forward migration 
 Security impact: safer staged rollout because application reads do not request new columns until post-deployment validation allows a server-only gate. No browser Supabase mutation, RLS change, direct SQL, deployment, backfill, or production data mutation was performed.
 
 Next step: after protected-main merge and Supabase GitHub Integration delivery, run `supabase/drafts/20260723_facility_status_code_validation.sql`; only if PASS, enable `FACILITY_ACTIVE_STATE_ENABLED=true` in the server runtime and verify Staff Attendance GPS matching excludes inactive facilities.
+
+## 2026-07-23 Batch 3D2 system_settings broad-policy remediation package
+
+Status: `LIVE_APPROVAL_REQUIRED` after safe artifact preparation. Continued the highest-priority unfinished roadmap item, Batch 3D2, without executing SQL or promoting an unapproved production migration.
+
+Completed safe work:
+
+- Prepared draft-only forward SQL to enable RLS defensively on `public.system_settings` and drop the legacy broad `Allow anon all` and `Allow authenticated all` policies.
+- Prepared rollback SQL that intentionally restores the legacy broad policies only under a separate approved live rollback/security decision.
+- Prepared read-only validation SQL that checks the broad policies are absent and RLS remains enabled.
+- Prepared compatibility/backfill and security notes confirming Batch 3D1 removed runtime `system_settings` dependencies, no backfill is required, and no grants/service-role exposure/browser policy expansion is introduced.
+- Added static regression coverage proving the package remains draft-only and includes forward, rollback, validation, compatibility/backfill, and security evidence.
+
+Database impact: no live SQL, migration promotion, schema mutation beyond draft artifacts, RLS mutation, RPC deployment, backfill, production deployment, destructive operation, direct PostgreSQL TCP retry, or production data mutation was performed.
+
+Security impact: this package is a security-hardening preparation step only. Runtime application paths already avoid `system_settings`; production policy removal remains gated until approved delivery through the Supabase GitHub Integration.
+
+Current gate: `LIVE_APPROVAL_REQUIRED` before promoting the reviewed forward SQL into `supabase/migrations/` or applying the policy remediation in production.

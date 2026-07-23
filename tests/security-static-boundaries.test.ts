@@ -351,6 +351,46 @@ describe('static security boundaries', () => {
     expect(emailService).not.toMatch(/from\(['"]system_settings['"]\)/);
   });
 
+  it('keeps the system settings broad-policy remediation package reviewed and draft-only', () => {
+    const forward = readFileSync(
+      join(repositoryRoot, 'supabase/drafts/20260723_system_settings_broad_policy_forward.sql'),
+      'utf8'
+    );
+    const rollback = readFileSync(
+      join(repositoryRoot, 'supabase/drafts/20260723_system_settings_broad_policy_rollback.sql'),
+      'utf8'
+    );
+    const validation = readFileSync(
+      join(repositoryRoot, 'supabase/drafts/20260723_system_settings_broad_policy_validation.sql'),
+      'utf8'
+    );
+    const compatibility = readFileSync(
+      join(repositoryRoot, 'supabase/drafts/20260723_system_settings_broad_policy_compatibility.md'),
+      'utf8'
+    );
+    const security = readFileSync(
+      join(repositoryRoot, 'supabase/drafts/20260723_system_settings_broad_policy_security.md'),
+      'utf8'
+    );
+
+    expect(forward).toMatch(/drop policy if exists "Allow anon all" on public\.system_settings/);
+    expect(forward).toMatch(/drop policy if exists "Allow authenticated all" on public\.system_settings/);
+    expect(forward).not.toMatch(/create policy|grant |delete\s+from|truncate|drop table/i);
+    expect(rollback).toMatch(/create policy "Allow anon all"/);
+    expect(rollback).toMatch(/requires a separate approved live rollback\/security decision/i);
+    expect(validation).toMatch(/policyname in \('Allow anon all', 'Allow authenticated all'\)/);
+    expect(validation).toMatch(/relrowsecurity/);
+    expect(compatibility).toMatch(/No backfill is required/);
+    expect(security).toMatch(/No grants, service-role exposure, SECURITY DEFINER function/);
+
+    const migrations = collectFiles(join(repositoryRoot, 'supabase/migrations'));
+    const promotedCopies = migrations.filter((file) =>
+      readFileSync(file, 'utf8').includes('Batch 3D2: system_settings broad-policy remediation')
+    );
+
+    expect(promotedCopies).toEqual([]);
+  });
+
   it('uses the publishable Supabase key even when a legacy anon key is present', () => {
     const previousPublishable = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     const previousAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

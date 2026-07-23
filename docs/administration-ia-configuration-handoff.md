@@ -91,3 +91,15 @@ Prepared the safe application-only side of facility active-state filtering witho
 - Admin facility listing also keeps the legacy select by default, and only includes `code`/`is_active` in the DTO when the same server-side gate is enabled.
 
 No SQL, direct PostgreSQL TCP retry, RLS mutation, schema mutation, facility data mutation, backfill, production deployment, destructive operation, or live data mutation was performed. `LIVE_APPROVAL_REQUIRED` remains for production migration execution/rollback, post-deployment validation, and any live environment variable rollout.
+
+## 2026-07-23 Batch 3D2 system_settings broad-policy package
+
+Prepared the next safe security package for the previously documented `system_settings` runtime removal follow-up:
+
+- Draft forward SQL drops the legacy `Allow anon all` and `Allow authenticated all` policies from `public.system_settings` and keeps RLS enabled.
+- Draft rollback SQL restores those broad policies only if a separate live rollback/security decision approves it.
+- Draft validation SQL verifies the policies are absent and RLS is enabled after rollout.
+- Compatibility/backfill notes record that no backfill is required because runtime `system_settings` reads/writes were already removed.
+- Security notes record that no grants, service-role exposure, SECURITY DEFINER function, browser write policy, Auth mutation, storage policy, or live data mutation is introduced.
+
+No SQL was executed, no migration was promoted, and no production RLS was changed. Promote the reviewed forward SQL into `supabase/migrations/` only after `LIVE_APPROVAL_REQUIRED` is cleared for Supabase GitHub Integration delivery.
