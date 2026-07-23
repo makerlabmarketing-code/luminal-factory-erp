@@ -4,9 +4,59 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 const packageDir = 'supabase/drafts/corrective-slice-6-production-order-persistence';
+const migrationPath = 'supabase/migrations/20260722110928_corrective_slice_6_production_order_persistence.sql';
 const source = (file: string) => readFileSync(join(root, packageDir, file), 'utf8');
+const migration = () => readFileSync(join(root, migrationPath), 'utf8');
+const promotedForwardFiles = [
+  'forward.sql',
+  'notification-outbox.sql',
+  'compatibility.sql',
+  'attachment-policy.sql',
+  'security/RLS.sql',
+];
+const asApprovedMigrationSection = (file: string) =>
+  source(file).replaceAll(
+    '-- DRAFT ONLY - DO NOT RUN WITHOUT LIVE_APPROVAL_REQUIRED.\n',
+    '-- APPROVED FOR GITHUB INTEGRATION DELIVERY AFTER PROTECTED PR MERGE.\n',
+  );
 
 describe('Corrective Slice 6 production-order persistence package', () => {
+  it('promotes only the reviewed forward package into the canonical GitHub Integration migration', () => {
+    const canonical = migration();
+
+    expect(canonical).toMatch(/Supabase GitHub Integration after protected main-branch merge/);
+    expect(canonical).toMatch(/Rollback and validation remain separate artifacts/);
+    expect(canonical).not.toMatch(/DRAFT ONLY|DO NOT RUN WITHOUT LIVE_APPROVAL_REQUIRED/);
+    expect(canonical).not.toMatch(/Corrective Slice 6 .* rollback reviewed package/);
+    expect(canonical).not.toMatch(/Corrective Slice 6 .* validation reviewed package/);
+
+    promotedForwardFiles.forEach((file) => {
+      expect(canonical).toContain(`-- BEGIN REVIEWED PACKAGE: ${file}`);
+      expect(canonical).toContain(asApprovedMigrationSection(file).trim());
+      expect(canonical).toContain(`-- END REVIEWED PACKAGE: ${file}`);
+    });
+  });
+
+  it('keeps unapproved SQL and unsafe database mutations out of the canonical migration', () => {
+    const canonical = migration();
+    const migrationFiles = [
+      'forward.sql',
+      'compatibility.sql',
+      'attachment-policy.sql',
+      'notification-outbox.sql',
+      'security/RLS.sql',
+    ];
+
+    expect(canonical).not.toMatch(/drop table|drop function|drop policy|delete\s+from|truncate\s+/i);
+    expect(canonical).not.toMatch(/rollback blocked/i);
+    expect(canonical).not.toMatch(/validation_result|check_name/i);
+    expect(canonical).not.toMatch(/update\s+public\.inventory|insert\s+into\s+public\.procurement|decrement_stock/i);
+
+    migrationFiles.forEach((file) => {
+      expect(canonical).toContain(asApprovedMigrationSection(file).trim());
+    });
+  });
+
   it('contains every reviewed draft artifact without executing live SQL', () => {
     [
       'forward.sql',

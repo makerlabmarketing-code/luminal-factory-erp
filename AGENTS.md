@@ -327,6 +327,24 @@ If any stop condition occurs:
 - report the blocker
 - do not push
 
+
+## Supabase Database Connectivity and GitHub Migration Delivery
+
+Codex Cloud must not require direct PostgreSQL TCP connectivity for repository progress.
+
+When the Supabase Session Pooler host, port, username, project reference, and IPv4 resolution have been confirmed but outbound PostgreSQL TCP attempts fail with `Network is unreachable`, record `DATABASE_TCP_UNAVAILABLE`. This is an execution-environment limitation, not a Supabase credential failure, IPv6 configuration failure, repository defect, or malformed Session Pooler URL.
+
+After `DATABASE_TCP_UNAVAILABLE` is confirmed:
+
+- do not repeatedly retry `psql`, `supabase db push`, `supabase db query`, or pooler probes from Codex Cloud;
+- do not classify the condition as a repository blocker for application-only work;
+- document the limitation in the handoff while preserving schema, RLS, rollback, validation, and live-approval requirements;
+- never expose access tokens, database passwords, connection strings, or `.pgpass` contents;
+- keep `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` as setup-only secrets, not ordinary environment variables.
+
+For reviewed migrations, prefer the configured Supabase GitHub Integration: place only approved forward migrations under `supabase/migrations/`, keep rollback and validation artifacts separately, create or update the pull request, and let the protected main-branch merge workflow trigger Supabase production migration delivery. Do not place draft or unapproved SQL under `supabase/migrations/`. Production database changes still require every approval gate and must not be executed directly from Codex Cloud.
+
+---
 ## Supabase Management API Fallback
 
 If the Supabase Management API returns Cloudflare Error 1010 (`browser_signature_banned`), HTTP 403 from `api.supabase.com` with that confirmed infrastructure restriction, or another confirmed infrastructure restriction unrelated to repository correctness:
