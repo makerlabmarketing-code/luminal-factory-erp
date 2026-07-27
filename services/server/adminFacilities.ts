@@ -2,7 +2,7 @@ import 'server-only';
 
 import { createClient } from '@/utils/supabase/server';
 import { AuthFlowError, hasPermission, requireWorkspaceAccess } from '@/services/server/auth';
-import { getFacilityDirectory } from '@/services/server/facilityDirectory';
+import { getFacilityDirectoryResult } from '@/services/server/facilityDirectory';
 
 export interface AdminFacilityDto {
   id: number | string;
@@ -165,10 +165,11 @@ function parseFacilityId(value: unknown): string | number {
 
 export async function listAdminFacilities() {
   await requireFacilityView();
-  const facilities = await getFacilityDirectory();
+  const directory = await getFacilityDirectoryResult();
   return {
     success: true,
-    facilities: facilities.map((facility) => ({
+    capabilities: { canPersistStatusAndCode: directory.canPersistStatusAndCode, canManageFacilities: directory.canPersistStatusAndCode },
+    facilities: directory.facilities.map((facility) => ({
       id: facility.id,
       facilityName: facility.name,
       address: facility.address,

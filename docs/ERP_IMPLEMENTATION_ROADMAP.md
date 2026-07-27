@@ -1246,3 +1246,15 @@ Status: ✅ application repair complete; no production SQL or deployment perform
 Status: application-only Project Detail functional workspace PASS. The core project response now keeps the server-authoritative project code through the client composition boundary and displays it in the header and project summary instead of substituting the database row ID. The summary also surfaces the selected phase colorway metadata already persisted by the workflow contract. Phase, member, and task failures each provide a targeted retry that preserves the visible project core and avoids a full-page reload.
 
 No SQL, migration, RPC deployment, RLS change, live data mutation, deployment, or merge was performed. Normalized child-task creation, reviewer persistence, detailed comment/activity feeds, and template persistence remain behind their existing schema/RPC approval boundaries. Current gate: `LIVE_APPROVAL_REQUIRED` before enabling or deploying those persistence contracts; independent application work may continue from this completed workspace boundary.
+
+## 2026-07-27 Employee directory production recovery
+
+Status: application-only employee list recovery PASS. Expected employee-list load failures and forbidden access are converted at the page boundary into local content states, and Retry calls only the employee list API. Facility, workspace, and Auth account enrichment are optional: a failure keeps core employee rows visible with a non-blocking warning instead of rejecting the server render. No SQL, deployment, or live mutation was performed.
+
+## 2026-07-27 Facility directory schema compatibility recovery
+
+Status: application-only facility recovery PASS. The server first reads the approved code/status contract and retries the legacy core projection only for known missing-column responses. Permission, authorization, and network failures never enter schema fallback. Legacy results explicitly disable facility mutation capability while preserving list reads and local Retry. No SQL, deployment, or live mutation was performed.
+
+## 2026-07-27 Admin list-state recovery
+
+Status: application-only list-state standardization PASS for Employee, Account, and Facility. A focused shared hook owns local initial loading, background refresh, timeout, AbortController cleanup, stale-response rejection, and initial-request deduplication. Each list retains the admin shell and retries only its own API; no browser reload or broad router refresh remains in these list paths. No SQL, deployment, or live mutation was performed.

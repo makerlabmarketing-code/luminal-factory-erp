@@ -29,6 +29,7 @@ import {
   type PermissionCode,
   type PermissionEditorState,
 } from "@/lib/account-permissions";
+import { AdminListRequestError, useAdminListData } from '@/hooks/useAdminListData';
 
 interface ApiActionResponse {
   success?: boolean;
@@ -131,8 +132,10 @@ function permissionStateClass(state: PermissionEditorState) {
 
 export default function AdminAccountsClient({
   initialData,
+  initialError,
 }: {
-  initialData: AdminAccountManagementData;
+  initialData: AdminAccountManagementData | null;
+  initialError?: 'account_list_load_failed';
 }) {
   const { showToast, showConfirm } = useNotification();
   const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
@@ -155,17 +158,23 @@ export default function AdminAccountsClient({
     PermissionEditorState
   > | null>(null);
   const [isPending, startTransition] = useTransition();
+  const accountRequest = async (signal: AbortSignal) => {
+    const response = await fetch('/api/admin/accounts', { credentials: 'include', cache: 'no-store', signal });
+    if (!response.ok) throw new AdminListRequestError(response.status === 403 ? 'forbidden' : 'account_list_load_failed');
+    return (await response.json()) as AdminAccountManagementData;
+  };
+  const { data: accountData, error: listError, isLoading: listLoading, isRefreshing, refresh: refreshAccounts } = useAdminListData({ initialData: initialData || undefined, initialError, request: accountRequest });
 
   const filteredAccounts = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return initialData.accounts;
+    if (!query) return accountData?.accounts || [];
 
-    return initialData.accounts.filter(
+    return (accountData?.accounts || []).filter(
       (account) =>
         account.fullName.toLowerCase().includes(query) ||
         (account.email || "").toLowerCase().includes(query),
     );
-  }, [initialData.accounts, searchTerm]);
+  }, [accountData?.accounts, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
   const pageAccounts = filteredAccounts.slice(
@@ -197,7 +206,7 @@ export default function AdminAccountsClient({
   const closeActionMenu = () => setOpenActionMenu(null);
 
   const refreshPage = () => {
-    startTransition(() => window.location.reload());
+    startTransition(() => { void refreshAccounts(); });
   };
 
   const runAction = async (
@@ -355,6 +364,7 @@ export default function AdminAccountsClient({
   return (
     <main className="min-h-screen bg-slate-950 p-4 text-slate-100 sm:p-6">
       <div className="mx-auto max-w-7xl space-y-6">
+        {(listError || listLoading) && <section className="rounded-lg border border-slate-800 bg-slate-900 p-6 text-center"><h2 className="font-bold text-amber-300">{listLoading ? 'Đang tải danh sách tài khoản...' : 'Không thể tải danh sách tài khoản'}</h2>{listError && <><p className="mt-2 text-xs text-slate-400">Hệ thống gặp lỗi khi tải dữ liệu tài khoản. Vui lòng thử lại.</p><button type="button" onClick={() => void refreshAccounts()} disabled={isRefreshing} className="mt-3 rounded-lg border border-blue-500/40 px-3 py-2 text-xs font-bold text-blue-300">{isRefreshing ? 'Đang thử lại...' : 'Thử lại'}</button></>}</section>}
         <header className="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="flex items-center gap-2 text-base font-bold">
@@ -655,7 +665,7 @@ export default function AdminAccountsClient({
                       }
                       className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none"
                     >
-                      {initialData.presets.map((preset) => (
+                      {(accountData?.presets || []).map((preset) => (
                         <option key={preset.code} value={preset.code}>
                           {preset.label}
                         </option>

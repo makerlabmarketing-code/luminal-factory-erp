@@ -108,6 +108,7 @@ export interface AdminEmployeeListData {
     canEditEmployees: boolean;
     canManageAccounts: boolean;
   };
+  warnings: Array<'employee_enrichment_failed'>;
 }
 
 export interface EmployeePermissionSummary {
@@ -266,16 +267,20 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
   ]);
   const supabase = await createClient();
 
-  const [{ data: employees, error: employeeError }, facilities, { data: workspaceAccess }] =
+  const [{ data: employees, error: employeeError }, facilityResult, workspaceResult] =
     await Promise.all([
       supabase
         .from('employees')
         .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code')
         .order('id', { ascending: false }),
-      getFacilityDirectory(),
+      getFacilityDirectory().then(
+        (facilities) => ({ facilities, failed: false as const }),
+        () => ({ facilities: [] as FacilityDirectoryItem[], failed: true as const })
+      ),
       supabase
         .from('employee_workspace_access')
-        .select('employee_id, workspace, status, revoked_at'),
+        .select('employee_id, workspace, status, revoked_at')
+        .then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     ]);
 
   if (employeeError) {
@@ -290,17 +295,22 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
     });
   }
 
-  const authUsersById = await listAuthUsersById();
+  const authUsersById = listAuthUsersById();
+  const authResult = await authUsersById.then(
+    (users) => ({ users, failed: false as const }),
+    () => ({ users: new Map<string, AuthUserSummary>(), failed: true as const })
+  );
+  const facilities = facilityResult.facilities;
   const facilityRows = facilities.map((facility) => ({
     id: facility.id,
     facility_name: facility.name,
     code: facility.code,
   }));
-  const workspaceRows = (workspaceAccess || []) as WorkspaceAccessRow[];
+  const workspaceRows = (workspaceResult.data || []) as WorkspaceAccessRow[];
 
   return {
     employees: ((employees || []) as EmployeeRow[]).map((employee) => {
-      const authUser = employee.auth_user_id ? authUsersById.get(employee.auth_user_id) || null : null;
+      const authUser = employee.auth_user_id ? authResult.users.get(employee.auth_user_id) || null : null;
       const status = resolveAccountStatus(employee, authUser, workspaceRows);
 
       return {
@@ -323,6 +333,10 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
       canManageAccounts,
     },
     facilities,
+    warnings:
+      facilityResult.failed || workspaceResult.failed || authResult.failed
+        ? ['employee_enrichment_failed']
+        : [],
   };
 }
 

@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { FormEvent, useMemo, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   ChevronLeft,
   ChevronRight,
@@ -26,6 +25,7 @@ import type {
   AdminEmployeeListData,
   EmployeeListItem,
 } from '@/services/server/adminEmployeeData';
+import { AdminListRequestError, useAdminListData, type AdminListErrorCode } from '@/hooks/useAdminListData';
 
 interface EmployeeFormState {
   employeeId: string | null;
@@ -127,10 +127,22 @@ async function parseActionResponse(response: Response): Promise<ApiActionRespons
   };
 }
 
-export default function AdminEmployeesClient({ initialData }: { initialData: AdminEmployeeListData }) {
+const emptyEmployeeData: AdminEmployeeListData = {
+  employees: [], facilities: [], warnings: [],
+  capabilities: { canViewEmployees: false, canEditEmployees: false, canManageAccounts: false },
+};
+
+export default function AdminEmployeesClient({ initialData, initialError }: { initialData: AdminEmployeeListData | null; initialError?: 'forbidden' | 'employee_list_load_failed' }) {
   const { showToast, showConfirm } = useNotification();
   const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
-  const router = useRouter();
+  const employeeRequest = async (signal: AbortSignal) => {
+    const response = await fetch('/api/admin/employees', { cache: 'no-store', credentials: 'include', signal });
+    const payload = (await response.json().catch(() => ({}))) as AdminEmployeeListData & { code?: AdminListErrorCode };
+    if (!response.ok) throw new AdminListRequestError(response.status === 403 ? 'forbidden' : 'employee_list_load_failed');
+    return payload;
+  };
+  const { data: loadedEmployeeData, error: loadError, isLoading: listLoading, isRefreshing, refresh: refreshPage } = useAdminListData({ initialData: initialData || undefined, initialError, request: employeeRequest });
+  const employeeData = loadedEmployeeData || emptyEmployeeData;
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
@@ -140,8 +152,8 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
   const [savingEmployee, setSavingEmployee] = useState(false);
   const [isPending, startTransition] = useTransition();
   const itemsPerPage = 10;
-  const { employees, capabilities } = initialData;
-  const selectableFacilities = initialData.facilities.filter(
+  const { employees, capabilities } = employeeData;
+  const selectableFacilities = employeeData.facilities.filter(
     (facility) => facility.isActive || facility.code === formState?.department
   );
 
@@ -163,12 +175,6 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const currentData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const refreshPage = () => {
-    startTransition(() => {
-      router.refresh();
-    });
-  };
 
   const runAction = async (employee: EmployeeListItem, actionPath: string, successTitle: string) => {
     const actionKey = `${employee.employeeId}:${actionPath}`;
@@ -210,7 +216,7 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
       email: employee.email || '',
       title: employee.title || '',
       department:
-        initialData.facilities.find((facility) => facility.name === employee.facilityName)?.code || '',
+        employeeData.facilities.find((facility) => facility.name === employee.facilityName)?.code || '',
       phone: 'phone' in employee && typeof employee.phone === 'string' ? employee.phone : '',
       employmentStatus: employee.employmentStatus || 'ACTIVE',
     });
@@ -289,6 +295,14 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
         </div>
 
         <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
+          {loadError && (
+            <div className="border-b border-slate-800 p-6 text-center">
+              <h2 className="font-bold text-amber-300">{loadError === 'forbidden' ? 'Không có quyền truy cập' : 'Không thể tải danh sách nhân sự'}</h2>
+              <p className="mt-2 text-xs text-slate-400">{loadError === 'forbidden' ? 'Bạn không có quyền xem danh sách nhân sự.' : 'Hệ thống gặp lỗi khi tải dữ liệu nhân sự. Vui lòng thử lại.'}</p>
+              {loadError !== 'forbidden' && <button type="button" onClick={() => void refreshPage()} disabled={listLoading || isRefreshing} className="mt-3 rounded-lg border border-blue-500/40 px-3 py-2 text-xs font-bold text-blue-300">{listLoading || isRefreshing ? 'Đang thử lại...' : 'Thử lại'}</button>}
+            </div>
+          )}
+          {employeeData.warnings.length > 0 && !loadError && <p className="border-b border-amber-500/20 bg-amber-500/10 px-5 py-3 text-xs text-amber-200">Một số thông tin cơ sở hoặc tài khoản chưa tải được. Dữ liệu nhân sự chính vẫn được hiển thị.</p>}
           <div className="flex flex-col gap-3 border-b border-slate-800 bg-slate-950/40 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-xs font-bold uppercase text-slate-400">
               Danh sách nhân sự ({filtered.length})

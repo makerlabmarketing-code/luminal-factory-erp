@@ -27,6 +27,18 @@ type FacilityRow = {
 };
 
 const FACILITY_SELECT = 'id, facility_name, code, is_active, address, lat, lng, radius';
+const LEGACY_FACILITY_SELECT = 'id, facility_name, address, lat, lng, radius';
+
+export interface FacilityDirectoryResult {
+  facilities: FacilityDirectoryItem[];
+  canPersistStatusAndCode: boolean;
+}
+
+function isKnownMissingColumn(error: { code?: string | null; message?: string | null }): boolean {
+  if (error.code === '42703' || error.code === 'PGRST204') return true;
+  const message = (error.message || '').toLowerCase();
+  return message.includes('column') && (message.includes('code') || message.includes('is_active')) && message.includes('does not exist');
+}
 
 function toDirectoryItem(row: FacilityRow): FacilityDirectoryItem {
   return {
@@ -42,24 +54,40 @@ function toDirectoryItem(row: FacilityRow): FacilityDirectoryItem {
 }
 
 /** Server-only directory read. Callers must authorize the workspace before calling. */
-export const getFacilityDirectory = cache(async (): Promise<FacilityDirectoryItem[]> => {
+export const getFacilityDirectoryResult = cache(async (): Promise<FacilityDirectoryResult> => {
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
+  const current = await supabase
     .from('facilities')
     .select(FACILITY_SELECT)
     .order('facility_name', { ascending: true });
 
-  if (error) {
+  if (!current.error) {
+    return { facilities: ((current.data || []) as unknown as FacilityRow[]).map(toDirectoryItem), canPersistStatusAndCode: true };
+  }
+
+  if (!isKnownMissingColumn(current.error)) {
     throw new AuthFlowError({
       status: 500,
-      code: 'admin_verification_failed',
+      code: 'facility_list_load_failed',
       message: 'Không thể tải danh sách cơ sở làm việc.',
       failureStage: 'persistence',
+      safeDetails: { supabase_error_code: current.error.code || 'unknown' },
     });
   }
 
-  return ((data || []) as unknown as FacilityRow[]).map(toDirectoryItem);
+  const legacy = await supabase
+    .from('facilities')
+    .select(LEGACY_FACILITY_SELECT)
+    .order('facility_name', { ascending: true });
+
+  if (legacy.error) {
+    throw new AuthFlowError({ status: 500, code: 'facility_schema_unavailable', message: 'Không thể tải danh sách cơ sở làm việc.', failureStage: 'persistence', safeDetails: { supabase_error_code: legacy.error.code || 'unknown' } });
+  }
+
+  return { facilities: ((legacy.data || []) as unknown as FacilityRow[]).map(toDirectoryItem), canPersistStatusAndCode: false };
 });
+
+export const getFacilityDirectory = cache(async () => (await getFacilityDirectoryResult()).facilities);
 
 export function findFacility(
   facilities: FacilityDirectoryItem[],
