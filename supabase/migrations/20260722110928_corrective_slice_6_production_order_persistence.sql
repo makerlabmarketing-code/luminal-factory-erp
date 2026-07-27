@@ -143,9 +143,19 @@ create table if not exists public.production_stages (
   constraint production_stages_completed_state_check check ((status not in ('COMPLETED','SKIPPED_WITH_APPROVAL') and completed_at is null) or (status in ('COMPLETED','SKIPPED_WITH_APPROVAL') and completed_at is not null))
 );
 
-alter table public.production_orders
-  add constraint production_orders_current_stage_fkey
-  foreign key (current_stage_id) references public.production_stages(id) on delete set null;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'production_orders_current_stage_fkey'
+      and conrelid = 'public.production_orders'::regclass
+  ) then
+    alter table public.production_orders
+      add constraint production_orders_current_stage_fkey
+      foreign key (current_stage_id) references public.production_stages(id) on delete set null;
+  end if;
+end $$;
 
 create unique index if not exists production_stages_order_sequence_idx on public.production_stages(production_order_id, sequence);
 create unique index if not exists production_stages_single_active_idx on public.production_stages(production_order_id) where status = 'IN_PROGRESS';
@@ -549,16 +559,26 @@ alter table public.production_attachment_metadata enable row level security;
 revoke all on public.production_attachment_metadata from public, anon, authenticated;
 grant select on public.production_attachment_metadata to authenticated;
 
-create policy "production attachment metadata project select"
-  on public.production_attachment_metadata
-  for select
-  to authenticated
-  using (
-    exists (
-      select 1 from public.production_orders po
-      where po.id = production_order_id and public.can_view_project(po.project_id)
-    )
-  );
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'production_attachment_metadata'
+      and policyname = 'production attachment metadata project select'
+  ) then
+    create policy "production attachment metadata project select"
+      on public.production_attachment_metadata
+      for select
+      to authenticated
+      using (
+        exists (
+          select 1 from public.production_orders po
+          where po.id = production_order_id and public.can_view_project(po.project_id)
+        )
+      );
+  end if;
+end $$;
 
 comment on table public.production_attachment_metadata is 'Protected production attachment metadata. Storage object access remains private and must be mediated by approved server routes.';
 
@@ -597,23 +617,46 @@ grant select on public.production_stage_dependencies to authenticated;
 grant select on public.production_order_members to authenticated;
 grant select on public.production_attachment_metadata to authenticated;
 
-create policy "production templates authorized select" on public.production_workflow_templates for select to authenticated using (
-  public.has_workspace_access('ADMIN_WORKSPACE') and (public.has_permission('PROJECT_VIEW') or public.has_permission('TASK_VIEW'))
-);
-create policy "production template stages authorized select" on public.production_workflow_template_stages for select to authenticated using (
-  exists (select 1 from public.production_workflow_templates t where t.id = template_id and public.has_workspace_access('ADMIN_WORKSPACE') and (public.has_permission('PROJECT_VIEW') or public.has_permission('TASK_VIEW')))
-);
-create policy "production orders project access select" on public.production_orders for select to authenticated using (public.can_view_project(project_id));
-create policy "production stages project access select" on public.production_stages for select to authenticated using (public.can_view_project(project_id));
-create policy "production dependencies project access select" on public.production_stage_dependencies for select to authenticated using (
-  exists (select 1 from public.production_orders po where po.id = production_order_id and public.can_view_project(po.project_id))
-);
-create policy "production members project access select" on public.production_order_members for select to authenticated using (
-  exists (select 1 from public.production_orders po where po.id = production_order_id and public.can_view_project(po.project_id))
-);
-create policy "production attachments project access select" on public.production_attachment_metadata for select to authenticated using (
-  exists (select 1 from public.production_orders po where po.id = production_order_id and public.can_view_project(po.project_id))
-);
+do $$
+begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'production_workflow_templates' and policyname = 'production templates authorized select') then
+    create policy "production templates authorized select" on public.production_workflow_templates for select to authenticated using (
+      public.has_workspace_access('ADMIN_WORKSPACE') and (public.has_permission('PROJECT_VIEW') or public.has_permission('TASK_VIEW'))
+    );
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'production_workflow_template_stages' and policyname = 'production template stages authorized select') then
+    create policy "production template stages authorized select" on public.production_workflow_template_stages for select to authenticated using (
+      exists (select 1 from public.production_workflow_templates t where t.id = template_id and public.has_workspace_access('ADMIN_WORKSPACE') and (public.has_permission('PROJECT_VIEW') or public.has_permission('TASK_VIEW')))
+    );
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'production_orders' and policyname = 'production orders project access select') then
+    create policy "production orders project access select" on public.production_orders for select to authenticated using (public.can_view_project(project_id));
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'production_stages' and policyname = 'production stages project access select') then
+    create policy "production stages project access select" on public.production_stages for select to authenticated using (public.can_view_project(project_id));
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'production_stage_dependencies' and policyname = 'production dependencies project access select') then
+    create policy "production dependencies project access select" on public.production_stage_dependencies for select to authenticated using (
+      exists (select 1 from public.production_orders po where po.id = production_order_id and public.can_view_project(po.project_id))
+    );
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'production_order_members' and policyname = 'production members project access select') then
+    create policy "production members project access select" on public.production_order_members for select to authenticated using (
+      exists (select 1 from public.production_orders po where po.id = production_order_id and public.can_view_project(po.project_id))
+    );
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'production_attachment_metadata' and policyname = 'production attachments project access select') then
+    create policy "production attachments project access select" on public.production_attachment_metadata for select to authenticated using (
+      exists (select 1 from public.production_orders po where po.id = production_order_id and public.can_view_project(po.project_id))
+    );
+  end if;
+end $$;
 
 revoke all on function public.create_production_order_atomic(jsonb) from public, anon;
 revoke all on function public.transition_production_stage_atomic(jsonb) from public, anon;
@@ -625,4 +668,3 @@ comment on function public.create_production_order_atomic(jsonb) is 'Corrective 
 
 commit;
 -- END REVIEWED PACKAGE: security/RLS.sql
-

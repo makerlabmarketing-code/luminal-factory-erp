@@ -138,9 +138,19 @@ create table if not exists public.production_stages (
   constraint production_stages_completed_state_check check ((status not in ('COMPLETED','SKIPPED_WITH_APPROVAL') and completed_at is null) or (status in ('COMPLETED','SKIPPED_WITH_APPROVAL') and completed_at is not null))
 );
 
-alter table public.production_orders
-  add constraint production_orders_current_stage_fkey
-  foreign key (current_stage_id) references public.production_stages(id) on delete set null;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'production_orders_current_stage_fkey'
+      and conrelid = 'public.production_orders'::regclass
+  ) then
+    alter table public.production_orders
+      add constraint production_orders_current_stage_fkey
+      foreign key (current_stage_id) references public.production_stages(id) on delete set null;
+  end if;
+end $$;
 
 create unique index if not exists production_stages_order_sequence_idx on public.production_stages(production_order_id, sequence);
 create unique index if not exists production_stages_single_active_idx on public.production_stages(production_order_id) where status = 'IN_PROGRESS';
