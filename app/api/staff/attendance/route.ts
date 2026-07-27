@@ -18,15 +18,10 @@ import {
   requireWorkspaceAccess,
   type ServerEmployee,
 } from '@/services/server/auth';
+import { getFacilityDirectory } from '@/services/server/facilityDirectory';
 
 const ATTENDANCE_SELECT =
   'id, employee_id, work_date, shift_name, check_in, check_out, total_hours, total_salary, status';
-const BASE_FACILITY_SELECT = 'id, facility_name, lat, lng, radius';
-const ACTIVE_FACILITY_SELECT = `${BASE_FACILITY_SELECT}, is_active`;
-
-function isFacilityActiveStateEnabled() {
-  return process.env.FACILITY_ACTIVE_STATE_ENABLED === 'true';
-}
 const STAFF_ATTENDANCE_ALLOWED_FIELDS = new Set(['userLat', 'userLng']);
 
 class StaffAttendanceError extends Error {
@@ -62,6 +57,7 @@ function autoDetectShift(date: Date) {
 function findMatchedBranch(employee: ServerEmployee, branches: Facility[]): Facility | null {
   const matchedBranch = branches.find((branch) => {
     if (String(employee.branch_code || '') === String(branch.id || '')) return true;
+    if (employee.branch_code && employee.branch_code === branch.code) return true;
 
     const branchNameLower = branch.facility_name?.toLowerCase();
     if (employee.branch_code?.toLowerCase() === branchNameLower) return true;
@@ -81,22 +77,16 @@ function isAttendanceRecordComplete(record: AttendanceRecord): boolean {
 }
 
 async function loadFacilities() {
-  const supabase = await createClient();
-  const query = supabase
-    .from('facilities')
-    .select(isFacilityActiveStateEnabled() ? ACTIVE_FACILITY_SELECT : BASE_FACILITY_SELECT);
-
-  const { data, error } = isFacilityActiveStateEnabled() ? await query.eq('is_active', true) : await query;
-
-  if (error) {
-    throw new StaffAttendanceError(
-      500,
-      'attendance_load_failed',
-      'Không thể tải cấu hình cơ sở chấm công.'
-    );
-  }
-
-  return (data || []) as Facility[];
+  const facilities = await getFacilityDirectory();
+  return facilities.filter((facility) => facility.isActive).map((facility) => ({
+    id: facility.id,
+    code: facility.code,
+    facility_name: facility.name,
+    lat: facility.lat,
+    lng: facility.lng,
+    radius: facility.radius,
+    is_active: facility.isActive,
+  }));
 }
 
 async function getOpenAttendanceRecord(employeeId: number | string, workDate?: string) {

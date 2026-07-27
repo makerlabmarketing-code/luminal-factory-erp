@@ -8,6 +8,7 @@ import {
   requireWorkspaceAccess,
   type AuthContext,
 } from '@/services/server/auth';
+import { findFacility, getFacilityDirectory, type FacilityDirectoryItem } from '@/services/server/facilityDirectory';
 
 export type AccountConnectionStatus =
   | 'NOT_CONNECTED'
@@ -101,6 +102,7 @@ interface AuthUserSummary {
 
 export interface AdminEmployeeListData {
   employees: EmployeeListItem[];
+  facilities: FacilityDirectoryItem[];
   capabilities: {
     canViewEmployees: boolean;
     canEditEmployees: boolean;
@@ -128,6 +130,8 @@ export interface EmployeeDetailDto {
   phone: string | null;
   employmentStatus: string | null;
   facility: string | null;
+  facilityCode: string | null;
+  facilities: FacilityDirectoryItem[];
   hourlyRate: number | string | null;
   createdAt: string | null;
   accountConnectionStatus: AccountConnectionStatus;
@@ -262,13 +266,13 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
   ]);
   const supabase = await createClient();
 
-  const [{ data: employees, error: employeeError }, { data: facilities }, { data: workspaceAccess }] =
+  const [{ data: employees, error: employeeError }, facilities, { data: workspaceAccess }] =
     await Promise.all([
       supabase
         .from('employees')
         .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code')
         .order('id', { ascending: false }),
-      supabase.from('facilities').select('id, facility_name'),
+      getFacilityDirectory(),
       supabase
         .from('employee_workspace_access')
         .select('employee_id, workspace, status, revoked_at'),
@@ -287,7 +291,11 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
   }
 
   const authUsersById = await listAuthUsersById();
-  const facilityRows = (facilities || []) as FacilityRow[];
+  const facilityRows = facilities.map((facility) => ({
+    id: facility.id,
+    facility_name: facility.name,
+    code: facility.code,
+  }));
   const workspaceRows = (workspaceAccess || []) as WorkspaceAccessRow[];
 
   return {
@@ -314,6 +322,7 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
       canEditEmployees,
       canManageAccounts,
     },
+    facilities,
   };
 }
 
@@ -328,7 +337,7 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
 
   const [
     { data: employee, error: employeeError },
-    { data: facilities },
+    facilities,
     { data: workspaceAccess },
     { data: permissions },
     { data: projectMemberships },
@@ -338,7 +347,7 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
       .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code, hourly_rate, created_at')
       .eq('id', employeeId)
       .maybeSingle(),
-    supabase.from('facilities').select('id, facility_name'),
+    getFacilityDirectory(),
     supabase
       .from('employee_workspace_access')
       .select('employee_id, workspace, status, revoked_at')
@@ -376,6 +385,11 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
   }
 
   const employeeRow = employee as EmployeeRow;
+  const facilityRows = facilities.map((facility) => ({
+    id: facility.id,
+    facility_name: facility.name,
+    code: facility.code,
+  }));
   const workspaceRows = (workspaceAccess || []) as WorkspaceAccessRow[];
   const authUsersById = await listAuthUsersById();
   const authUser = employeeRow.auth_user_id ? authUsersById.get(employeeRow.auth_user_id) || null : null;
@@ -391,7 +405,9 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
     email: employeeRow.email || null,
     phone: employeeRow.phone || null,
     employmentStatus: employeeRow.status || null,
-    facility: resolveFacilityName(employeeRow, (facilities || []) as FacilityRow[]),
+    facility: resolveFacilityName(employeeRow, facilityRows),
+    facilityCode: findFacility(facilities, employeeRow.branch_code)?.code || employeeRow.branch_code || null,
+    facilities,
     hourlyRate: canViewFinance || canEditEmployee ? employeeRow.hourly_rate ?? null : null,
     createdAt: employeeRow.created_at || null,
     accountConnectionStatus: status.accountConnectionStatus,

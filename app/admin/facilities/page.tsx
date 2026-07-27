@@ -12,6 +12,8 @@ type AdminFacility = {
   lat: number | string | null;
   lng: number | string | null;
   radius: number | string | null;
+  code: string | null;
+  isActive: boolean;
 };
 
 type FacilityApiResult = {
@@ -24,6 +26,7 @@ export default function AdminFacilitiesManagement() {
   const { showToast, showConfirm } = useNotification();
   const [branches, setBranches] = useState<AdminFacility[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
@@ -38,6 +41,7 @@ export default function AdminFacilitiesManagement() {
 
   const loadFacilities = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const response = await fetch('/api/admin/facilities', { cache: 'no-store' });
       const result = (await response.json().catch(() => ({}))) as FacilityApiResult;
@@ -49,6 +53,7 @@ export default function AdminFacilitiesManagement() {
       setBranches(result.facilities || []);
     } catch (error) {
       console.error(error);
+      setLoadError(true);
       showToast('Lỗi tải dữ liệu', 'Không thể tải danh sách cơ sở làm việc.', 'error');
     } finally {
       setLoading(false);
@@ -182,7 +187,16 @@ export default function AdminFacilitiesManagement() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60 font-medium text-[11px]">
-            {branches.length === 0 ? (
+            {loadError ? (
+              <tr>
+                <td colSpan={6} className="p-8 text-center text-slate-400">
+                  <p>Không thể tải danh sách cơ sở làm việc.</p>
+                  <button type="button" onClick={loadFacilities} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-blue-500/40 px-3 py-2 font-bold text-blue-300">
+                    <RefreshCcw className="h-3.5 w-3.5" /> Thử lại
+                  </button>
+                </td>
+              </tr>
+            ) : branches.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center p-8 text-slate-500 italic">
                   Chưa có dữ liệu cơ sở xưởng trên hệ thống.
@@ -193,6 +207,7 @@ export default function AdminFacilitiesManagement() {
                 <tr key={b.id} className="hover:bg-slate-950/20 transition">
                   <td className="p-4 font-bold text-slate-200">
                     🏛️ {b.facilityName}
+                    {!b.isActive && <span className="ml-2 rounded border border-slate-700 px-1.5 py-0.5 text-[9px] text-slate-400">Ngừng hoạt động</span>}
                     <br/>
                     <span className="text-[9px] text-slate-500 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-850 mt-1 block w-fit">ID: {b.id}</span>
                   </td>

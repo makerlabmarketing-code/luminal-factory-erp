@@ -25,6 +25,25 @@ describe('employee admin list and account actions slice', () => {
     expect(serviceSource).not.toMatch(/\.eq\(['"]auth_user_id['"]/);
   });
 
+  it('uses one server-owned facility directory for active pickers and historical labels', () => {
+    const listClient = source('app/admin/employees/AdminEmployeesClient.tsx');
+    const detailClient = source('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
+    const directory = source('services/server/facilityDirectory.ts');
+    const actions = source('services/server/adminEmployeeActions.ts');
+
+    expect(directory).toMatch(/createSupabaseAdminClient/);
+    expect(directory).toMatch(/cache\(async/);
+    expect(directory).toMatch(/message: 'Không thể tải danh sách cơ sở làm việc.'/);
+    expect(listClient).toMatch(/facility\.isActive \|\| facility\.code === formState\?\.department/);
+    expect(listClient).toMatch(/Chưa có cơ sở đang hoạt động/);
+    expect(detailClient).toMatch(/facility\.isActive \|\| facility\.code === formState\.department/);
+    expect(detailClient).toMatch(/Ngừng hoạt động/);
+    expect(actions).toMatch(/validateFacilityAssignment/);
+    expect(actions).toMatch(/!facility\.isActive/);
+    expect(listClient).not.toMatch(/fetch\(['"]\/api\/admin\/facilities/);
+    expect(detailClient).not.toMatch(/fetch\(['"]\/api\/admin\/facilities/);
+  });
+
   it('requires ADMIN_WORKSPACE and EMPLOYEE_VIEW to read the full employee list', () => {
     const serviceSource = source('services/server/adminEmployeeData.ts');
 

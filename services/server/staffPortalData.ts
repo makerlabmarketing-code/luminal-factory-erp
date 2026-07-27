@@ -1,7 +1,7 @@
 import 'server-only';
 
-import { createClient } from '@/utils/supabase/server';
 import type { Facility } from '@/lib/types/facility';
+import { getFacilityDirectory } from '@/services/server/facilityDirectory';
 import {
   canAccessAdmin,
   canAccessStaff,
@@ -27,18 +27,17 @@ export function findAssignedBranch(
 }
 
 async function getMetadataBranches(): Promise<Facility[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('system_metadata')
-    .select('data')
-    .eq('name', 'Danh sách Chi nhánh')
-    .maybeSingle();
-
-  if (error) return [];
-
-  const payload = data?.data;
-
-  return Array.isArray(payload) ? (payload as Facility[]) : [];
+  const facilities = await getFacilityDirectory();
+  return facilities.map((facility) => ({
+    id: facility.id,
+    code: facility.code,
+    facility_name: facility.name,
+    name: facility.name,
+    lat: facility.lat,
+    lng: facility.lng,
+    radius: facility.radius,
+    is_active: facility.isActive,
+  }));
 }
 
 export async function getAuthenticatedStaffPortalData() {

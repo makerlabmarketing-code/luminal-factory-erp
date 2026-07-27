@@ -141,6 +141,9 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
   const [isPending, startTransition] = useTransition();
   const itemsPerPage = 10;
   const { employees, capabilities } = initialData;
+  const selectableFacilities = initialData.facilities.filter(
+    (facility) => facility.isActive || facility.code === formState?.department
+  );
 
   const filtered = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -206,7 +209,8 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
       fullName: employee.fullName,
       email: employee.email || '',
       title: employee.title || '',
-      department: employee.facilityName || '',
+      department:
+        initialData.facilities.find((facility) => facility.name === employee.facilityName)?.code || '',
       phone: 'phone' in employee && typeof employee.phone === 'string' ? employee.phone : '',
       employmentStatus: employee.employmentStatus || 'ACTIVE',
     });
@@ -488,8 +492,17 @@ export default function AdminEmployeesClient({ initialData }: { initialData: Adm
               <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.phone} onChange={(event) => setFormState({ ...formState, phone: event.target.value })} />
             </label>
             <label className="block space-y-1">
-              <span className="font-bold text-slate-400">Bộ phận</span>
-              <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.department} onChange={(event) => setFormState({ ...formState, department: event.target.value })} />
+              <span className="font-bold text-slate-400">Cơ sở làm việc</span>
+              <select className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.department} onChange={(event) => setFormState({ ...formState, department: event.target.value })}>
+                <option value="">Chưa gán cơ sở</option>
+                {selectableFacilities.length === 0 ? (
+                  <option disabled>Chưa có cơ sở đang hoạt động</option>
+                ) : selectableFacilities.map((facility) => (
+                  <option key={facility.id} value={facility.code}>
+                    {facility.name}{facility.isActive ? '' : ' (Ngừng hoạt động)'}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Chức vụ</span>
