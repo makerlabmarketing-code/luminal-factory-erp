@@ -101,6 +101,16 @@ describe('Corrective Slice 6 production-order persistence package', () => {
     expect(notificationOutbox).toMatch(/Reuses public\.task_notifications/);
   });
 
+  it('keeps compatibility views aligned with the live projects column contract', () => {
+    const compatibility = source('compatibility.sql');
+    const canonical = migration();
+
+    expect(compatibility).toMatch(/p\.project_name as project_name/);
+    expect(compatibility).not.toMatch(/p\.name as project_name/);
+    expect(canonical).toMatch(/p\.project_name as project_name/);
+    expect(canonical).not.toMatch(/p\.name as project_name/);
+  });
+
   it('keeps production-code unique while allowing duplicate display names and preserving template version', () => {
     const forward = source('forward.sql');
 

@@ -17,6 +17,12 @@ select
     as transition_production_stage_atomic_present;
 
 select
+  to_regclass('public.production_order_list_view') is not null
+    as production_order_list_view_present,
+  to_regclass('public.production_order_detail_view') is not null
+    as production_order_detail_view_present;
+
+select
   count(*) = 8 as production_select_policies_present
 from pg_policies
 where schemaname = 'public'
