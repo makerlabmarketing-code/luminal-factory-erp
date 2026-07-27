@@ -1,6 +1,6 @@
 // component/NotificationContext.tsx
 'use client';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Info, CheckCircle2, HelpCircle, AlertCircle } from 'lucide-react';
 import { OVERLAY_Z_INDEX } from '@/lib/constants/overlays';
@@ -14,27 +14,26 @@ interface ToastOptions {
 
 interface NotificationContextType {
   showToast: (title: string, desc: string, type?: ToastType, options?: ToastOptions) => void;
-  showConfirm: (title: string, desc: string, onConfirm: () => void) => void;
+  showConfirm: (title: string, desc: string, onConfirm: () => void, labels?: { cancelLabel?: string; confirmLabel?: string }) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
-  const [toast, setToast] = useState<{
-    show: boolean;
+  const [toasts, setToasts] = useState<Array<{
+    id: number;
     title: string;
     desc: string;
     type: ToastType;
     actionLabel?: string;
     onAction?: () => void;
     durationMs?: number;
-  }>({
-    show: false, title: '', desc: '', type: 'info'
-  });
+  }>>([]);
+  const nextToastId = useRef(0);
 
-  const [confirm, setConfirm] = useState<{ show: boolean; title: string; desc: string; onConfirm: () => void }>({
-    show: false, title: '', desc: '', onConfirm: () => {}
+  const [confirm, setConfirm] = useState<{ show: boolean; title: string; desc: string; onConfirm: () => void; cancelLabel: string; confirmLabel: string }>({
+    show: false, title: '', desc: '', onConfirm: () => {}, cancelLabel: 'Hủy bỏ', confirmLabel: 'Xác nhận'
   });
 
   const showToast = (
@@ -43,18 +42,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     type: ToastType = 'success',
     options: ToastOptions = {}
   ) => {
-    setToast({
-      show: true,
+    const id = ++nextToastId.current;
+    setToasts((current) => [...current, {
+      id,
       title,
       desc,
       type,
       actionLabel: options.actionLabel,
       onAction: options.onAction,
       durationMs: options.durationMs,
-    });
+    }]);
+    if (type !== 'error') {
+      window.setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), options.durationMs ?? (type === 'success' ? 4500 : 9000));
+    }
   };
 
-  const showConfirm = (title: string, desc: string, onConfirm: () => void) => {
+  const showConfirm = (title: string, desc: string, onConfirm: () => void, labels: { cancelLabel?: string; confirmLabel?: string } = {}) => {
     setConfirm({
       show: true,
       title,
@@ -62,24 +65,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       onConfirm: () => {
         void onConfirm();
         setConfirm((currentConfirm) => ({ ...currentConfirm, show: false }));
-      }
+      },
+      cancelLabel: labels.cancelLabel || 'Hủy bỏ',
+      confirmLabel: labels.confirmLabel || 'Xác nhận',
     });
   };
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (!toast.show) return;
-    if (toast.type === 'error') return;
-
-    const timeout = window.setTimeout(() => {
-      setToast((currentToast) => ({ ...currentToast, show: false }));
-    }, toast.durationMs ?? (toast.type === 'success' ? 4500 : 9000));
-
-    return () => window.clearTimeout(timeout);
-  }, [toast.show, toast.type, toast.durationMs, toast.title, toast.desc]);
 
   useEffect(() => {
     if (!confirm.show) return undefined;
@@ -96,9 +90,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const notificationLayer = (
     <>
-      {toast.show && (
-        <div className="fixed right-3 top-3 isolate w-[calc(100vw-1.5rem)] max-w-sm font-sans sm:right-5 sm:top-5" style={{ zIndex: OVERLAY_Z_INDEX.notification }}>
-          <div className={`rounded-lg border p-4 shadow-2xl ${
+      {toasts.length > 0 && (
+        <div className="fixed left-3 right-3 top-24 isolate flex flex-col items-end gap-3 font-sans sm:left-auto sm:right-6 sm:w-full sm:max-w-sm" style={{ zIndex: OVERLAY_Z_INDEX.notification }} aria-live="polite">
+          {toasts.map((toast) => (
+          <div key={toast.id} className={`w-full rounded-lg border p-4 shadow-2xl ${
             toast.type === 'success'
               ? 'border-emerald-800 bg-emerald-950 text-emerald-50'
               : toast.type === 'error'
@@ -119,7 +114,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                     type="button"
                     onClick={() => {
                       toast.onAction?.();
-                      setToast((currentToast) => ({ ...currentToast, show: false }));
+                      setToasts((current) => current.filter((item) => item.id !== toast.id));
                     }}
                     className="mt-2 rounded border border-white/20 px-2.5 py-1 text-[11px] font-bold hover:bg-white/10"
                   >
@@ -129,7 +124,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               </div>
               <button
                 type="button"
-                onClick={() => setToast((currentToast) => ({ ...currentToast, show: false }))}
+                onClick={() => setToasts((current) => current.filter((item) => item.id !== toast.id))}
                 className="text-white/60 hover:text-white"
                 aria-label="Đóng thông báo"
               >
@@ -137,6 +132,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               </button>
             </div>
           </div>
+          ))}
         </div>
       )}
 
@@ -158,8 +154,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               <p id="global-confirm-desc" className="text-xs font-medium leading-relaxed text-slate-300">{confirm.desc}</p>
             </div>
             <div className="grid grid-cols-2 gap-2 pt-1 font-sans">
-              <button onClick={() => setConfirm((currentConfirm) => ({ ...currentConfirm, show: false }))} className="rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs font-bold text-slate-400 transition hover:bg-slate-850">Hủy bỏ</button>
-              <button onClick={confirm.onConfirm} className="rounded-xl bg-red-600 p-2.5 text-xs font-bold text-white shadow-lg transition hover:bg-red-700">Xác nhận</button>
+              <button onClick={() => setConfirm((currentConfirm) => ({ ...currentConfirm, show: false }))} className="rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs font-bold text-slate-400 transition hover:bg-slate-850">{confirm.cancelLabel}</button>
+              <button onClick={confirm.onConfirm} className="rounded-xl bg-red-600 p-2.5 text-xs font-bold text-white shadow-lg transition hover:bg-red-700">{confirm.confirmLabel}</button>
             </div>
           </div>
         </div>

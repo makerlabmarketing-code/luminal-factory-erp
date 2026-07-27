@@ -7,7 +7,6 @@ import {
   ArrowLeftRight,
   BriefcaseBusiness,
   CalendarDays,
-  ClipboardList,
   Database,
   FolderKanban,
   LayoutDashboard,
@@ -47,12 +46,7 @@ export default function AdminShell({
     {
       groupTitle: "Dự án & sản xuất",
       items: [
-        { name: "Dự án", path: "/admin/projects", icon: FolderKanban },
-        {
-          name: "Công việc & tiến độ",
-          path: "/admin/tasks",
-          icon: ClipboardList,
-        },
+        { name: "Dự án & công việc", path: "/admin/projects", icon: FolderKanban },
       ],
     },
     {

@@ -47,10 +47,9 @@ describe('project duplicate-name policy and error mapping', () => {
   });
 
   it('keeps project create UI messages distinct from phase create messages', () => {
-    const taskPage = source('app/admin/tasks/page.tsx');
     const projectPage = source('app/admin/projects/page.tsx');
 
-    for (const page of [taskPage, projectPage]) {
+    for (const page of [projectPage]) {
       expect(page).not.toMatch(/Dự án này đã tồn tại\./);
       expect(page).not.toMatch(/project_already_exists/);
       expect(page).toMatch(/Bạn không có quyền tạo dự án\./);

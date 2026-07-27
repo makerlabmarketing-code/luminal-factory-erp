@@ -12,7 +12,7 @@ describe('project creation UX, detail actions, and request cleanup', () => {
   it('uses a top-right toast instead of a blocking toast modal', () => {
     const notification = source('component/NotificationContext.tsx');
 
-    expect(notification).toMatch(/fixed right-3 top-3/);
+    expect(notification).toMatch(/fixed left-3 right-3 top-24/);
     const overlays = source('lib/constants/overlays.ts');
 
     expect(notification).toMatch(/OVERLAY_Z_INDEX\.notification/);
@@ -29,10 +29,9 @@ describe('project creation UX, detail actions, and request cleanup', () => {
   });
 
   it('shows a blocking creation overlay and prevents closing or duplicate submit while creating', () => {
-    const taskPage = source('app/admin/tasks/page.tsx');
     const projectPage = source('app/admin/projects/page.tsx');
 
-    for (const page of [taskPage, projectPage]) {
+    for (const page of [projectPage]) {
       expect(page).toMatch(/aria-busy="true"/);
       expect(page).toMatch(/Đang khởi tạo dự án/);
       expect(page).toMatch(/if \(isCreatingProject\) return/);
@@ -49,7 +48,6 @@ describe('project creation UX, detail actions, and request cleanup', () => {
   });
 
   it('renders project detail from live project and phase fields only', () => {
-    const taskPage = source('app/admin/tasks/page.tsx');
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
     const service = source('services/workflowService.ts');
     const repository = source('services/repositories/workflowRepository.ts');
@@ -58,10 +56,8 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(service).toMatch(/project_created_at/);
     expect(service).toMatch(/phase_created_at/);
     expect(service).toMatch(/phase_order_index/);
-    expect(taskPage).toMatch(/Trạng thái: Chưa hỗ trợ lưu/);
     expect(detailPage).toMatch(/Stepper giai đoạn/);
     expect(detailPage).toMatch(/notFound\(\)/);
-    expect(taskPage).not.toMatch(/handleUpdatePhaseStatus/);
   });
 
 
@@ -109,10 +105,9 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(detailPage).not.toMatch(/Task Assignment Foundation|Task legacy|Sequential workflow|membership ACTIVE|thành viên ACTIVE|cổng migration|read-only|derive read-only|hard delete membership|Server chưa có mutation|state machine/);
   });
 
-  it('links project names from the task list to the detail page', () => {
+  it('redirects the legacy task list to the canonical project workspace', () => {
     const taskPage = source('app/admin/tasks/page.tsx');
-
-    expect(taskPage).toMatch(/href=\{`\/admin\/projects\/\$\{projectPhases\[0\]\.project_id\}`\}/);
+    expect(taskPage).toMatch(/redirect\(`\/admin\/projects/);
   });
 
   it('updates phase name and order through the server PATCH route without status payloads', () => {
@@ -129,7 +124,6 @@ describe('project creation UX, detail actions, and request cleanup', () => {
 
   it('cancels projects through the server route and does not hard delete', () => {
     const repository = source('services/repositories/workflowRepository.ts');
-    const taskPage = source('app/admin/tasks/page.tsx');
     const projectPage = source('app/admin/projects/page.tsx');
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
     const service = source('services/server/projectMutations.ts');
@@ -137,9 +131,8 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(repository).toMatch(/\/api\/admin\/projects\/\$\{projectId\}\/archive/);
     expect(repository).not.toMatch(/from\('projects'\)\.delete/);
     expect(service).toMatch(/CANCELLED/);
-    expect(taskPage).toMatch(/Hủy dự án/);
-    expect(projectPage).toMatch(/Hủy dự án/);
-    expect(detailPage).toMatch(/Hủy dự án/);
+    expect(projectPage).toMatch(/Huỷ dự án/);
+    expect(detailPage).toMatch(/Hủy dự án|Huỷ dự án/);
   });
 
   it('restores legacy assignee and task detail display on project detail', () => {
@@ -164,10 +157,9 @@ describe('project creation UX, detail actions, and request cleanup', () => {
   });
 
   it('keeps raw database errors out of the project creation UX', () => {
-    const taskPage = source('app/admin/tasks/page.tsx');
     const projectPage = source('app/admin/projects/page.tsx');
 
-    for (const page of [taskPage, projectPage]) {
+    for (const page of [projectPage]) {
       expect(page).not.toMatch(/PGRST|42703|schema cache|column .* does not exist/);
       expect(page).toMatch(/Không thể tạo dự án\./);
     }
