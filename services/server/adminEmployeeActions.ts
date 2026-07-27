@@ -10,6 +10,7 @@ import {
   buildPasswordRecoveryRedirectUrl,
   getPublicAppBaseUrl,
 } from '@/utils/auth/flow';
+import { findFacility, getFacilityDirectory } from '@/services/server/facilityDirectory';
 
 interface EmployeeAccountRow {
   id: number | string;
@@ -18,6 +19,7 @@ interface EmployeeAccountRow {
   status?: string | null;
   is_active?: boolean | null;
   auth_user_id?: string | null;
+  branch_code?: string | null;
 }
 
 interface EmployeeMutationInput {
@@ -124,6 +126,21 @@ function buildEmployeePayload(input: EmployeeMutationInput) {
   };
 }
 
+async function validateFacilityAssignment(value: unknown, currentValue?: string | null): Promise<string | null> {
+  const requestedCode = cleanText(value, 80);
+  if (!requestedCode) return null;
+
+  const facilities = await getFacilityDirectory();
+  const facility = findFacility(facilities, requestedCode);
+  const unchangedInactive = facility && !facility.isActive && facility.code === currentValue;
+
+  if (!facility || (!facility.isActive && !unchangedInactive)) {
+    safeFailure(400, 'employee_status_invalid', 'Cơ sở làm việc không còn hoạt động. Vui lòng chọn cơ sở khác.', 'validation');
+  }
+
+  return facility.code;
+}
+
 function isActiveEmployee(row: EmployeeAccountRow): boolean {
   const status = (row.status || '').trim().toUpperCase();
   return row.is_active !== false && status !== 'INACTIVE' && status !== 'LOCKED';
@@ -151,7 +168,7 @@ async function loadTargetEmployee(employeeId: string): Promise<EmployeeAccountRo
   const supabaseAdmin = createSupabaseAdminClient();
   const { data, error } = await supabaseAdmin
     .from('employees')
-    .select('id, full_name, email, status, is_active, auth_user_id')
+    .select('id, full_name, email, status, is_active, auth_user_id, branch_code')
     .eq('id', employeeId)
     .maybeSingle();
 
@@ -458,6 +475,7 @@ export async function createEmployee(input: EmployeeMutationInput): Promise<Admi
 
   const payload = {
     ...buildEmployeePayload(input),
+    branch_code: await validateFacilityAssignment(input.department),
     role: 'STAFF',
     is_active: true,
     auth_user_id: null,
@@ -481,9 +499,10 @@ export async function createEmployee(input: EmployeeMutationInput): Promise<Admi
 
 export async function updateEmployee(employeeId: string, input: EmployeeMutationInput): Promise<AdminActionResult> {
   await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
-  await loadTargetEmployee(employeeId);
+  const targetEmployee = await loadTargetEmployee(employeeId);
 
   const payload = buildEmployeePayload(input);
+  payload.branch_code = await validateFacilityAssignment(input.department, targetEmployee.branch_code);
   await ensureEmployeeEmailAvailable(payload.email, employeeId);
 
   const supabaseAdmin = createSupabaseAdminClient();

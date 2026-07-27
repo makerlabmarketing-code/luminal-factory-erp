@@ -2,6 +2,7 @@ import 'server-only';
 
 import { createClient } from '@/utils/supabase/server';
 import { AuthFlowError, hasPermission, requireWorkspaceAccess } from '@/services/server/auth';
+import { getFacilityDirectory } from '@/services/server/facilityDirectory';
 
 export interface AdminFacilityDto {
   id: number | string;
@@ -164,23 +165,20 @@ function parseFacilityId(value: unknown): string | number {
 
 export async function listAdminFacilities() {
   await requireFacilityView();
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('facilities')
-    .select(getFacilitySelect())
-    .order('id', { ascending: true });
-
-  if (error) {
-    throw new AuthFlowError({
-      status: 500,
-      code: 'admin_verification_failed',
-      message: 'Không thể tải danh sách cơ sở làm việc.',
-      failureStage: 'persistence',
-    });
-  }
-
-  return { success: true, facilities: ((data || []) as unknown as FacilityRow[]).map(toFacilityDto) };
+  const facilities = await getFacilityDirectory();
+  return {
+    success: true,
+    facilities: facilities.map((facility) => ({
+      id: facility.id,
+      facilityName: facility.name,
+      address: facility.address,
+      lat: facility.lat,
+      lng: facility.lng,
+      radius: facility.radius,
+      code: facility.code,
+      isActive: facility.isActive,
+    })),
+  };
 }
 
 export async function createAdminFacility(body: Record<string, unknown>) {

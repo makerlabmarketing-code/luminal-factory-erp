@@ -1176,3 +1176,19 @@ Status: application-only Project Detail compatibility boundary and rollout packa
 - No production SQL, migration promotion, RLS mutation, backfill, deployment, runtime flag change, attendance-row mutation, or live-data mutation was performed.
 
 Current gate: run/attach the approved read-only pre-run report, obtain explicit approval to promote the reviewed forward SQL through the Supabase GitHub Integration, validate the rollout, then activate server flags in checklist order.
+
+## 2026-07-27 Facility / Work Branch directory regression repair
+
+Status: ✅ application repair complete; live read-only audit was unavailable because the environment proxy rejected the Supabase REST connection before a response was returned.
+
+Root cause and completed scope:
+
+- Facility consumers had drifted across three contracts: administration read `public.facilities`, Staff Portal read the obsolete `system_metadata` branch payload and converted query errors into an empty list, while employee create/edit accepted free text and never loaded the facility directory.
+- Attendance and facility administration still kept the deployed `code`/`is_active` columns behind `FACILITY_ACTIVE_STATE_ENABLED`, so the repository migration contract and runtime directory contract could disagree indefinitely.
+- Added one cached, server-only `public.facilities` directory contract selecting `id, facility_name, code, is_active, address, lat, lng, radius`. Authorized server callers use it for administration, employee DTOs, Staff Portal, and Attendance; browser code does not read Supabase directly.
+- Employee create and edit now receive the directory with the page DTO, show only active facilities for new assignments, preserve the selected inactive facility label for historical records, and validate the stable facility code again on the server.
+- Facility administration now distinguishes a real empty directory from a load failure and provides an explicit retry action. Errors remain sanitized and no raw database error is returned to the UI.
+- Attendance continues to derive the facility from the employee's persisted `branch_code`; it does not derive the assigned facility from check-in coordinates. Coordinates are used only to verify distance after the active assigned facility is resolved.
+- Project Membership remains independent from facility and Attendance access. No schema, migration, RLS, RPC, SQL, deployment, live data, or permission mutation was performed.
+
+Phase Workflow Foundation remains `BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT`. Its safe Project Detail compatibility boundary, capability flags, transition validator, loading/error/empty states, and rollout package were already complete in the current repository state and were not restarted. Exact next approval remains the reviewed read-only pre-run report followed by explicit approval for the Phase Workflow migration delivery through the Supabase GitHub Integration.

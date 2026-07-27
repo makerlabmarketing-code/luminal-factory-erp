@@ -69,10 +69,8 @@ describe("administration information architecture correction slice", () => {
     const facilities = source("services/server/adminFacilities.ts");
     const staffAttendanceRoute = source("app/api/staff/attendance/route.ts");
 
-    expect(facilities).toMatch(/from\('facilities'\)/);
-    expect(staffAttendanceRoute).toMatch(
-      /const BASE_FACILITY_SELECT = 'id, facility_name, lat, lng, radius'/,
-    );
+    expect(facilities).toMatch(/getFacilityDirectory/);
+    expect(staffAttendanceRoute).toMatch(/getFacilityDirectory/);
     expect(staffAttendanceRoute).toMatch(/getDistance/);
     expect(staffAttendanceRoute).toMatch(/matchedBranch\.radius/);
     expect(staffAttendanceRoute).not.toMatch(
@@ -100,15 +98,12 @@ describe("administration information architecture correction slice", () => {
     expect(service).not.toMatch(/select\('\*'\)/);
   });
 
-  it("keeps active-state reads gated until post-deployment validation enables the contract", () => {
-    const service = source("services/server/adminFacilities.ts");
+  it("uses the deployed active-state contract and filters attendance facilities", () => {
+    const directory = source("services/server/facilityDirectory.ts");
     const staffAttendanceRoute = source("app/api/staff/attendance/route.ts");
 
-    expect(service).toMatch(/process\.env\.FACILITY_ACTIVE_STATE_ENABLED === 'true'/);
-    expect(service).toMatch(/const ACTIVE_FACILITY_SELECT = `\$\{BASE_FACILITY_SELECT\}, code, is_active`/);
-    expect(staffAttendanceRoute).toMatch(/process\.env\.FACILITY_ACTIVE_STATE_ENABLED === 'true'/);
-    expect(staffAttendanceRoute).toMatch(/const ACTIVE_FACILITY_SELECT = `\$\{BASE_FACILITY_SELECT\}, is_active`/);
-    expect(staffAttendanceRoute).toMatch(/query\.eq\('is_active', true\)/);
+    expect(directory).toMatch(/id, facility_name, code, is_active, address, lat, lng, radius/);
+    expect(staffAttendanceRoute).toMatch(/filter\(\(facility\) => facility\.isActive\)/);
   });
 
 describe("facility active-state schema package", () => {

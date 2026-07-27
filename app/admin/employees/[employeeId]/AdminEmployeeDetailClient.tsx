@@ -159,7 +159,7 @@ export default function AdminEmployeeDetailClient({
       fullName: initialData.fullName,
       email: initialData.email || '',
       title: initialData.title || '',
-      department: initialData.facility || '',
+      department: initialData.facilityCode || '',
       phone: initialData.phone || '',
       employmentStatus: initialData.employmentStatus || 'ACTIVE',
     }),
@@ -423,7 +423,14 @@ export default function AdminEmployeeDetailClient({
             </label>
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Bộ phận</span>
-              <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.department} onChange={(event) => setFormState({ ...formState, department: event.target.value })} />
+              <select className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.department} onChange={(event) => setFormState({ ...formState, department: event.target.value })}>
+                <option value="">Chưa gán cơ sở</option>
+                {initialData.facilities.filter((facility) => facility.isActive || facility.code === formState.department).map((facility) => (
+                  <option key={facility.id} value={facility.code}>
+                    {facility.name}{facility.isActive ? '' : ' (Ngừng hoạt động)'}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Chức vụ</span>
