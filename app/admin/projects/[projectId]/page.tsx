@@ -87,6 +87,7 @@ interface ProjectCapabilitiesDTO {
 
 interface ProjectDetailDTO {
   id: number;
+  projectCode: string;
   name: string;
   status: string | null;
   projectDeadline: string | null;
@@ -400,6 +401,20 @@ export default function ProjectDetailPage() {
     }
   }, [projectId]);
 
+  const refreshPhases = useCallback(async () => {
+    try {
+      const workflowItems = await Promise.race([
+        getWorkflowItems({ includeClosedProjects: true }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('project_core_timeout')), 10_000)),
+      ]);
+      const matchingItems = workflowItems.filter((item) => item.project_id === projectId);
+      if (matchingItems.length > 0) setItems(matchingItems);
+      setPhaseLoadFailed(false);
+    } catch {
+      setPhaseLoadFailed(true);
+    }
+  }, [projectId]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadFailed(false);
@@ -413,7 +428,7 @@ export default function ProjectDetailPage() {
     }
     try {
       const coreResponse = await fetchWithTimeout(`/api/admin/projects/${projectId}`);
-      const corePayload = await coreResponse.json().catch(() => null) as { project?: { id: number; name: string; status: string | null; projectDeadline: string | null; driveLink: string | null; createdAt: string | null } } | null;
+      const corePayload = await coreResponse.json().catch(() => null) as { project?: { id: number; projectCode: string; name: string; colorway: string | null; status: string | null; projectDeadline: string | null; driveLink: string | null; createdAt: string | null } } | null;
       if (coreResponse.status === 404) {
         setNotFoundConfirmed(true);
         return;
@@ -428,19 +443,13 @@ export default function ProjectDetailPage() {
         id: `project-${coreProject.id}-core`, key: `PROJECT_${coreProject.id}_CORE`, project_id: coreProject.id,
         value: coreProject.status, group_name: 'PRODUCTION_WORKFLOW_PROJECT_PLACEHOLDER',
         config_name: `${coreProject.name} - Chưa thiết lập giai đoạn`, param_type: coreProject.projectDeadline || '',
-        description: JSON.stringify({ project_drive_link: coreProject.driveLink || '', project_deadline: coreProject.projectDeadline || '', project_created_at: coreProject.createdAt, project_status: coreProject.status, stage_name: 'Chưa thiết lập giai đoạn', stage_type: 'WORKFLOW_NOT_CONFIGURED', tasks_list: [] }),
+        description: JSON.stringify({ project_code: coreProject.projectCode, colorway_name: coreProject.colorway, project_drive_link: coreProject.driveLink || '', project_deadline: coreProject.projectDeadline || '', project_created_at: coreProject.createdAt, project_status: coreProject.status, stage_name: 'Chưa thiết lập giai đoạn', stage_type: 'WORKFLOW_NOT_CONFIGURED', tasks_list: [] }),
       };
       setItems([coreItem]);
       setLoading(false);
 
       const membersRequest = fetchWithTimeout(`/api/admin/projects/${projectId}/members`);
-      void Promise.race([
-        getWorkflowItems({ includeClosedProjects: true }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('project_core_timeout')), 10_000)),
-      ]).then((workflowItems) => {
-        const matchingItems = workflowItems.filter((item) => item.project_id === projectId);
-        if (matchingItems.length > 0) setItems(matchingItems);
-      }).catch(() => setPhaseLoadFailed(true));
+      void refreshPhases();
 
       void membersRequest.then(async (membersResponse) => {
         if (membersResponse.ok) {
@@ -458,7 +467,7 @@ export default function ProjectDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, refreshTasks, showToast]);
+  }, [projectId, refreshPhases, refreshTasks, showToast]);
 
   useEffect(() => {
     loadData();
@@ -581,6 +590,7 @@ export default function ProjectDetailPage() {
   );
   const projectDetail: ProjectDetailDTO = {
     id: projectId,
+    projectCode: String((firstDescription as WorkflowDescription & { project_code?: string }).project_code || ''),
     name: projectName,
     status: firstDescription.project_status || null,
     projectDeadline: firstDescription.project_deadline || null,
@@ -643,6 +653,7 @@ export default function ProjectDetailPage() {
     setMembers(payload.members || []);
     if (payload.capabilities) setProjectCapabilities(payload.capabilities);
     setCandidateEmployeesLoaded(false);
+    setMemberLoadFailed(false);
   };
 
   const handleAddMember = async () => {
@@ -918,7 +929,7 @@ export default function ProjectDetailPage() {
             </Link>
             <div>
               <h1 className="text-xl font-black text-slate-50">{projectDetail.name}</h1>
-              <p className="mt-1 text-xs text-slate-400">Mã dự án #{projectDetail.id} · Tạo lúc {formatDateTime(firstDescription.project_created_at)}</p>
+              <p className="mt-1 text-xs text-slate-400">Mã dự án {projectDetail.projectCode || `#${projectDetail.id}`} · Tạo lúc {formatDateTime(firstDescription.project_created_at)}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -996,11 +1007,17 @@ export default function ProjectDetailPage() {
         )}
 
         {phaseLoadFailed && (
-          <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">Không thể tải giai đoạn dự án. Thông tin cốt lõi vẫn hiển thị; hãy thử tải lại phần giai đoạn sau.</section>
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">
+            <span>Không thể tải giai đoạn dự án. Thông tin cốt lõi vẫn hiển thị.</span>
+            <button type="button" onClick={() => void refreshPhases()} className="rounded border border-amber-700 px-3 py-1.5 font-bold">Thử tải lại giai đoạn</button>
+          </section>
         )}
 
         {memberLoadFailed && (
-          <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">Không thể tải thành viên dự án. Thông tin cốt lõi, giai đoạn và công việc khác vẫn có thể xem.</section>
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">
+            <span>Không thể tải thành viên dự án. Thông tin cốt lõi, giai đoạn và công việc khác vẫn có thể xem.</span>
+            <button type="button" onClick={() => void refreshMembers().catch(() => setMemberLoadFailed(true))} className="rounded border border-amber-700 px-3 py-1.5 font-bold">Thử tải lại thành viên</button>
+          </section>
         )}
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -1320,6 +1337,14 @@ export default function ProjectDetailPage() {
             <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
               <h2 className="text-sm font-black text-slate-100">Thông tin dự án</h2>
               <dl className="mt-3 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-1">
+                <div>
+                  <p className="text-slate-500">Mã dự án</p>
+                  <p className="text-slate-100">{projectDetail.projectCode || `#${projectDetail.id}`}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Phối màu</p>
+                  <p className="text-slate-100">{selectedPhase?.description.colorway_name || selectedPhase?.description.colorway_code || 'Chưa có dữ liệu'}</p>
+                </div>
                 <div>
                   <p className="text-slate-500">Hạn tổng</p>
                   <p className="text-slate-100">{formatDate(firstDescription.project_deadline)}</p>

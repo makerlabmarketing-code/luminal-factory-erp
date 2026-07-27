@@ -19,4 +19,16 @@ describe('project detail operational states', () => {
     expect(projectDetailSource).toMatch(/title="Giai đoạn này chưa có công việc\."/);
     expect(projectDetailSource).not.toMatch(/border-dashed border-slate-700 p-6 text-center text-xs text-slate-500">Chưa có thành viên dự án/);
   });
+
+  it('shows authoritative project identity and targeted section retries', () => {
+    const projectDetailSource = source('app/admin/projects/[projectId]/page.tsx');
+
+    expect(projectDetailSource).toContain('coreProject.projectCode');
+    expect(projectDetailSource).toContain('projectDetail.projectCode');
+    expect(projectDetailSource).toContain('Phối màu');
+    expect(projectDetailSource).toContain('Thử tải lại giai đoạn');
+    expect(projectDetailSource).toContain('Thử tải lại thành viên');
+    expect(projectDetailSource).toMatch(/refreshPhases/);
+    expect(projectDetailSource).not.toMatch(/window\.location\.reload|location\.reload/);
+  });
 });
