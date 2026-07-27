@@ -13,7 +13,7 @@ describe('project detail operational states', () => {
     expect(componentSource).toMatch(/export function OperationalState/);
     expect(componentSource).toMatch(/role="status"/);
     expect(projectDetailSource).toMatch(/import \{ OperationalState \}/);
-    expect(projectDetailSource).toMatch(/title="Không thể tải chi tiết dự án\."/);
+    expect(projectDetailSource).toMatch(/title="Không thể tải thông tin dự án"/);
     expect(projectDetailSource).toMatch(/title="Dự án chưa có giai đoạn\."/);
     expect(projectDetailSource).toMatch(/title="Chưa có thành viên dự án\."/);
     expect(projectDetailSource).toMatch(/title="Giai đoạn này chưa có công việc\."/);

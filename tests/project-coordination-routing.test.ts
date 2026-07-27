@@ -18,7 +18,8 @@ describe('project coordination route contract', () => {
 
   it('generates the canonical URL for both project-list navigation actions', () => {
     const list = source('app/admin/projects/page.tsx');
-    expect(list.match(/href=\{`\/admin\/projects\/\$\{(?:project|activeProject)\.id\}`\}/g)).toHaveLength(2);
+    expect(list).toMatch(/const openProjectDetail[\s\S]*router\.push\(`\/admin\/projects\/\$\{normalizedProjectId\}`\)/);
+    expect(list.match(/openProjectDetail\((?:project|activeProject)\.id\)/g)).toHaveLength(2);
     expect(list).toContain('Quản lý chi tiết');
   });
 
@@ -27,8 +28,8 @@ describe('project coordination route contract', () => {
     const notFound = source('app/admin/projects/[projectId]/not-found.tsx');
 
     expect(detail).toContain('Mã dự án không hợp lệ.');
-    expect(detail).toContain('Bạn không có quyền xem dự án.');
-    expect(detail).toMatch(/projectItems\.length === 0[\s\S]{0,60}notFound\(\)/);
+    expect(detail).toContain('Bạn không có quyền xem dự án này');
+    expect(detail).toMatch(/notFoundConfirmed[\s\S]{0,60}notFound\(\)/);
     expect(detail).toContain('Không thể tải thành viên dự án.');
     expect(notFound).toContain('Quay lại danh sách');
   });

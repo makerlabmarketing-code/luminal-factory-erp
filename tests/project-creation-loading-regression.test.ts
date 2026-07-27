@@ -12,11 +12,11 @@ describe('streamlined project creation and loading', () => {
   const server = source('services/server/projectMutations.ts');
 
   it('formats and increments automatic project codes in the business timezone', () => {
-    expect(projectCodePrefix('2026-07-26T17:30:00.000Z')).toBe('LF-270726');
-    expect(nextProjectCode('LF-270726', [])).toBe('LF-270726-01');
-    expect(nextProjectCode('LF-270726', ['LF-270726-01'])).toBe('LF-270726-02');
-    expect(nextProjectCode('LF-270726', ['LF-270726-01', 'LF-270726-02'])).toBe('LF-270726-03');
-    expect(nextProjectCode('LF-280726', ['LF-270726-03'])).toBe('LF-280726-01');
+    expect(projectCodePrefix('2026-07-26T17:30:00.000Z')).toBe('LF-270726-003000');
+    expect(nextProjectCode('LF-270726-003000', [])).toBe('LF-270726-003000');
+    expect(nextProjectCode('LF-270726-003000', ['LF-270726-003000'])).toBe('LF-270726-003000-02');
+    expect(nextProjectCode('LF-270726-003000', ['LF-270726-003000', 'LF-270726-003000-02'])).toBe('LF-270726-003000-03');
+    expect(nextProjectCode('LF-280726-003000', ['LF-270726-003000'])).toBe('LF-280726-003000');
   });
 
   it('keeps generation server-owned and retries only duplicate collisions', () => {
@@ -24,12 +24,13 @@ describe('streamlined project creation and loading', () => {
     expect(server).toMatch(/projectCodePrefix\(new Date\(\)\)/);
     expect(server).toMatch(/error\?\.code === '23505'\) continue/);
     expect(server).toMatch(/rpcCode !== 'duplicate_project_code' && error\?\.code !== '23505'/);
-    expect(server).toMatch(/like\('project_code', `\$\{prefix\}-%`\)/);
+    expect(server).toMatch(/like\('project_code', `\$\{prefix\}%`\)/);
   });
 
   it('removes editable project and colorway codes from the create request', () => {
-    expect(page).toContain('Mã dự án sẽ được tạo tự động');
-    expect(page).not.toMatch(/setProjectCode|setColorwayCode|colorway_code: colorwayCode/);
+    expect(page).toContain('Mã được tạo tự động và sẽ được xác nhận khi lưu.');
+    expect(page).toMatch(/value=\{projectCode\} readOnly aria-readonly="true"/);
+    expect(page).not.toMatch(/setColorwayCode|colorway_code: colorwayCode/);
     expect(page).not.toContain('Mã colorway');
   });
 
@@ -40,12 +41,12 @@ describe('streamlined project creation and loading', () => {
     expect(page).toContain('Vui lòng chọn người phụ trách dự án.');
     expect(page).toMatch(/aria-invalid=\{Boolean\(formErrors\.projectName\)\}/);
     expect(page).toMatch(/firstInvalid[\s\S]*\.current\)\?\.focus\(\)/);
-    expect(page).toMatch(/disabled=\{isCreatingProject\}[\s\S]*Tạo dự án/);
+    expect(page).toMatch(/disabled=\{isCreatingProject \|\| employeeLoadState === 'loading'\}[\s\S]*Tạo dự án/);
   });
 
   it('uses the returned project id and code without a post-create list waterfall', () => {
     const createHandler = page.slice(page.indexOf('const handleCreateProject'), page.indexOf('const handleCancelProject'));
-    expect(createHandler).toContain('result.projectId');
+    expect(createHandler).toContain('result.project.id');
     expect(createHandler).toContain('result.projectCode');
     expect(createHandler).toContain('setItems((currentItems)');
     expect(createHandler).not.toContain('await loadData');
@@ -58,7 +59,7 @@ describe('streamlined project creation and loading', () => {
   });
 
   it('renders project core before independent member and task requests settle', () => {
-    expect(detail).toMatch(/setItems\(workflowItems\);\s*setLoading\(false\)/);
+    expect(detail).toMatch(/setItems\(\[coreItem\]\);\s*setLoading\(false\)/);
     expect(detail).toMatch(/void membersRequest\.then/);
     expect(detail).toMatch(/void refreshTasks\(\)/);
     expect(detail).toContain('project_core_timeout');

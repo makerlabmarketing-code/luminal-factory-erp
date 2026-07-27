@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   Activity,
   AlertTriangle,
@@ -21,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
+import { projectCodePreview } from '@/lib/project-code';
 import {
   cancelWorkflowProject,
   createWorkflowProject,
@@ -298,6 +298,7 @@ export default function AdminProjectManagement() {
   const [selectedProjectKey, setSelectedProjectKey] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [projectName, setProjectName] = useState('');
+  const [projectCode, setProjectCode] = useState('');
   const [colorwayName, setColorwayName] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [managerEmployeeId, setManagerEmployeeId] = useState('');
@@ -319,8 +320,10 @@ export default function AdminProjectManagement() {
 
   const loadCreationOptions = async () => {
     setEmployeeLoadState('loading');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
     try {
-      const response = await fetch('/api/admin/projects', { cache: 'no-store' });
+      const response = await fetch('/api/admin/projects', { cache: 'no-store', signal: controller.signal });
       const payload = await response.json().catch(() => null) as { employees?: Array<{ employeeId: number; fullName: string; title: string | null }>; workflowCreationAvailable?: boolean; message?: string } | null;
       if (!response.ok) throw new Error(payload?.message || 'employee_candidates_failed');
       setEmployeeCandidates(payload?.employees || []);
@@ -329,13 +332,23 @@ export default function AdminProjectManagement() {
     } catch {
       setEmployeeCandidates([]);
       setEmployeeLoadState('error');
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
   const openCreateModal = () => {
+    setProjectCode(projectCodePreview(new Date()));
     setShowAddModal(true);
     void loadCreationOptions();
   };
+
+  const openProjectDetail = useCallback((projectId: number | string | null | undefined) => {
+    const normalizedProjectId = Number(projectId);
+    if (!Number.isInteger(normalizedProjectId) || normalizedProjectId <= 0) return false;
+    router.push(`/admin/projects/${normalizedProjectId}`);
+    return true;
+  }, [router]);
 
   const loadData = useCallback((initial = false) => {
     if (loadPromiseRef.current) return loadPromiseRef.current;
@@ -429,6 +442,7 @@ export default function AdminProjectManagement() {
       setCreationStage('Đang tạo các giai đoạn...');
       const result = await createWorkflowProject({
         projectName: projectName.trim(),
+        colorwayName: colorwayName.trim(),
         projectDeadline: targetDate,
         phases: stages,
         managerEmployeeId: Number(managerEmployeeId),
@@ -444,27 +458,27 @@ export default function AdminProjectManagement() {
       setFormErrors({});
       setItems((currentItems) => [
         {
-          id: `project-${result.projectId}-new`,
-          key: `PROJECT_${result.projectId}_NEW`,
-          project_id: result.projectId,
+          id: `project-${result.project.id}-new`,
+          key: `PROJECT_${result.project.id}_NEW`,
+          project_id: result.project.id,
           value: 'PROCESSING',
           group_name: 'PRODUCTION_WORKFLOW_PROJECT_PLACEHOLDER',
           config_name: `${projectName.trim()} - Chưa thiết lập giai đoạn`,
           param_type: targetDate,
           description: JSON.stringify({ colorway_name: colorwayName.trim(), project_deadline: targetDate, stage_name: 'Chưa thiết lập giai đoạn', stage_type: 'WORKFLOW_NOT_CONFIGURED', tasks_list: [] }),
         },
-        ...currentItems.filter((item) => item.project_id !== result.projectId),
+        ...currentItems.filter((item) => item.project_id !== result.project.id),
       ]);
       if (result.warnings.length > 0) {
         showToast('Dự án đã được tạo.', result.warnings[0].message, 'info', {
           actionLabel: 'Xem chi tiết',
-          onAction: () => router.push(`/admin/projects/${result.projectId}`),
+          onAction: () => openProjectDetail(result.project.id),
         });
         return;
       }
       showToast('Đã tạo dự án', `Dự án ${projectName.trim()} đã được tạo với mã ${result.projectCode}.${result.workflowCreated ? '' : ' Bạn có thể thiết lập giai đoạn và công việc trong trang chi tiết.'}`, 'success', {
         actionLabel: 'Xem chi tiết',
-          onAction: () => router.push(`/admin/projects/${result.projectId}`),
+          onAction: () => openProjectDetail(result.project.id),
       });
     } catch (error) {
       showToast('Không thể tạo dự án.', projectCreateErrorMessage(error), 'error');
@@ -568,7 +582,7 @@ export default function AdminProjectManagement() {
                       className={`cursor-pointer hover:bg-slate-950/50 ${activeProject?.recordKey === project.recordKey ? 'bg-cyan-950/20' : ''}`}
                     >
                       <td className="p-4 font-bold text-slate-100">
-                        {project.id ? <Link href={`/admin/projects/${project.id}`} className="hover:text-cyan-300" onClick={(event) => event.stopPropagation()}>{project.name}</Link> : project.name}
+                        {project.id ? <button type="button" className="hover:text-cyan-300" onClick={(event) => { event.stopPropagation(); openProjectDetail(project.id); }}>{project.name}</button> : project.name}
                       </td>
                       <td className="p-4 text-center font-mono text-cyan-300">{project.colorways.length}</td>
                       <td className="p-4 text-center font-mono text-red-300">{blockedCount}</td>
@@ -666,9 +680,9 @@ export default function AdminProjectManagement() {
             ))}
 
             {activeProject?.id && (
-              <Link href={`/admin/projects/${activeProject.id}`} className="inline-flex w-full items-center justify-center rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500">
+              <button type="button" onClick={() => openProjectDetail(activeProject.id)} className="inline-flex w-full items-center justify-center rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500">
                 Quản lý chi tiết
-              </Link>
+              </button>
             )}
 
             {!activeProject && <div className="text-sm text-slate-500 text-center py-12">Tạo dự án để bắt đầu theo dõi colorway.</div>}
@@ -695,7 +709,7 @@ export default function AdminProjectManagement() {
                 <input ref={projectNameRef} id="project-name" aria-invalid={Boolean(formErrors.projectName)} aria-describedby={formErrors.projectName ? 'project-name-error' : undefined} value={projectName} onChange={(event) => { setProjectName(event.target.value); setFormErrors((current) => ({ ...current, projectName: undefined })); }} className={`w-full bg-slate-950 border rounded-lg p-2 text-sm outline-none text-slate-100 ${formErrors.projectName ? 'border-red-500' : 'border-slate-800'}`} placeholder="Meowhe" />
                 {formErrors.projectName && <p id="project-name-error" className="text-xs text-red-300">{formErrors.projectName}</p>}
               </label>
-              <div className="space-y-1"><span className="text-[11px] text-slate-400 font-bold">Mã dự án</span><p className="rounded-lg border border-slate-800 bg-slate-950 p-2 text-sm text-slate-400">Mã dự án sẽ được tạo tự động</p></div>
+              <label className="space-y-1" htmlFor="project-code"><span className="text-[11px] text-slate-400 font-bold">Mã dự án</span><input id="project-code" value={projectCode} readOnly aria-readonly="true" className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-sm text-slate-300" /><span className="block text-[10px] text-slate-500">Mã được tạo tự động và sẽ được xác nhận khi lưu.</span></label>
               <label className="space-y-1" htmlFor="project-colorway">
                 <span className="text-[11px] text-slate-400 font-bold">Colorway *</span>
                 <input ref={colorwayNameRef} id="project-colorway" aria-invalid={Boolean(formErrors.colorwayName)} aria-describedby={formErrors.colorwayName ? 'project-colorway-error' : undefined} value={colorwayName} onChange={(event) => { setColorwayName(event.target.value); setFormErrors((current) => ({ ...current, colorwayName: undefined })); }} className={`w-full bg-slate-950 border rounded-lg p-2 text-sm outline-none text-slate-100 ${formErrors.colorwayName ? 'border-red-500' : 'border-slate-800'}`} placeholder="Sakura" />
@@ -738,7 +752,7 @@ export default function AdminProjectManagement() {
 
             <div className="flex gap-2 border-t border-slate-800 pt-3">
               <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg p-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40">Hủy</button>
-              <button disabled={isCreatingProject} onClick={handleCreateProject} className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg p-2 text-xs font-black">{isCreatingProject ? 'Đang lưu...' : 'Tạo dự án'}</button>
+              <button disabled={isCreatingProject || employeeLoadState === 'loading'} onClick={handleCreateProject} className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg p-2 text-xs font-black">{isCreatingProject ? 'Đang lưu...' : 'Tạo dự án'}</button>
             </div>
           </div>
         </div>

@@ -357,6 +357,8 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [forbidden, setForbidden] = useState(false);
+  const [notFoundConfirmed, setNotFoundConfirmed] = useState(false);
+  const [phaseLoadFailed, setPhaseLoadFailed] = useState(false);
   const [memberLoadFailed, setMemberLoadFailed] = useState(false);
   const [isCancellingProject, setIsCancellingProject] = useState(false);
   const [editingPhaseId, setEditingPhaseId] = useState<number | null>(null);
@@ -402,19 +404,43 @@ export default function ProjectDetailPage() {
     setLoading(true);
     setLoadFailed(false);
     setForbidden(false);
+    setNotFoundConfirmed(false);
+    setPhaseLoadFailed(false);
     setMemberLoadFailed(false);
     if (!Number.isInteger(projectId) || projectId <= 0) {
       setLoading(false);
       return;
     }
     try {
+      const coreResponse = await fetchWithTimeout(`/api/admin/projects/${projectId}`);
+      const corePayload = await coreResponse.json().catch(() => null) as { project?: { id: number; name: string; status: string | null; projectDeadline: string | null; driveLink: string | null; createdAt: string | null } } | null;
+      if (coreResponse.status === 404) {
+        setNotFoundConfirmed(true);
+        return;
+      }
+      if (coreResponse.status === 401 || coreResponse.status === 403) {
+        setForbidden(true);
+        return;
+      }
+      if (!coreResponse.ok || !corePayload?.project) throw new Error('project_core_failed');
+      const coreProject = corePayload.project;
+      const coreItem: WorkflowSetting = {
+        id: `project-${coreProject.id}-core`, key: `PROJECT_${coreProject.id}_CORE`, project_id: coreProject.id,
+        value: coreProject.status, group_name: 'PRODUCTION_WORKFLOW_PROJECT_PLACEHOLDER',
+        config_name: `${coreProject.name} - Chưa thiết lập giai đoạn`, param_type: coreProject.projectDeadline || '',
+        description: JSON.stringify({ project_drive_link: coreProject.driveLink || '', project_deadline: coreProject.projectDeadline || '', project_created_at: coreProject.createdAt, project_status: coreProject.status, stage_name: 'Chưa thiết lập giai đoạn', stage_type: 'WORKFLOW_NOT_CONFIGURED', tasks_list: [] }),
+      };
+      setItems([coreItem]);
+      setLoading(false);
+
       const membersRequest = fetchWithTimeout(`/api/admin/projects/${projectId}/members`);
-      const workflowItems = await Promise.race([
+      void Promise.race([
         getWorkflowItems({ includeClosedProjects: true }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('project_core_timeout')), 10_000)),
-      ]);
-      setItems(workflowItems);
-      setLoading(false);
+      ]).then((workflowItems) => {
+        const matchingItems = workflowItems.filter((item) => item.project_id === projectId);
+        if (matchingItems.length > 0) setItems(matchingItems);
+      }).catch(() => setPhaseLoadFailed(true));
 
       void membersRequest.then(async (membersResponse) => {
         if (membersResponse.ok) {
@@ -582,7 +608,7 @@ export default function ProjectDetailPage() {
 
   const hasInvalidProjectId = !Number.isInteger(projectId) || projectId <= 0;
 
-  if (!loading && !loadFailed && projectItems.length === 0) {
+  if (notFoundConfirmed) {
     notFound();
   }
 
@@ -865,7 +891,7 @@ export default function ProjectDetailPage() {
         <div className="mx-auto max-w-3xl py-20">
           <OperationalState
             tone="warning"
-            title="Không thể tải chi tiết dự án."
+            title="Không thể tải thông tin dự án"
             description="Dữ liệu dự án chưa sẵn sàng hoặc kết nối bị gián đoạn. Vui lòng thử tải lại."
             action={(
               <button type="button" onClick={loadData} className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500">
@@ -879,7 +905,7 @@ export default function ProjectDetailPage() {
   }
 
   if (forbidden) {
-    return <div className="min-h-screen bg-slate-950 p-6 text-slate-100"><div className="mx-auto max-w-3xl py-20"><OperationalState tone="warning" title="Bạn không có quyền xem dự án." description="Hãy liên hệ người quản lý dự án để được cấp quyền." action={<Link href="/admin/projects" className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white">Quay lại danh sách</Link>} /></div></div>;
+    return <div className="min-h-screen bg-slate-950 p-6 text-slate-100"><div className="mx-auto max-w-3xl py-20"><OperationalState tone="warning" title="Bạn không có quyền xem dự án này" description="Hãy liên hệ người quản lý dự án để được cấp quyền." action={<Link href="/admin/projects" className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white">Quay lại danh sách</Link>} /></div></div>;
   }
 
   return (
@@ -967,6 +993,10 @@ export default function ProjectDetailPage() {
             <span>Nền tảng giao việc chưa sẵn sàng. Dữ liệu công việc cũ vẫn hiển thị ở chế độ chỉ xem; thông tin cốt lõi và giai đoạn vẫn có thể xem.</span>
             <button type="button" onClick={() => void refreshTasks()} className="rounded border border-amber-700 px-3 py-1.5 font-bold">Thử tải lại công việc</button>
           </section>
+        )}
+
+        {phaseLoadFailed && (
+          <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">Không thể tải giai đoạn dự án. Thông tin cốt lõi vẫn hiển thị; hãy thử tải lại phần giai đoạn sau.</section>
         )}
 
         {memberLoadFailed && (
