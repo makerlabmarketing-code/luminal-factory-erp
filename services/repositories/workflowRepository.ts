@@ -314,20 +314,27 @@ export class WorkflowRepository {
   async insertProject(params: {
     projectName: string;
     projectDeadline: string;
-  }): Promise<number> {
-    const result = await requestProjectMutation<{ projectId: number }>(
+    projectCode: string;
+    managerEmployeeId: number;
+    phases?: unknown[];
+    createTemplateTasks?: boolean;
+  }): Promise<{ projectId: number; projectCreated: boolean; managerMembershipCreated: boolean; workflowCreated: boolean; phasesCreated: number; tasksCreated: number; warnings: string[] }> {
+    return requestProjectMutation(
       '/api/admin/projects',
       {
         method: 'POST',
         body: JSON.stringify({
           projectName: params.projectName.trim(),
           projectDeadline: params.projectDeadline,
+          projectCode: params.projectCode,
+          managerEmployeeId: params.managerEmployeeId,
+          phases: params.phases || [],
+          tasks: params.createTemplateTasks ? (params.phases || []).flatMap((phase) => typeof phase === 'object' && phase && 'tasks' in phase && Array.isArray(phase.tasks) ? phase.tasks : []) : [],
           status: 'PROCESSING',
         }),
       }
     );
 
-    return result.projectId;
   }
 
   async insertPhase(params: {

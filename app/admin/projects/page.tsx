@@ -96,8 +96,8 @@ function projectCreateErrorMessage(error: unknown): string {
     : '';
   const message = error instanceof Error ? error.message : '';
 
-  if (code === 'project_creation_atomic_rpc_required') return 'Cần duyệt RPC giao dịch trước khi tạo dự án kèm giai đoạn và công việc.';
-  if (status === 409) return 'Không thể lưu dự án vì trạng thái dữ liệu chưa phù hợp.';
+  if (code === 'project_creation_atomic_rpc_required') return 'Không thể khởi tạo đầy đủ quy trình. Hãy tạo dự án trước và thiết lập công việc sau.';
+  if (status === 409) return 'Mã dự án đã được sử dụng. Vui lòng chọn mã khác.';
   if (status === 403) return 'Bạn không có quyền tạo dự án.';
   if (status === 422) return 'Thông tin dự án chưa hợp lệ.';
   if (code === 'phase_mutation_failed' || message.includes('giai đoạn')) return 'Không thể lưu giai đoạn.';
@@ -299,9 +299,34 @@ export default function AdminProjectManagement() {
   const [colorwayName, setColorwayName] = useState('');
   const [colorwayCode, setColorwayCode] = useState('');
   const [targetDate, setTargetDate] = useState('');
-  const [stageOwner, setStageOwner] = useState('');
+  const [managerEmployeeId, setManagerEmployeeId] = useState('');
+  const [employeeCandidates, setEmployeeCandidates] = useState<Array<{ employeeId: number; fullName: string; title: string | null }>>([]);
+  const [employeeLoadState, setEmployeeLoadState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [workflowCreationAvailable, setWorkflowCreationAvailable] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [creationStage, setCreationStage] = useState('');
+  const [taskDetails, setTaskDetails] = useState<Record<string, { employeeId: string; deadline: string; note: string }>>({});
+  const [draftStages, setDraftStages] = useState<StageTemplate[]>(() => PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage) => ({ ...stage, taskNames: [...stage.taskNames] })));
+
+  const loadCreationOptions = async () => {
+    setEmployeeLoadState('loading');
+    try {
+      const response = await fetch('/api/admin/projects', { cache: 'no-store' });
+      const payload = await response.json().catch(() => null) as { employees?: Array<{ employeeId: number; fullName: string; title: string | null }>; workflowCreationAvailable?: boolean; message?: string } | null;
+      if (!response.ok) throw new Error(payload?.message || 'employee_candidates_failed');
+      setEmployeeCandidates(payload?.employees || []);
+      setWorkflowCreationAvailable(payload?.workflowCreationAvailable === true);
+      setEmployeeLoadState('success');
+    } catch {
+      setEmployeeCandidates([]);
+      setEmployeeLoadState('error');
+    }
+  };
+
+  const openCreateModal = () => {
+    setShowAddModal(true);
+    void loadCreationOptions();
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -346,26 +371,33 @@ export default function AdminProjectManagement() {
     if (!projectCode.trim()) return showToast('Thiếu thông tin', 'Vui lòng nhập mã dự án duy nhất.', 'error');
     if (!colorwayName.trim()) return showToast('Thiếu thông tin', 'Vui lòng nhập tên colorway.', 'error');
     if (!targetDate) return showToast('Thiếu thông tin', 'Vui lòng chọn ngày mục tiêu.', 'error');
+    if (!managerEmployeeId) return showToast('Thiếu thông tin', 'Vui lòng chọn người phụ trách.', 'error');
 
     setIsCreatingProject(true);
     setCreationStage('Đang tạo dự án...');
     try {
-      const stages = PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage, index, allStages) => ({
+      const stages = (workflowCreationAvailable ? draftStages : []).map((stage, index, allStages) => ({
         name: stage.name,
         colorway_name: colorwayName.trim(),
         colorway_code: colorwayCode.trim(),
         stage_type: stage.type,
-        stage_owner: stageOwner,
+        stage_owner: employeeCandidates.find((employee) => String(employee.employeeId) === managerEmployeeId)?.fullName || '',
         planned_end_date: initialDeadline(targetDate, index, allStages.length),
         progress: 0,
         next_action: stage.taskNames[0] || stage.name,
         required_review: Boolean(stage.requiresReview),
-        tasks: stage.taskNames.map((taskName) => ({
-          name: taskName,
-          assignee_name: stageOwner,
-          assignee: stageOwner,
-          status: 'TODO',
-        })),
+        tasks: stage.taskNames.map((taskName, taskIndex) => {
+          const details = taskDetails[`${index}-${taskIndex}`] || { employeeId: managerEmployeeId, deadline: '', note: '' };
+          const employeeId = Number(details.employeeId || managerEmployeeId);
+          return {
+            name: taskName,
+            assignee_id: employeeId,
+            assignee_name: employeeCandidates.find((employee) => employee.employeeId === employeeId)?.fullName || '',
+            deadline: details.deadline,
+            note: details.note,
+            status: 'TODO',
+          };
+        }),
       }));
 
       setCreationStage('Đang tạo các giai đoạn...');
@@ -374,7 +406,8 @@ export default function AdminProjectManagement() {
         projectDeadline: targetDate,
         projectCode: projectCode.trim(),
         phases: stages,
-        createTemplateTasks: true,
+        managerEmployeeId: Number(managerEmployeeId),
+        createTemplateTasks: workflowCreationAvailable,
       });
 
       setCreationStage('Đang hoàn tất...');
@@ -384,9 +417,16 @@ export default function AdminProjectManagement() {
       setColorwayName('');
       setColorwayCode('');
       setTargetDate('');
-      setStageOwner('');
+      setManagerEmployeeId('');
       await loadData();
-      showToast('Tạo dự án thành công.', `Đã tạo ${result.phasesCreated} giai đoạn.`, 'success', {
+      if (result.warnings.length > 0) {
+        showToast('Dự án đã được tạo.', result.warnings[0].message, 'info', {
+          actionLabel: 'Xem chi tiết',
+          onAction: () => router.push(`/admin/projects/${result.projectId}`),
+        });
+        return;
+      }
+      showToast('Tạo dự án thành công.', result.workflowCreated ? `Đã tạo ${result.phasesCreated} giai đoạn.` : 'Tạo dự án trước, thiết lập công việc sau.', 'success', {
         actionLabel: 'Xem chi tiết',
         onAction: () => router.push(`/admin/projects/${result.project.id}`),
       });
@@ -434,7 +474,7 @@ export default function AdminProjectManagement() {
           <button onClick={loadData} className="bg-slate-900 border border-slate-800 text-slate-300 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
             <RefreshCcw className="w-4 h-4" /> Tải lại
           </button>
-          <button onClick={() => setShowAddModal(true)} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
+          <button onClick={openCreateModal} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
             <Plus className="w-4 h-4" /> Tạo dự án
           </button>
         </div>
@@ -624,25 +664,34 @@ export default function AdminProjectManagement() {
                 <span className="text-[11px] text-slate-400 font-bold">Hạn hoàn thành</span>
                 <input type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-amber-300" />
               </label>
-              <label className="space-y-1 md:col-span-2">
-                <span className="text-[11px] text-slate-400 font-bold">Project Manager / người phụ trách mặc định</span>
-                <input
-                  value={stageOwner}
-                  onChange={(event) => setStageOwner(event.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100"
-                  placeholder="Nhập tên người phụ trách nếu cần"
-                />
+              <label className="space-y-1 md:col-span-2" htmlFor="project-manager">
+                <span className="text-[11px] text-slate-400 font-bold">Người phụ trách dự án</span>
+                {employeeLoadState === 'loading' && <p className="text-xs text-slate-400">Đang tải nhân sự...</p>}
+                {employeeLoadState === 'error' && <button type="button" onClick={loadCreationOptions} className="text-xs font-bold text-cyan-300">Không thể tải nhân sự. Thử lại</button>}
+                {employeeLoadState === 'success' && employeeCandidates.length === 0 && <p className="text-xs text-amber-300">Chưa có nhân sự đang hoạt động.</p>}
+                <select id="project-manager" value={managerEmployeeId} onChange={(event) => setManagerEmployeeId(event.target.value)} disabled={employeeLoadState !== 'success' || employeeCandidates.length === 0} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm outline-none text-slate-100 disabled:opacity-50">
+                  <option value="">Chọn người phụ trách</option>
+                  {employeeCandidates.map((employee) => <option key={employee.employeeId} value={employee.employeeId}>{employee.fullName}{employee.title ? ` — ${employee.title}` : ''}</option>)}
+                </select>
               </label>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
-              <p className="text-[11px] text-slate-400 font-bold mb-2">Giai đoạn và công việc sẽ tạo sau khi RPC giao dịch được duyệt</p>
-              <div className="flex flex-wrap gap-1.5">
-                {PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage) => (
-                  <span key={stage.type} className="text-[10px] border border-slate-800 rounded px-2 py-1 text-slate-300">{stage.name}</span>
-                ))}
+            {!workflowCreationAvailable ? (
+              <div className="rounded-lg border border-amber-800/70 bg-amber-950/20 p-3">
+                <p className="text-xs font-black text-amber-200">Quy trình dự án chưa được kích hoạt</p>
+                <p className="mt-1 text-xs text-slate-300">Dự án sẽ được tạo trước. Bạn có thể thiết lập giai đoạn và công việc sau khi quy trình dự án được kích hoạt.</p>
+                <button type="button" disabled className="mt-2 text-xs font-bold text-slate-500">Thiết lập sau tại chi tiết dự án</button>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-950 p-3">
+                <div className="flex items-center justify-between"><p className="text-xs font-bold text-slate-300">Giai đoạn và công việc</p><button type="button" onClick={() => setDraftStages((current) => [...current, { name: `Giai đoạn ${current.length + 1}`, type: `CUSTOM_${current.length + 1}`, weight: 1, taskNames: [] }])} className="text-xs font-bold text-cyan-300">Thêm giai đoạn</button></div>
+                {draftStages.map((stage, index) => <div key={`${stage.type}-${index}`} className="rounded border border-slate-800 p-2">
+                  <div className="flex gap-2"><input aria-label={`Tên giai đoạn ${index + 1}`} value={stage.name} onChange={(event) => setDraftStages((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} className="min-w-0 flex-1 bg-slate-900 p-1 text-xs"/><button type="button" disabled={index === 0} onClick={() => setDraftStages((current) => { const next=[...current]; [next[index-1], next[index]]=[next[index], next[index-1]]; return next; })}>↑</button><button type="button" onClick={() => setDraftStages((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-red-300">Xóa</button></div>
+                  {stage.taskNames.map((taskName, taskIndex) => <div key={taskIndex} className="mt-1"><div className="flex gap-2"><input aria-label={`Công việc ${taskIndex + 1}`} value={taskName} onChange={(event) => setDraftStages((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, taskNames: item.taskNames.map((task, currentTaskIndex) => currentTaskIndex === taskIndex ? event.target.value : task) } : item))} className="min-w-0 flex-1 bg-slate-900 p-1 text-xs"/><button type="button" onClick={() => setDraftStages((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, taskNames: item.taskNames.filter((_, currentTaskIndex) => currentTaskIndex !== taskIndex) } : item))} className="text-xs text-red-300">Xóa</button></div><div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-3"><select aria-label={`Người làm công việc ${taskIndex + 1}`} value={taskDetails[`${index}-${taskIndex}`]?.employeeId || managerEmployeeId} onChange={(event) => setTaskDetails((current) => ({ ...current, [`${index}-${taskIndex}`]: { employeeId: event.target.value, deadline: current[`${index}-${taskIndex}`]?.deadline || '', note: current[`${index}-${taskIndex}`]?.note || '' } }))} className="bg-slate-900 p-1 text-xs">{employeeCandidates.map((employee) => <option key={employee.employeeId} value={employee.employeeId}>{employee.fullName}</option>)}</select><input aria-label={`Hạn công việc ${taskIndex + 1}`} type="date" value={taskDetails[`${index}-${taskIndex}`]?.deadline || ''} onChange={(event) => setTaskDetails((current) => ({ ...current, [`${index}-${taskIndex}`]: { employeeId: current[`${index}-${taskIndex}`]?.employeeId || managerEmployeeId, deadline: event.target.value, note: current[`${index}-${taskIndex}`]?.note || '' } }))} className="bg-slate-900 p-1 text-xs"/><input aria-label={`Ghi chú công việc ${taskIndex + 1}`} placeholder="Ghi chú" value={taskDetails[`${index}-${taskIndex}`]?.note || ''} onChange={(event) => setTaskDetails((current) => ({ ...current, [`${index}-${taskIndex}`]: { employeeId: current[`${index}-${taskIndex}`]?.employeeId || managerEmployeeId, deadline: current[`${index}-${taskIndex}`]?.deadline || '', note: event.target.value } }))} className="bg-slate-900 p-1 text-xs"/></div></div>)}
+                  <button type="button" onClick={() => setDraftStages((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, taskNames: [...item.taskNames, 'Công việc mới'] } : item))} className="mt-1 text-xs text-cyan-300">Thêm công việc</button>
+                </div>)}
+              </div>
+            )}
 
             <div className="flex gap-2 border-t border-slate-800 pt-3">
               <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg p-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40">Hủy</button>

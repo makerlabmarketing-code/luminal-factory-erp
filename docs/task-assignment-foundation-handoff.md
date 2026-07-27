@@ -314,3 +314,7 @@ Reviewed the current latest-main Slice 3 and Slice 3B remediation evidence witho
 ## 2026-07-23 latest PR review closure
 
 Reviewed the latest PR diff/comment bundle for the current remediation commit. No inline comment or newly actionable Codex Code Review finding was present for Slice 3 or Slice 3B in that bundle, so these slices are closed for this documentation-only remediation sweep while the task-creation atomicity live gate remains unchanged. No Slice 7 work was started.
+
+## 2026-07-27 Safe project creation compatibility handoff
+
+Project creation now has a server-owned capability boundary. With workflow creation unavailable, it creates the project and selected active PROJECT_MANAGER membership without phases or tasks, returns the created project ID plus warnings, and leaves workflow setup for Project Detail. The modal lazily loads all ACTIVE employee candidates and never treats a display name as membership authority. Full editable phase/task creation remains disabled until `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED=true` is explicitly configured after transactional workflow rollout validation. No SQL or deployment was performed.

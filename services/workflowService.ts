@@ -1,6 +1,5 @@
 import type {
   WorkflowPhase,
-  WorkflowPhaseFormInput,
   WorkflowProject,
   WorkflowProjectInsertInput,
   WorkflowSetting,
@@ -31,6 +30,8 @@ export interface WorkflowProjectCreateResult {
     name: string;
   };
   projectCreated: true;
+  managerMembershipCreated: boolean;
+  workflowCreated: boolean;
   projectId: number;
   phasesCreated: number;
   tasksCreated: number;
@@ -51,21 +52,22 @@ function isClosedProjectStatus(status?: string | null): boolean {
 
 
 function toProjectPlaceholderSetting(project: WorkflowProject, warning?: WorkflowRequestError): WorkflowSetting {
+  const placeholderName = warning ? 'Chưa tải được giai đoạn' : 'Chưa thiết lập giai đoạn';
   return {
     id: `project-${project.id}-phase-load-placeholder`,
     key: `PROJECT_${project.id}_PHASE_LOAD_PLACEHOLDER`,
     project_id: project.id,
     value: project.status || null,
     group_name: 'PRODUCTION_WORKFLOW_PROJECT_PLACEHOLDER',
-    config_name: `${project.name} - Chưa tải được giai đoạn`,
+    config_name: `${project.name} - ${placeholderName}`,
     param_type: project.project_deadline || '',
     description: JSON.stringify({
       project_drive_link: project.drive_link || '',
       project_deadline: project.project_deadline || '',
       project_created_at: project.created_at || null,
       project_status: project.status || null,
-      stage_name: 'Chưa tải được giai đoạn',
-      stage_type: 'PHASE_LOAD_FAILED',
+      stage_name: placeholderName,
+      stage_type: warning ? 'PHASE_LOAD_FAILED' : 'WORKFLOW_NOT_CONFIGURED',
       phase_load_error_code: warning?.code || 'phase_load_failed',
       phase_load_failure_stage: warning?.failureStage || 'unknown',
       phase_load_message: 'Không thể tải giai đoạn.',
@@ -207,7 +209,10 @@ export async function getWorkflowItems(options: WorkflowItemsOptions = {}): Prom
   }
 
   if (phases.length === 0) {
-    return visibleLegacyTasks.map(toLegacyWorkflowSetting);
+    return [
+      ...projects.map((project) => toProjectPlaceholderSetting(project)),
+      ...visibleLegacyTasks.map(toLegacyWorkflowSetting),
+    ];
   }
 
   const enrichedPhases = phases.map((phase) => ({
@@ -242,54 +247,18 @@ export async function createWorkflowProject(
     ), 0)
     : 0;
 
-  if (params.phases.length > 0 || expectedTasks > 0) {
-    throw new WorkflowProjectCreationGateError();
-  }
-
-  const projectId = await workflowRepository.insertProject({
+  const creation = await workflowRepository.insertProject({
     projectName: params.projectName,
     projectDeadline: params.projectDeadline,
+    projectCode: params.projectCode || '',
+    managerEmployeeId: params.managerEmployeeId || 0,
+    phases: params.phases,
+    createTemplateTasks: params.createTemplateTasks,
   });
-
-  let phasesCreated = 0;
-  let tasksCreated = 0;
-  const warnings: WorkflowWarning[] = [];
-
-  for (let index = 0; index < params.phases.length; index += 1) {
-    const phase: WorkflowPhaseFormInput = params.phases[index];
-    try {
-      await workflowRepository.insertPhase({
-        projectId,
-        phaseName: phase.name?.trim() || `Giai đoạn ${index + 1}`,
-        orderIndex: index,
-        colorwayName: phase.colorway_name,
-        colorwayCode: phase.colorway_code,
-        stageType: phase.stage_type,
-        stageOwner: phase.stage_owner,
-        plannedStartDate: phase.planned_start_date,
-        plannedEndDate: phase.planned_end_date,
-        progress: phase.progress,
-        nextAction: phase.next_action,
-        requiredReview: phase.required_review,
-      });
-      phasesCreated += 1;
-    } catch {
-      warnings.push({
-        code: 'phase_create_failed',
-        message: 'Không thể tạo giai đoạn.',
-        stage: 'phase_create',
-      });
-      break;
-    }
-
-    if (params.createTemplateTasks && (phase.tasks || []).some((task) => task.name?.trim())) {
-      warnings.push({
-        code: 'task_template_partial_failed',
-        message: 'Dự án đã được tạo, nhưng một số công việc mẫu chưa được khởi tạo.',
-        stage: 'task_template',
-      });
-    }
-  }
+  const projectId = creation.projectId;
+  const phasesCreated = creation.phasesCreated;
+  const tasksCreated = creation.tasksCreated;
+  const warnings: WorkflowWarning[] = creation.warnings.map((message) => ({ code: 'phase_create_failed', message, stage: 'phase_create' }));
 
   return {
     success: true,
@@ -298,6 +267,8 @@ export async function createWorkflowProject(
       name: params.projectName.trim(),
     },
     projectCreated: true,
+    managerMembershipCreated: creation.managerMembershipCreated,
+    workflowCreated: creation.workflowCreated,
     projectId,
     phasesCreated,
     tasksCreated,

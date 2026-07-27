@@ -36,7 +36,7 @@ function projectCreateErrorMessage(error: unknown): string {
     : '';
   const message = error instanceof Error ? error.message : '';
 
-  if (code === 'project_creation_atomic_rpc_required') return 'Cần duyệt RPC giao dịch trước khi tạo dự án kèm giai đoạn và công việc.';
+  if (code === 'project_creation_atomic_rpc_required') return 'Không thể khởi tạo đầy đủ quy trình. Hãy tạo dự án trước và thiết lập công việc sau.';
   if (status === 409) return 'Không thể lưu dự án vì trạng thái dữ liệu chưa phù hợp.';
   if (status === 403) return 'Bạn không có quyền tạo dự án.';
   if (status === 422) return 'Thông tin dự án chưa hợp lệ.';

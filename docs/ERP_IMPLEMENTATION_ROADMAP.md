@@ -1205,3 +1205,11 @@ Root cause and completed scope:
 - Project Membership remains independent from facility and Attendance access. No schema, migration, RLS, RPC, SQL, deployment, live data, or permission mutation was performed.
 
 Phase Workflow Foundation remains `BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT`. Its safe Project Detail compatibility boundary, capability flags, transition validator, loading/error/empty states, and rollout package were already complete in the current repository state and were not restarted. Exact next approval remains the reviewed read-only pre-run report followed by explicit approval for the Phase Workflow migration delivery through the Supabase GitHub Integration.
+
+## 2026-07-27 Project creation compatibility regression
+
+- Fixed the Project Create path so manager candidates are loaded only when the modal opens and only ACTIVE employees are selectable by stable employee ID.
+- Added a server-derived `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED` capability. When disabled, creation persists only the basic project and PROJECT_MANAGER membership and returns a normalized partial-capability response with zero phases/tasks. When enabled, the editable phase/task request is submitted once through the transactional server boundary.
+- Basic creation remains usable while workflow rollout is unavailable; technical rollout language is not exposed in the project-create UI. Project code remains the unique key, duplicate names remain allowed, and duplicate project-code conflicts return HTTP 409.
+- No SQL, migration, RPC promotion, RLS mutation, deployment, merge, or live data mutation was performed.
+- Current gate: `LIVE_APPROVAL_REQUIRED` before enabling `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED=true`; enable only after the transactional workflow RPC contract and production rollout have been validated.

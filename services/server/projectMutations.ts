@@ -29,6 +29,12 @@ interface ProjectMembershipRow {
 export interface ProjectMutationResult {
   success: true;
   projectId: number;
+  projectCreated?: boolean;
+  managerMembershipCreated?: boolean;
+  workflowCreated?: boolean;
+  phasesCreated?: number;
+  tasksCreated?: number;
+  warnings?: string[];
   archived?: boolean;
   deadlinePersisted?: boolean;
 }
@@ -44,7 +50,29 @@ const CREATE_PROJECT_KEYS = new Set([
   'phases',
   'tasks',
   'memberEmployeeIds',
+  'managerEmployeeId',
 ]);
+
+export function projectWorkflowCreationAvailable(): boolean {
+  return process.env.PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED === 'true';
+}
+
+export async function getProjectCreationOptions() {
+  await requireProjectManage();
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from('employees')
+    .select('id, full_name, title, status, is_active')
+    .order('full_name', { ascending: true });
+  if (error) {
+    throw mutationError({ status: 500, message: 'Không thể tải danh sách nhân sự.', failureStage: 'employee_lookup', safeDetails: { supabase_error_code: error.code ?? 'unknown' } });
+  }
+  const employees = (data || []).filter((employee) => {
+    const status = String(employee.status || '').trim().toUpperCase();
+    return employee.is_active !== false && !['INACTIVE', 'LOCKED', 'DISABLED', 'DELETED'].includes(status);
+  }).map((employee) => ({ employeeId: Number(employee.id), fullName: employee.full_name || `Nhân sự #${employee.id}`, title: employee.title ?? null }));
+  return { success: true, workflowCreationAvailable: projectWorkflowCreationAvailable(), employees };
+}
 
 const UPDATE_PROJECT_KEYS = new Set([
   'projectName',
@@ -404,12 +432,14 @@ function projectUpdatePayload(body: ProjectMutationBody) {
 
 async function insertProjectRow(params: {
   projectName: string;
+  projectCode: string;
   status: string;
   projectDeadline: string | null;
 }): Promise<{ id: number; deadlinePersisted: boolean }> {
   const supabase = createSupabaseAdminClient();
   const basePayload = {
     project_name: params.projectName,
+    project_code: params.projectCode,
     status: params.status,
     drive_url: '',
   };
@@ -456,8 +486,8 @@ async function insertProjectRow(params: {
   }
 
   throw mutationError({
-    status: 500,
-    message: 'Không thể tạo dự án.',
+    status: error?.code === '23505' ? 409 : 500,
+    message: error?.code === '23505' ? 'Mã dự án đã được sử dụng.' : 'Không thể tạo dự án.',
     failureStage: 'project_insert',
     code: 'project_insert_failed',
     safeDetails: {
@@ -511,7 +541,7 @@ async function createProjectViaAtomicRpc(body: ProjectMutationBody): Promise<Pro
     });
   }
 
-  const result = data as { success?: unknown; projectId?: unknown; deadlinePersisted?: unknown; code?: unknown; message?: unknown } | null;
+  const result = data as { success?: unknown; projectId?: unknown; deadlinePersisted?: unknown; managerMembershipCreated?: unknown; workflowCreated?: unknown; phasesCreated?: unknown; tasksCreated?: unknown; warnings?: unknown; code?: unknown; message?: unknown } | null;
   if (!result?.success) {
     const code = typeof result?.code === 'string' ? result.code : 'project_insert_failed';
     const message = typeof result?.message === 'string' ? result.message : 'Không thể tạo dự án đầy đủ.';
@@ -536,6 +566,12 @@ async function createProjectViaAtomicRpc(body: ProjectMutationBody): Promise<Pro
   return {
     success: true,
     projectId,
+    projectCreated: true,
+    managerMembershipCreated: result.managerMembershipCreated !== false,
+    workflowCreated: result.workflowCreated !== false,
+    phasesCreated: Number(result.phasesCreated) || 0,
+    tasksCreated: Number(result.tasksCreated) || 0,
+    warnings: Array.isArray(result.warnings) ? result.warnings.filter((warning): warning is string => typeof warning === 'string') : [],
     deadlinePersisted: Boolean(result.deadlinePersisted),
   };
 }
@@ -543,12 +579,14 @@ async function createProjectViaAtomicRpc(body: ProjectMutationBody): Promise<Pro
 export async function createProject(body: ProjectMutationBody): Promise<ProjectMutationResult> {
   assertKnownFields(body, CREATE_PROJECT_KEYS);
   validateDateOrder(body);
-  await requireProjectManage();
+  const authContext = await requireProjectManage();
 
   requiredProjectName(body);
   validateStatus(body.status);
   optionalIsoDate(body.projectDeadline, 'projectDeadline');
-  if (!optionalText(body.projectCode, 'projectCode')) {
+  const projectName = requiredProjectName(body);
+  const projectCode = optionalText(body.projectCode, 'projectCode');
+  if (!projectCode) {
     throw mutationError({
       status: 422,
       message: 'Vui lòng nhập mã dự án duy nhất.',
@@ -559,7 +597,34 @@ export async function createProject(body: ProjectMutationBody): Promise<ProjectM
   }
 
   // Duplicate project names are allowed; stable project IDs remain the project identity.
-  return createProjectViaAtomicRpc(body);
+  if (projectWorkflowCreationAvailable() && (Array.isArray(body.phases) && body.phases.length > 0 || Array.isArray(body.tasks) && body.tasks.length > 0)) {
+    return createProjectViaAtomicRpc(body);
+  }
+
+  const managerEmployeeId = Number(body.managerEmployeeId);
+  if (!Number.isInteger(managerEmployeeId) || managerEmployeeId <= 0) {
+    throw mutationError({ status: 422, message: 'Vui lòng chọn người phụ trách.', failureStage: 'payload_validation', code: 'payload_validation_failed' });
+  }
+  const supabase = createSupabaseAdminClient();
+  const employeeResult = await supabase.from('employees').select('id, status, is_active').eq('id', managerEmployeeId).maybeSingle();
+  const employeeStatus = String(employeeResult.data?.status || '').trim().toUpperCase();
+  if (employeeResult.error || !employeeResult.data || employeeResult.data.is_active === false || ['INACTIVE', 'LOCKED', 'DISABLED', 'DELETED'].includes(employeeStatus)) {
+    throw mutationError({ status: 422, message: 'Người phụ trách không còn hoạt động.', failureStage: 'employee_status', code: 'payload_validation_failed' });
+  }
+  const inserted = await insertProjectRow({ projectName, projectCode, status: validateStatus(body.status) || 'PROCESSING', projectDeadline: optionalIsoDate(body.projectDeadline, 'projectDeadline') });
+  const membership = await supabase.from('project_members').insert([{ project_id: inserted.id, employee_id: managerEmployeeId, role_code: 'PROJECT_MANAGER', status: 'ACTIVE', granted_by_employee_id: authEmployeeId(authContext) }]);
+  const managerMembershipCreated = !membership.error;
+  return {
+    success: true,
+    projectId: inserted.id,
+    projectCreated: true,
+    managerMembershipCreated,
+    workflowCreated: false,
+    phasesCreated: 0,
+    tasksCreated: 0,
+    warnings: managerMembershipCreated ? [] : ['Dự án đã được tạo nhưng chưa thể thêm người phụ trách.'],
+    deadlinePersisted: inserted.deadlinePersisted,
+  };
 }
 
 export async function updateProject(
