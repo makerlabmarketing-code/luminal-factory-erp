@@ -47,7 +47,8 @@ describe('project detail stepper and task assignee display', () => {
     expect(detailPage).toMatch(/function canShowManualUnlockAction\(canManageProject: boolean, phase: PhaseRecord\)/);
     expect(detailPage).toMatch(/canManageProject && phase\.status === 'LOCKED'/);
     expect(detailPage).toMatch(/Mở khóa giai đoạn/);
-    expect(detailPage).toMatch(/Máy chủ chưa bật thao tác mở khóa giai đoạn\./);
+    expect(detailPage).toMatch(/BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT/);
+    expect(detailPage).toMatch(/disabled\s+aria-disabled="true"/);
   });
 
   it('renders only the selected phase detail panel instead of all vertical cards', () => {

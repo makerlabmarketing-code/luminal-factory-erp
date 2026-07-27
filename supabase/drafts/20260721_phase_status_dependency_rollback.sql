@@ -12,6 +12,7 @@ end $$;
 
 drop index if exists public.phase_status_history_project_phase_created_idx;
 drop index if exists public.phases_project_status_idx;
+drop function if exists public.transition_project_phase_status(bigint, bigint, bigint, text, text, text, text, text, boolean);
 drop table if exists public.phase_status_history;
 
 alter table if exists public.phases

@@ -27,7 +27,8 @@ describe('project phase template metadata persistence', () => {
     expect(serverSource).toMatch(/'stageType'/);
     expect(serverSource).toMatch(/stage_type: optionalTextField\(body, 'stageType'\)/);
     expect(serverSource).toMatch(/planned_end_date: optionalDateField\(body, 'plannedEndDate'\)/);
-    expect(serverSource).toMatch(/select\('id, project_id, name, order_index, created_at, status, colorway_name/);
+    expect(serverSource).toMatch(/phaseColumns = capabilities\.statusPersistenceAvailable/);
+    expect(serverSource).toMatch(/'id, project_id, name, order_index, created_at, status, colorway_name/);
     expect(repositorySource).toMatch(/stage_type: pickFirstText\(row, \['stage_type'\]\) \|\| null/);
     expect(repositorySource).toMatch(/planned_end_date: pickFirstText\(row, \['planned_end_date'\]\) \|\| null/);
   });

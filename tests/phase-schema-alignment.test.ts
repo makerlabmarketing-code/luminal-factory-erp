@@ -17,11 +17,28 @@ describe('phase schema alignment', () => {
     expect(repository).not.toMatch(/from\('phases'\)\.insert/);
     expect(repository).not.toMatch(/from\('phases'\)\.update/);
     expect(repository).not.toMatch(/from\('phases'\)\.select/);
-    expect(phaseMutations).toMatch(/select\('id, project_id, name, order_index, created_at, status, colorway_name/);
+    expect(phaseMutations).toMatch(/PHASE_WORKFLOW_FOUNDATION_ENABLED/);
+    expect(phaseMutations).toMatch(/'id, project_id, name, order_index, created_at'/);
+    expect(phaseMutations).toMatch(/statusPersistenceAvailable/);
+    expect(phaseMutations).toMatch(/statusMutationAvailable/);
+    expect(phaseMutations).toMatch(/BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT/);
     expect(phaseMutations).toMatch(/colorway_name: optionalTextField\(body, 'colorwayName'\)/);
     expect(phaseMutations).not.toMatch(/sort_order|status: params\.status/);
     expect(phaseMutations).toMatch(/PHASE_STATUS_MUTATION_ENABLED/);
     expect(repository).not.toMatch(/phase_status|sort_order/);
+  });
+
+  it('keeps optional phase persistence behind an explicit server capability gate', () => {
+    const phaseMutations = source('services/server/phaseMutations.ts');
+    const workflowService = source('services/workflowService.ts');
+    const detailPage = source('app/admin/projects/[projectId]/page.tsx');
+
+    expect(phaseMutations).toMatch(/capabilities\.statusPersistenceAvailable[\s\S]*status, colorway_name/);
+    expect(workflowService).toMatch(/phase_status_persistence_available/);
+    expect(workflowService).toMatch(/phase_status_mutation_available/);
+    expect(detailPage).toMatch(/Trạng thái giai đoạn đang được hiển thị theo chế độ tương thích/);
+    expect(detailPage).toMatch(/data-rollout-state=\{phaseStatusMutationAvailable/);
+    expect(detailPage).toMatch(/BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT/);
   });
 
   it('uses one shared create contract and rejects unknown phase fields', () => {

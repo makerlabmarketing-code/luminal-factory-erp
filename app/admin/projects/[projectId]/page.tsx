@@ -538,6 +538,8 @@ export default function ProjectDetailPage() {
   };
   const canManageMembers = projectDetail.capabilities.canManageMembers && !isProjectCancelled;
   const canManageTasks = projectDetail.capabilities.canManageTasks && !isProjectCancelled;
+  const phaseStatusPersistenceAvailable = phases.some((phase) => phase.description.phase_status_persistence_available === true);
+  const phaseStatusMutationAvailable = phases.some((phase) => phase.description.phase_status_mutation_available === true);
 
   useEffect(() => {
     setDriveLinkInput(firstDescription.project_drive_link || '');
@@ -1038,6 +1040,11 @@ export default function ProjectDetailPage() {
 
             {selectedPhase && (
               <section className="rounded-lg border border-slate-800 bg-slate-900">
+                {!phaseStatusPersistenceAvailable && (
+                  <div className="border-b border-amber-900/60 bg-amber-950/30 px-4 py-3 text-xs text-amber-200" role="status">
+                    Trạng thái giai đoạn đang được hiển thị theo chế độ tương thích. Thao tác chuyển trạng thái bị khóa cho đến khi hoàn tất rollout Phase Workflow.
+                  </div>
+                )}
                 <div className="border-b border-slate-800 px-4 py-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -1066,7 +1073,9 @@ export default function ProjectDetailPage() {
                         <button
                           type="button"
                           disabled
-                          title="Máy chủ chưa bật thao tác mở khóa giai đoạn."
+                          aria-disabled="true"
+                          data-rollout-state={phaseStatusMutationAvailable ? 'READY_FOR_UI_ACTIVATION' : 'BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT'}
+                          title={phaseStatusMutationAvailable ? 'API đã sẵn sàng; thao tác giao diện chờ bước kích hoạt sau rollout.' : 'BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT'}
                           className="inline-flex cursor-not-allowed items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-500"
                         >
                           <Lock className="h-3.5 w-3.5" /> Mở khóa giai đoạn

@@ -32,6 +32,7 @@ interface PhaseStatusRow {
 
 interface PhaseListResult {
   success: true;
+  capabilities: PhaseWorkflowCapabilities;
   phases: Array<{
     id: number;
     project_id: number | null;
@@ -48,7 +49,33 @@ interface PhaseListResult {
     progress: number | null;
     next_action: string | null;
     required_review: boolean | null;
+    status_persistence_available: boolean;
+    status_mutation_available: boolean;
   }>;
+}
+
+interface PhaseListRow {
+  id: number;
+  project_id: number | null;
+  name: string | null;
+  order_index: number | null;
+  created_at: string | null;
+  status?: string | null;
+  colorway_name?: string | null;
+  colorway_code?: string | null;
+  stage_type?: string | null;
+  stage_owner?: string | null;
+  planned_start_date?: string | null;
+  planned_end_date?: string | null;
+  progress?: number | null;
+  next_action?: string | null;
+  required_review?: boolean | null;
+}
+
+interface PhaseWorkflowCapabilities {
+  statusPersistenceAvailable: boolean;
+  statusMutationAvailable: boolean;
+  blockedReason: 'BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT' | null;
 }
 
 const CREATE_PHASE_KEYS = new Set([
@@ -101,6 +128,17 @@ function assertPhaseStatusMutationEnabled() {
       },
     });
   }
+}
+
+function phaseWorkflowCapabilities(): PhaseWorkflowCapabilities {
+  const statusPersistenceAvailable = process.env.PHASE_WORKFLOW_FOUNDATION_ENABLED === 'true';
+  const statusMutationAvailable = statusPersistenceAvailable && process.env.PHASE_STATUS_MUTATION_ENABLED === 'true';
+
+  return {
+    statusPersistenceAvailable,
+    statusMutationAvailable,
+    blockedReason: statusMutationAvailable ? null : 'BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT',
+  };
 }
 
 function assertKnownFields(body: PhaseMutationBody, allowedKeys: Set<string>) {
@@ -598,6 +636,7 @@ export async function listPhases(body: PhaseMutationBody): Promise<PhaseListResu
   if (projectIds.length === 0) {
     return {
       success: true,
+      capabilities: phaseWorkflowCapabilities(),
       phases: [],
     };
   }
@@ -608,10 +647,14 @@ export async function listPhases(body: PhaseMutationBody): Promise<PhaseListResu
     )
   );
 
+  const capabilities = phaseWorkflowCapabilities();
   const supabase = createSupabaseAdminClient();
+  const phaseColumns = capabilities.statusPersistenceAvailable
+    ? 'id, project_id, name, order_index, created_at, status, colorway_name, colorway_code, stage_type, stage_owner, planned_start_date, planned_end_date, progress, next_action, required_review'
+    : 'id, project_id, name, order_index, created_at';
   const { data, error } = await supabase
     .from('phases')
-    .select('id, project_id, name, order_index, created_at, status, colorway_name, colorway_code, stage_type, stage_owner, planned_start_date, planned_end_date, progress, next_action, required_review')
+    .select(phaseColumns)
     .in('project_id', projectIds)
     .order('id', { ascending: true });
 
@@ -627,7 +670,8 @@ export async function listPhases(body: PhaseMutationBody): Promise<PhaseListResu
 
   return {
     success: true,
-    phases: (data || []).map((phase) => ({
+    capabilities,
+    phases: ((data || []) as unknown as PhaseListRow[]).map((phase) => ({
       id: Number(phase.id),
       project_id: phase.project_id === null ? null : Number(phase.project_id),
       name: String(phase.name || ''),
@@ -642,7 +686,9 @@ export async function listPhases(body: PhaseMutationBody): Promise<PhaseListResu
       planned_end_date: phase.planned_end_date || null,
       progress: phase.progress === null ? null : Number(phase.progress),
       next_action: phase.next_action || null,
-      required_review: phase.required_review === null ? null : Boolean(phase.required_review),
+      required_review: phase.required_review == null ? null : Boolean(phase.required_review),
+      status_persistence_available: capabilities.statusPersistenceAvailable,
+      status_mutation_available: capabilities.statusMutationAvailable,
     })),
   };
 }
