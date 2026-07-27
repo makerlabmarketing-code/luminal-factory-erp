@@ -22,29 +22,18 @@ describe('project creation orchestration and legacy task alignment', () => {
     expect(service).toMatch(/warnings: WorkflowWarning\[\]/);
   });
 
-  it('does not create template tasks or partial projects without the atomic RPC gate', () => {
+  it('submits workflow children only through the server create boundary', () => {
     const service = source('services/workflowService.ts');
-    const createWorkflowProjectBody = service.slice(
-      service.indexOf('export async function createWorkflowProject'),
-      service.indexOf('export async function updateWorkflowPhaseStatus')
-    );
-
-    expect(createWorkflowProjectBody).not.toMatch(/insertTasks/);
-    expect(createWorkflowProjectBody).not.toMatch(/assignee_id: task\.assignee_id/);
-    expect(createWorkflowProjectBody).toMatch(/WorkflowProjectCreationGateError/);
-    expect(createWorkflowProjectBody).toMatch(/params\.phases\.length > 0 \|\| expectedTasks > 0/);
-    expect(createWorkflowProjectBody.indexOf('throw new WorkflowProjectCreationGateError()')).toBeLessThan(createWorkflowProjectBody.indexOf('workflowRepository.insertProject'));
+    const createBody = service.slice(service.indexOf('export async function createWorkflowProject'), service.indexOf('export async function updateWorkflowPhaseStatus'));
+    expect(createBody).toMatch(/workflowRepository\.insertProject/);
+    expect(createBody).toMatch(/phases: params\.phases/);
+    expect(createBody).not.toMatch(/insertTasks|insertPhase/);
   });
 
-  it('keeps expected task counting explicit for the approved future RPC contract', () => {
+  it('keeps expected child counts in the normalized response contract', () => {
     const service = source('services/workflowService.ts');
-    const createWorkflowProjectBody = service.slice(
-      service.indexOf('export async function createWorkflowProject'),
-      service.indexOf('export async function updateWorkflowPhaseStatus')
-    );
-
-    expect(createWorkflowProjectBody).toMatch(/const expectedTasks = params\.createTemplateTasks/);
-    expect(createWorkflowProjectBody).toMatch(/expectedTasks > 0/);
+    expect(service).toMatch(/const expectedTasks = params\.createTemplateTasks/);
+    expect(service).toMatch(/expectedPhases/);
   });
 
   it('keeps legacy task insert payload limited to live task columns', () => {
@@ -63,14 +52,12 @@ describe('project creation orchestration and legacy task alignment', () => {
     expect(insertTasksBody).not.toMatch(/assignee_id|phase_id|task_status|reviewer_id|assigned_employee_id/);
   });
 
-  it('shows the atomic RPC gate instead of partial-success warnings for child persistence', () => {
+  it('uses product language rather than technical rollout language', () => {
     const taskPage = source('app/admin/tasks/page.tsx');
     const projectPage = source('app/admin/projects/page.tsx');
-
     for (const page of [taskPage, projectPage]) {
-      expect(page).toMatch(/project_creation_atomic_rpc_required/);
-      expect(page).toMatch(/Cần duyệt RPC giao dịch trước khi tạo dự án kèm giai đoạn và công việc/);
-      expect(page).not.toMatch(/Một số công việc mẫu chưa thể khởi tạo\./);
+      expect(page).not.toMatch(/Cần duyệt RPC giao dịch/);
+      expect(page).toMatch(/Không thể khởi tạo đầy đủ quy trình/);
     }
   });
 

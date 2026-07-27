@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthFlowError } from '@/services/server/auth';
-import { createProject } from '@/services/server/projectMutations';
+import { createProject, getProjectCreationOptions } from '@/services/server/projectMutations';
 
 function jsonNoStore(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
@@ -38,6 +38,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => null)) || {};
     return jsonNoStore(await createProject(body), { status: 201 });
+  } catch (error) {
+    return toErrorResponse(error);
+  }
+}
+
+export async function GET() {
+  try {
+    return jsonNoStore(await getProjectCreationOptions());
   } catch (error) {
     return toErrorResponse(error);
   }

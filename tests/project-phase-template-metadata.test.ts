@@ -13,10 +13,9 @@ describe('project phase template metadata persistence', () => {
 
     expect(pageSource).toMatch(/stage_type: stage\.type/);
     expect(pageSource).toMatch(/colorway_name: colorwayName\.trim\(\)/);
-    expect(serviceSource).toMatch(/colorwayName: phase\.colorway_name/);
-    expect(serviceSource).toMatch(/plannedEndDate: phase\.planned_end_date/);
-    expect(repositorySource).toMatch(/colorwayName: params\.colorwayName/);
-    expect(repositorySource).toMatch(/requiredReview: params\.requiredReview/);
+    expect(serviceSource).toMatch(/phases: params\.phases/);
+    expect(repositorySource).toMatch(/phases: params\.phases \|\| \[\]/);
+    expect(repositorySource).toMatch(/body: JSON\.stringify/);
   });
 
   it('keeps phase list DTO fields required for project detail instead of falling back to blank metadata', () => {
