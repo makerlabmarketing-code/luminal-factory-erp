@@ -17,7 +17,7 @@ describe('safe project creation compatibility mode', () => {
   });
 
   it('uses an employee selector and submits the stable employee id', () => {
-    expect(page).toMatch(/<select id="project-manager"/);
+    expect(page).toMatch(/<select[^>]*id="project-manager"/);
     expect(page).toMatch(/employee\.fullName[\s\S]*employee\.title/);
     expect(page).toMatch(/managerEmployeeId: Number\(managerEmployeeId\)/);
     expect(page).not.toMatch(/setStageOwner/);
@@ -49,8 +49,8 @@ describe('safe project creation compatibility mode', () => {
   });
 
   it('keeps code uniqueness and duplicate-name policy explicit', () => {
-    expect(server).toMatch(/error\?\.code === '23505' \? 409/);
-    expect(server).toMatch(/Mã dự án đã được sử dụng/);
+    expect(server).toMatch(/error\?\.code === '23505'\) continue/);
+    expect(server).toMatch(/projectCodePrefix\(new Date\(\)\)/);
     expect(server).toMatch(/Duplicate project names are allowed/);
     expect(server).not.toMatch(/\.eq\('project_name', projectName\)/);
   });

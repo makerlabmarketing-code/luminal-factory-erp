@@ -8,6 +8,7 @@ import {
   hasPermission,
   requireWorkspaceAccess,
 } from '@/services/server/auth';
+import { nextProjectCode, projectCodePrefix } from '@/lib/project-code';
 
 type ProjectMutationBody = Record<string, unknown>;
 type ProjectRoleCode = 'PROJECT_OWNER' | 'PROJECT_MANAGER' | 'CREATIVE_LEAD' | 'CONTRIBUTOR';
@@ -29,6 +30,7 @@ interface ProjectMembershipRow {
 export interface ProjectMutationResult {
   success: true;
   projectId: number;
+  projectCode?: string;
   projectCreated?: boolean;
   managerMembershipCreated?: boolean;
   workflowCreated?: boolean;
@@ -46,7 +48,6 @@ const CREATE_PROJECT_KEYS = new Set([
   'startDate',
   'projectDeadline',
   'metadata',
-  'projectCode',
   'phases',
   'tasks',
   'memberEmployeeIds',
@@ -432,67 +433,49 @@ function projectUpdatePayload(body: ProjectMutationBody) {
 
 async function insertProjectRow(params: {
   projectName: string;
-  projectCode: string;
   status: string;
   projectDeadline: string | null;
-}): Promise<{ id: number; deadlinePersisted: boolean }> {
+}): Promise<{ id: number; projectCode: string; deadlinePersisted: boolean }> {
   const supabase = createSupabaseAdminClient();
-  const basePayload = {
-    project_name: params.projectName,
-    project_code: params.projectCode,
-    status: params.status,
-    drive_url: '',
-  };
-  const payload = params.projectDeadline
-    ? { ...basePayload, project_deadline: params.projectDeadline }
-    : basePayload;
+  const prefix = projectCodePrefix(new Date());
 
-  const { data, error } = await supabase
-    .from('projects')
-    .insert([payload])
-    .select('id')
-    .single();
-
-  if (!error && data) {
-    return {
-      id: Number(data.id),
-      deadlinePersisted: Boolean(params.projectDeadline),
-    };
-  }
-
-  if (params.projectDeadline && isMissingProjectDeadlineColumn(error)) {
-    const fallback = await supabase
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const existing = await supabase
       .from('projects')
-      .insert([basePayload])
-      .select('id')
-      .single();
+      .select('project_code')
+      .like('project_code', `${prefix}-%`);
+    if (existing.error) {
+      throw mutationError({ status: 500, message: 'Không thể tạo mã dự án.', failureStage: 'project_insert', code: 'project_insert_failed', safeDetails: { supabase_error_code: existing.error.code ?? 'unknown' } });
+    }
+    const projectCode = nextProjectCode(prefix, (existing.data || []).map((row) => String(row.project_code || '')));
+    const basePayload = { project_name: params.projectName, project_code: projectCode, status: params.status, drive_url: '' };
+    const payload = params.projectDeadline ? { ...basePayload, project_deadline: params.projectDeadline } : basePayload;
+    const { data, error } = await supabase.from('projects').insert([payload]).select('id').single();
 
-    if (!fallback.error && fallback.data) {
-      return {
-        id: Number(fallback.data.id),
-        deadlinePersisted: false,
-      };
+    if (!error && data) return { id: Number(data.id), projectCode, deadlinePersisted: Boolean(params.projectDeadline) };
+    if (error?.code === '23505') continue;
+
+    if (params.projectDeadline && isMissingProjectDeadlineColumn(error)) {
+      const fallback = await supabase.from('projects').insert([basePayload]).select('id').single();
+      if (!fallback.error && fallback.data) return { id: Number(fallback.data.id), projectCode, deadlinePersisted: false };
+      if (fallback.error?.code === '23505') continue;
+
+      throw mutationError({ status: 500, message: 'Không thể tạo dự án.', failureStage: 'project_insert', code: 'project_insert_failed', safeDetails: { supabase_error_code: fallback.error?.code ?? 'unknown' } });
     }
 
     throw mutationError({
-      status: 500,
-      message: 'Không thể tạo dự án.',
+      status: 500, message: 'Không thể tạo dự án.',
       failureStage: 'project_insert',
       code: 'project_insert_failed',
-      safeDetails: {
-        supabase_error_code: fallback.error?.code ?? 'unknown',
-      },
+      safeDetails: { supabase_error_code: error?.code ?? 'unknown' },
     });
   }
 
   throw mutationError({
-    status: error?.code === '23505' ? 409 : 500,
-    message: error?.code === '23505' ? 'Mã dự án đã được sử dụng.' : 'Không thể tạo dự án.',
+    status: 409,
+    message: 'Không thể cấp mã dự án duy nhất. Vui lòng thử lại.',
     failureStage: 'project_insert',
     code: 'project_insert_failed',
-    safeDetails: {
-      supabase_error_code: error?.code ?? 'unknown',
-    },
   });
 }
 
@@ -527,7 +510,21 @@ function numericProjectId(rawProjectId: string): number {
 
 async function createProjectViaAtomicRpc(body: ProjectMutationBody): Promise<ProjectMutationResult> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc('create_project_atomic', { p_payload: body });
+  const admin = createSupabaseAdminClient();
+  const prefix = projectCodePrefix(new Date());
+  let data: unknown = null;
+  let error: { code?: string } | null = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const existing = await admin.from('projects').select('project_code').like('project_code', `${prefix}-%`);
+    if (existing.error) throw mutationError({ status: 500, message: 'Không thể tạo mã dự án.', failureStage: 'project_insert', code: 'project_insert_failed' });
+    const projectCode = nextProjectCode(prefix, (existing.data || []).map((row) => String(row.project_code || '')));
+    const rpcResult = await supabase.rpc('create_project_atomic', { p_payload: { ...body, projectCode } });
+    data = rpcResult.data;
+    error = rpcResult.error;
+    const rpcCode = data && typeof data === 'object' && 'code' in data ? String((data as { code?: unknown }).code || '') : '';
+    if (!error && rpcCode !== 'duplicate_project_code') break;
+    if (rpcCode !== 'duplicate_project_code' && error?.code !== '23505') break;
+  }
 
   if (error) {
     throw mutationError({
@@ -541,7 +538,7 @@ async function createProjectViaAtomicRpc(body: ProjectMutationBody): Promise<Pro
     });
   }
 
-  const result = data as { success?: unknown; projectId?: unknown; deadlinePersisted?: unknown; managerMembershipCreated?: unknown; workflowCreated?: unknown; phasesCreated?: unknown; tasksCreated?: unknown; warnings?: unknown; code?: unknown; message?: unknown } | null;
+  const result = data as { success?: unknown; projectId?: unknown; projectCode?: unknown; deadlinePersisted?: unknown; managerMembershipCreated?: unknown; workflowCreated?: unknown; phasesCreated?: unknown; tasksCreated?: unknown; warnings?: unknown; code?: unknown; message?: unknown } | null;
   if (!result?.success) {
     const code = typeof result?.code === 'string' ? result.code : 'project_insert_failed';
     const message = typeof result?.message === 'string' ? result.message : 'Không thể tạo dự án đầy đủ.';
@@ -566,6 +563,7 @@ async function createProjectViaAtomicRpc(body: ProjectMutationBody): Promise<Pro
   return {
     success: true,
     projectId,
+    projectCode: String(result.projectCode || ''),
     projectCreated: true,
     managerMembershipCreated: result.managerMembershipCreated !== false,
     workflowCreated: result.workflowCreated !== false,
@@ -585,16 +583,6 @@ export async function createProject(body: ProjectMutationBody): Promise<ProjectM
   validateStatus(body.status);
   optionalIsoDate(body.projectDeadline, 'projectDeadline');
   const projectName = requiredProjectName(body);
-  const projectCode = optionalText(body.projectCode, 'projectCode');
-  if (!projectCode) {
-    throw mutationError({
-      status: 422,
-      message: 'Vui lòng nhập mã dự án duy nhất.',
-      failureStage: 'payload_validation',
-      code: 'payload_validation_failed',
-      safeDetails: { field: 'projectCode' },
-    });
-  }
 
   // Duplicate project names are allowed; stable project IDs remain the project identity.
   if (projectWorkflowCreationAvailable() && (Array.isArray(body.phases) && body.phases.length > 0 || Array.isArray(body.tasks) && body.tasks.length > 0)) {
@@ -611,12 +599,13 @@ export async function createProject(body: ProjectMutationBody): Promise<ProjectM
   if (employeeResult.error || !employeeResult.data || employeeResult.data.is_active === false || ['INACTIVE', 'LOCKED', 'DISABLED', 'DELETED'].includes(employeeStatus)) {
     throw mutationError({ status: 422, message: 'Người phụ trách không còn hoạt động.', failureStage: 'employee_status', code: 'payload_validation_failed' });
   }
-  const inserted = await insertProjectRow({ projectName, projectCode, status: validateStatus(body.status) || 'PROCESSING', projectDeadline: optionalIsoDate(body.projectDeadline, 'projectDeadline') });
+  const inserted = await insertProjectRow({ projectName, status: validateStatus(body.status) || 'PROCESSING', projectDeadline: optionalIsoDate(body.projectDeadline, 'projectDeadline') });
   const membership = await supabase.from('project_members').insert([{ project_id: inserted.id, employee_id: managerEmployeeId, role_code: 'PROJECT_MANAGER', status: 'ACTIVE', granted_by_employee_id: authEmployeeId(authContext) }]);
   const managerMembershipCreated = !membership.error;
   return {
     success: true,
     projectId: inserted.id,
+    projectCode: inserted.projectCode,
     projectCreated: true,
     managerMembershipCreated,
     workflowCreated: false,

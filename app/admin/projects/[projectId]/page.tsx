@@ -335,6 +335,16 @@ function MemberMobileField({ label, value }: { label: string; value: string }) {
   );
 }
 
+async function fetchWithTimeout(url: string, timeoutMs = 10_000): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { cache: 'no-store', signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const { showToast, showConfirm } = useNotification();
@@ -376,6 +386,18 @@ export default function ProjectDetailPage() {
     [members]
   );
 
+  const refreshTasks = useCallback(async () => {
+    try {
+      const tasksResponse = await fetchWithTimeout(`/api/admin/projects/${projectId}/tasks`);
+      if (!tasksResponse.ok) throw new Error('task_load_failed');
+      const payload = await tasksResponse.json() as { tasks?: TaskAssignmentDTO[] };
+      setProjectTasks(payload.tasks || []);
+      setTaskLoadBlocked(false);
+    } catch {
+      setTaskLoadBlocked(true);
+    }
+  }, [projectId]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadFailed(false);
@@ -386,35 +408,31 @@ export default function ProjectDetailPage() {
       return;
     }
     try {
-      const [workflowItems, membersResponse, tasksResponse] = await Promise.all([
+      const membersRequest = fetchWithTimeout(`/api/admin/projects/${projectId}/members`);
+      const workflowItems = await Promise.race([
         getWorkflowItems({ includeClosedProjects: true }),
-        fetch(`/api/admin/projects/${projectId}/members`, { cache: 'no-store' }),
-        fetch(`/api/admin/projects/${projectId}/tasks`, { cache: 'no-store' }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('project_core_timeout')), 10_000)),
       ]);
       setItems(workflowItems);
-      if (membersResponse.ok) {
+      setLoading(false);
+
+      void membersRequest.then(async (membersResponse) => {
+        if (membersResponse.ok) {
         const payload = await membersResponse.json() as { members?: ProjectMemberDTO[]; capabilities?: ProjectCapabilitiesDTO };
         setMembers(payload.members || []);
         if (payload.capabilities) setProjectCapabilities(payload.capabilities);
-      } else if (membersResponse.status === 403) setForbidden(true);
-      else setMemberLoadFailed(true);
-      if (tasksResponse.ok) {
-        const payload = await tasksResponse.json() as { tasks?: TaskAssignmentDTO[] };
-        setProjectTasks(payload.tasks || []);
-        setTaskLoadBlocked(false);
-      } else if (tasksResponse.status === 409 || tasksResponse.status === 403 || tasksResponse.status === 401) {
-        setProjectTasks([]);
-        setTaskLoadBlocked(true);
-      } else {
-        throw new Error('task_load_failed');
-      }
+        } else if (membersResponse.status === 403) setForbidden(true);
+        else setMemberLoadFailed(true);
+      }).catch(() => setMemberLoadFailed(true));
+
+      void refreshTasks();
     } catch {
       setLoadFailed(true);
       showToast('Không thể tải dự án.', 'Vui lòng thử lại sau.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [projectId, showToast]);
+  }, [projectId, refreshTasks, showToast]);
 
   useEffect(() => {
     loadData();
@@ -447,6 +465,7 @@ export default function ProjectDetailPage() {
           tasks: description.tasks_list || [],
         };
       })
+      .filter((phase) => !['WORKFLOW_NOT_CONFIGURED', 'PHASE_LOAD_FAILED'].includes(String(phase.description.stage_type || '')))
       .sort((left, right) => left.orderIndex - right.orderIndex);
     const legacyTaskGroups = mapLegacyTasksToPhaseGroups(phaseDrafts, legacyTasks);
     const assignmentTaskGroups = new Map<number, TaskAssignmentDTO[]>();
@@ -944,8 +963,9 @@ export default function ProjectDetailPage() {
         )}
 
         {taskLoadBlocked && (
-          <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">
-            Nền tảng giao việc chưa sẵn sàng hoặc bạn chỉ có quyền xem giới hạn. Dữ liệu công việc cũ vẫn hiển thị ở chế độ chỉ xem.
+          <section data-error-code="task_load_failed" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">
+            <span>Nền tảng giao việc chưa sẵn sàng. Dữ liệu công việc cũ vẫn hiển thị ở chế độ chỉ xem; thông tin cốt lõi và giai đoạn vẫn có thể xem.</span>
+            <button type="button" onClick={() => void refreshTasks()} className="rounded border border-amber-700 px-3 py-1.5 font-bold">Thử tải lại công việc</button>
           </section>
         )}
 
@@ -1003,7 +1023,7 @@ export default function ProjectDetailPage() {
                 {projectDetail.phases.length === 0 && (
                   <OperationalState
                     title="Dự án chưa có giai đoạn."
-                    description="Hãy thêm giai đoạn khi quy trình sản xuất đã được duyệt."
+                    description="Hãy thêm giai đoạn để bắt đầu."
                   />
                 )}
               </div>

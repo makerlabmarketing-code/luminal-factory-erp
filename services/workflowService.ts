@@ -33,6 +33,7 @@ export interface WorkflowProjectCreateResult {
   managerMembershipCreated: boolean;
   workflowCreated: boolean;
   projectId: number;
+  projectCode: string;
   phasesCreated: number;
   tasksCreated: number;
   expectedPhases: number;
@@ -250,7 +251,6 @@ export async function createWorkflowProject(
   const creation = await workflowRepository.insertProject({
     projectName: params.projectName,
     projectDeadline: params.projectDeadline,
-    projectCode: params.projectCode || '',
     managerEmployeeId: params.managerEmployeeId || 0,
     phases: params.phases,
     createTemplateTasks: params.createTemplateTasks,
@@ -270,6 +270,7 @@ export async function createWorkflowProject(
     managerMembershipCreated: creation.managerMembershipCreated,
     workflowCreated: creation.workflowCreated,
     projectId,
+    projectCode: creation.projectCode || '',
     phasesCreated,
     tasksCreated,
     expectedPhases,
