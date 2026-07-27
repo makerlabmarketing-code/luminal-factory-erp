@@ -1,7 +1,7 @@
 # Task Assignment and Phase Workflow Post-Rollout Activation Checklist
 
 Date: 2026-07-27
-Status: `BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT`
+Status: `MIGRATION_PROMOTED_PENDING_PROTECTED_MAIN_MERGE`
 
 ## Before rollout
 
@@ -9,6 +9,14 @@ Status: `BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT`
 - [ ] Confirm zero orphan phases, duplicate `(project_id, order_index)` positions, and unknown statuses.
 - [ ] Confirm the Task Assignment validation suite remains PASS and `TASK_ASSIGNMENT_FOUNDATION_ENABLED` retains its currently approved runtime value.
 - [ ] Confirm no production operator will run both direct SQL and GitHub Integration delivery.
+- [x] Confirm the already-applied `create_project_atomic(jsonb)` package and its phase/task/member dependencies are not duplicated in the Phase Workflow migration.
+- [x] Promote only the reviewed Phase Status/Dependency executable SQL as `supabase/migrations/20260727044729_phase_status_dependency.sql`.
+
+## GitHub delivery gate
+
+- [ ] Review and merge the PR through protected `main`; do not push or merge directly.
+- [ ] Watch the Supabase GitHub Integration check for the production deployment and require PASS before validation or runtime activation.
+- [ ] Confirm migration version `20260727044729` is recorded exactly once; do not run the draft manually and do not use `db push`.
 
 ## After migration delivery
 

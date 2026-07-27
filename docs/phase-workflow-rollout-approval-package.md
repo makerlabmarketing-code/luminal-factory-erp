@@ -1,7 +1,7 @@
 # Phase Workflow Production Rollout Approval Package
 
 Date: 2026-07-27
-Status: `LIVE_APPROVAL_REQUIRED`
+Status: `PROMOTED_PENDING_PROTECTED_MAIN_MERGE`
 
 No command in this package was executed against production. This document audits and identifies the existing authoritative artifacts; it does not create a second SQL package.
 
@@ -10,7 +10,8 @@ No command in this package was executed against production. This document audits
 | Purpose | Authority |
 | --- | --- |
 | Read-only pre-run inventory and row-count snapshot | `supabase/drafts/20260718_phase_workflow_foundation_pre_run_readonly_validation.sql` |
-| Forward rollout | `supabase/drafts/20260721_phase_status_dependency_forward.sql` |
+| Reviewed source draft | `supabase/drafts/20260721_phase_status_dependency_forward.sql` |
+| Forward rollout migration | `supabase/migrations/20260727044729_phase_status_dependency.sql` |
 | Rollback | `supabase/drafts/20260721_phase_status_dependency_rollback.sql` |
 | Post-run validation | `supabase/drafts/20260721_phase_status_dependency_validation.sql` |
 | Backfill and compatibility rules | `supabase/drafts/20260721_phase_status_dependency_backfill_strategy.md` |
@@ -20,6 +21,10 @@ No command in this package was executed against production. This document audits
 | Final rollout/activation checklist | `docs/phase-workflow-post-rollout-activation-checklist.md` |
 
 The 2026-07-16 drafts and the 2026-07-18 `final_forward`, `final_rollback`, and `final_validation` files are historical foundation inputs, not executable authority for this rollout. Their `NOT_STARTED`/`IN_PROGRESS` status model is superseded by the 2026-07-21 application contract (`ACTIVE`, `LOCKED`, `COMPLETED`, `BLOCKED`, `REVIEW`, `CANCELLED`). Do not concatenate or execute both packages.
+
+The separately reviewed `20260721_project_creation_atomic_rpc_forward.sql` is also excluded from this migration. The rollout record confirms that `projects.project_code`, `projects_project_code_unique_idx`, and `public.create_project_atomic(jsonb)` were already applied through the approved Management API path. Re-promoting that draft would overlap an applied object and could fail on its non-idempotent named constraint. The existing RPC supplies transactional project, phase, task, subtask, comment, notification, activity, and project-member creation; its dependencies remain the already-applied project-members, access-permission, project-RLS, and production-order persistence packages.
+
+The generated migration differs from the reviewed source draft only in its two leading delivery comments. Its executable SQL is otherwise identical.
 
 ## 2. Exact production changes
 
@@ -148,7 +153,7 @@ psql "$SUPABASE_PRODUCTION_DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transact
 psql "$SUPABASE_PRODUCTION_DATABASE_URL" -X -v ON_ERROR_STOP=1 --file supabase/drafts/20260721_phase_status_dependency_rollback.sql
 ```
 
-Canonical delivery remains the Supabase GitHub Integration: after approval, generate a migration with `npx supabase migration new phase_status_dependency`, copy the reviewed forward SQL without semantic changes, commit it, and let protected-main merge trigger production delivery. Do not run both GitHub Integration delivery and the direct forward command.
+Canonical delivery is the Supabase GitHub Integration. The reviewed SQL is promoted as `supabase/migrations/20260727044729_phase_status_dependency.sql`; after this PR is merged into protected `main`, the integration discovers the new migration from working directory `.` and applies it to production. Watch the required Supabase integration check in GitHub and do not run the direct forward command as a second delivery path.
 
 ## 11. Gate status
 
@@ -164,11 +169,12 @@ Canonical delivery remains the Supabase GitHub Integration: after approval, gene
 | Application compatibility boundary | PASS | Default server capability reads only baseline columns and reports rollout blocking. |
 | Attendance independence | PASS | Attendance regression suite requires no project membership or phase dependency. |
 | Numeric pre-run row counts | BLOCKED | Read-only production pre-run output has not been approved/run. |
-| Production migration approval | BLOCKED | `LIVE_APPROVAL_REQUIRED`. |
-| Production rollout | BLOCKED | No SQL or GitHub migration promotion performed. |
+| Production migration promotion | PASS | Reviewed executable SQL promoted once as `20260727044729_phase_status_dependency.sql`. |
+| Transactional project creation overlap | PASS | Existing applied RPC and dependencies were audited and excluded from re-promotion. |
+| Production rollout | BLOCKED | Stops before PR merge; the GitHub Integration has not applied this migration. |
 | Post-run validation | BLOCKED | Requires successful approved rollout. |
 | Runtime activation | BLOCKED | Requires post-run PASS before enabling flags. |
 
-## 12. Explicit approval question
+## 12. Delivery decision
 
-**Do you approve promoting only `supabase/drafts/20260721_phase_status_dependency_forward.sql` into a generated Supabase migration and delivering it through the protected-main Supabase GitHub Integration after the read-only pre-run report returns zero blockers?**
+Only `supabase/drafts/20260721_phase_status_dependency_forward.sql` was promoted. Merge remains an operator decision. The Supabase GitHub check must pass, the migration must apply exactly once, and the separate post-run validation must pass before either Phase Workflow runtime flag is enabled.

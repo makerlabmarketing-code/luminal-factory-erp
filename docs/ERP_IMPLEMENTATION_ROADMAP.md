@@ -1177,6 +1177,19 @@ Status: application-only Project Detail compatibility boundary and rollout packa
 
 Current gate: run/attach the approved read-only pre-run report, obtain explicit approval to promote the reviewed forward SQL through the Supabase GitHub Integration, validate the rollout, then activate server flags in checklist order.
 
+## 2026-07-27 Phase Workflow migration promotion audit
+
+Status: reviewed migration promoted; production remains stopped before protected-main merge.
+
+- Audited the durable Phase Workflow and transactional Project Creation packages against the application contracts, repository migration history, applied-object record, and supersede matrix.
+- Confirmed `supabase/drafts/20260721_phase_status_dependency_forward.sql` is the single forward authority still requiring GitHub Integration delivery. Its executable SQL was promoted without semantic changes as `supabase/migrations/20260727044729_phase_status_dependency.sql`.
+- Excluded the separately reviewed Project Creation SQL because `projects.project_code`, its unique index, and `public.create_project_atomic(jsonb)` are recorded as already applied. Re-promoting it would duplicate an applied schema/RPC package.
+- Excluded the 2026-07-16 drafts, 2026-07-18 foundation forward package, blocked `20260704153000` workflow migration, blocked `20260709110000` colorway migration, task-assignment SQL, and all unrelated attendance, finance, employee, and facility packages.
+- Kept rollback, pre-run validation, post-run validation, threat model, backfill strategy, and activation checklist outside `supabase/migrations/`.
+- No production SQL, `db push`, draft execution, direct deployment, merge, RLS mutation, backfill, or live-data mutation was performed.
+
+Current gate: operator runs/attaches the read-only pre-run report, reviews and merges the PR through protected `main`, watches the Supabase GitHub Integration check, runs the separate post-deployment validation, and only then activates Phase Workflow server flags in checklist order.
+
 ## 2026-07-27 Facility / Work Branch directory regression repair
 
 Status: ✅ application repair complete; live read-only audit was unavailable because the environment proxy rejected the Supabase REST connection before a response was returned.
