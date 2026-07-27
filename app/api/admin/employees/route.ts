@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthFlowError } from '@/services/server/auth';
 import { createEmployee } from '@/services/server/adminEmployeeActions';
+import { getAdminEmployeeListData } from '@/services/server/adminEmployeeData';
 
 function toJsonResponse(result: unknown, init?: ResponseInit) {
   const response = NextResponse.json(result, init);
@@ -20,6 +21,17 @@ function toErrorResponse(error: unknown) {
     { success: false, message: 'Không thể xử lý hồ sơ nhân sự.', code: 'employee_unhandled_failure', failureStage: 'unknown' },
     { status: 500 }
   );
+}
+
+export async function GET() {
+  try {
+    return toJsonResponse(await getAdminEmployeeListData());
+  } catch (error) {
+    if (error instanceof AuthFlowError && error.status === 403) {
+      return toJsonResponse({ success: false, code: 'forbidden', message: 'Bạn không có quyền xem danh sách nhân sự.' }, { status: 403 });
+    }
+    return toJsonResponse({ success: false, code: 'employee_list_load_failed', message: 'Không thể tải danh sách nhân sự.' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {

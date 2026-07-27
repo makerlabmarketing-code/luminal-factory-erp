@@ -1,9 +1,10 @@
 // app/admin/facilities/page.tsx
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import { fetchCoordinatesFromAddress } from '@/ultis/geocoding';
 import { MapPin, Plus, Trash2, Edit2, X, RefreshCcw, Navigation, Loader2 } from 'lucide-react';
+import { AdminListRequestError, useAdminListData } from '@/hooks/useAdminListData';
 
 type AdminFacility = {
   id: number | string;
@@ -20,13 +21,11 @@ type FacilityApiResult = {
   success?: boolean;
   message?: string;
   facilities?: AdminFacility[];
+  capabilities?: { canPersistStatusAndCode: boolean; canManageFacilities: boolean };
 };
 
 export default function AdminFacilitiesManagement() {
   const { showToast, showConfirm } = useNotification();
-  const [branches, setBranches] = useState<AdminFacility[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
@@ -39,30 +38,17 @@ export default function AdminFacilitiesManagement() {
   const [lng, setLng] = useState('');
   const [radius, setRadius] = useState('20');
 
-  const loadFacilities = async () => {
-    setLoading(true);
-    setLoadError(false);
-    try {
-      const response = await fetch('/api/admin/facilities', { cache: 'no-store' });
+  const facilityRequest = async (signal: AbortSignal) => {
+      const response = await fetch('/api/admin/facilities', { cache: 'no-store', signal });
       const result = (await response.json().catch(() => ({}))) as FacilityApiResult;
-
       if (!response.ok || result.success === false) {
-        throw new Error(result.message || 'Không thể tải danh sách cơ sở làm việc.');
+        throw new AdminListRequestError(response.status === 403 ? 'forbidden' : result.message === 'facility_schema_unavailable' ? 'facility_schema_unavailable' : 'facility_list_load_failed');
       }
-
-      setBranches(result.facilities || []);
-    } catch (error) {
-      console.error(error);
-      setLoadError(true);
-      showToast('Lỗi tải dữ liệu', 'Không thể tải danh sách cơ sở làm việc.', 'error');
-    } finally {
-      setLoading(false);
-    }
+      return result;
   };
-
-  useEffect(() => {
-    loadFacilities();
-  }, []);
+  const { data: facilityData, error: loadError, isLoading: loading, isRefreshing, refresh: loadFacilities } = useAdminListData({ request: facilityRequest });
+  const branches = facilityData?.facilities || [];
+  const canManageFacilities = facilityData?.capabilities?.canManageFacilities !== false;
 
   const handleGeocode = async () => {
     if (!address.trim()) {
@@ -162,8 +148,6 @@ export default function AdminFacilitiesManagement() {
     });
   };
 
-  if (loading) return <div className="p-6 text-center text-xs font-mono text-slate-500 bg-slate-950 min-h-screen flex items-center justify-center gap-2"><RefreshCcw className="w-4 h-4 animate-spin" />Đang quét bản đồ định vị vệ tinh...</div>;
-
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 text-slate-100 bg-slate-950 min-h-screen font-sans">
       <div className="flex justify-between items-center border-b border-slate-800 pb-4">
@@ -171,8 +155,10 @@ export default function AdminFacilitiesManagement() {
           <h1 className="text-base font-bold flex items-center gap-2"><MapPin className="w-5 h-5 text-blue-500" /> Danh Sách Cơ Sở & Quản Lý Vị Trí Làm Việc</h1>
           <p className="text-[11px] text-slate-400 mt-0.5">Cấu hình rào chắn địa lý vùng an toàn chấm công Nhân sự máy số hóa</p>
         </div>
-        <button onClick={handleOpenAdd} className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shadow-lg"><Plus className="w-4 h-4" /> Thêm Cơ Sở Mới</button>
+        <button onClick={handleOpenAdd} disabled={!canManageFacilities} className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shadow-lg disabled:cursor-not-allowed disabled:opacity-50"><Plus className="w-4 h-4" /> Thêm Cơ Sở Mới</button>
       </div>
+
+      {!canManageFacilities && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">Chức năng cập nhật cơ sở đang tạm thời chưa khả dụng.</p>}
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <table className="w-full text-left text-xs text-slate-300">
@@ -187,12 +173,14 @@ export default function AdminFacilitiesManagement() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60 font-medium text-[11px]">
-            {loadError ? (
+            {loading ? (
+              <tr><td colSpan={6} className="p-8 text-center text-slate-400"><RefreshCcw className="mr-2 inline h-4 w-4 animate-spin" />Đang tải danh sách cơ sở...</td></tr>
+            ) : loadError ? (
               <tr>
                 <td colSpan={6} className="p-8 text-center text-slate-400">
                   <p>Không thể tải danh sách cơ sở làm việc.</p>
-                  <button type="button" onClick={loadFacilities} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-blue-500/40 px-3 py-2 font-bold text-blue-300">
-                    <RefreshCcw className="h-3.5 w-3.5" /> Thử lại
+                  <button type="button" onClick={() => void loadFacilities()} disabled={isRefreshing} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-blue-500/40 px-3 py-2 font-bold text-blue-300">
+                    <RefreshCcw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} /> {isRefreshing ? 'Đang thử lại...' : 'Thử lại'}
                   </button>
                 </td>
               </tr>
@@ -216,8 +204,8 @@ export default function AdminFacilitiesManagement() {
                   <td className="p-4 font-mono font-bold text-blue-400">{b.lng}</td>
                   <td className="p-4 font-bold text-amber-400 font-mono">{b.radius} mét</td>
                   <td className="p-4 text-center space-x-1">
-                    <button onClick={() => handleOpenEdit(b)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-800 transition" title="Chỉnh sửa"><Edit2 className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => handleDelete(b.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500 hover:bg-red-950/20 transition" title="Xóa cơ sở"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button disabled={!canManageFacilities} onClick={() => handleOpenEdit(b)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-800 transition disabled:opacity-40" title="Chỉnh sửa"><Edit2 className="w-3.5 h-3.5" /></button>
+                    <button disabled={!canManageFacilities} onClick={() => handleDelete(b.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500 hover:bg-red-950/20 transition disabled:opacity-40" title="Xóa cơ sở"><Trash2 className="w-3.5 h-3.5" /></button>
                   </td>
                 </tr>
               ))
