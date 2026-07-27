@@ -3,7 +3,7 @@
 
 begin;
 
--- Precondition checks intentionally fail fast before schema mutation.
+-- Precondition checks intentionally fail fast before data mutation.
 do $$
 begin
   if to_regclass('public.projects') is null then
@@ -33,6 +33,16 @@ begin
   ) then
     raise exception 'Precondition failed: duplicate phase order_index within a project.';
   end if;
+end $$;
+
+alter table public.phases
+  add column if not exists status text,
+  add column if not exists completed_at timestamptz,
+  add column if not exists updated_at timestamptz,
+  add column if not exists updated_by_employee_id bigint;
+
+do $$
+begin
   if exists (
     select 1 from public.phases
     where status is not null
@@ -41,12 +51,6 @@ begin
     raise exception 'Precondition failed: public.phases contains an unapproved status.';
   end if;
 end $$;
-
-alter table public.phases
-  add column if not exists status text,
-  add column if not exists completed_at timestamptz,
-  add column if not exists updated_at timestamptz,
-  add column if not exists updated_by_employee_id bigint;
 
 update public.phases
 set status = case
@@ -184,11 +188,20 @@ alter table public.phase_status_history enable row level security;
 revoke all on public.phase_status_history from public, anon, authenticated;
 grant select on public.phase_status_history to authenticated;
 
-drop policy if exists "phase status history project view select" on public.phase_status_history;
-create policy "phase status history project view select"
-  on public.phase_status_history
-  for select
-  to authenticated
-  using (public.can_view_project(project_id));
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'phase_status_history'
+      and policyname = 'phase status history project view select'
+  ) then
+    create policy "phase status history project view select"
+      on public.phase_status_history
+      for select
+      to authenticated
+      using (public.can_view_project(project_id));
+  end if;
+end $$;
 
 commit;
