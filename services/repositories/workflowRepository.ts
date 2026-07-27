@@ -313,17 +313,19 @@ export class WorkflowRepository {
 
   async insertProject(params: {
     projectName: string;
+    colorwayName: string;
     projectDeadline: string;
     managerEmployeeId: number;
     phases?: unknown[];
     createTemplateTasks?: boolean;
-  }): Promise<{ projectId: number; projectCode: string; projectCreated: boolean; managerMembershipCreated: boolean; workflowCreated: boolean; phasesCreated: number; tasksCreated: number; warnings: string[] }> {
+  }): Promise<{ project: { id: number; projectCode: string; name: string; colorway: string | null; projectDeadline: string | null; status: string | null }; projectId: number; projectCode: string; projectCreated: boolean; managerMembershipCreated: boolean; workflowCreated: boolean; phasesCreated: number; tasksCreated: number; warnings: string[] }> {
     return requestProjectMutation(
       '/api/admin/projects',
       {
         method: 'POST',
         body: JSON.stringify({
           projectName: params.projectName.trim(),
+          colorwayName: params.colorwayName.trim(),
           projectDeadline: params.projectDeadline,
           managerEmployeeId: params.managerEmployeeId,
           phases: params.phases || [],

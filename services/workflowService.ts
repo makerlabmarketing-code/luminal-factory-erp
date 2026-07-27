@@ -27,7 +27,11 @@ export interface WorkflowProjectCreateResult {
   success: true;
   project: {
     id: number;
+    projectCode: string;
     name: string;
+    colorway: string | null;
+    projectDeadline: string | null;
+    status: string | null;
   };
   projectCreated: true;
   managerMembershipCreated: boolean;
@@ -250,6 +254,7 @@ export async function createWorkflowProject(
 
   const creation = await workflowRepository.insertProject({
     projectName: params.projectName,
+    colorwayName: params.colorwayName,
     projectDeadline: params.projectDeadline,
     managerEmployeeId: params.managerEmployeeId || 0,
     phases: params.phases,
@@ -262,9 +267,9 @@ export async function createWorkflowProject(
 
   return {
     success: true,
-    project: {
-      id: projectId,
-      name: params.projectName.trim(),
+    project: creation.project || {
+      id: projectId, projectCode: creation.projectCode || '', name: params.projectName.trim(),
+      colorway: params.colorwayName, projectDeadline: params.projectDeadline, status: 'PROCESSING',
     },
     projectCreated: true,
     managerMembershipCreated: creation.managerMembershipCreated,

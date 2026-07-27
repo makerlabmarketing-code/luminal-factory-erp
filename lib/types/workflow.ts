@@ -102,6 +102,7 @@ export type WorkflowTaskRow = WorkflowTask;
 
 export interface WorkflowProjectInsertInput {
   projectName: string;
+  colorwayName: string;
   projectDeadline: string;
   managerEmployeeId?: number;
   phases: WorkflowPhaseFormInput[];

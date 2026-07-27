@@ -111,7 +111,7 @@ describe('project detail stepper and task assignee display', () => {
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
     const repository = source('services/repositories/workflowRepository.ts');
 
-    expect(detailPage).toMatch(/Không thể tải chi tiết dự án\./);
+    expect(detailPage).toMatch(/Không thể tải thông tin dự án/);
     expect(detailPage).not.toMatch(/PGRST|42703|schema cache|column .* does not exist/);
     expect(detailPage).not.toMatch(/getActiveEmployees|findEmployeeByIdentifier|findEmployeeByName|employees\.map/);
     expect(repository).toMatch(/select\('id, project_name, assigned_to, current_phase, estimation_date, issue_note, packer_assigned, created_at'\)/);

@@ -13,7 +13,7 @@ describe('project creation orchestration and legacy task alignment', () => {
     const service = source('services/workflowService.ts');
 
     expect(service).toMatch(/export interface WorkflowProjectCreateResult/);
-    expect(service).toMatch(/project:\s*\{\s*id: number;\s*name: string;\s*\}/);
+    expect(service).toMatch(/project:\s*\{[\s\S]*?id: number;[\s\S]*?projectCode: string;[\s\S]*?name: string;/);
     expect(service).toMatch(/projectCreated: true/);
     expect(service).toMatch(/expectedPhases/);
     expect(service).toMatch(/expectedTasks/);
