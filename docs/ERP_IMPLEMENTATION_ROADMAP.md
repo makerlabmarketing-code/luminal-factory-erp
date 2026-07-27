@@ -1240,3 +1240,9 @@ Status: ✅ application repair complete; no production SQL or deployment perform
 - Project list refresh now deduplicates its project-only request and keeps the application shell, filters, selection, and existing content mounted while the reload button spins.
 - Project Detail no longer waits for member and task requests before rendering project core data. Those sections load independently with abort timeouts; missing workflow placeholders render the actionable empty state instead of a fake phase.
 - The already-recorded unique `projects.project_code` index remains the final concurrency protection, so this repair requires no new schema migration. Phase/task rollout capability gates remain unchanged.
+
+## 2026-07-27 Project Detail functional workspace completion
+
+Status: application-only Project Detail functional workspace PASS. The core project response now keeps the server-authoritative project code through the client composition boundary and displays it in the header and project summary instead of substituting the database row ID. The summary also surfaces the selected phase colorway metadata already persisted by the workflow contract. Phase, member, and task failures each provide a targeted retry that preserves the visible project core and avoids a full-page reload.
+
+No SQL, migration, RPC deployment, RLS change, live data mutation, deployment, or merge was performed. Normalized child-task creation, reviewer persistence, detailed comment/activity feeds, and template persistence remain behind their existing schema/RPC approval boundaries. Current gate: `LIVE_APPROVAL_REQUIRED` before enabling or deploying those persistence contracts; independent application work may continue from this completed workspace boundary.
