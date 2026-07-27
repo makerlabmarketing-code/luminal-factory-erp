@@ -11,7 +11,7 @@ function source(relativePath: string): string {
 describe('task load schema alignment', () => {
   it('loads the employee directory by employees.id, not employees.employee_id', () => {
     const employeeService = source('services/employeeService.ts');
-    const taskPage = source('app/admin/tasks/page.tsx');
+    const taskPage = source('app/admin/projects/[projectId]/page.tsx');
 
     expect(employeeService).toMatch(/select\('id, full_name, title, status'\)/);
     expect(employeeService).not.toMatch(/select\([^)]*employee_id/);
@@ -68,10 +68,10 @@ describe('task load schema alignment', () => {
   });
 
   it('does not turn task load failures into an empty list or expose raw database text', () => {
-    const taskPage = source('app/admin/tasks/page.tsx');
+    const taskPage = source('app/admin/projects/[projectId]/page.tsx');
     const workflowService = source('services/workflowService.ts');
 
-    expect(taskPage).toMatch(/Không thể tải dữ liệu công việc\./);
+    expect(taskPage).toMatch(/task_load_failed/);
     expect(taskPage).not.toMatch(/showToast\('Lỗi tải dữ liệu', e\.message/);
     expect(workflowService).not.toMatch(/catch\s*\([^)]*\)\s*\{\s*return\s*\[\]/);
   });

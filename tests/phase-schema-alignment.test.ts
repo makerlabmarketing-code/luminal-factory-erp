@@ -69,7 +69,7 @@ describe('phase schema alignment', () => {
   });
 
   it('does not expose raw database errors in the task phase UI', () => {
-    const taskPage = source('app/admin/tasks/page.tsx');
+    const taskPage = source('app/admin/projects/[projectId]/page.tsx');
 
     expect(taskPage).toMatch(/Không thể lưu giai đoạn\./);
     expect(taskPage).not.toMatch(/Lỗi Lưu Trữ', err\.message/);
@@ -77,7 +77,7 @@ describe('phase schema alignment', () => {
   });
 
   it('keeps form state available for retry when phase save fails', () => {
-    const taskPage = source('app/admin/tasks/page.tsx');
+    const taskPage = source('app/admin/projects/page.tsx');
 
     expect(taskPage).toMatch(/setShowAddModal\(false\)/);
     expect(taskPage).toMatch(/catch \(error\)\s*\{\s*showToast\('Không thể tạo dự án\.', projectCreateErrorMessage\(error\), 'error'\);?\s*\}/);

@@ -53,19 +53,17 @@ describe('project creation orchestration and legacy task alignment', () => {
   });
 
   it('uses product language rather than technical rollout language', () => {
-    const taskPage = source('app/admin/tasks/page.tsx');
     const projectPage = source('app/admin/projects/page.tsx');
-    for (const page of [taskPage, projectPage]) {
+    for (const page of [projectPage]) {
       expect(page).not.toMatch(/Cần duyệt RPC giao dịch/);
       expect(page).toMatch(/Không thể khởi tạo đầy đủ quy trình/);
     }
   });
 
   it('keeps project failure messages distinct from phase and task child failures', () => {
-    const taskPage = source('app/admin/tasks/page.tsx');
     const projectPage = source('app/admin/projects/page.tsx');
 
-    for (const page of [taskPage, projectPage]) {
+    for (const page of [projectPage]) {
       expect(page).toMatch(/Không thể tạo dự án\./);
       expect(page).toMatch(/Không thể lưu giai đoạn\./);
     }

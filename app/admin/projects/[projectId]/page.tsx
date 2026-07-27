@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { notFound, useParams, useRouter } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
   Lock,
   MessageSquare,
   Pencil,
+  Plus,
   Save,
   UserPlus,
   Users,
@@ -336,7 +337,6 @@ function MemberMobileField({ label, value }: { label: string; value: string }) {
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
-  const router = useRouter();
   const { showToast, showConfirm } = useNotification();
   const projectId = Number(params.projectId);
   const [items, setItems] = useState<WorkflowSetting[]>([]);
@@ -346,6 +346,9 @@ export default function ProjectDetailPage() {
   const [editingTask, setEditingTask] = useState<TaskEditState | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+  const [memberLoadFailed, setMemberLoadFailed] = useState(false);
+  const [isCancellingProject, setIsCancellingProject] = useState(false);
   const [editingPhaseId, setEditingPhaseId] = useState<number | null>(null);
   const [editingPhaseName, setEditingPhaseName] = useState('');
   const [editingPhaseOrder, setEditingPhaseOrder] = useState('');
@@ -376,6 +379,12 @@ export default function ProjectDetailPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadFailed(false);
+    setForbidden(false);
+    setMemberLoadFailed(false);
+    if (!Number.isInteger(projectId) || projectId <= 0) {
+      setLoading(false);
+      return;
+    }
     try {
       const [workflowItems, membersResponse, tasksResponse] = await Promise.all([
         getWorkflowItems({ includeClosedProjects: true }),
@@ -387,7 +396,8 @@ export default function ProjectDetailPage() {
         const payload = await membersResponse.json() as { members?: ProjectMemberDTO[]; capabilities?: ProjectCapabilitiesDTO };
         setMembers(payload.members || []);
         if (payload.capabilities) setProjectCapabilities(payload.capabilities);
-      }
+      } else if (membersResponse.status === 403) setForbidden(true);
+      else setMemberLoadFailed(true);
       if (tasksResponse.ok) {
         const payload = await tasksResponse.json() as { tasks?: TaskAssignmentDTO[] };
         setProjectTasks(payload.tasks || []);
@@ -551,9 +561,7 @@ export default function ProjectDetailPage() {
     }
   }, [activePhase?.item.phase_id, selectedPhaseId]);
 
-  if (!Number.isInteger(projectId) || projectId <= 0) {
-    notFound();
-  }
+  const hasInvalidProjectId = !Number.isInteger(projectId) || projectId <= 0;
 
   if (!loading && !loadFailed && projectItems.length === 0) {
     notFound();
@@ -776,18 +784,30 @@ export default function ProjectDetailPage() {
   };
 
   const handleCancelProject = () => {
-    if (isProjectCancelled) return;
-    showConfirm('Hủy dự án', 'Dự án sẽ được đánh dấu hủy và giữ lại lịch sử.', async () => {
+    if (isProjectCancelled || isCancellingProject) return;
+    showConfirm('Huỷ dự án này?', 'Dự án sẽ ngừng hoạt động và chuyển sang chế độ chỉ đọc. Thành viên, giai đoạn và công việc vẫn được giữ lại trong lịch sử.', async () => {
+      setIsCancellingProject(true);
       try {
         await cancelWorkflowProject(projectId);
-        showToast('Đã hủy dự án.', 'Dự án không bị xóa khỏi dữ liệu.', 'info');
-        router.refresh();
-        await loadData();
+        setItems((currentItems) => currentItems.map((item) => {
+          if (item.project_id !== projectId) return item;
+          const description = parseDescription(item.description);
+          return { ...item, description: JSON.stringify({ ...description, project_status: 'CANCELLED' }) };
+        }));
+        showToast('Đã huỷ dự án', 'Dự án đã được chuyển sang trạng thái Đã huỷ và vẫn được lưu trong lịch sử.', 'success');
       } catch {
-        showToast('Không thể hủy dự án.', 'Vui lòng thử lại sau.', 'error');
+        showToast('Không thể huỷ dự án', 'Vui lòng thử lại sau.', 'error');
+      } finally {
+        setIsCancellingProject(false);
       }
-    });
+    }, { cancelLabel: 'Giữ dự án', confirmLabel: 'Xác nhận huỷ' });
   };
+
+  if (hasInvalidProjectId) {
+    return (
+      <div className="min-h-screen bg-slate-950 p-6 text-slate-100"><div className="mx-auto max-w-3xl py-20"><OperationalState tone="warning" title="Mã dự án không hợp lệ." description="Đường dẫn dự án phải chứa một mã số nguyên dương." action={<Link href="/admin/projects" className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white">Quay lại danh sách</Link>} /></div></div>
+    );
+  }
 
   if (loading) {
     return (
@@ -839,12 +859,16 @@ export default function ProjectDetailPage() {
     );
   }
 
+  if (forbidden) {
+    return <div className="min-h-screen bg-slate-950 p-6 text-slate-100"><div className="mx-auto max-w-3xl py-20"><OperationalState tone="warning" title="Bạn không có quyền xem dự án." description="Hãy liên hệ người quản lý dự án để được cấp quyền." action={<Link href="/admin/projects" className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white">Quay lại danh sách</Link>} /></div></div>;
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 p-4 text-slate-100 sm:p-6">
       <div className="mx-auto max-w-7xl space-y-5">
         <div className="flex flex-col gap-3 border-b border-slate-800 pb-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
-            <Link href="/admin/tasks" className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-white">
+            <Link href="/admin/projects" className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-white">
               <ArrowLeft className="h-3.5 w-3.5" /> Quay lại danh sách
             </Link>
             <div>
@@ -856,8 +880,14 @@ export default function ProjectDetailPage() {
             <span className={`rounded-lg border px-3 py-2 text-xs ${isProjectCancelled ? 'border-red-800 bg-red-950/40 text-red-200' : 'border-slate-700 text-slate-300'}`}>
               Trạng thái: {projectDetail.status || 'Chưa có dữ liệu'}
             </span>
-            <button type="button" disabled={isProjectCancelled} onClick={handleCancelProject} className="inline-flex items-center gap-2 rounded-lg border border-amber-800 bg-amber-950/40 px-3 py-2 text-xs font-bold text-amber-200 hover:bg-amber-900/40 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900 disabled:text-slate-500">
+            <button type="button" disabled={isProjectCancelled || isCancellingProject} onClick={handleCancelProject} className="inline-flex items-center gap-2 rounded-lg border border-amber-800 bg-amber-950/40 px-3 py-2 text-xs font-bold text-amber-200 hover:bg-amber-900/40 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900 disabled:text-slate-500">
               <Archive className="h-4 w-4" /> Hủy dự án
+            </button>
+            <button type="button" disabled={!canManageProject || isProjectCancelled} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold text-slate-200 disabled:cursor-not-allowed disabled:opacity-50" title="Cần cổng ghi giai đoạn được duyệt">
+              <Plus className="h-4 w-4" /> Thêm giai đoạn
+            </button>
+            <button type="button" disabled={!projectCapabilities.canManageTasks || isProjectCancelled || taskLoadBlocked} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500" title="Công việc luôn được tạo trong dự án và giai đoạn đã chọn">
+              <Plus className="h-4 w-4" /> Thêm công việc
             </button>
           </div>
         </div>
@@ -919,6 +949,10 @@ export default function ProjectDetailPage() {
           </section>
         )}
 
+        {memberLoadFailed && (
+          <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">Không thể tải thành viên dự án. Thông tin cốt lõi, giai đoạn và công việc khác vẫn có thể xem.</section>
+        )}
+
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-4">
             <section className="rounded-lg border border-slate-800 bg-slate-900">
@@ -978,7 +1012,7 @@ export default function ProjectDetailPage() {
 
 
             <section className="rounded-lg border border-slate-800 bg-slate-900">
-              <div className="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-cyan-300" />
@@ -1055,6 +1089,9 @@ export default function ProjectDetailPage() {
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">Thứ tự {selectedPhase.orderIndex} · Tạo lúc {formatDateTime(selectedPhase.description.phase_created_at)}</p>
                     </div>
+                    <button type="button" disabled={!projectCapabilities.canManageTasks || isProjectCancelled || selectedPhase.isLocked || taskLoadBlocked} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
+                      <Plus className="h-4 w-4" /> Thêm công việc vào giai đoạn
+                    </button>
                     <div className="flex flex-wrap gap-2">
                       {isPhaseReadonly(selectedPhase, canManageProject) && (
                         <span className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-400">

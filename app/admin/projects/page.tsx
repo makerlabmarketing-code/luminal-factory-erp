@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Activity,
   AlertTriangle,
@@ -304,6 +305,7 @@ export default function AdminProjectManagement() {
   const [employeeLoadState, setEmployeeLoadState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [workflowCreationAvailable, setWorkflowCreationAvailable] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [cancellingProjectId, setCancellingProjectId] = useState<number | null>(null);
   const [creationStage, setCreationStage] = useState('');
   const [taskDetails, setTaskDetails] = useState<Record<string, { employeeId: string; deadline: string; note: string }>>({});
   const [draftStages, setDraftStages] = useState<StageTemplate[]>(() => PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage) => ({ ...stage, taskNames: [...stage.taskNames] })));
@@ -439,17 +441,19 @@ export default function AdminProjectManagement() {
   };
 
   const handleCancelProject = (project: ProjectRecord) => {
-    if (!project.id) return;
-    showConfirm('Hủy dự án', `Dự án ${project.name} sẽ được đánh dấu hủy và giữ lại lịch sử.`, async () => {
+    if (!project.id || cancellingProjectId !== null) return;
+    showConfirm('Huỷ dự án này?', 'Dự án sẽ ngừng hoạt động và chuyển sang chế độ chỉ đọc. Thành viên, giai đoạn và công việc vẫn được giữ lại trong lịch sử.', async () => {
+      setCancellingProjectId(project.id ?? null);
       try {
         await cancelWorkflowProject(project.id as number);
         setItems((currentItems) => currentItems.filter((item) => item.project_id !== project.id));
-        await loadData();
-        showToast('Đã hủy dự án.', 'Dự án không bị xóa khỏi dữ liệu.', 'info');
+        showToast('Đã huỷ dự án', 'Dự án đã được chuyển sang trạng thái Đã huỷ và vẫn được lưu trong lịch sử.', 'success');
       } catch {
-        showToast('Không thể hủy dự án.', 'Vui lòng thử lại sau.', 'error');
+        showToast('Không thể huỷ dự án', 'Vui lòng thử lại sau.', 'error');
+      } finally {
+        setCancellingProjectId(null);
       }
-    });
+    }, { cancelLabel: 'Giữ dự án', confirmLabel: 'Xác nhận huỷ' });
   };
 
   if (loading) {
@@ -529,7 +533,9 @@ export default function AdminProjectManagement() {
                       onClick={() => setSelectedProjectKey(project.recordKey)}
                       className={`cursor-pointer hover:bg-slate-950/50 ${activeProject?.recordKey === project.recordKey ? 'bg-cyan-950/20' : ''}`}
                     >
-                      <td className="p-4 font-bold text-slate-100">{project.name}</td>
+                      <td className="p-4 font-bold text-slate-100">
+                        {project.id ? <Link href={`/admin/projects/${project.id}`} className="hover:text-cyan-300" onClick={(event) => event.stopPropagation()}>{project.name}</Link> : project.name}
+                      </td>
                       <td className="p-4 text-center font-mono text-cyan-300">{project.colorways.length}</td>
                       <td className="p-4 text-center font-mono text-red-300">{blockedCount}</td>
                       <td className="p-4">
@@ -541,7 +547,7 @@ export default function AdminProjectManagement() {
                       <td className="p-4 text-amber-300 font-mono">{project.targetDate || '-'}</td>
                       <td className="p-4 text-slate-300 max-w-xs truncate">{project.nextAction}</td>
                       <td className="p-4 text-center" onClick={(event) => event.stopPropagation()}>
-                        <button onClick={() => handleCancelProject(project)} className="text-slate-500 hover:text-red-300">
+                        <button aria-label={`Huỷ dự án ${project.name}`} disabled={cancellingProjectId !== null} onClick={() => handleCancelProject(project)} className="text-slate-500 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40">
                           <Archive className="w-4 h-4" />
                         </button>
                       </td>
@@ -624,6 +630,12 @@ export default function AdminProjectManagement() {
                 </div>
               </div>
             ))}
+
+            {activeProject?.id && (
+              <Link href={`/admin/projects/${activeProject.id}`} className="inline-flex w-full items-center justify-center rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500">
+                Quản lý chi tiết
+              </Link>
+            )}
 
             {!activeProject && <div className="text-sm text-slate-500 text-center py-12">Tạo dự án để bắt đầu theo dõi colorway.</div>}
           </div>

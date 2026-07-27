@@ -41,23 +41,19 @@ describe('project cancellation UI and active list contract', () => {
   it('loads active project lists with CANCELLED and ARCHIVED projects excluded', () => {
     const workflowService = source('services/workflowService.ts');
     const projectPage = source('app/admin/projects/page.tsx');
-    const taskPage = source('app/admin/tasks/page.tsx');
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
 
     expect(workflowService).toMatch(/CLOSED_PROJECT_STATUSES = new Set\(\['CANCELLED', 'ARCHIVED'\]\)/);
     expect(workflowService).toMatch(/allProjects\.filter\(\(project\) => !isClosedProjectStatus\(project\.status\)\)/);
     expect(workflowService).toMatch(/visibleLegacyTasks = includeClosedProjects/);
     expect(projectPage).toMatch(/getWorkflowItems\(\{ includeClosedProjects: false \}\)/);
-    expect(taskPage).toMatch(/getWorkflowItems\(\{ includeClosedProjects: false \}\)/);
     expect(detailPage).toMatch(/getWorkflowItems\(\{ includeClosedProjects: true \}\)/);
   });
 
   it('removes cancelled projects from active UI state before refresh completes', () => {
     const projectPage = source('app/admin/projects/page.tsx');
-    const taskPage = source('app/admin/tasks/page.tsx');
-
     expect(projectPage).toMatch(/setItems\(\(currentItems\) => currentItems\.filter\(\(item\) => item\.project_id !== project\.id\)\)/);
-    expect(taskPage).toMatch(/setTasks\(\(currentTasks\) => currentTasks\.filter\(\(item\) => item\.project_id !== targetProjectId\)\)/);
+    expect(projectPage).not.toMatch(/window\.location\.reload|await loadData\(\)[\s\S]{0,120}Đã huỷ dự án/);
   });
 
   it('locks project detail mutations when the project is CANCELLED', () => {
@@ -65,19 +61,17 @@ describe('project cancellation UI and active list contract', () => {
 
     expect(detailPage).toMatch(/isProjectCancelled = String\(firstDescription\.project_status \|\| ''\)\.toUpperCase\(\) === 'CANCELLED'/);
     expect(detailPage).toMatch(/const canManageProject = hasProjectMutationAccess && !isProjectCancelled/);
-    expect(detailPage).toMatch(/disabled=\{isProjectCancelled\}/);
+    expect(detailPage).toMatch(/disabled=\{isProjectCancelled \|\| isCancellingProject\}/);
     expect(detailPage).toMatch(/disabled=\{selectedPhase\.isLocked \|\| !canManageProject\}/);
     expect(detailPage).toMatch(/disabled=\{!canManageProject\}/);
-    expect(detailPage).toMatch(/if \(isProjectCancelled\) return/);
+    expect(detailPage).toMatch(/if \(isProjectCancelled \|\| isCancellingProject\) return/);
   });
 });
 
 describe('project list request waterfall guardrails', () => {
   it('keeps the project and task list pages free of unrelated staff, attendance, account, facility, and metadata fetches', () => {
     const projectPage = source('app/admin/projects/page.tsx');
-    const taskPage = source('app/admin/tasks/page.tsx');
-
-    for (const page of [projectPage, taskPage]) {
+    for (const page of [projectPage]) {
       expect(page).not.toMatch(/from\(['"]employees['"]\)|from\(['"]attendance['"]\)|from\(['"]accounts['"]\)|from\(['"]facilities['"]\)|from\(['"]system_metadata['"]\)/);
       expect(page).not.toMatch(/\/api\/admin\/attendance|\/api\/admin\/employees|\/api\/admin\/accounts/);
     }

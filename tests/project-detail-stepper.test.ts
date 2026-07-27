@@ -123,6 +123,6 @@ describe('project detail stepper and task assignee display', () => {
 
     expect(detailPage).toMatch(/notFound\(\)/);
     expect(detailPage).toMatch(/updateWorkflowPhase/);
-    expect(taskPage).toMatch(/href=\{`\/admin\/projects\/\$\{projectPhases\[0\]\.project_id\}`\}/);
+    expect(taskPage).toMatch(/redirect\(`\/admin\/projects/);
   });
 });
