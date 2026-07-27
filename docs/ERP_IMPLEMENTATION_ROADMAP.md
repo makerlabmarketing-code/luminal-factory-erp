@@ -1153,3 +1153,14 @@ Database impact: no live SQL, migration promotion, schema mutation beyond draft 
 Security impact: this is a security-hardening preparation step only. Staff own employee-profile access is tied to server-derived `auth.uid()`/`employees.auth_user_id` and `STAFF_WORKSPACE`; existing attendance own-row and admin permission policies are preserved. Production RLS changes remain gated until approved delivery through the Supabase GitHub Integration.
 
 Current gate: `LIVE_APPROVAL_REQUIRED` before promoting the reviewed forward SQL into `supabase/migrations/` or applying the own-row RLS package in production.
+
+## 2026-07-27 Production Architect sequential roadmap audit
+
+Status: `LIVE_APPROVAL_REQUIRED` at Phase 3 Project Workflow.
+
+- Phase 1 Project Membership remains complete: the server-owned role/capability matrix, add/change/revoke membership routes, Project Detail management UI, project/phase authorization integration, and Attendance independence regression boundary are present.
+- Phase 2 Task Assignment Foundation remains complete: normalized child-task CRUD, stable active-member assignment, deadline, comment, activity, validation, and legacy read-only fallback are wired and covered by the repository regression suite.
+- Phase 3 application/domain preparation is complete, including the server transition validator, status route, sequential dependency rules, completion/lock/unlock actions, audit contract, and forward/rollback/validation package. Durable phase status and audit-history persistence still requires the reviewed phase workflow migration/RLS/backfill package.
+- Sequential execution stops here before Phase 4 through Phase 6 because applying or promoting that production migration package requires explicit approval. No SQL, migration promotion, RLS change, backfill, deployment, or production data mutation was performed in this audit.
+
+Current gate: explicit production migration approval is required before Phase 3 durable persistence can be completed and the sequential roadmap may continue.
