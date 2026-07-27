@@ -41,6 +41,8 @@ export interface WorkflowDescription {
   stage_deadline?: string;
   next_action?: string;
   tasks_list?: WorkflowTask[];
+  phase_status_persistence_available?: boolean;
+  phase_status_mutation_available?: boolean;
 }
 
 export interface WorkflowSetting {
@@ -89,6 +91,8 @@ export interface WorkflowPhase {
   progress?: number | null;
   next_action?: string | null;
   required_review?: boolean | null;
+  status_persistence_available?: boolean;
+  status_mutation_available?: boolean;
   tasks?: WorkflowTask[];
 }
 

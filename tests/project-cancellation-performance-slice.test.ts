@@ -102,7 +102,9 @@ describe('project list request waterfall guardrails', () => {
     expect(repository).toMatch(/select\('id, project_name, drive_url, status, project_deadline, created_at'\)/);
     expect(repository).toMatch(/select\('id, project_name, drive_url, status, created_at'\)/);
     expect(repository).toMatch(/select\('id, project_name, assigned_to, current_phase, estimation_date, issue_note, packer_assigned, created_at'\)/);
-    expect(phaseMutations).toMatch(/select\('id, project_id, name, order_index, created_at, status, colorway_name/);
+    expect(phaseMutations).toMatch(/phaseColumns = capabilities\.statusPersistenceAvailable/);
+    expect(phaseMutations).toMatch(/'id, project_id, name, order_index, created_at, status, colorway_name/);
+    expect(phaseMutations).toMatch(/'id, project_id, name, order_index, created_at'/);
     expect(`${repository}\n${phaseMutations}`).not.toMatch(/select\('\*'\)|select\("\*"\)/);
   });
 });

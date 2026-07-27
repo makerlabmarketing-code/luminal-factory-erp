@@ -89,7 +89,7 @@ export function normalizeProjectRow(row: GenericRow): WorkflowProject | null {
 }
 
 export function normalizePhaseRow(row: GenericRow): WorkflowPhase | null {
-  assertKnownFields(row, ['id', 'project_id', 'name', 'order_index', 'created_at', 'status', 'colorway_name', 'colorway_code', 'stage_type', 'stage_owner', 'planned_start_date', 'planned_end_date', 'actual_start_date', 'actual_end_date', 'progress', 'next_action', 'required_review'], 'phase_row');
+  assertKnownFields(row, ['id', 'project_id', 'name', 'order_index', 'created_at', 'status', 'colorway_name', 'colorway_code', 'stage_type', 'stage_owner', 'planned_start_date', 'planned_end_date', 'actual_start_date', 'actual_end_date', 'progress', 'next_action', 'required_review', 'status_persistence_available', 'status_mutation_available'], 'phase_row');
 
   const id = pickFirstNumber(row, ['id']);
   const projectId = pickFirstNumber(row, ['project_id']);
@@ -113,6 +113,8 @@ export function normalizePhaseRow(row: GenericRow): WorkflowPhase | null {
     progress: pickFirstNumber(row, ['progress']),
     next_action: pickFirstText(row, ['next_action']) || null,
     required_review: typeof row.required_review === 'boolean' ? row.required_review : null,
+    status_persistence_available: row.status_persistence_available === true,
+    status_mutation_available: row.status_mutation_available === true,
   };
 }
 

@@ -38,5 +38,29 @@ with checks as (
              and tablename = 'phase_status_history'
              and policyname = 'phase status history project view select'
          )
+  union all
+  select 'transition_rpc_exists',
+         to_regprocedure('public.transition_project_phase_status(bigint,bigint,bigint,text,text,text,text,text,boolean)') is not null
+  union all
+  select 'transition_rpc_not_browser_callable',
+         not has_function_privilege('anon', 'public.transition_project_phase_status(bigint,bigint,bigint,text,text,text,text,text,boolean)', 'EXECUTE')
+         and not has_function_privilege('authenticated', 'public.transition_project_phase_status(bigint,bigint,bigint,text,text,text,text,text,boolean)', 'EXECUTE')
+  union all
+  select 'no_history_browser_mutation_policy',
+         not exists (
+           select 1 from pg_policies
+           where schemaname = 'public'
+             and tablename = 'phase_status_history'
+             and cmd in ('ALL', 'INSERT', 'UPDATE', 'DELETE')
+         )
 )
 select * from checks order by check_name;
+
+select
+  (select count(*) from public.phases) as phase_row_count,
+  (select count(*) from public.phase_status_history) as phase_history_row_count,
+  count(*) filter (where status = 'ACTIVE') as active_count,
+  count(*) filter (where status = 'LOCKED') as locked_count,
+  count(*) filter (where status = 'COMPLETED') as completed_count,
+  count(*) filter (where status in ('BLOCKED', 'REVIEW', 'CANCELLED')) as other_supported_count
+from public.phases;

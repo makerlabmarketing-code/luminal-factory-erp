@@ -111,6 +111,8 @@ function toWorkflowSetting(project: WorkflowProject, phase: WorkflowPhase): Work
         note: task.note || '',
         status: task.status || 'TODO',
       })),
+      phase_status_persistence_available: phase.status_persistence_available === true,
+      phase_status_mutation_available: phase.status_mutation_available === true,
     }),
   };
 }
