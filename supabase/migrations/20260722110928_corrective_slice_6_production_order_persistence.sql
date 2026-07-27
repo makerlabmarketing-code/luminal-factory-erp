@@ -508,7 +508,7 @@ select
   po.production_code,
   po.display_name,
   po.project_id,
-  p.name as project_name,
+  p.project_name as project_name,
   po.product_or_collection,
   po.colorway,
   po.planned_quantity,

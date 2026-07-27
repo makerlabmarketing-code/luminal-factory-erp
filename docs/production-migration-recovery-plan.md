@@ -3,13 +3,14 @@
 ## Verified State
 
 - Production project: `kwfmfmpgpbfewpiizesv`.
-- Remote migration history is missing local versions `20260704153000`, `20260709110000`, `20260722110928`, `20260723120000`, and `20260727044729`.
+- Remote migration history has applied local versions `20260704153000` and `20260709110000`.
+- Remote migration history is still missing local versions `20260722110928`, `20260723120000`, and `20260727044729`.
 - Production already has `public.projects`, `public.phases`, and `public.tasks`.
-- Production `public.phases` does not have the colorway/stage columns from `20260709110000`.
 - Production `public.phases` does not have `status`, `completed_at`, `updated_at`, or `updated_by_employee_id`.
 - Production does not have `public.phase_status_history` or `public.transition_project_phase_status(...)`.
-- Production does not have the production-order persistence tables from `20260722110928`.
+- Production has production-order persistence objects from the partially failed `20260722110928` attempt, but the migration version is not recorded remotely.
 - Production `public.facilities` does not have `code` or `is_active`.
+- The main-branch Supabase check for commit `8848a008c33956dcab49bef02f74b8b2c8cb6df8` failed inside `20260722110928` while creating `public.production_order_list_view`: the view selected `p.name`, but live `public.projects` uses `project_name`.
 
 ## Recovery Design
 
@@ -17,7 +18,7 @@
 
 `20260709110000` remains the required additive migration for phase colorway/stage fields. It is safe only after the obsolete `20260704153000` payload has been removed from the production execution path.
 
-`20260722110928` remains required for production-order persistence. The recovery patch hardens policy creation and the `production_orders_current_stage_fkey` constraint so the migration is safer after partial retries.
+`20260722110928` remains required for production-order persistence. The recovery patch hardens policy creation and the `production_orders_current_stage_fkey` constraint so the migration is safer after partial retries. Its compatibility view must read `public.projects.project_name`; `public.projects.name` is not part of the live production contract.
 
 `20260723120000` remains required for facility stable codes and active-state filtering. The recovery patch adds an in-transaction duplicate-code preflight before backfilling `facilities.code`.
 
