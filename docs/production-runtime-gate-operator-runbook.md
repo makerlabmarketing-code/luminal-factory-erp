@@ -97,7 +97,7 @@ psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20
 psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/validation/20260715073600_attendance_recovery_rls_validation.sql
 ```
 
-Expected: both tables/functions exist; own-row and Admin permission policies match the package. Disabled smoke: normal Staff check-in/out/history works, Admin list works, only recovery controls remain disabled. Enabled smoke: `ATTENDANCE_MANAGE` can create/update/delete a repair; view-only, Staff cross-employee, disconnected, and inactive fixtures fail safely. Roll back on own-row regression or authorization bypass using `supabase/rollbacks/20260715073600_attendance_recovery_rls_rollback.sql` after disabling the flag.
+Expected: both tables/functions exist; own-row and Admin permission policies match the package. Disabled smoke: normal Staff access, check-in/out, current open shift, prior-date stale-shift warning, monthly history, assigned-facility label, loading, controlled failure and in-page Retry work without Project Membership; repeated taps create only one request; Admin list works and only recovery controls remain disabled. Enabled smoke: `ATTENDANCE_MANAGE` can create/update/delete a repair; view-only, Staff cross-employee, disconnected, and inactive fixtures fail safely. Roll back on own-row regression or authorization bypass using `supabase/rollbacks/20260715073600_attendance_recovery_rls_rollback.sql` after disabling the flag.
 
 ### 4.3 Phase Workflow foundation
 
