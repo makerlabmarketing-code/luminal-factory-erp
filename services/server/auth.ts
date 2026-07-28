@@ -66,6 +66,11 @@ export type AuthFlowErrorCode =
   | 'phase_unauthenticated'
   | 'phase_permission_denied'
   | 'project_not_found'
+  | 'employee_not_connected'
+  | 'project_membership_required'
+  | 'project_forbidden'
+  | 'membership_lookup_failed'
+  | 'project_authorization_failed'
   | 'phase_not_found'
   | 'project_cancelled'
   | 'phase_project_mismatch'
@@ -251,6 +256,20 @@ async function lookupPermissionAccess(
   const hasAllow = activeRows.some((row) => row.effect === 'ALLOW');
 
   return { ok: true, hasAccess: !hasDeny && hasAllow };
+}
+
+export async function checkWorkspaceAccess(
+  authContext: AuthContext,
+  workspaceCode: WorkspaceCode
+) {
+  return lookupWorkspaceAccess(authContext, workspaceCode);
+}
+
+export async function checkPermissionAccess(
+  authContext: AuthContext,
+  permissionCode: string
+) {
+  return lookupPermissionAccess(authContext, permissionCode);
 }
 
 export async function hasWorkspaceAccess(

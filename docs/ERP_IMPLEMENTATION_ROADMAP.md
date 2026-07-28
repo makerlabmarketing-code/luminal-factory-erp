@@ -1269,3 +1269,12 @@ Status: ✅ application-only regression repair complete; `PRODUCTION_READ_ACCESS
 - Employee Detail loads core employee data first. Facility, Auth, workspace, permission, and project-membership failures produce partial-profile warnings rather than blanking the profile; invalid ID, not found, forbidden, and core failure remain distinct, with a local Retry for retryable core failures.
 - Added the exact transaction-read-only Codespaces audit at `supabase/validation/20260727_facility_employee_compatibility_audit.sql` and the contract/reconciliation report at `docs/facility-employee-production-compatibility.md`.
 - No SQL was executed, no database push was run, and no production facility, employee, Auth, permission, RLS, or attendance data was mutated. Phase Workflow remains `LIVE_APPROVAL_REQUIRED` and was not restarted.
+
+## 2026-07-28 Project Membership authorization stabilization
+
+Status: ✅ application-only authorization stabilization complete; no SQL, deployment, or live mutation performed.
+
+- Project authorization now preserves separate outcomes for unauthenticated sessions, disconnected employees, inactive employees, missing membership, forbidden actions, membership lookup failures, authorization dependency failures, and missing projects.
+- Workspace and permission lookup failures fail closed as retryable authorization failures instead of being converted into a false forbidden result. The global administrator override remains server-derived, and cancelled projects retain read-only capabilities.
+- Project API responses no longer expose Supabase error codes. Project Detail continues to render its core response before independently loading phases, tasks, and members.
+- Attendance authorization remains independent from Project Membership. No schema, RLS, RPC, permission, membership, or attendance data was changed.
