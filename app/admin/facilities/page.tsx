@@ -160,7 +160,7 @@ export default function AdminFacilitiesManagement() {
         <button onClick={handleOpenAdd} disabled={!canManageFacilities} className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shadow-lg disabled:cursor-not-allowed disabled:opacity-50"><Plus className="w-4 h-4" /> Thêm Cơ Sở Mới</button>
       </div>
 
-      {!canManageFacilities && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">Chức năng cập nhật cơ sở đang tạm thời chưa khả dụng.</p>}
+      {!canManageFacilities && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">Chức năng cập nhật cơ sở đang chờ kích hoạt.</p>}
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <table className="w-full text-left text-xs text-slate-300">

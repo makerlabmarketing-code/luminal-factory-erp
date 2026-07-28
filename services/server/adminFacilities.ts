@@ -41,6 +41,17 @@ function isFacilityActiveStateEnabled() {
   return process.env.FACILITY_ACTIVE_STATE_ENABLED === 'true';
 }
 
+function assertFacilityMutationEnabled() {
+  if (!isFacilityActiveStateEnabled()) {
+    throw new AuthFlowError({
+      status: 503,
+      code: 'facility_schema_unavailable',
+      message: 'Chức năng cập nhật cơ sở đang chờ kích hoạt.',
+      failureStage: 'persistence',
+    });
+  }
+}
+
 function getFacilitySelect() {
   return isFacilityActiveStateEnabled() ? ACTIVE_FACILITY_SELECT : BASE_FACILITY_SELECT;
 }
@@ -184,6 +195,7 @@ export async function listAdminFacilities() {
 
 export async function createAdminFacility(body: Record<string, unknown>) {
   await requireFacilityManage();
+  assertFacilityMutationEnabled();
   const payload = parseFacilityPayload(body);
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -206,6 +218,7 @@ export async function createAdminFacility(body: Record<string, unknown>) {
 
 export async function updateAdminFacility(body: Record<string, unknown>) {
   await requireFacilityManage();
+  assertFacilityMutationEnabled();
   const facilityId = parseFacilityId(body.id);
   const payload = parseFacilityPayload(body);
   const supabase = await createClient();
@@ -230,6 +243,7 @@ export async function updateAdminFacility(body: Record<string, unknown>) {
 
 export async function deleteAdminFacility(body: Record<string, unknown>) {
   await requireFacilityManage();
+  assertFacilityMutationEnabled();
   const facilityId = parseFacilityId(body.id);
   const supabase = await createClient();
   const { error } = await supabase.from('facilities').delete().eq('id', facilityId);

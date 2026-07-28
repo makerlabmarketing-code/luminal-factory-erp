@@ -4,7 +4,8 @@ select jsonb_build_object(
     'args', pg_get_function_identity_arguments(p.oid),
     'security_definer', p.prosecdef,
     'anon_exec', has_function_privilege('anon','public.create_project_atomic(jsonb)','execute'),
-    'authenticated_exec', has_function_privilege('authenticated','public.create_project_atomic(jsonb)','execute')
+    'authenticated_exec', has_function_privilege('authenticated','public.create_project_atomic(jsonb)','execute'),
+    'service_role_exec', has_function_privilege('service_role','public.create_project_atomic(jsonb)','execute')
   )) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_project_atomic'),
   'project_code_column', exists(select 1 from information_schema.columns where table_schema='public' and table_name='projects' and column_name='project_code' and is_nullable='NO'),
   'project_code_unique_index', exists(select 1 from pg_indexes where schemaname='public' and tablename='projects' and indexname='projects_project_code_unique_idx'),

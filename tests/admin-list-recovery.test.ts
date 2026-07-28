@@ -34,7 +34,7 @@ describe('admin list production recovery boundaries', () => {
     expect(directory).toContain('if (!isKnownMissingFacilityColumn(current.error))');
     expect(directory).toContain('LEGACY_FACILITY_SELECT');
     expect(directory).toContain("code: (row.code || '').trim()");
-    expect(page).toContain('Chức năng cập nhật cơ sở đang tạm thời chưa khả dụng.');
+    expect(page).toContain('Chức năng cập nhật cơ sở đang chờ kích hoạt.');
     expect(page).toContain("result.code === 'facility_schema_unavailable'");
     expect(page).toContain("b.address || 'Chưa cập nhật'");
   });

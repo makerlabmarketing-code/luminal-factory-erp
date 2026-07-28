@@ -66,3 +66,9 @@ Stop and roll back or leave the relevant runtime flag disabled when object/const
 The functional stabilization audit does not change package order or authorize execution. `docs/core-erp-functional-stabilization-report.md` is the current journey-level readiness record. Keep every listed server runtime gate false/unset until its existing pre-run, forward delivery, post-run, authorization, RLS, regression, and smoke-test prerequisites report PASS.
 
 Broad SaaS UI re-skin remains blocked until Account/Permissions, Facility, Attendance, Phase Workflow, Child Task create, Comments/Activity, Ledger, and Payroll rows in that report are ready. Payroll still has no approved runnable package; Ledger/reimbursement/storage remains blocked on the recorded finance business decisions.
+
+## Runtime gate operator-readiness addendum (2026-07-28)
+
+`docs/runtime-gate-activation-matrix.md` now owns the seven-gate artifact inventory and authoritative dependency graph. `docs/production-runtime-gate-operator-runbook.md` owns exact execution, smoke, flag, monitoring, and rollback steps. The audit added read-only pre-run files for phase status, project atomic create, and Attendance recovery; a project atomic post-run privilege check; and hardened `create_project_atomic(jsonb)` to service-role execution only.
+
+The authoritative graph has independent Facility/Attendance and Project Workflow roots. Within Project Workflow, Phase foundation precedes phase status and comments/activity; comments/activity precedes both atomic-create RPC gates. The two create gates are siblings. No SQL/RPC was executed and every flag remains false/unset.

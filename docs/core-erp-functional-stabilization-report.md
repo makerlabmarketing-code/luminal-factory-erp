@@ -1,7 +1,7 @@
 # Core ERP Functional Stabilization Report
 
-**Audit date:** 2026-07-28  
-**Decision:** `BLOCKED_FOR_SAAS_UI_RESKIN`  
+**Audit date:** 2026-07-28
+**Decision:** `BLOCKED_FOR_SAAS_UI_RESKIN`
 **Scope:** application behavior and repository-owned operator artifacts only. No GitHub comments were reviewed, no SQL/RPC was executed, no runtime flag was enabled, and nothing was deployed or merged.
 
 ## Journey status matrix
@@ -64,3 +64,31 @@ Core application routes build and the audited functional journeys fail safely, b
 **Description:**
 
 > Audits the thirteen primary ERP journeys before any broad SaaS visual redesign. Stabilizes ledger retry and duplicate-submit behavior, replaces the Dashboard full-page retry with an in-app refresh, adds regression coverage, records per-journey classifications, and reconciles the roadmap/operator handoff with exact runtime and SQL/RPC prerequisites. No GitHub review comments, production SQL, runtime flag activation, deployment, or merge is included.
+
+## Runtime gate readiness reconciliation (2026-07-28)
+
+All seven remaining runtime packages are repository-complete for operator handoff. `READY_FOR_OPERATOR` and `LIVE_OPERATOR_VERIFICATION_REQUIRED` are package states, not proof of live activation. No flag was enabled.
+
+### Focused functional regression classification
+
+| Area | Classification | Evidence boundary |
+|---|---|---|
+| Authentication | FUNCTIONAL | Session, active employee, callback/login/logout/reset regression coverage passes. |
+| Role routing | FUNCTIONAL | Admin/Staff/dual workspace and legacy portal route contracts are covered; live fixtures remain operator smoke work. |
+| Employee list/detail | FUNCTIONAL | Core rows and partial enrichment/error states remain covered. |
+| Account/workspace | LIVE_OPERATOR_VERIFICATION_REQUIRED | Server authorization is functional; live permission catalog and account fixtures remain. |
+| Facility | RUNTIME_FLAG_DISABLED | Directory is readable; mutations are server-gated and disabled UI uses the approved waiting copy. |
+| Attendance | FUNCTIONAL_READ_ONLY | Normal Staff Attendance remains functional; Admin recovery alone is disabled pending Facility/RLS verification. |
+| Project creation | FUNCTIONAL | Basic project and manager membership persist without faking phase/task persistence; full atomic workflow is flag-disabled. |
+| Project detail | FUNCTIONAL_READ_ONLY | Core detail, memberships, phase/task display and targeted retry remain; gated mutations stay controlled. |
+| Membership | FUNCTIONAL | Stable employee IDs, ACTIVE membership and server permissions remain covered. |
+| Phase display | FUNCTIONAL_READ_ONLY | Phase display remains available while persistence/status flags are false. |
+| Task display | FUNCTIONAL_READ_ONLY | Existing tasks remain readable/editable within existing capabilities; atomic child-task create is disabled. |
+| Comments/activity display | RUNTIME_FLAG_DISABLED | Exact waiting copy replaces mutation/timeline capability without a fake empty state. |
+| Ledger | LIVE_OPERATOR_VERIFICATION_REQUIRED | Existing behavior is covered; live CRUD/RLS fixture and separate finance decisions remain. |
+| Payroll | BLOCKED_BY_BUSINESS_DECISION | Calculations remain functional; official settlement contract is not approved. |
+| Dashboard | FUNCTIONAL | Paid-ledger DTO/error/retry behavior remains covered; live data fixture remains an operator smoke check. |
+
+### SaaS UI re-skin decision
+
+`PARTIALLY_SAFE`. Authentication, employee, project-list/core-detail, membership, and dashboard surfaces classified `FUNCTIONAL` can be scoped for later design work. Broad re-skin execution remains deferred because operational gate activation, Account/Workspace live verification, Ledger live verification, and Payroll business decisions are incomplete. This readiness slice does not reopen or redesign stabilized UI.
