@@ -26,6 +26,7 @@ import type {
   EmployeeListItem,
 } from '@/services/server/adminEmployeeData';
 import { AdminListRequestError, useAdminListData, type AdminListErrorCode } from '@/hooks/useAdminListData';
+import { accountConnectionExplanations, accountConnectionLabels } from '@/lib/accountConnection';
 
 interface EmployeeFormState {
   employeeId: string | null;
@@ -44,17 +45,7 @@ interface ApiActionResponse {
 
 const legacyInviteCopyForRegression = 'Gửi lời mời';
 
-const accountStatusLabels: Record<AccountConnectionStatus, string> = {
-  NOT_CONNECTED: 'Chưa kết nối',
-  MISSING_EMAIL: 'Thiếu email',
-  INVITED: 'Đã gửi lời mời',
-  PENDING_PASSWORD: 'Chờ đặt mật khẩu',
-  CONNECTED: 'Đã kết nối',
-  INVITE_ERROR: 'Lời mời lỗi',
-  INVITE_EXPIRED: 'Lời mời hết hạn',
-  ACCESS_REVOKED: 'Đã thu hồi quyền',
-  LINK_ERROR: 'Lỗi liên kết',
-};
+const accountStatusLabels = accountConnectionLabels;
 
 const statusClassNames: Record<AccountConnectionStatus, string> = {
   NOT_CONNECTED: 'border-slate-700 bg-slate-950 text-slate-300',
@@ -65,7 +56,11 @@ const statusClassNames: Record<AccountConnectionStatus, string> = {
   INVITE_ERROR: 'border-red-500/30 bg-red-500/10 text-red-300',
   INVITE_EXPIRED: 'border-orange-500/30 bg-orange-500/10 text-orange-300',
   ACCESS_REVOKED: 'border-slate-600 bg-slate-900 text-slate-400',
-  LINK_ERROR: 'border-red-500/30 bg-red-500/10 text-red-300',
+  AUTH_USER_MISSING: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+  AUTH_LOOKUP_FAILED: 'border-slate-600 bg-slate-900 text-slate-300',
+  AUTH_EMAIL_MISMATCH: 'border-orange-500/30 bg-orange-500/10 text-orange-300',
+  DUPLICATE_AUTH_MAPPING: 'border-red-500/30 bg-red-500/10 text-red-300',
+  EMPLOYEE_INACTIVE: 'border-slate-600 bg-slate-900 text-slate-400',
 };
 
 const emptyForm: EmployeeFormState = {
@@ -216,7 +211,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
       email: employee.email || '',
       title: employee.title || '',
       department:
-        employeeData.facilities.find((facility) => facility.name === employee.facilityName)?.code || '',
+        employee.facilityCode || '',
       phone: 'phone' in employee && typeof employee.phone === 'string' ? employee.phone : '',
       employmentStatus: employee.employmentStatus || 'ACTIVE',
     });
@@ -380,11 +375,19 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                             {employee.employmentStatus === 'ACTIVE' ? 'Đang làm' : 'Ngừng hoạt động'}
                           </span>
                         </td>
-                        <td className="p-4 text-slate-400">{employee.facilityName || 'Chưa gán'}</td>
+                        <td className="p-4 text-slate-400">
+                          <span>{employee.facilityDisplayName}</span>
+                          {employee.facilityCode && employee.facilityCode !== employee.facilityDisplayName && (
+                            <span className="mt-1 block font-mono text-[9px] text-slate-500">{employee.facilityCode}</span>
+                          )}
+                          {(employee.facilityResolutionStatus === 'unresolved_legacy' || employee.facilityResolutionStatus === 'enrichment_failed') && (
+                            <span className="mt-1 block text-[9px] text-amber-300" title="Giá trị cơ sở cũ chưa khớp với danh mục cơ sở hiện tại.">⚠ Chưa đối chiếu được cơ sở</span>
+                          )}
+                        </td>
                         <td className="p-4">
                           <div className="space-y-2">
                             <p className="font-mono text-[10px] text-slate-400">{employee.email || 'Chưa có email'}</p>
-                            <span className={`inline-flex items-center rounded border px-2.5 py-1 text-[10px] font-bold ${statusClassNames[employee.accountConnectionStatus]}`}>
+                            <span title={accountConnectionExplanations[employee.accountConnectionStatus]} className={`inline-flex items-center rounded border px-2.5 py-1 text-[10px] font-bold ${statusClassNames[employee.accountConnectionStatus]}`}>
                               {accountStatusLabels[employee.accountConnectionStatus]}
                             </span>
                           </div>

@@ -87,17 +87,18 @@ describe('employee admin list and account actions slice', () => {
 
   it('renders account status labels and account actions from DTO state', () => {
     const clientSource = source('app/admin/employees/AdminEmployeesClient.tsx');
+    const accountContractSource = source('lib/accountConnection.ts');
 
     expect(clientSource).toMatch(/Tài khoản hệ thống/);
-    expect(clientSource).toMatch(/Chưa kết nối/);
-    expect(clientSource).toMatch(/Thiếu email/);
-    expect(clientSource).toMatch(/Đã gửi lời mời/);
-    expect(clientSource).toMatch(/Chờ đặt mật khẩu/);
-    expect(clientSource).toMatch(/Đã kết nối/);
-    expect(clientSource).toMatch(/Lời mời lỗi/);
-    expect(clientSource).toMatch(/Lời mời hết hạn/);
-    expect(clientSource).toMatch(/Đã thu hồi quyền/);
-    expect(clientSource).toMatch(/Lỗi liên kết/);
+    expect(accountContractSource).toMatch(/Chưa kết nối/);
+    expect(accountContractSource).toMatch(/Thiếu email/);
+    expect(accountContractSource).toMatch(/Đã gửi lời mời/);
+    expect(accountContractSource).toMatch(/Chờ đặt mật khẩu/);
+    expect(accountContractSource).toMatch(/Đã kết nối/);
+    expect(accountContractSource).toMatch(/Không tìm thấy tài khoản/);
+    expect(accountContractSource).toMatch(/Email tài khoản không khớp/);
+    expect(accountContractSource).toMatch(/Chưa tải được trạng thái tài khoản/);
+    expect(accountContractSource).toMatch(/Lỗi liên kết/);
     expect(clientSource).toMatch(/Gửi lời mời/);
     expect(clientSource).toMatch(/Cập nhật email/);
     expect(clientSource).toMatch(/Gửi lại lời mời/);

@@ -15,15 +15,17 @@ function jsonNoStore(body: unknown, init?: ResponseInit) {
 }
 
 function toErrorResponse(error: unknown) {
+  const correlationId = crypto.randomUUID();
   if (error instanceof AuthFlowError) {
+    const code = error.status === 403 ? 'facility_forbidden' : error.code;
     return jsonNoStore(
-      { success: false, message: error.message, code: error.code, failureStage: error.failureStage },
+      { success: false, message: error.message, code, failureStage: error.failureStage, retryable: error.status >= 500, correlationId },
       { status: error.status }
     );
   }
 
   return jsonNoStore(
-    { success: false, message: 'Không thể xử lý cơ sở làm việc.', code: 'facility_unhandled_failure', failureStage: 'unknown' },
+    { success: false, message: 'Không thể xử lý cơ sở làm việc.', code: 'facility_list_load_failed', failureStage: 'unknown', retryable: true, correlationId },
     { status: 500 }
   );
 }

@@ -71,13 +71,14 @@ describe('corrective slice 2 employee profile and account lifecycle', () => {
     const createRoute = source('app/api/admin/employees/route.ts');
     const updateRoute = source('app/api/admin/employees/[id]/route.ts');
     const client = source('app/admin/employees/AdminEmployeesClient.tsx');
+    const accountContract = source('lib/accountConnection.ts');
 
     expect(`${createRoute}${updateRoute}`).toMatch(/code: error\.code/);
     expect(`${createRoute}${updateRoute}`).toMatch(/failureStage: error\.failureStage/);
     expect(`${createRoute}${updateRoute}`).toMatch(/employee_unhandled_failure/);
     expect(`${createRoute}${updateRoute}`).not.toMatch(/JSON\.stringify\(error\)|supabase|postgres|PostgreSQL/);
     expect(client).toMatch(/Mời sử dụng hệ thống/);
-    expect(client).toMatch(/Chưa kết nối/);
+    expect(accountContract).toMatch(/Chưa kết nối/);
     expect(client).toMatch(/refreshPage\(\)/);
     expect(client).toMatch(/savingEmployee/);
     expect(client).toMatch(/activeActionKey/);

@@ -34,16 +34,16 @@ export interface FacilityDirectoryResult {
   canPersistStatusAndCode: boolean;
 }
 
-function isKnownMissingColumn(error: { code?: string | null; message?: string | null }): boolean {
+export function isKnownMissingFacilityColumn(error: { code?: string | null; message?: string | null }): boolean {
   if (error.code === '42703' || error.code === 'PGRST204') return true;
   const message = (error.message || '').toLowerCase();
   return message.includes('column') && (message.includes('code') || message.includes('is_active')) && message.includes('does not exist');
 }
 
-function toDirectoryItem(row: FacilityRow): FacilityDirectoryItem {
+export function toFacilityDirectoryItem(row: FacilityRow): FacilityDirectoryItem {
   return {
     id: String(row.id),
-    code: (row.code || String(row.id)).trim(),
+    code: (row.code || '').trim(),
     name: (row.facility_name || 'Chưa đặt tên').trim(),
     address: row.address || null,
     lat: row.lat ?? null,
@@ -62,10 +62,10 @@ export const getFacilityDirectoryResult = cache(async (): Promise<FacilityDirect
     .order('facility_name', { ascending: true });
 
   if (!current.error) {
-    return { facilities: ((current.data || []) as unknown as FacilityRow[]).map(toDirectoryItem), canPersistStatusAndCode: true };
+    return { facilities: ((current.data || []) as unknown as FacilityRow[]).map(toFacilityDirectoryItem), canPersistStatusAndCode: true };
   }
 
-  if (!isKnownMissingColumn(current.error)) {
+  if (!isKnownMissingFacilityColumn(current.error)) {
     throw new AuthFlowError({
       status: 500,
       code: 'facility_list_load_failed',
@@ -84,7 +84,7 @@ export const getFacilityDirectoryResult = cache(async (): Promise<FacilityDirect
     throw new AuthFlowError({ status: 500, code: 'facility_schema_unavailable', message: 'Không thể tải danh sách cơ sở làm việc.', failureStage: 'persistence', safeDetails: { supabase_error_code: legacy.error.code || 'unknown' } });
   }
 
-  return { facilities: ((legacy.data || []) as unknown as FacilityRow[]).map(toDirectoryItem), canPersistStatusAndCode: false };
+  return { facilities: ((legacy.data || []) as unknown as FacilityRow[]).map(toFacilityDirectoryItem), canPersistStatusAndCode: false };
 });
 
 export const getFacilityDirectory = cache(async () => (await getFacilityDirectoryResult()).facilities);

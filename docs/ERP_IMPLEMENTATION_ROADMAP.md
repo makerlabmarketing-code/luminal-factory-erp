@@ -1258,3 +1258,14 @@ Status: application-only facility recovery PASS. The server first reads the appr
 ## 2026-07-27 Admin list-state recovery
 
 Status: application-only list-state standardization PASS for Employee, Account, and Facility. A focused shared hook owns local initial loading, background refresh, timeout, AbortController cleanup, stale-response rejection, and initial-request deduplication. Each list retains the admin shell and retries only its own API; no browser reload or broad router refresh remains in these list paths. No SQL, deployment, or live mutation was performed.
+
+## 2026-07-27 Production facility/employee compatibility repair
+
+Status: ✅ application-only regression repair complete; `PRODUCTION_READ_ACCESS_UNAVAILABLE` for the live audit in this Cloud environment.
+
+- Facility directory now preserves the machine error code, retries the legacy projection only for confirmed missing-column errors, does not invent numeric stable codes for legacy rows, displays nullable fields as `Chưa cập nhật`, and capability-gates status and mutations.
+- Employee list uses one server-owned facility resolver for facility ID, stable code, name, empty, unresolved legacy, and enrichment-failure states. Unresolved numeric IDs are not shown to normal users.
+- Employee account enrichment remains one paginated Auth batch and distinguishes connected, missing Auth user, temporary Auth lookup failure, email mismatch, duplicate mapping, inactive employee, and revoked access. `Lỗi liên kết` is reserved for confirmed duplicate mappings.
+- Employee Detail loads core employee data first. Facility, Auth, workspace, permission, and project-membership failures produce partial-profile warnings rather than blanking the profile; invalid ID, not found, forbidden, and core failure remain distinct, with a local Retry for retryable core failures.
+- Added the exact transaction-read-only Codespaces audit at `supabase/validation/20260727_facility_employee_compatibility_audit.sql` and the contract/reconciliation report at `docs/facility-employee-production-compatibility.md`.
+- No SQL was executed, no database push was run, and no production facility, employee, Auth, permission, RLS, or attendance data was mutated. Phase Workflow remains `LIVE_APPROVAL_REQUIRED` and was not restarted.
