@@ -79,13 +79,27 @@ describe('staff attendance portal regression contract', () => {
     const loading = source('component/GlobalLoading.tsx');
 
     expect(client).toMatch(/const \[submitting, setSubmitting\] = useState\(false\)/);
-    expect(client).toMatch(/if \(submitting\) return/);
+    expect(client).toMatch(/const submitLockRef = useRef\(false\)/);
+    expect(client).toMatch(/if \(submitLockRef\.current\) return/);
+    expect(client).toMatch(/submitLockRef\.current = true/);
+    expect(client).toMatch(/submitLockRef\.current = false/);
     expect(client).toMatch(/setSubmitting\(true\)/);
     expect(client).toMatch(/setSubmitting\(false\)/);
     expect(client).toMatch(/disabled=\{submitting\}/);
     expect(client).toMatch(/showGlobalLoading\(isInShift \? 'Đang kết thúc ca\.\.\.' : 'Đang ghi nhận vào ca\.\.\.'\)/);
     expect(loading).toMatch(/Đang ghi nhận vào ca/);
     expect(loading).toMatch(/Đang kết thúc ca/);
+  });
+
+  it('shows current and stale open shifts and provides an in-page load retry', () => {
+    const client = source('app/staff/attendance/AttendanceView.tsx');
+
+    expect(client).toMatch(/isOpenAttendanceRecordStale/);
+    expect(client).toMatch(/Ca đang mở từ ngày trước/);
+    expect(client).toMatch(/Bạn đang trong ca làm việc/);
+    expect(client).toMatch(/onClick=\{\(\) => void loadAttendanceData\(\)\}/);
+    expect(client).toMatch(/Thử lại/);
+    expect(client.indexOf('if (fetchError)')).toBeLessThan(client.lastIndexOf('if (!worker)'));
   });
 
   it('keeps staff portal attendance initial load free of project and employee-list fetches', () => {

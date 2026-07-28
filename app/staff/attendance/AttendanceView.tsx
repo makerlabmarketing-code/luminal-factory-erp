@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGlobalLoading } from '@/component/GlobalLoading';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
@@ -18,6 +18,7 @@ import {
   calculateShiftUnitsFromMinutes,
   formatWorkedDuration,
   getWorkedMinutesForRecord,
+  isOpenAttendanceRecordStale,
 } from '@/services/attendanceService';
 
 interface AttendanceViewProps {
@@ -114,6 +115,7 @@ export function StaffAttendanceContent({
   const [fetching, setFetching] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
 
   const applyAttendancePayload = (payload: StaffAttendancePayload) => {
     setWorker(payload.employee);
@@ -156,7 +158,7 @@ export function StaffAttendanceContent({
   }, [loadAttendanceData]);
 
   const handleToggleShift = async () => {
-    if (submitting) return;
+    if (submitLockRef.current) return;
 
     if (!worker) {
       showToast('Lỗi', 'Không tìm thấy hồ sơ nhân sự!', 'error');
@@ -168,6 +170,7 @@ export function StaffAttendanceContent({
       return;
     }
 
+    submitLockRef.current = true;
     setSubmitting(true);
     showGlobalLoading(isInShift ? 'Đang kết thúc ca...' : 'Đang ghi nhận vào ca...');
 
@@ -198,6 +201,7 @@ export function StaffAttendanceContent({
         : error instanceof Error ? error.message : 'Không thể chấm công.';
       showToast('Lỗi kết nối', message, 'error');
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
       hideGlobalLoading();
     }
@@ -207,7 +211,25 @@ export function StaffAttendanceContent({
     return (
       <div className="text-center p-12 text-xs text-slate-500 font-mono">
         <RefreshCcw className="w-4 h-4 animate-spin text-blue-500 mx-auto mb-2" />
-        Đang đồng bộ trạm định vị Realtime...
+        Đang tải dữ liệu chấm công...
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-10 bg-slate-900 border border-red-500/30 rounded-3xl space-y-3 shadow-xl max-w-md mx-auto mt-6 text-center text-xs text-red-100 w-full animate-fadeIn" role="alert">
+        <AlertTriangle className="w-8 h-8 text-red-400" />
+        <p className="font-bold text-red-300">Không thể tải dữ liệu chấm công</p>
+        <p className="text-[11px] text-red-100/80">{fetchError}</p>
+        <button
+          type="button"
+          onClick={() => void loadAttendanceData()}
+          className="inline-flex items-center gap-2 rounded-lg border border-red-400/30 bg-red-950/30 px-3 py-2 font-bold text-red-100 transition hover:bg-red-900/40 focus:outline-none focus:ring-2 focus:ring-red-400"
+        >
+          <RefreshCcw className="h-3.5 w-3.5" />
+          Thử lại
+        </button>
       </div>
     );
   }
@@ -218,18 +240,8 @@ export function StaffAttendanceContent({
         <AlertTriangle className="w-8 h-8 text-amber-500 animate-pulse" />
         <p className="font-bold">Không tìm thấy hồ sơ nhân sự</p>
         <p className="text-[11px] text-slate-400">
-          Đường dẫn Token không hợp lệ hoặc tài khoản của bạn chưa được đồng bộ trên ERP.
+          Tài khoản của bạn chưa được liên kết với hồ sơ nhân sự.
         </p>
-      </div>
-    );
-  }
-
-  if (fetchError) {
-    return (
-      <div className="flex flex-col items-center justify-center p-10 bg-slate-900 border border-red-500/30 rounded-3xl space-y-3 shadow-xl max-w-md mx-auto mt-6 text-center text-xs text-red-100 w-full animate-fadeIn">
-        <AlertTriangle className="w-8 h-8 text-red-400" />
-        <p className="font-bold text-red-300">Không thể tải dữ liệu chấm công</p>
-        <p className="text-[11px] text-red-100/80">{fetchError}</p>
       </div>
     );
   }
@@ -246,6 +258,9 @@ export function StaffAttendanceContent({
   }, 0);
   const todayWorkedMinutes = todayRecord ? getWorkedMinutesForRecord(todayRecord, liveTime) : 0;
   const todayShiftUnits = calculateShiftUnitsFromMinutes(todayWorkedMinutes);
+  const hasStaleOpenShift = todayRecord
+    ? isOpenAttendanceRecordStale(todayRecord, liveTime)
+    : false;
   const historyTotalPages = Math.max(1, Math.ceil(attendanceHistory.length / HISTORY_ITEMS_PER_PAGE));
   const safeHistoryPage = Math.min(historyPage, historyTotalPages);
   const paginatedAttendanceHistory = attendanceHistory.slice(
@@ -277,6 +292,31 @@ export function StaffAttendanceContent({
           <span className="min-w-0 break-words">{localBranchName}</span>
         </div>
       </div>
+
+      {isInShift && todayRecord && (
+        <div className={`w-full rounded-2xl border p-4 ${hasStaleOpenShift ? 'border-amber-500/40 bg-amber-950/30' : 'border-blue-500/30 bg-blue-950/20'}`} role={hasStaleOpenShift ? 'alert' : 'status'}>
+          <div className="flex items-start gap-3">
+            {hasStaleOpenShift ? (
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+            ) : (
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
+            )}
+            <div className="min-w-0">
+              <p className={`text-xs font-bold ${hasStaleOpenShift ? 'text-amber-300' : 'text-blue-300'}`}>
+                {hasStaleOpenShift ? 'Ca đang mở từ ngày trước' : 'Bạn đang trong ca làm việc'}
+              </p>
+              <p className="mt-1 text-[11px] text-slate-300">
+                Vào lúc {todayRecord.check_in?.slice(0, 5)} · {formatWorkedDuration(todayWorkedMinutes)}
+              </p>
+              {hasStaleOpenShift && (
+                <p className="mt-1 text-[11px] text-amber-200/90">
+                  Hãy kết thúc ca nếu bạn vẫn đang làm việc, hoặc báo quản lý để kiểm tra dữ liệu.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isInShift && todayRecord?.check_out && (
         <div className="w-full bg-emerald-950/20 border border-emerald-900/40 p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 animate-fadeIn">

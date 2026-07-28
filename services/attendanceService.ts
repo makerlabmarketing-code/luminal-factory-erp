@@ -184,6 +184,21 @@ export function isMissingCheckoutRecord(record: AttendanceRecord): boolean {
   return Boolean(record.check_in && !record.check_out);
 }
 
+export function isOpenAttendanceRecordStale(
+  record: AttendanceRecord,
+  now = new Date()
+): boolean {
+  if (!isMissingCheckoutRecord(record)) return false;
+
+  const currentWorkDate = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  return record.work_date < currentWorkDate;
+}
+
 export function isAttendanceRecordOverdue(params: {
   record: AttendanceRecord;
   shifts: Shift[];
