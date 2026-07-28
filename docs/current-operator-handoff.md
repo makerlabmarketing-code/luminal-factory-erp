@@ -12,11 +12,11 @@ The branch contains the completed application slices and focused tests recorded 
 
 Repository validation completed for this handoff:
 
-- `npm test`: PASS — 52 files and 411 tests.
+- `npm test`: PASS — 54 files and 440 tests.
 - `npm run lint`: PASS with three pre-existing warnings (`next/image` and two hook-dependency warnings).
 - `npx tsc --noEmit`: PASS.
 - `npm run build`: PASS with the recorded lint, Edge Runtime, webpack cache, and Node 20 deprecation warnings.
-- `git diff --check`: run after this document update and before commit.
+- `git diff --check`: PASS.
 
 ## Operator gate order
 
@@ -36,6 +36,7 @@ Phase status and comments/activity are dependency siblings after the foundation.
 
 Keep these server-only flags false or unset until the corresponding package, authorization/RLS checks, disabled and enabled smoke tests, and observation window pass:
 
+- `FINANCE_REIMBURSEMENT_ENABLED`
 - `FACILITY_ACTIVE_STATE_ENABLED`
 - `ATTENDANCE_RECOVERY_ENABLED`
 - `PHASE_WORKFLOW_FOUNDATION_ENABLED`
@@ -45,15 +46,9 @@ Keep these server-only flags false or unset until the corresponding package, aut
 - `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED`
 - `PAYROLL_SETTLEMENT_ENABLED`
 
-## Business decisions required
+## Package decision status
 
-### Ledger and reimbursement
-
-Approval is still required for the finance category model, executor/beneficiary/payer ownership, legacy-ledger mapping, reimbursement requester/recipient and self-approval rules, and private receipt/storage access and retention policy. Re-review and promote the prepared finance package only after those decisions are recorded.
-
-### Payroll
-
-The Payroll business decisions are approved and the application/package is `READY_FOR_OPERATOR`. The forward migration, pre/post validation, rollback, RLS/grants, permission catalog, immutable settlement and adjustment RPCs, smoke checklist, staff own-salary UI, admin confirmation UI, and focused regression tests are present. Keep `PAYROLL_SETTLEMENT_ENABLED=false` until the operator completes the registered package and explicitly configures the first official settlement month. Do not backfill historical settlements or rewrite legacy salary rows.
+Ledger/Reimbursement and Payroll business contracts are approved and both repository packages are `READY_FOR_OPERATOR`. This does not authorize SQL execution or runtime activation. Ledger/Reimbursement still requires protected migration delivery, private Storage/RLS review, post-run authorization and smoke evidence. Payroll still requires protected migration delivery, explicit first official settlement month, post-run authorization/RLS evidence, and smoke tests.
 
 ## Production smoke-test checklist
 
@@ -73,10 +68,10 @@ For each approved gate, retain the pre-run output, confirm migration history bef
 1. Review this branch and its PR for secrets, unexpected migrations, unresolved review findings, and target-branch conflicts.
 2. Require repository checks and protected-branch approval; do not merge from this handoff process.
 3. When approved, merge through protected `main`. Let the Supabase GitHub Integration apply only tracked forward migrations; never replay a migration already present in production history.
-4. Keep all seven runtime flags false/unset after merge.
+4. Keep all nine runtime flags false/unset after merge.
 5. Execute the operator gates in the order above, retaining pre/post, authorization, RLS, smoke, and monitoring evidence at every gate.
 6. Enable only the single gate whose evidence is complete. Stop and disable it on any matrix/runbook rollback trigger.
-7. Leave Ledger/Reimbursement blocked. Keep Payroll disabled until its reviewed operator package, explicit first-month configuration, authorization fixtures, and smoke tests pass.
+7. Keep Ledger/Reimbursement disabled until its reviewed package, private Storage/RLS boundary, authorization fixtures, and smoke tests pass. Keep Payroll disabled until its reviewed package, explicit first-month configuration, authorization fixtures, and smoke tests pass.
 
 ## Ledger/Reimbursement package — 2026-07-28
 
@@ -84,4 +79,8 @@ The former business-decision blocker is resolved. Repository delivery is complet
 
 Remaining operator work: retain pre-run legacy salary counts, approve/deliver the migration and private Storage/RLS boundary, retain post-run/RLS/authorization/smoke PASS evidence, then separately approve the runtime flag. Existing salary rows with null beneficiary must remain null and render **Chưa xác định**. Payroll snapshots remain immutable; a ledger relationship uses only `source_type` and `source_reference`.
 
-The exact next repository roadmap item after operator evidence is **Item 15 — Functional stabilization**. Broad SaaS UI work remains blocked.
+## Functional stabilization handoff — 2026-07-28
+
+Item 15 safe application work is complete. The final pass prevents stale Payroll month responses from replacing current state, exposes Vietnamese pending states for settlement/adjustment, preserves the synchronous duplicate-submit lock, and disables Retry during an active replacement request. The runtime-disabled response remains **Tính năng quyết toán lương chưa được kích hoạt.** No legacy settlement or reimbursement persistence is simulated.
+
+The exact next roadmap item is **Item 16 — Runtime gate readiness/operator evidence**, beginning with Facility verification in the registered order. Scoped SaaS UI work is `PARTIALLY_SAFE` for later planning on functional-only journeys; broad re-skin remains blocked. No SQL was executed, no runtime flag was enabled, and no deployment or merge occurred.

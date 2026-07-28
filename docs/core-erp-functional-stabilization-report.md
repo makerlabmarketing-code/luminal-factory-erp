@@ -92,3 +92,33 @@ All seven remaining runtime packages are repository-complete for operator handof
 ### SaaS UI re-skin decision
 
 `PARTIALLY_SAFE`. Authentication, employee, project-list/core-detail, membership, and dashboard surfaces classified `FUNCTIONAL` can be scoped for later design work. Broad re-skin execution remains deferred because operational gate activation, Account/Workspace live verification, Ledger live verification, and Payroll business decisions are incomplete. This readiness slice does not reopen or redesign stabilized UI.
+
+## Final application stabilization checkpoint — 2026-07-28
+
+This section supersedes earlier classifications in this report where later Payroll and Ledger/Reimbursement approvals completed their repository packages.
+
+| Journey | Current application status | Remaining boundary |
+|---|---|---|
+| Authentication and role routing | FUNCTIONAL | Operator smoke fixtures only. |
+| Employee list/detail | FUNCTIONAL | Live Facility/Auth enrichment reconciliation remains operator verification. |
+| Facility directory | FUNCTIONAL_READ_ONLY | Active-state mutation remains disabled pending Facility operator PASS. |
+| Account/workspace permissions | APPLICATION_COMPLETE | Catalog, linkage, grant/revoke, and denial fixtures remain operator work. |
+| Attendance | FUNCTIONAL_READ_ONLY | Recovery remains disabled pending Facility and Attendance authorization/RLS PASS. |
+| Project list/create/detail/cancel | FUNCTIONAL_READ_ONLY | Basic persistence works; atomic workflow creation remains disabled. |
+| Project membership | FUNCTIONAL | Production role/cancelled-project fixtures remain operator verification. |
+| Phase workflow | FUNCTIONAL_READ_ONLY | Foundation and status mutation gates remain disabled. |
+| Child tasks | FUNCTIONAL_READ_ONLY | Existing task contracts remain; atomic create is disabled and never fakes persistence. |
+| Comments/activity | SAFE_DISABLED | Vietnamese waiting/error states replace unavailable persistence; no fake empty timeline is produced. |
+| Ledger/reimbursement | FUNCTIONAL_READ_ONLY / READY_FOR_OPERATOR | Legacy ledger remains available; reimbursement mutation is disabled pending package delivery and private Storage/RLS verification. |
+| Payroll | SAFE_DISABLED / READY_FOR_OPERATOR | Disabled API returns the Vietnamese activation message; no settlement is faked. Operator package, first-month configuration, authorization, and smoke PASS remain. |
+| Dashboard | FUNCTIONAL | Live paid-ledger empty/populated/denied/error fixtures remain operator verification. |
+
+### Regressions fixed in the final pass
+
+1. Payroll month changes and Retry requests now use a request sequence so a superseded response cannot overwrite current Admin or Staff state.
+2. Payroll settlement and adjustment retain the synchronous duplicate-submit lock and now also disable all mutation buttons with action-specific Vietnamese pending text.
+3. Payroll Retry buttons now disable and show **Đang thử lại...** while the current request is active.
+
+### Completion and UI decision
+
+All safe Item 15 application work is complete. Live verification and activation are operator work, not unfinished application implementation. Scoped SaaS UI work is `PARTIALLY_SAFE`: future planning may cover Authentication, Employee, basic Project, Membership, and Dashboard boundaries, but no gated mutation surface may be redesigned and the broad re-skin remains blocked. The exact next roadmap item is **Item 16 — Runtime gate readiness/operator evidence**, beginning with Facility verification.

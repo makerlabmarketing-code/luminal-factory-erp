@@ -6,6 +6,8 @@ import { calculateShiftUnitsFromMinutes } from '../services/attendanceService';
 const migration = readFileSync('supabase/migrations/20260728100414_immutable_monthly_payroll_settlement.sql', 'utf8');
 const rollback = readFileSync('supabase/rollbacks/20260728100414_immutable_monthly_payroll_settlement_rollback.sql', 'utf8');
 const validation = readFileSync('supabase/validation/20260728100414_immutable_monthly_payroll_settlement_validation.sql', 'utf8');
+const adminPage = readFileSync('app/admin/payroll/page.tsx', 'utf8');
+const staffPage = readFileSync('app/staff/payroll/PayrollView.tsx', 'utf8');
 
 describe('approved payroll calculation contract', () => {
   it.each([[1,1],[179,1],[180,1],[181,2],[360,2],[361,3],[900,3]])('%i minutes is %i shift units', (minutes, shifts) => expect(calculateShiftUnitsFromMinutes(minutes)).toBe(shifts));
@@ -53,5 +55,20 @@ describe('immutable payroll database contract', () => {
   it('ships validation and guarded destructive rollback', () => {
     expect(validation).toContain('no_duplicate_settlement');
     expect(rollback).toContain('Run only after exporting payroll records');
+  });
+});
+
+describe('payroll runtime safeguards', () => {
+  it('ignores stale month responses in both payroll workspaces', () => {
+    expect(adminPage).toContain('sequence !== requestSequence.current');
+    expect(staffPage).toContain('sequence === requestSequence.current');
+  });
+
+  it('exposes pending and retry states while blocking duplicate mutations', () => {
+    expect(adminPage).toContain('if (lock.current');
+    expect(adminPage).toContain("'Đang xác nhận...'");
+    expect(adminPage).toContain("'Đang điều chỉnh...'");
+    expect(adminPage).toContain("'Đang thử lại...'");
+    expect(staffPage).toContain("'Đang thử lại...'");
   });
 });
