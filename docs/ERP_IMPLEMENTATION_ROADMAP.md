@@ -53,11 +53,13 @@ The order below preserves the functional roadmap sequence. Dependency correction
 
 Roadmap item 10 Attendance was then resumed without restarting either completed application slice. The safe application review completed explicit in-page retry, visible current-open-shift context, a prior-date stale-shift warning, and a synchronous submission lock that closes the gap before React commits disabled state. Staff access, check-in/out, history, facility display, calculation, permission, API, and default-disabled recovery contracts remain covered and independent from Project Membership. Attendance has therefore reached `LIVE_APPROVAL_REQUIRED`: retained Facility production PASS evidence, Attendance RLS/authorization smoke evidence, and any later flag activation belong to the operator workflow and remain prohibited in this run.
 
+The isolated `npm run build` continuation completed with exit code 0 after compilation, lint/type validation, page-data collection, static generation, and page optimization. The earlier termination is therefore classified as a Codex Cloud timeout/resource termination rather than a Node process termination or an application build error. Attendance remains `APPLICATION_COMPLETE` with `LIVE_OPERATOR_VERIFICATION_REQUIRED`; this build result does not claim production activation. `FACILITY_ACTIVE_STATE_ENABLED=false` and `ATTENDANCE_RECOVERY_ENABLED=false` remain the required runtime state.
+
 ## Next incomplete item
 
-The active roadmap item is **Roadmap item 10, Attendance — live operator verification for `ATTENDANCE_RECOVERY_ENABLED` Gate 2**, blocked at `LIVE_APPROVAL_REQUIRED` until Roadmap item 9 has retained production PASS evidence.
+The exact next incomplete roadmap item is **Roadmap item 9, Facility directory — live operator verification for `FACILITY_ACTIVE_STATE_ENABLED` Gate 1**. It is blocked at `LIVE_APPROVAL_REQUIRED`; the operator must retain the production compatibility/RLS, migration-history, and smoke evidence before considering activation. No further safe repository work remains for this gate without crossing the prohibited SQL/runtime boundary.
 
-The Facility application regression is PASS, but that does not substitute for its production compatibility/RLS, migration-history, and smoke evidence. Both flags remain false/unset. The operator must complete Facility Gate 1 before Attendance Gate 2; no SQL, runtime activation, deployment, or merge is part of this continuation. The project-workflow gate chain is independent and must not be represented as a Facility dependency.
+After Facility Gate 1 passes, the next dependent item is **Roadmap item 10, Attendance — live operator verification for `ATTENDANCE_RECOVERY_ENABLED` Gate 2**. The Facility application regression and successful Attendance production build do not substitute for live evidence. Both flags remain false/unset. No SQL, runtime activation, deployment, or merge is part of this continuation. The project-workflow gate chain is independent and must not be represented as a Facility dependency.
 
 ## Seven runtime gates
 
