@@ -1,6 +1,6 @@
 // app/admin/facilities/page.tsx
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import { fetchCoordinatesFromAddress } from '@/ultis/geocoding';
 import { MapPin, Plus, Trash2, Edit2, X, RefreshCcw, Navigation, Loader2 } from 'lucide-react';
@@ -30,6 +30,8 @@ export default function AdminFacilitiesManagement() {
   const { showToast, showConfirm } = useNotification();
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // States for CRUD
   const [isEditing, setIsEditing] = useState(false);
@@ -53,6 +55,16 @@ export default function AdminFacilitiesManagement() {
   const canManageFacilities = facilityData?.capabilities?.canManageFacilities !== false;
   const hasFacilityStatus = facilityData?.capabilities?.canPersistStatusAndCode === true;
 
+  useEffect(() => {
+    if (!showModal) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showModal]);
+
   const handleGeocode = async () => {
     if (!address.trim()) {
       showToast('Thiếu địa chỉ', 'Sếp cần gõ Địa chỉ thực tế xưởng trước khi dò tọa độ!', 'error');
@@ -75,6 +87,7 @@ export default function AdminFacilitiesManagement() {
   const handleOpenAdd = () => {
     setIsEditing(false);
     setEditingId(null);
+    setSaveError(null);
     setName('');
     setAddress('');
     setLat('');
@@ -86,6 +99,7 @@ export default function AdminFacilitiesManagement() {
   const handleOpenEdit = (b: AdminFacility) => {
     setIsEditing(true);
     setEditingId(b.id);
+    setSaveError(null);
     setName(b.facilityName);
     setAddress(b.address || '');
     setLat(b.lat?.toString() || '');
@@ -95,6 +109,8 @@ export default function AdminFacilitiesManagement() {
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
+
     if (!name.trim() || !address.trim() || !lat || !lng) {
       showToast('Thiếu thông tin', 'Sếp vui lòng điền đủ Tên cơ sở, Địa chỉ và bấm Dò tọa độ vệ tinh!', 'error');
       return;
@@ -109,6 +125,9 @@ export default function AdminFacilitiesManagement() {
       radius: Number(radius),
     };
 
+    setIsSaving(true);
+    setSaveError(null);
+
     try {
       const response = await fetch('/api/admin/facilities', {
         method: isEditing && editingId ? 'PATCH' : 'POST',
@@ -118,14 +137,18 @@ export default function AdminFacilitiesManagement() {
       const result = (await response.json().catch(() => ({}))) as FacilityApiResult;
 
       if (!response.ok || result.success === false) {
-        throw new Error(result.message || 'Không thể lưu cơ sở làm việc.');
+        throw new Error('Không thể lưu cơ sở làm việc. Vui lòng thử lại.');
       }
 
-      showToast('Thành công', isEditing ? 'Đã cập nhật cơ sở làm việc.' : 'Đã thêm cơ sở làm việc mới.', 'success');
+      showToast('Đã lưu', 'Đã lưu cơ sở làm việc.', 'success');
       setShowModal(false);
       loadFacilities();
     } catch (err) {
-      showToast('Lỗi lưu dữ liệu', err instanceof Error ? err.message : 'Không thể lưu cơ sở làm việc.', 'error');
+      const message = err instanceof Error ? err.message : 'Không thể lưu cơ sở làm việc. Vui lòng thử lại.';
+      setSaveError(message);
+      showToast('Không thể lưu', 'Không thể lưu cơ sở làm việc. Vui lòng thử lại.', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -221,14 +244,14 @@ export default function AdminFacilitiesManagement() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-40 animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 text-xs text-slate-200 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-40 animate-fadeIn overflow-y-auto overscroll-contain">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md max-h-[calc(100vh-2rem)] overflow-hidden text-xs text-slate-200 shadow-2xl flex flex-col">
+            <div className="flex justify-between items-center border-b border-slate-800 p-6 pb-2.5">
               <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px]">KHAI BÁO CHI NHÁNH CƠ SỞ MỚI</h3>
-              <button onClick={() => setShowModal(false)}><X className="w-5 h-5 text-slate-500 hover:text-white" /></button>
+              <button type="button" disabled={isSaving} onClick={() => setShowModal(false)}><X className="w-5 h-5 text-slate-500 hover:text-white" /></button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-y-auto px-6 py-4 pr-5">
               <div>
                 <label className="text-slate-400 font-medium">Tên gợi nhớ cơ sở làm việc:</label>
                 <input type="text" placeholder="Ví dụ: Xưởng CNC Số 1 - Hà Nội" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 focus:outline-none text-slate-200" value={name} onChange={e => setName(e.target.value)} />
@@ -240,7 +263,7 @@ export default function AdminFacilitiesManagement() {
                   <button
                     type="button"
                     onClick={handleGeocode}
-                    disabled={isGeocoding}
+                    disabled={isGeocoding || isSaving}
                     className="bg-slate-950 border border-slate-850 text-cyan-400 font-bold px-3 py-2 rounded-xl flex items-center gap-1 hover:border-cyan-500/40 transition shrink-0 disabled:opacity-50"
                   >
                     {isGeocoding ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Navigation className="w-3.5 h-3.5"/>}
@@ -255,9 +278,16 @@ export default function AdminFacilitiesManagement() {
               <div><label className="text-slate-400 font-medium">Bán kính khoanh vùng bảo mật chấm công (Mét):</label><input type="number" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 focus:outline-none text-amber-400 font-mono font-bold" value={radius} onChange={e => setRadius(e.target.value)} /></div>
             </div>
 
-            <div className="pt-2 border-t border-slate-800 grid grid-cols-2 gap-2 font-sans">
-              <button onClick={() => setShowModal(false)} className="bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 text-center">Hủy bỏ</button>
-              <button onClick={handleSave} className="bg-blue-600 text-white font-black p-3 rounded-xl transition hover:bg-blue-700 shadow-lg tracking-wide uppercase text-[11px]">💾 KÍCH HOẠT CƠ SỞ</button>
+            <div className="border-t border-slate-800 p-6 pt-3 font-sans">
+              {saveError && (
+                <p role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-[11px] font-semibold text-red-200">
+                  {saveError}
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" disabled={isSaving} onClick={() => setShowModal(false)} className="bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 text-center disabled:opacity-60">Hủy bỏ</button>
+                <button type="button" disabled={isSaving} onClick={handleSave} className="bg-blue-600 text-white font-black p-3 rounded-xl transition hover:bg-blue-700 shadow-lg tracking-wide uppercase text-[11px] disabled:cursor-not-allowed disabled:opacity-60">{isSaving ? 'ĐANG LƯU...' : '💾 KÍCH HOẠT CƠ SỞ'}</button>
+              </div>
             </div>
           </div>
         </div>

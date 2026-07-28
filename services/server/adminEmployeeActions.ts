@@ -119,7 +119,7 @@ function buildEmployeePayload(input: EmployeeMutationInput) {
   return {
     full_name: fullName,
     email,
-    title: cleanText(input.title),
+    title: cleanText(input.title) || '',
     phone: cleanText(input.phone, 32),
     branch_code: cleanText(input.department, 80),
     status,
@@ -129,6 +129,7 @@ function buildEmployeePayload(input: EmployeeMutationInput) {
 async function validateFacilityAssignment(value: unknown, currentValue?: string | null): Promise<string | null> {
   const requestedCode = cleanText(value, 80);
   if (!requestedCode) return null;
+  if (currentValue && requestedCode === currentValue) return currentValue;
 
   const facilities = await getFacilityDirectory();
   const facility = findFacility(facilities, requestedCode);

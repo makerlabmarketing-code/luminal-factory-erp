@@ -45,7 +45,7 @@ describe('corrective slice 2 employee profile and account lifecycle', () => {
     expect(buildBody).not.toMatch(/title: cleanText\(input\.title\) \|\| 'Nhân sự'/);
     expect(`${listClient}${detailClient}`).toMatch(/Sửa nhanh/);
     expect(`${listClient}${detailClient}`).toMatch(/Điện thoại/);
-    expect(`${listClient}${detailClient}`).toMatch(/Bộ phận/);
+    expect(`${listClient}${detailClient}`).toMatch(/Cơ sở làm việc/);
     expect(`${listClient}${detailClient}`).not.toMatch(/bankAccount|bank_account|salary|baseSalary|permissions:/);
   });
 
@@ -75,7 +75,9 @@ describe('corrective slice 2 employee profile and account lifecycle', () => {
 
     expect(`${createRoute}${updateRoute}`).toMatch(/code: error\.code/);
     expect(`${createRoute}${updateRoute}`).toMatch(/failureStage: error\.failureStage/);
-    expect(`${createRoute}${updateRoute}`).toMatch(/employee_unhandled_failure/);
+    expect(`${createRoute}${updateRoute}`).toMatch(/employee_update_failed/);
+    expect(`${createRoute}${updateRoute}`).toMatch(/correlationId/);
+    expect(`${createRoute}${updateRoute}`).not.toMatch(/employee_unhandled_failure/);
     expect(`${createRoute}${updateRoute}`).not.toMatch(/JSON\.stringify\(error\)|supabase|postgres|PostgreSQL/);
     expect(client).toMatch(/Mời sử dụng hệ thống/);
     expect(accountContract).toMatch(/Chưa kết nối/);

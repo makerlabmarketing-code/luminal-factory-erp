@@ -14,8 +14,17 @@ function jsonNoStore(body: unknown, init?: ResponseInit) {
   return response;
 }
 
+function logFacilityRouteError(correlationId: string, error: unknown) {
+  const safeError = error instanceof AuthFlowError
+    ? { code: error.code, failureStage: error.failureStage, status: error.status }
+    : { code: 'facility_unhandled_failure', failureStage: 'unknown', message: error instanceof Error ? error.message.slice(0, 240) : String(error).slice(0, 240) };
+
+  console.error('[facility-route]', { correlationId, error: safeError });
+}
+
 function toErrorResponse(error: unknown) {
   const correlationId = crypto.randomUUID();
+  logFacilityRouteError(correlationId, error);
   if (error instanceof AuthFlowError) {
     const code = error.status === 403 ? 'facility_forbidden' : error.code;
     return jsonNoStore(

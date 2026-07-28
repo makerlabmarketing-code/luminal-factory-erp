@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { FormEvent, useMemo, useState, useTransition } from 'react';
+import { FormEvent, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -145,6 +145,7 @@ export default function AdminEmployeeDetailClient({
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const [menuOpen, setMenuOpen] = useState(false);
   const [formState, setFormState] = useState<EmployeeFormState | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [savingEmployee, setSavingEmployee] = useState(false);
   const [activeActionPath, setActiveActionPath] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -164,6 +165,21 @@ export default function AdminEmployeeDetailClient({
 
   const refreshPage = () => {
     startTransition(() => router.refresh());
+  };
+
+  useEffect(() => {
+    if (!formState) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [formState]);
+
+  const openQuickEdit = () => {
+    setFormError(null);
+    setFormState(quickEditState);
   };
 
   const runAction = async (actionPath: string, successTitle: string) => {
@@ -199,6 +215,7 @@ export default function AdminEmployeeDetailClient({
     if (!formState || savingEmployee) return;
 
     setSavingEmployee(true);
+    setFormError(null);
     showGlobalLoading('Đang lưu thay đổi...');
 
     try {
@@ -215,12 +232,14 @@ export default function AdminEmployeeDetailClient({
       const result = await parseActionResponse(response);
 
       if (!result.success) {
-        showToast('Không thành công', result.message || 'Không thể lưu hồ sơ nhân sự.', 'error');
+        const message = 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.';
+        setFormError(message);
+        showToast('Không thể cập nhật', message, 'error');
         return;
       }
 
       setFormState(null);
-      showToast('Đã lưu', result.message || 'Đã lưu hồ sơ nhân sự.', 'success');
+      showToast('Đã cập nhật', 'Đã cập nhật hồ sơ nhân sự.', 'success');
       refreshPage();
     } finally {
       setSavingEmployee(false);
@@ -270,11 +289,11 @@ export default function AdminEmployeeDetailClient({
               {initialData.capabilities.canEditEmployee && (
                 <button
                   type="button"
-                  onClick={() => setFormState(quickEditState)}
+                  onClick={openQuickEdit}
                   className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-blue-300 hover:bg-slate-800"
                 >
                   <Edit2 className="h-4 w-4" />
-                  Sửa hồ sơ
+                  Sửa nhanh hồ sơ
                 </button>
               )}
               {initialData.capabilities.canManageAccount && (
@@ -404,12 +423,13 @@ export default function AdminEmployeeDetailClient({
       </AdminPage>
 
       {formState && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <form onSubmit={submitEmployeeForm} className="w-full max-w-lg space-y-4 rounded-lg border border-slate-800 bg-slate-900 p-5 text-xs text-slate-200 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/80 p-4">
+          <form onSubmit={submitEmployeeForm} className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-200 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 p-5 pb-3">
               <h2 className="font-bold text-blue-300">Sửa nhanh hồ sơ</h2>
-              <button type="button" onClick={() => setFormState(null)} className="text-slate-500 hover:text-white"><X className="h-5 w-5" /></button>
+              <button type="button" disabled={savingEmployee} onClick={() => setFormState(null)} className="text-slate-500 hover:text-white disabled:opacity-60"><X className="h-5 w-5" /></button>
             </div>
+            <div className="space-y-4 overflow-y-auto p-5">
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Họ tên</span>
               <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.fullName} onChange={(event) => setFormState({ ...formState, fullName: event.target.value })} required />
@@ -424,7 +444,7 @@ export default function AdminEmployeeDetailClient({
               <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.phone} onChange={(event) => setFormState({ ...formState, phone: event.target.value })} />
             </label>
             <label className="block space-y-1">
-              <span className="font-bold text-slate-400">Bộ phận</span>
+              <span className="font-bold text-slate-400">Cơ sở làm việc</span>
               <select className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.department} onChange={(event) => setFormState({ ...formState, department: event.target.value })}>
                 <option value="">Chưa gán cơ sở</option>
                 {initialData.facilities.filter((facility) => facility.isActive || facility.code === formState.department).map((facility) => (
@@ -445,13 +465,21 @@ export default function AdminEmployeeDetailClient({
                 <option value="INACTIVE">Ngừng hoạt động</option>
               </select>
             </label>
-            <div className="flex gap-2 border-t border-slate-800 pt-3">
-              <button type="button" onClick={() => setFormState(null)} className="flex-1 rounded-lg border border-slate-800 bg-slate-950 p-3 font-bold text-slate-400 hover:bg-slate-800">Hủy</button>
+            </div>
+            <div className="border-t border-slate-800 p-5 pt-3">
+              {formError && (
+                <p role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-[11px] font-semibold text-red-200">
+                  {formError}
+                </p>
+              )}
+              <div className="flex gap-2">
+              <button type="button" disabled={savingEmployee} onClick={() => setFormState(null)} className="flex-1 rounded-lg border border-slate-800 bg-slate-950 p-3 font-bold text-slate-400 hover:bg-slate-800 disabled:opacity-60">Hủy</button>
               <button type="submit" disabled={savingEmployee || isPending} className="flex-1 rounded-lg bg-blue-600 p-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">
                 <span className="inline-flex items-center justify-center gap-2">
                   <ButtonLoadingState loading={savingEmployee || isPending} loadingText="Đang lưu..." idleText="Lưu" />
                 </span>
               </button>
+              </div>
             </div>
           </form>
         </div>
