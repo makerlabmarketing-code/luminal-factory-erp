@@ -19,6 +19,7 @@ import {
 import { ButtonLoadingState, useGlobalLoading } from '@/component/GlobalLoading';
 import { useNotification } from '@/component/NotificationContext';
 import type { AccountConnectionStatus, EmployeeDetailDto } from '@/services/server/adminEmployeeData';
+import { accountConnectionExplanations, accountConnectionLabels } from '@/lib/accountConnection';
 
 type DetailTab =
   | 'overview'
@@ -53,17 +54,7 @@ const tabs: Array<{ id: DetailTab; label: string }> = [
   { id: 'history', label: 'Lịch sử thay đổi' },
 ];
 
-const accountStatusLabels: Record<AccountConnectionStatus, string> = {
-  NOT_CONNECTED: 'Chưa kết nối',
-  MISSING_EMAIL: 'Thiếu email',
-  INVITED: 'Đã gửi lời mời',
-  PENDING_PASSWORD: 'Chờ đặt mật khẩu',
-  CONNECTED: 'Đã kết nối',
-  INVITE_ERROR: 'Lời mời lỗi',
-  INVITE_EXPIRED: 'Lời mời hết hạn',
-  ACCESS_REVOKED: 'Đã thu hồi quyền',
-  LINK_ERROR: 'Lỗi liên kết',
-};
+const accountStatusLabels = accountConnectionLabels;
 
 const accountStatusClassNames: Record<AccountConnectionStatus, string> = {
   NOT_CONNECTED: 'border-slate-700 bg-slate-950 text-slate-300',
@@ -74,7 +65,11 @@ const accountStatusClassNames: Record<AccountConnectionStatus, string> = {
   INVITE_ERROR: 'border-red-500/30 bg-red-500/10 text-red-300',
   INVITE_EXPIRED: 'border-orange-500/30 bg-orange-500/10 text-orange-300',
   ACCESS_REVOKED: 'border-slate-600 bg-slate-900 text-slate-400',
-  LINK_ERROR: 'border-red-500/30 bg-red-500/10 text-red-300',
+  AUTH_USER_MISSING: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+  AUTH_LOOKUP_FAILED: 'border-slate-600 bg-slate-900 text-slate-300',
+  AUTH_EMAIL_MISMATCH: 'border-orange-500/30 bg-orange-500/10 text-orange-300',
+  DUPLICATE_AUTH_MAPPING: 'border-red-500/30 bg-red-500/10 text-red-300',
+  EMPLOYEE_INACTIVE: 'border-slate-600 bg-slate-900 text-slate-400',
 };
 
 function Field({ label, value }: { label: string; value: string | number | null }) {
@@ -265,7 +260,7 @@ export default function AdminEmployeeDetailClient({
                 <span className={`rounded border px-2.5 py-1 text-[10px] font-bold ${initialData.employmentStatus === 'ACTIVE' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-red-500/30 bg-red-500/10 text-red-300'}`}>
                   {initialData.employmentStatus === 'ACTIVE' ? 'Đang làm' : 'Ngừng hoạt động'}
                 </span>
-                <span className={`rounded border px-2.5 py-1 text-[10px] font-bold ${accountStatusClassNames[initialData.accountConnectionStatus]}`}>
+                <span title={accountConnectionExplanations[initialData.accountConnectionStatus]} className={`rounded border px-2.5 py-1 text-[10px] font-bold ${accountStatusClassNames[initialData.accountConnectionStatus]}`}>
                   {accountStatusLabels[initialData.accountConnectionStatus]}
                 </span>
               </div>
@@ -320,6 +315,12 @@ export default function AdminEmployeeDetailClient({
             </div>
           </div>
         </header>
+
+        {initialData.warnings.length > 0 && (
+          <section className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-100">
+            Hồ sơ chính đã tải thành công. Một số thông tin cơ sở, tài khoản hoặc quyền truy cập đang tạm thời chưa tải được.
+          </section>
+        )}
 
         <nav className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 p-2">
           <div className="flex min-w-max gap-1">

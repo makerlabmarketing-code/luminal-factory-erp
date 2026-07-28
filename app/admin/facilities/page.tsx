@@ -22,6 +22,7 @@ type FacilityApiResult = {
   message?: string;
   facilities?: AdminFacility[];
   capabilities?: { canPersistStatusAndCode: boolean; canManageFacilities: boolean };
+  code?: string;
 };
 
 export default function AdminFacilitiesManagement() {
@@ -42,13 +43,14 @@ export default function AdminFacilitiesManagement() {
       const response = await fetch('/api/admin/facilities', { cache: 'no-store', signal });
       const result = (await response.json().catch(() => ({}))) as FacilityApiResult;
       if (!response.ok || result.success === false) {
-        throw new AdminListRequestError(response.status === 403 ? 'forbidden' : result.message === 'facility_schema_unavailable' ? 'facility_schema_unavailable' : 'facility_list_load_failed');
+        throw new AdminListRequestError(response.status === 403 ? 'forbidden' : result.code === 'facility_schema_unavailable' ? 'facility_schema_unavailable' : 'facility_list_load_failed');
       }
       return result;
   };
   const { data: facilityData, error: loadError, isLoading: loading, isRefreshing, refresh: loadFacilities } = useAdminListData({ request: facilityRequest });
   const branches = facilityData?.facilities || [];
   const canManageFacilities = facilityData?.capabilities?.canManageFacilities !== false;
+  const hasFacilityStatus = facilityData?.capabilities?.canPersistStatusAndCode === true;
 
   const handleGeocode = async () => {
     if (!address.trim()) {
@@ -169,15 +171,16 @@ export default function AdminFacilitiesManagement() {
               <th className="p-4 w-[12%]">Vĩ Độ</th>
               <th className="p-4 w-[12%]">Kinh Độ</th>
               <th className="p-4 w-[10%]">Vùng An Toàn</th>
+              {hasFacilityStatus && <th className="p-4">Trạng thái</th>}
               <th className="p-4 w-[6%] text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60 font-medium text-[11px]">
             {loading ? (
-              <tr><td colSpan={6} className="p-8 text-center text-slate-400"><RefreshCcw className="mr-2 inline h-4 w-4 animate-spin" />Đang tải danh sách cơ sở...</td></tr>
+              <tr><td colSpan={hasFacilityStatus ? 7 : 6} className="p-8 text-center text-slate-400"><RefreshCcw className="mr-2 inline h-4 w-4 animate-spin" />Đang tải danh sách cơ sở...</td></tr>
             ) : loadError ? (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-slate-400">
+                <td colSpan={hasFacilityStatus ? 7 : 6} className="p-8 text-center text-slate-400">
                   <p>Không thể tải danh sách cơ sở làm việc.</p>
                   <button type="button" onClick={() => void loadFacilities()} disabled={isRefreshing} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-blue-500/40 px-3 py-2 font-bold text-blue-300">
                     <RefreshCcw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} /> {isRefreshing ? 'Đang thử lại...' : 'Thử lại'}
@@ -186,7 +189,7 @@ export default function AdminFacilitiesManagement() {
               </tr>
             ) : branches.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center p-8 text-slate-500 italic">
+                <td colSpan={hasFacilityStatus ? 7 : 6} className="text-center p-8 text-slate-500 italic">
                   Chưa có dữ liệu cơ sở xưởng trên hệ thống.
                 </td>
               </tr>
@@ -199,10 +202,11 @@ export default function AdminFacilitiesManagement() {
                     <br/>
                     <span className="text-[9px] text-slate-500 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-850 mt-1 block w-fit">ID: {b.id}</span>
                   </td>
-                  <td className="p-4 text-slate-400 max-w-xs truncate" title={b.address || ''}>{b.address}</td>
-                  <td className="p-4 font-mono font-bold text-blue-400">{b.lat}</td>
-                  <td className="p-4 font-mono font-bold text-blue-400">{b.lng}</td>
-                  <td className="p-4 font-bold text-amber-400 font-mono">{b.radius} mét</td>
+                  <td className="p-4 text-slate-400 max-w-xs truncate" title={b.address || ''}>{b.address || 'Chưa cập nhật'}</td>
+                  <td className="p-4 font-mono font-bold text-blue-400">{b.lat ?? 'Chưa cập nhật'}</td>
+                  <td className="p-4 font-mono font-bold text-blue-400">{b.lng ?? 'Chưa cập nhật'}</td>
+                  <td className="p-4 font-bold text-amber-400 font-mono">{b.radius == null ? 'Chưa cập nhật' : `${b.radius} mét`}</td>
+                  {hasFacilityStatus && <td className="p-4 text-slate-400">{b.isActive ? 'Đang hoạt động' : 'Ngừng hoạt động'}</td>}
                   <td className="p-4 text-center space-x-1">
                     <button disabled={!canManageFacilities} onClick={() => handleOpenEdit(b)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-800 transition disabled:opacity-40" title="Chỉnh sửa"><Edit2 className="w-3.5 h-3.5" /></button>
                     <button disabled={!canManageFacilities} onClick={() => handleDelete(b.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500 hover:bg-red-950/20 transition disabled:opacity-40" title="Xóa cơ sở"><Trash2 className="w-3.5 h-3.5" /></button>

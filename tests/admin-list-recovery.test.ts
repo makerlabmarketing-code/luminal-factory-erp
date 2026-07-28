@@ -31,9 +31,12 @@ describe('admin list production recovery boundaries', () => {
     const directory = read('services/server/facilityDirectory.ts');
     const page = read('app/admin/facilities/page.tsx');
     expect(directory).toContain("error.code === '42703' || error.code === 'PGRST204'");
-    expect(directory).toContain('if (!isKnownMissingColumn(current.error))');
+    expect(directory).toContain('if (!isKnownMissingFacilityColumn(current.error))');
     expect(directory).toContain('LEGACY_FACILITY_SELECT');
+    expect(directory).toContain("code: (row.code || '').trim()");
     expect(page).toContain('Chức năng cập nhật cơ sở đang tạm thời chưa khả dụng.');
+    expect(page).toContain("result.code === 'facility_schema_unavailable'");
+    expect(page).toContain("b.address || 'Chưa cập nhật'");
   });
 
   it('aborts timed-out requests and rejects stale responses', () => {
