@@ -1324,3 +1324,20 @@ Status: `BLOCKED_FOR_SAAS_UI_RESKIN` after application-only audit and safe fixes
 - No GitHub comments were reviewed. No SQL/RPC was executed, no runtime flag was enabled, and no deployment or merge was performed.
 
 Current gate: complete the operator validations and business decisions listed in the stabilization report before declaring `READY_FOR_SAAS_UI_RESKIN`.
+
+## Runtime gate operator readiness — 2026-07-28
+
+**Objective:** make the seven remaining stabilization runtime gates executable by a live operator without beginning the SaaS UI re-skin.
+
+**Scope completed:**
+- Added the authoritative package/dependency register in `docs/runtime-gate-activation-matrix.md`.
+- Completed missing read-only pre/post validation artifacts and hardened project atomic RPC browser privileges.
+- Added server-boundary bypass regression coverage and the exact required Facility disabled copy.
+- Added `docs/production-runtime-gate-operator-runbook.md`, separating GitHub Integration from direct-SQL exception workflows.
+- Reconciled the functional status matrix below with flag-disabled behavior.
+
+**Exit criteria:** repository packages, authorization notes, tests, runtime wiring, disabled UX and smoke lists are complete. Live object/count/RLS/authorization evidence is intentionally outstanding. No SQL, migration command, flag activation, deployment, merge, or broad UI redesign was performed.
+
+**Handoff:** operator follows the runbook serial order. Facility/Attendance is independent from Project Workflow. Phase foundation precedes phase status and comments/activity; comments/activity precedes the sibling project/task atomic-create gates. Stop and disable the relevant flag before rollback.
+
+**Known risks/dependencies:** tracked migrations must be verified rather than replayed; all live fixtures and observation windows require operator access. Broad SaaS UI re-skin remains `PARTIALLY_SAFE`: journeys already marked FUNCTIONAL may be planned, but no broad execution should begin until all operational gates and the existing finance/payroll business decisions are cleared.

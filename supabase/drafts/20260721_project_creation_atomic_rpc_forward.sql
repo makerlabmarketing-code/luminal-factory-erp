@@ -144,7 +144,7 @@ exception
 end;
 $$;
 
-revoke all on function public.create_project_atomic(jsonb) from public, anon;
-grant execute on function public.create_project_atomic(jsonb) to authenticated;
+revoke all on function public.create_project_atomic(jsonb) from public, anon, authenticated;
+grant execute on function public.create_project_atomic(jsonb) to service_role;
 comment on function public.create_project_atomic(jsonb) is 'Corrective Slice 3A transactional project creation RPC.';
 commit;
