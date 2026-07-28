@@ -83,7 +83,7 @@ describe('corrective slice 3B finance role model', () => {
 
   it('validates reimbursement transitions, approval permissions, self-approval and rejection reason', () => {
     expect(canTransitionReimbursement({
-      from: 'UNDER_REVIEW',
+      from: 'SUBMITTED',
       to: 'REJECTED',
       actorEmployeeId: 2,
       requesterEmployeeId: 1,
@@ -93,7 +93,7 @@ describe('corrective slice 3B finance role model', () => {
     })).toEqual({ ok: false, message: 'Từ chối yêu cầu cần có lý do.' });
 
     expect(canTransitionReimbursement({
-      from: 'UNDER_REVIEW',
+      from: 'SUBMITTED',
       to: 'APPROVED',
       actorEmployeeId: 1,
       requesterEmployeeId: 1,

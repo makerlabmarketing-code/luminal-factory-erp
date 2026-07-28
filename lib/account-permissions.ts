@@ -8,6 +8,8 @@ export type PermissionCode =
   | "FINANCE_CREATE"
   | "FINANCE_UPDATE"
   | "FINANCE_DELETE"
+  | "FINANCE_APPROVE"
+  | "FINANCE_PAY"
   | "PROJECT_VIEW"
   | "PROJECT_MANAGE"
   | "PROJECT_ASSIGN"
@@ -97,6 +99,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { code: "FINANCE_CREATE", label: "Tạo bản ghi tài chính" },
       { code: "FINANCE_UPDATE", label: "Cập nhật tài chính" },
       { code: "FINANCE_DELETE", label: "Xóa tài chính" },
+      { code: "FINANCE_APPROVE", label: "Duyệt hoàn ứng" },
+      { code: "FINANCE_PAY", label: "Xác nhận thanh toán hoàn ứng" },
     ],
   },
   {

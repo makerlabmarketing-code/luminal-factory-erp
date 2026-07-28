@@ -138,7 +138,7 @@ function LedgerLoadingSkeleton() {
 }
 
 export default function AdminFinancialLedger() {
-  const { showToast, showConfirm } = useNotification();
+  const { showToast } = useNotification();
   const [ledger, setLedger] = useState<FinancialLedgerEntry[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [transactionTypes, setTransactionTypes] = useState<SystemMetadataOption[]>(() => [...DEFAULT_FINANCIAL_TRANSACTION_TYPES]);
@@ -420,7 +420,7 @@ export default function AdminFinancialLedger() {
         await supabase.from('financial_ledger').insert([{ type: 'VON_GOP', sub_type: 'HIEN_VAT', category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod, is_paid: true }]);
       }
       else if (!isSelfPaidExpense && oldLink) {
-        await supabase.from('financial_ledger').delete().eq('id', oldLink.id);
+        await supabase.from('financial_ledger').update({ category: `[Hủy đối ứng] ${originalLinkedCategory}` }).eq('id', oldLink.id);
       }
       else if (isSelfPaidExpense && oldLink) {
         await supabase.from('financial_ledger').update({ category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod }).eq('id', oldLink.id);
@@ -451,25 +451,6 @@ export default function AdminFinancialLedger() {
     setLedger(prev => prev.map(l => l.id === targetId ? { ...l, is_paid: true } : l));
     setShowQrModal(false); setActiveQrUrl('');
     showToast('Thanh toán xong', 'Đã chuyển khoản thành công!', 'success');
-  };
-
-  const handleDeleteLedger = (id: number | string) => {
-    const targetItem = ledger.find(l => l.id === id);
-    if (!targetItem) return;
-
-    showConfirm('Xác nhận hủy bỏ', 'Xóa vĩnh viễn dòng tài chính này và các bản ghi đối ứng liên quan?', async () => {
-      try {
-        if (targetItem.type === 'CHI_PHI') {
-          const linkedCategory = `[Đối ứng] Vốn hiện vật: ${targetItem.category}`;
-          await supabase.from('financial_ledger').delete().eq('type', 'VON_GOP').eq('category', linkedCategory).eq('requested_by', targetItem.requested_by);
-        }
-        await supabase.from('financial_ledger').delete().eq('id', id);
-        setLedger(prev => prev.filter(l => l.id !== id));
-        if (currentLedgerData.length === 1 && currentPage > 1) setCurrentPage(prev => prev - 1);
-        showToast('Đã xóa', 'Đã hủy dòng hạch toán ra khỏi sổ cái.', 'info');
-        loadData();
-      } catch (err: any) { showToast('Thất bại', err.message, 'error'); }
-    });
   };
 
   const handleGenerateVietQR = (item: FinancialLedgerEntry) => {
@@ -564,7 +545,6 @@ export default function AdminFinancialLedger() {
             data={currentLedgerData}
             onTogglePaid={handleTogglePaid}
             onOpenEdit={handleOpenEdit}
-            onDelete={handleDeleteLedger}
             onGenerateQr={handleGenerateVietQR}
           />
         )}

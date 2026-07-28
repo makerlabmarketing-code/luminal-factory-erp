@@ -1,12 +1,11 @@
 'use client';
 import { Fragment, useState } from 'react';
-import { Edit2, Trash2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon } from 'lucide-react';
+import { Edit2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon } from 'lucide-react';
 
 interface LedgerTableProps {
   data: any[]; // Data nhận vào lúc này đã kèm theo thuộc tính l.linkedChild
   onTogglePaid: (id: number, currentStatus: boolean) => void;
   onOpenEdit: (item: any) => void;
-  onDelete: (id: number) => void;
   onGenerateQr: (item: any) => void;
 }
 
@@ -14,7 +13,6 @@ export default function LedgerTable({
   data,
   onTogglePaid,
   onOpenEdit,
-  onDelete,
   onGenerateQr
 }: LedgerTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
@@ -107,7 +105,6 @@ export default function LedgerTable({
                         <button onClick={() => onGenerateQr(l)} className="p-1.5 bg-cyan-950 border border-cyan-800 rounded-lg text-cyan-400 hover:bg-cyan-900 transition"><QrCode className="w-3.5 h-3.5"/></button>
                       )}
                       <button onClick={() => onOpenEdit(l)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-900 transition"><Edit2 className="w-3.5 h-3.5"/></button>
-                      <button onClick={() => onDelete(l.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500 hover:bg-slate-900 transition"><Trash2 className="w-3.5 h-3.5"/></button>
                     </>
                   )}
                 </td>

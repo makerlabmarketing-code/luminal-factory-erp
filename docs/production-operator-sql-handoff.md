@@ -83,3 +83,9 @@ The authoritative graph has independent Facility/Attendance and Project Workflow
 - **Authorization:** Staff Workspace reads only the current employee through `get_my_monthly_payroll`; payroll operators use `PAYROLL_VIEW`, `PAYROLL_SETTLE`, `PAYROLL_ADJUST`, and `PAYROLL_CONFIGURE`. Direct authenticated mutation is revoked and RLS protects table reads.
 - **Runtime:** keep `PAYROLL_SETTLEMENT_ENABLED=false` until pre-run, protected migration delivery, post-run, grants, authorized/denied fixtures, immutable/duplicate smoke tests, and explicit first-month configuration pass.
 - **Rollback:** disable runtime first. SQL rollback drops payroll objects and is destructive, so export and approval are mandatory. It never edits legacy attendance or historical salary rows.
+
+## Package 8 update — Ledger/Reimbursement approved
+
+Status: `READY_FOR_OPERATOR` / `LIVE_APPROVAL_REQUIRED`. Use pre-run `supabase/drafts/20260728153000_ledger_reimbursement_pre_run.sql`, forward `supabase/migrations/20260728153000_ledger_reimbursement_workflow.sql`, post-run `supabase/validation/20260728153000_ledger_reimbursement_validation.sql`, rollback `supabase/rollbacks/20260728153000_ledger_reimbursement_workflow_rollback.sql`, private-storage design `supabase/drafts/20260728153000_ledger_storage_policy.md`, and smoke checklist `supabase/drafts/20260728153000_ledger_reimbursement_smoke.md`.
+
+Keep `FINANCE_REIMBURSEMENT_ENABLED=false` or unset until forward delivery, post-run schema/RPC/RLS validation, private bucket/server signed-URL review, authorization fixtures, idempotency, immutable history, no-delete, legacy salary, existing attachment, storage-error, and payroll-source smoke checks all pass. Rollback drops new workflow data and therefore requires export/approval; it never backfills or rewrites legacy salary rows.
