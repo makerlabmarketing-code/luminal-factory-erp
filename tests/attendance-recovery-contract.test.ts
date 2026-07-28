@@ -44,4 +44,15 @@ describe('attendance recovery contract', () => {
     expect(routeSource).toMatch(/hasPermission\(authContext, 'ATTENDANCE_VIEW'\)/);
     expect(routeSource).toMatch(/hasPermission\(authContext, 'ATTENDANCE_MANAGE'\)/);
   });
+
+  it('keeps attendance recovery mutations disabled until the operator enables the server capability', () => {
+    const routeSource = source('app/api/admin/attendance/route.ts');
+    const clientSource = source('app/admin/attendance/page.tsx');
+
+    expect(routeSource).toMatch(/process\.env\.ATTENDANCE_RECOVERY_ENABLED === 'true'/);
+    expect(routeSource).toMatch(/attendance_recovery_disabled/);
+    expect(routeSource).toMatch(/canManage && isAttendanceRecoveryEnabled\(\)/);
+    expect(clientSource).toMatch(/Điều chỉnh chấm công đang chờ xác nhận/);
+    expect(clientSource).not.toMatch(/t_mock/);
+  });
 });

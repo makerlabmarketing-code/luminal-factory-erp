@@ -1303,3 +1303,13 @@ Current gate: operator validates and delivers the reviewed package, then smoke-t
 ## 2026-07-28 Operator package register refresh
 
 Status: ✅ operator handoff register updated without production execution. The handoff now fixes the dependency order, exact reviewed artifacts, runtime gates, expected rollout effects, authorization impact, smoke tests, and rollback triggers for Facility, Phase Workflow, atomic task create, comments/activity, templates, Attendance recovery, workspace permissions, ledger/storage, and Payroll. Packages without an approved schema or business decision remain `BLOCKED_BY_BUSINESS_DECISION`; no draft is represented as runnable.
+
+## 2026-07-28 Attendance application completion
+
+Status: ✅ safe application boundary complete; recovery mutation remains `LIVE_OPERATOR_VERIFICATION_REQUIRED`.
+
+- Admin Attendance now returns adjustment capability only when the authenticated administrator has `ATTENDANCE_MANAGE` and the server-only `ATTENDANCE_RECOVERY_ENABLED=true` capability is enabled. Every POST, PATCH, and DELETE path enforces the same gate server-side.
+- The page stays useful in read-only mode and explains the pending operator verification. It no longer manufactures a client-only evening shift when the authoritative shift directory does not contain one.
+- Staff check-in/check-out, attendance calculations, legacy-log reads, facility resolution, and payroll formulas are unchanged. No SQL, database push, runtime flag change, deployment, live mutation, or production permission change was performed.
+
+Current gate: validate the tracked Attendance recovery RLS package and its authorization smoke tests before setting `ATTENDANCE_RECOVERY_ENABLED=true` in the server runtime.
