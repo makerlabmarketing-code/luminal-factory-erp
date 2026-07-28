@@ -466,7 +466,7 @@ async function contextForMutation(projectId: number): Promise<MutationContext> {
 
 export async function listProjectTasks(
   rawProjectId: string,
-): Promise<{ success: true; tasks: TaskAssignmentDTO[] }> {
+): Promise<{ success: true; tasks: TaskAssignmentDTO[]; capabilities: { canCreateTasks: boolean } }> {
   const projectId = parseTaskAssignmentProjectId(rawProjectId);
   const context = await contextForList(projectId);
   const supabase = createSupabaseAdminClient();
@@ -529,6 +529,11 @@ export async function listProjectTasks(
   return {
     success: true,
     tasks: rows.map((row) => mapTask(row, commentCounts, lastActivity)),
+    capabilities: {
+      canCreateTasks:
+        context.canManageTasks &&
+        process.env.TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED === "true",
+    },
   };
 }
 
@@ -545,12 +550,46 @@ export async function createProjectTask(
     assertAssigneeActiveMember(projectId, payload.assigneeEmployeeId),
   ]);
 
-  throw taskAssignmentError(
-    409,
-    "Tạo công việc cần RPC giao dịch để tránh ghi dang dở. Vui lòng duyệt migration RPC trước khi bật tạo mới.",
-    "task_assignment_atomic_create_required",
-    "migration_gate",
-  );
+  if (process.env.TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED !== "true") {
+    throw taskAssignmentError(
+      409,
+      "Chức năng thêm công việc đang chờ kích hoạt.",
+      "task_assignment_atomic_create_required",
+      "migration_gate",
+    );
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("create_project_task_atomic", {
+    p_project_id: projectId,
+    p_phase_id: payload.phaseId ?? null,
+    p_parent_task_id: payload.parentTaskId ?? null,
+    p_title: payload.title,
+    p_description: payload.description ?? null,
+    p_assignee_employee_id: payload.assigneeEmployeeId ?? null,
+    p_deadline: payload.deadline ?? null,
+    p_comment: payload.comment ?? null,
+    p_actor_employee_id: context.actorEmployeeId,
+  });
+  if (error) {
+    mapSupabaseError(
+      "Không thể tạo công việc dự án.",
+      "task_assignment_create_failed",
+      error.code,
+    );
+  }
+
+  const created = Array.isArray(data) ? data[0] : data;
+  const taskId = Number((created as { id?: unknown } | null)?.id);
+  if (!Number.isInteger(taskId) || taskId <= 0) {
+    throw taskAssignmentError(
+      500,
+      "Không thể xác nhận công việc vừa tạo.",
+      "task_assignment_create_confirmation_failed",
+      "supabase_query",
+    );
+  }
+  return { success: true, task: await loadTask(projectId, taskId) };
 }
 
 export async function updateProjectTask(

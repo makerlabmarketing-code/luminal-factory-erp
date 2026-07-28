@@ -83,3 +83,6 @@ $$;
 
 comment on function public.create_project_task_atomic(bigint, bigint, bigint, text, text, bigint, date, text, bigint) is
   'Atomic task creation boundary. Requires separate RLS/execute grant review before live use.';
+
+revoke all on function public.create_project_task_atomic(bigint, bigint, bigint, text, text, bigint, date, text, bigint) from public, anon, authenticated;
+grant execute on function public.create_project_task_atomic(bigint, bigint, bigint, text, text, bigint, date, text, bigint) to service_role;
