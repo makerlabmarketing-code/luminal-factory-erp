@@ -60,3 +60,9 @@ This register is the operator order. A later package must not be activated befor
 ### Global rollout stop conditions
 
 Stop and roll back or leave the relevant runtime flag disabled when object/constraint checks fail, expected counts differ, an authenticated browser can mutate protected history, cross-project access succeeds, an atomic operation partially persists, existing Attendance/legacy salary reads regress, or a smoke test exposes raw database errors. Rollback never hard-deletes business history.
+
+## Core ERP stabilization activation boundary (2026-07-28)
+
+The functional stabilization audit does not change package order or authorize execution. `docs/core-erp-functional-stabilization-report.md` is the current journey-level readiness record. Keep every listed server runtime gate false/unset until its existing pre-run, forward delivery, post-run, authorization, RLS, regression, and smoke-test prerequisites report PASS.
+
+Broad SaaS UI re-skin remains blocked until Account/Permissions, Facility, Attendance, Phase Workflow, Child Task create, Comments/Activity, Ledger, and Payroll rows in that report are ready. Payroll still has no approved runnable package; Ledger/reimbursement/storage remains blocked on the recorded finance business decisions.

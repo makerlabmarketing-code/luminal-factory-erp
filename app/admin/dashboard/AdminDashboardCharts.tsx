@@ -1,5 +1,7 @@
 'use client';
 
+import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Banknote, RefreshCcw, Wallet } from 'lucide-react';
 import {
   Bar,
@@ -196,15 +198,23 @@ export function AdminDashboardLoading() {
 }
 
 export function AdminDashboardError() {
+  const router = useRouter();
+  const [isRetrying, startTransition] = useTransition();
+
   return (
     <div className="mt-4 rounded-lg border border-red-500/30 bg-red-950/20 p-4 text-sm text-red-100">
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" />
         <div>
           <p className="font-bold">Không tải được dữ liệu.</p>
-          <a href="/admin/dashboard" className="mt-2 inline-flex text-xs font-bold text-red-100 underline decoration-red-300/60 underline-offset-4">
-            Thử lại
-          </a>
+          <button
+            type="button"
+            disabled={isRetrying}
+            onClick={() => startTransition(() => router.refresh())}
+            className="mt-2 inline-flex text-xs font-bold text-red-100 underline decoration-red-300/60 underline-offset-4 disabled:opacity-60"
+          >
+            {isRetrying ? 'Đang thử lại...' : 'Thử lại'}
+          </button>
         </div>
       </div>
     </div>

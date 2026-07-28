@@ -140,4 +140,13 @@ describe('corrective slice 3B finance role model', () => {
     expect(page).toMatch(/MISSING_EMPLOYEE_PAYMENT_INFO_MESSAGE/);
     expect(page).not.toMatch(/Nhân sự thực hiện/);
   });
+
+  it('keeps ledger retry local and prevents duplicate create or edit submissions', () => {
+    const page = source('app/admin/capital/page.tsx');
+
+    expect(page).toMatch(/onClick=\{\(\) => void loadData\(\)\}[\s\S]*Thử lại/);
+    expect(page).toMatch(/if \(isSubmitting\) return;/);
+    expect(page).toMatch(/disabled=\{isSubmitting\}[\s\S]*Đang ghi/);
+    expect(page).toMatch(/disabled=\{isSubmitting\}[\s\S]*Đang lưu/);
+  });
 });

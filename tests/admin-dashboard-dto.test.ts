@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
 import { buildAdminDashboardDto, type DashboardLedgerEntry } from '../services/adminDashboardDto';
 import {
   DASHBOARD_LEDGER_SELECT,
@@ -69,6 +70,12 @@ function createDashboardClient({
 }
 
 describe('admin dashboard DTO', () => {
+  it('retries dashboard data without a full-page navigation', () => {
+    const source = fs.readFileSync('app/admin/dashboard/AdminDashboardCharts.tsx', 'utf8');
+
+    expect(source).toMatch(/startTransition\(\(\) => router\.refresh\(\)\)/);
+    expect(source).not.toMatch(/<a href="\/admin\/dashboard"/);
+  });
   it('returns the minimal DTO for ADMIN ACTIVE data access', async () => {
     const queriedTables: string[] = [];
 

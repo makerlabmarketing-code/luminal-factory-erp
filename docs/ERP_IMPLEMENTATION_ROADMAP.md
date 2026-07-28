@@ -1313,3 +1313,14 @@ Status: ✅ safe application boundary complete; recovery mutation remains `LIVE_
 - Staff check-in/check-out, attendance calculations, legacy-log reads, facility resolution, and payroll formulas are unchanged. No SQL, database push, runtime flag change, deployment, live mutation, or production permission change was performed.
 
 Current gate: validate the tracked Attendance recovery RLS package and its authorization smoke tests before setting `ATTENDANCE_RECOVERY_ENABLED=true` in the server runtime.
+
+## 2026-07-28 Core ERP functional stabilization gate
+
+Status: `BLOCKED_FOR_SAAS_UI_RESKIN` after application-only audit and safe fixes.
+
+- Audited the thirteen primary journeys in the required order and recorded the evidence/status matrix in `docs/core-erp-functional-stabilization-report.md`.
+- Fixed Ledger local Retry, duplicate create/edit submission, pending action feedback, and the unstable load callback boundary. Fixed Dashboard Retry so it refreshes server data without a full-page navigation.
+- Authentication, Employee, basic Project operations, Project Membership, and Dashboard are application-functional. Account/Permissions, Facility, Attendance, and Ledger still require live operator verification. Phase Workflow, atomic Child Task create, and Comments/Activity remain disabled by default. Payroll and the new ledger/reimbursement/storage model retain explicit business-decision blockers.
+- No GitHub comments were reviewed. No SQL/RPC was executed, no runtime flag was enabled, and no deployment or merge was performed.
+
+Current gate: complete the operator validations and business decisions listed in the stabilization report before declaring `READY_FOR_SAAS_UI_RESKIN`.
