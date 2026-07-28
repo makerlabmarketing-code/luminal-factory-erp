@@ -26,7 +26,7 @@ describe('staff attendance portal regression contract', () => {
     const adminEmployeeData = source('services/server/adminEmployeeData.ts');
     const directory = source('services/server/facilityDirectory.ts');
 
-    expect(route).toMatch(/getFacilityDirectory/);
+    expect(route).toMatch(/loadFacilityDirectory\(await createClient\(\)\)/);
     expect(route).toMatch(/branch\.code/);
     expect(adminEmployeeData).toMatch(/loadFacilityDirectory/);
     expect(directory).toMatch(/FACILITY_SELECT/);
