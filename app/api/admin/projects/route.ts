@@ -17,7 +17,6 @@ function toErrorResponse(error: unknown) {
         message: error.message,
         code: error.code,
         failure_stage: error.failureStage,
-        supabase_error_code: error.safeDetails?.supabase_error_code ?? null,
       },
       { status: error.status }
     );
