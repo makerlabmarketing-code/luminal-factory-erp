@@ -70,6 +70,9 @@ describe('Task Assignment Foundation contracts', () => {
     expect(service).toMatch(/assertTaskSchemaReady/);
     expect(service).toMatch(/task_assignment_migration_required/);
     expect(service).toMatch(/task_assignment_atomic_create_required/);
+    expect(service).toMatch(/TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED/);
+    expect(service).toMatch(/\.rpc\("create_project_task_atomic"/);
+    expect(service).toMatch(/p_actor_employee_id: context\.actorEmployeeId/);
     expect(service).toMatch(/Không thể cập nhật công việc dự án/);
     expect(service).toMatch(/Không thể giao công việc dự án/);
     expect(service).toMatch(/Không thể đổi trạng thái công việc dự án/);
@@ -118,7 +121,7 @@ describe('Task Assignment Foundation contracts', () => {
     expect(saveTaskBody).toMatch(/describeTaskEditIntent/);
     expect(saveTaskBody).toMatch(/!hasTaskEditChanges\(editIntent\)/);
     expect(saveTaskBody).toMatch(/if \(editIntent\.hasAssigneeChange\)[\s\S]*\/assign/);
-    expect(saveTaskBody).toMatch(/if \(editIntent\.hasDeadlineChange\)[\s\S]*method: 'PATCH'/);
+    expect(saveTaskBody).toMatch(/if \(editIntent\.hasDeadlineChange \|\| hasContentChange[\s\S]*method: 'PATCH'/);
     expect(saveTaskBody).toMatch(/if \(editIntent\.hasStatusChange\)[\s\S]*\/status/);
     expect(assignBody.indexOf('currentTask.assigneeEmployeeId === payload.assigneeEmployeeId')).toBeLessThan(assignBody.indexOf('assertAssigneeActiveMember'));
   });
@@ -132,6 +135,11 @@ describe('Task Assignment Foundation contracts', () => {
     expect(projectDetail).toMatch(/task\.progressPercent/);
     expect(projectDetail).toMatch(/<textarea/);
     expect(projectDetail).toMatch(/activeProjectMembers/);
+    expect(projectDetail).toMatch(/Chức năng thêm công việc đang chờ kích hoạt/);
+    expect(projectDetail).toMatch(/handleCreateTask/);
+    expect(projectDetail).toMatch(/await refreshTasks\(\)/);
+    expect(projectDetail).toMatch(/Vui lòng nhập tên công việc/);
+    expect(projectDetail).toMatch(/Người duyệt chưa được hỗ trợ/);
     expect(projectDetail).not.toMatch(/scope=assignable/);
     expect(projectDetail).not.toMatch(/type=\"number\"[^>]+comment/i);
   });

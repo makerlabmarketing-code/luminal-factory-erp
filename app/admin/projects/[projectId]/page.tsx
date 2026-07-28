@@ -101,9 +101,20 @@ interface ProjectDetailDTO {
 
 interface TaskEditState {
   taskId: number;
+  title: string;
+  description: string;
   assigneeEmployeeId: string;
   deadline: string;
   status: TaskAssignmentStatus;
+  comment: string;
+}
+
+interface TaskCreateState {
+  phaseId: number;
+  title: string;
+  description: string;
+  assigneeEmployeeId: string;
+  deadline: string;
   comment: string;
 }
 
@@ -353,8 +364,11 @@ export default function ProjectDetailPage() {
   const [items, setItems] = useState<WorkflowSetting[]>([]);
   const [projectTasks, setProjectTasks] = useState<TaskAssignmentDTO[]>([]);
   const [taskLoadBlocked, setTaskLoadBlocked] = useState(false);
+  const [canCreateTasks, setCanCreateTasks] = useState(false);
   const [taskActionLoading, setTaskActionLoading] = useState<number | null>(null);
   const [editingTask, setEditingTask] = useState<TaskEditState | null>(null);
+  const [creatingTask, setCreatingTask] = useState<TaskCreateState | null>(null);
+  const [taskTitleError, setTaskTitleError] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [forbidden, setForbidden] = useState(false);
@@ -393,8 +407,9 @@ export default function ProjectDetailPage() {
     try {
       const tasksResponse = await fetchWithTimeout(`/api/admin/projects/${projectId}/tasks`);
       if (!tasksResponse.ok) throw new Error('task_load_failed');
-      const payload = await tasksResponse.json() as { tasks?: TaskAssignmentDTO[] };
+      const payload = await tasksResponse.json() as { tasks?: TaskAssignmentDTO[]; capabilities?: { canCreateTasks?: boolean } };
       setProjectTasks(payload.tasks || []);
+      setCanCreateTasks(Boolean(payload.capabilities?.canCreateTasks));
       setTaskLoadBlocked(false);
     } catch {
       setTaskLoadBlocked(true);
@@ -586,7 +601,10 @@ export default function ProjectDetailPage() {
   const canSaveEditingTask = Boolean(
     editingTask &&
     taskActionLoading === null &&
-    (!editingCurrentTask || hasTaskEditChanges(editingTaskIntent))
+    (!editingCurrentTask || hasTaskEditChanges(editingTaskIntent) ||
+      editingTask.title.trim() !== editingCurrentTask.title ||
+      editingTask.description.trim() !== (editingCurrentTask.description || '') ||
+      editingTask.comment.trim())
   );
   const projectDetail: ProjectDetailDTO = {
     id: projectId,
@@ -730,11 +748,52 @@ export default function ProjectDetailPage() {
     if (!canManageTasks || !isTaskAssignmentDTO(task)) return;
     setEditingTask({
       taskId: task.taskId,
+      title: task.title,
+      description: task.description || '',
       assigneeEmployeeId: task.assigneeEmployeeId ? String(task.assigneeEmployeeId) : '',
       deadline: task.deadline ? task.deadline.slice(0, 10) : '',
       status: task.status,
       comment: '',
     });
+  };
+
+  const handleStartCreateTask = (phase: PhaseRecord) => {
+    if (!canCreateTasks || !phase.item.phase_id || isProjectCancelled) return;
+    setTaskTitleError('');
+    setCreatingTask({ phaseId: phase.item.phase_id, title: '', description: '', assigneeEmployeeId: '', deadline: '', comment: '' });
+  };
+
+  const handleCreateTask = async () => {
+    if (!creatingTask || taskActionLoading) return;
+    if (!creatingTask.title.trim()) {
+      setTaskTitleError('Vui lòng nhập tên công việc.');
+      return;
+    }
+    setTaskTitleError('');
+    setTaskActionLoading(0);
+    try {
+      const response = await fetch(`/api/admin/projects/${projectId}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: creatingTask.title,
+          description: creatingTask.description || null,
+          phaseId: creatingTask.phaseId,
+          assigneeEmployeeId: creatingTask.assigneeEmployeeId ? Number(creatingTask.assigneeEmployeeId) : null,
+          deadline: creatingTask.deadline || null,
+          comment: creatingTask.comment || null,
+        }),
+      });
+      const payload = await response.json().catch(() => null) as { message?: string } | null;
+      if (!response.ok) throw new Error(payload?.message || 'Không thể tạo công việc.');
+      setCreatingTask(null);
+      showToast('Đã thêm công việc.', 'Danh sách công việc của giai đoạn đã được cập nhật.', 'success');
+      await refreshTasks();
+    } catch (error) {
+      showToast('Không thể thêm công việc.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setTaskActionLoading(null);
+    }
   };
 
   const handleSaveTask = async () => {
@@ -750,8 +809,13 @@ export default function ProjectDetailPage() {
         nextStatus: editingTask.status,
       })
       : { hasAssigneeChange: true, hasDeadlineChange: true, hasStatusChange: true, changedLabels: ['người phụ trách', 'hạn hoàn thành', 'trạng thái'] };
+    const hasContentChange = Boolean(currentTask && (
+      editingTask.title.trim() !== currentTask.title ||
+      editingTask.description.trim() !== (currentTask.description || '')
+    ));
+    const hasComment = Boolean(editingTask.comment.trim());
 
-    if (currentTask && !hasTaskEditChanges(editIntent)) {
+    if (currentTask && !hasTaskEditChanges(editIntent) && !hasContentChange && !hasComment) {
       showToast('Chưa có thay đổi.', 'Hãy chỉnh người phụ trách, hạn hoàn thành hoặc trạng thái trước khi lưu.', 'info');
       return;
     }
@@ -771,11 +835,11 @@ export default function ProjectDetailPage() {
         if (!assignResponse.ok) throw new Error(assignPayload?.message || 'Không thể giao công việc.');
       }
 
-      if (editIntent.hasDeadlineChange) {
+      if (editIntent.hasDeadlineChange || hasContentChange || (hasComment && !editIntent.hasAssigneeChange && !editIntent.hasStatusChange)) {
         const updateResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deadline: nextDeadline }),
+          body: JSON.stringify({ title: editingTask.title, description: editingTask.description || null, deadline: nextDeadline, comment: editIntent.hasAssigneeChange ? null : editingTask.comment || null }),
         });
         const updatePayload = await updateResponse.json().catch(() => null) as { message?: string } | null;
         if (!updateResponse.ok) throw new Error(updatePayload?.message || 'Không thể cập nhật hạn hoàn thành.');
@@ -797,7 +861,7 @@ export default function ProjectDetailPage() {
 
       setEditingTask(null);
       showToast('Đã lưu công việc.', 'Công việc con đã được cập nhật.', 'success');
-      await loadData();
+      await refreshTasks();
     } catch (error) {
       showToast('Không thể lưu công việc.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
     } finally {
@@ -942,7 +1006,7 @@ export default function ProjectDetailPage() {
             <button type="button" disabled={!canManageProject || isProjectCancelled} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold text-slate-200 disabled:cursor-not-allowed disabled:opacity-50" title="Cần cổng ghi giai đoạn được duyệt">
               <Plus className="h-4 w-4" /> Thêm giai đoạn
             </button>
-            <button type="button" disabled={!projectCapabilities.canManageTasks || isProjectCancelled || taskLoadBlocked} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500" title="Công việc luôn được tạo trong dự án và giai đoạn đã chọn">
+            <button type="button" onClick={() => selectedPhase && handleStartCreateTask(selectedPhase)} disabled={!projectCapabilities.canManageTasks || !canCreateTasks || !selectedPhase || isProjectCancelled || taskLoadBlocked} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500" title={canCreateTasks ? 'Công việc luôn được tạo trong dự án và giai đoạn đã chọn' : 'Chức năng thêm công việc đang chờ kích hoạt.'}>
               <Plus className="h-4 w-4" /> Thêm công việc
             </button>
           </div>
@@ -1156,7 +1220,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">Thứ tự {selectedPhase.orderIndex} · Tạo lúc {formatDateTime(selectedPhase.description.phase_created_at)}</p>
                     </div>
-                    <button type="button" disabled={!projectCapabilities.canManageTasks || isProjectCancelled || selectedPhase.isLocked || taskLoadBlocked} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
+                    <button type="button" onClick={() => handleStartCreateTask(selectedPhase)} disabled={!projectCapabilities.canManageTasks || !canCreateTasks || isProjectCancelled || selectedPhase.isLocked || taskLoadBlocked} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
                       <Plus className="h-4 w-4" /> Thêm công việc vào giai đoạn
                     </button>
                     <div className="flex flex-wrap gap-2">
@@ -1214,7 +1278,7 @@ export default function ProjectDetailPage() {
                   )}
 
                   <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-400">
-                    Công việc con dùng nền tảng giao việc sau khi cổng dữ liệu được duyệt. Nếu chưa bật, màn hình giữ dữ liệu cũ ở chế độ chỉ xem.
+                    {canCreateTasks ? 'Công việc được lưu qua cổng giao dịch của dự án và giai đoạn đang chọn.' : 'Chức năng thêm công việc đang chờ kích hoạt.'}
                   </div>
 
                   <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
@@ -1424,6 +1488,10 @@ export default function ProjectDetailPage() {
                 <p className="text-xs text-slate-500" id="edit-task-description">Người phụ trách phải là thành viên đang hoạt động của dự án.</p>
               </div>
               <div className="space-y-3 text-xs">
+                <label htmlFor="edit-task-name" className="block font-bold text-slate-300">Tên công việc</label>
+                <input id="edit-task-name" value={editingTask.title} onChange={(event) => setEditingTask({ ...editingTask, title: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+                <label htmlFor="edit-task-note" className="block font-bold text-slate-300">Ghi chú</label>
+                <textarea id="edit-task-note" value={editingTask.description} onChange={(event) => setEditingTask({ ...editingTask, description: event.target.value })} disabled={taskActionLoading !== null} rows={3} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
                 <label htmlFor="edit-task-assignee" className="block font-bold text-slate-300">Người phụ trách</label>
                 <select id="edit-task-assignee" value={editingTask.assigneeEmployeeId} onChange={(event) => setEditingTask({ ...editingTask, assigneeEmployeeId: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">
                   <option value="">Chưa phân công</option>
@@ -1441,7 +1509,7 @@ export default function ProjectDetailPage() {
                 <label htmlFor="edit-task-comment" className="block font-bold text-slate-300">Bình luận</label>
                 <textarea id="edit-task-comment" value={editingTask.comment} onChange={(event) => setEditingTask({ ...editingTask, comment: event.target.value })} disabled={taskActionLoading !== null} rows={4} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none" placeholder="Nhập bình luận cho công việc" />
                 <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-slate-400" aria-live="polite">
-                  {editingTaskIntent && hasTaskEditChanges(editingTaskIntent)
+                  {editingTaskIntent && (hasTaskEditChanges(editingTaskIntent) || editingTask.comment.trim())
                     ? `Sẽ cập nhật ${editingTaskIntent.changedLabels.join(', ')}.`
                     : 'Chưa có thay đổi để lưu.'}
                 </div>
@@ -1452,6 +1520,30 @@ export default function ProjectDetailPage() {
                   <Save className="h-4 w-4" /> {taskActionLoading !== null ? 'Đang lưu...' : 'Lưu'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {creatingTask && selectedPhase && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-labelledby="create-task-title">
+            <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
+              <h2 id="create-task-title" className="text-base font-black text-slate-100">Thêm công việc</h2>
+              <p className="mt-1 text-xs text-slate-500">Dự án: {projectDetail.name} · Giai đoạn: {selectedPhase.phaseName}</p>
+              <div className="mt-4 space-y-3 text-xs">
+                <label htmlFor="create-task-name" className="block font-bold text-slate-300">Tên công việc <span className="text-red-300">*</span></label>
+                <input id="create-task-name" value={creatingTask.title} onChange={(event) => { setCreatingTask({ ...creatingTask, title: event.target.value }); setTaskTitleError(''); }} aria-invalid={Boolean(taskTitleError)} className={`w-full rounded border bg-slate-950 px-3 py-2 text-slate-100 ${taskTitleError ? 'border-red-500' : 'border-slate-700'}`} />
+                {taskTitleError && <p className="text-red-300">{taskTitleError}</p>}
+                <label htmlFor="create-task-assignee" className="block font-bold text-slate-300">Người phụ trách</label>
+                <select id="create-task-assignee" value={creatingTask.assigneeEmployeeId} onChange={(event) => setCreatingTask({ ...creatingTask, assigneeEmployeeId: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"><option value="">Chưa phân công</option>{activeProjectMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}{member.title ? ` · ${member.title}` : ''}</option>)}</select>
+                <p className="text-slate-500">Người duyệt chưa được hỗ trợ bởi hợp đồng dữ liệu hiện tại.</p>
+                <label htmlFor="create-task-deadline" className="block font-bold text-slate-300">Hạn hoàn thành</label>
+                <input id="create-task-deadline" type="date" value={creatingTask.deadline} onChange={(event) => setCreatingTask({ ...creatingTask, deadline: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+                <label htmlFor="create-task-note" className="block font-bold text-slate-300">Ghi chú</label>
+                <textarea id="create-task-note" rows={3} value={creatingTask.description} onChange={(event) => setCreatingTask({ ...creatingTask, description: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+                <label htmlFor="create-task-comment" className="block font-bold text-slate-300">Bình luận</label>
+                <textarea id="create-task-comment" rows={3} value={creatingTask.comment} onChange={(event) => setCreatingTask({ ...creatingTask, comment: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+              </div>
+              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={taskActionLoading !== null} onClick={() => setCreatingTask(null)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={taskActionLoading !== null} onClick={handleCreateTask} className="rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:bg-slate-800">{taskActionLoading !== null ? 'Đang lưu...' : 'Thêm công việc'}</button></div>
             </div>
           </div>
         )}

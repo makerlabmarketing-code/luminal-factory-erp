@@ -1278,3 +1278,14 @@ Status: ✅ application-only authorization stabilization complete; no SQL, deplo
 - Workspace and permission lookup failures fail closed as retryable authorization failures instead of being converted into a false forbidden result. The global administrator override remains server-derived, and cancelled projects retain read-only capabilities.
 - Project API responses no longer expose Supabase error codes. Project Detail continues to render its core response before independently loading phases, tasks, and members.
 - Attendance authorization remains independent from Project Membership. No schema, RLS, RPC, permission, membership, or attendance data was changed.
+
+## 2026-07-28 Normalized child task CRUD continuation
+
+Status: ✅ safe application work complete; atomic create rollout remains `LIVE_APPROVAL_REQUIRED`.
+
+- Project Detail now opens a phase-scoped create form only when the server reports the atomic-create capability. It submits stable employee IDs from ACTIVE, assignable project members, validates the required Vietnamese task name inline, protects against double submit, and refreshes only the task section after success.
+- Task edit now supports title, note, assignee, deadline, controlled status transition, and textarea comment. Cancellation remains the approved `CANCELLED` status transition; no hard-delete route exists. Reviewer selection is explicitly unavailable because the approved normalized contract has no reviewer field.
+- The server calls `create_project_task_atomic` only behind `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED=true`, after session-derived project authorization, phase/parent validation, and active-member validation. Client actor, role, and project-authority fields remain rejected.
+- The reviewed RPC, rollback, pre-run and post-run artifacts remain operator-gated. No SQL, database push, migration repair, deployment, live mutation, merge, or production flag change was performed.
+
+Current gate: operator validation and protected-main delivery of the atomic task-create RPC package, followed by smoke testing, are required before enabling `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED=true`.
