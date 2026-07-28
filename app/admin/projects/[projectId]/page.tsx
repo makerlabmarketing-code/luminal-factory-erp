@@ -926,13 +926,13 @@ export default function ProjectDetailPage() {
 
   if (hasInvalidProjectId) {
     return (
-      <div className="min-h-screen bg-slate-950 p-6 text-slate-100"><div className="mx-auto max-w-3xl py-20"><OperationalState tone="warning" title="Mã dự án không hợp lệ." description="Đường dẫn dự án phải chứa một mã số nguyên dương." action={<Link href="/admin/projects" className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white">Quay lại danh sách</Link>} /></div></div>
+      <div className="admin-page text-slate-100"><div className="mx-auto max-w-3xl py-20"><OperationalState tone="warning" title="Mã dự án không hợp lệ." description="Đường dẫn dự án phải chứa một mã số nguyên dương." action={<Link href="/admin/projects" className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white">Quay lại danh sách</Link>} /></div></div>
     );
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 p-4 text-slate-100 sm:p-6">
+      <div className="admin-page text-slate-100">
         <div className="mx-auto max-w-7xl space-y-5" aria-busy="true" aria-label="Đang tải chi tiết dự án">
           <div className="flex flex-col gap-3 border-b border-slate-800 pb-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-3">
@@ -963,7 +963,7 @@ export default function ProjectDetailPage() {
 
   if (loadFailed) {
     return (
-      <div className="min-h-screen bg-slate-950 p-4 text-slate-100 sm:p-6">
+      <div className="admin-page text-slate-100">
         <div className="mx-auto max-w-3xl py-20">
           <OperationalState
             tone="warning"
@@ -981,11 +981,11 @@ export default function ProjectDetailPage() {
   }
 
   if (forbidden) {
-    return <div className="min-h-screen bg-slate-950 p-6 text-slate-100"><div className="mx-auto max-w-3xl py-20"><OperationalState tone="warning" title="Bạn không có quyền xem dự án này" description="Hãy liên hệ người quản lý dự án để được cấp quyền." action={<Link href="/admin/projects" className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white">Quay lại danh sách</Link>} /></div></div>;
+    return <div className="admin-page text-slate-100"><div className="mx-auto max-w-3xl py-20"><OperationalState tone="warning" title="Bạn không có quyền xem dự án này" description="Hãy liên hệ người quản lý dự án để được cấp quyền." action={<Link href="/admin/projects" className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white">Quay lại danh sách</Link>} /></div></div>;
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-4 text-slate-100 sm:p-6">
+    <div className="admin-page text-slate-100">
       <div className="mx-auto max-w-7xl space-y-5">
         <div className="flex flex-col gap-3 border-b border-slate-800 pb-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">

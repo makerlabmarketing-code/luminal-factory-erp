@@ -39,7 +39,7 @@ export default function ForgotPasswordForm() {
     <main className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-slate-100 font-sans">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl space-y-4"
+        className="admin-card w-full max-w-sm space-y-5 p-6 sm:p-8"
       >
         <div className="text-center space-y-2">
           <div className="w-12 h-12 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center mx-auto">
@@ -56,7 +56,7 @@ export default function ForgotPasswordForm() {
           <input
             id="reset-email"
             type="email"
-            className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs focus:outline-none focus:border-purple-600"
+            className="admin-field"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             disabled={submitting}

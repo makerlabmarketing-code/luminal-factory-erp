@@ -116,7 +116,7 @@ export default function UpdatePasswordForm({ initialUrlState = {} }: UpdatePassw
 
   return (
     <main className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-slate-100 font-sans">
-      <section className="w-full max-w-sm bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl space-y-4">
+      <section className="admin-card w-full max-w-sm space-y-5 p-6 sm:p-8">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center mx-auto">
             {viewState.status === 'invalid' ? (
@@ -167,7 +167,7 @@ export default function UpdatePasswordForm({ initialUrlState = {} }: UpdatePassw
                 <input
                   id="new-password"
                   type={showPassword ? 'text' : 'password'}
-                  className="w-full bg-slate-950 border border-slate-800 p-3 pr-10 rounded-xl text-xs focus:outline-none focus:border-blue-600"
+                  className="admin-field pr-10"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   disabled={disabled}
@@ -192,7 +192,7 @@ export default function UpdatePasswordForm({ initialUrlState = {} }: UpdatePassw
               <input
                 id="confirm-password"
                 type={showPassword ? 'text' : 'password'}
-                className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs focus:outline-none focus:border-blue-600"
+                className="admin-field"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 disabled={disabled}

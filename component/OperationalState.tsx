@@ -35,7 +35,7 @@ export function OperationalState({
   const defaultIcon = tone === 'neutral' ? <Inbox className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />;
 
   return (
-    <div className={`rounded-lg border border-dashed p-6 text-center text-xs ${toneClasses[tone]} ${className}`} role="status">
+    <div className={`rounded-xl border border-dashed p-6 text-center text-xs ${toneClasses[tone]} ${className}`} role="status">
       <div className={`mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 ${iconClasses[tone]}`} aria-hidden="true">
         {icon || defaultIcon}
       </div>

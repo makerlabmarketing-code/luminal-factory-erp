@@ -513,7 +513,7 @@ export default function AdminProjectManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 space-y-6">
+    <div className="admin-page text-slate-100">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-slate-800 pb-4">
         <div className="flex items-center gap-3">
           <Layers className="w-5 h-5 text-cyan-400" />
