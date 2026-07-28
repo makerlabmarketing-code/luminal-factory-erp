@@ -13,7 +13,6 @@ export type FinanceExpenseCategory =
 export type ReimbursementRequestStatus =
   | 'DRAFT'
   | 'SUBMITTED'
-  | 'UNDER_REVIEW'
   | 'APPROVED'
   | 'REJECTED'
   | 'PAID'
@@ -194,8 +193,7 @@ export function canTransitionReimbursement(params: {
 
   const allowed: Record<ReimbursementRequestStatus, ReimbursementRequestStatus[]> = {
     DRAFT: ['SUBMITTED', 'CANCELLED'],
-    SUBMITTED: ['UNDER_REVIEW', 'CANCELLED'],
-    UNDER_REVIEW: ['APPROVED', 'REJECTED'],
+    SUBMITTED: ['APPROVED', 'REJECTED', 'CANCELLED'],
     APPROVED: ['PAID'],
     REJECTED: ['DRAFT', 'CANCELLED'],
     PAID: [],

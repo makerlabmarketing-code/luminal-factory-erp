@@ -77,3 +77,11 @@ For each approved gate, retain the pre-run output, confirm migration history bef
 5. Execute the operator gates in the order above, retaining pre/post, authorization, RLS, smoke, and monitoring evidence at every gate.
 6. Enable only the single gate whose evidence is complete. Stop and disable it on any matrix/runbook rollback trigger.
 7. Leave Ledger/Reimbursement blocked. Keep Payroll disabled until its reviewed operator package, explicit first-month configuration, authorization fixtures, and smoke tests pass.
+
+## Ledger/Reimbursement package — 2026-07-28
+
+The former business-decision blocker is resolved. Repository delivery is complete and `LIVE_APPROVAL_REQUIRED`: pre-run `supabase/drafts/20260728153000_ledger_reimbursement_pre_run.sql`, forward migration `supabase/migrations/20260728153000_ledger_reimbursement_workflow.sql`, post-run validation, rollback, storage policy, and smoke checklist share the `20260728153000` identifier. Deliver the forward file only through protected main/Supabase GitHub Integration after review. Do not execute SQL directly, rewrite legacy rows, create a public bucket, or enable `FINANCE_REIMBURSEMENT_ENABLED` in this handoff.
+
+Remaining operator work: retain pre-run legacy salary counts, approve/deliver the migration and private Storage/RLS boundary, retain post-run/RLS/authorization/smoke PASS evidence, then separately approve the runtime flag. Existing salary rows with null beneficiary must remain null and render **Chưa xác định**. Payroll snapshots remain immutable; a ledger relationship uses only `source_type` and `source_reference`.
+
+The exact next repository roadmap item after operator evidence is **Item 15 — Functional stabilization**. Broad SaaS UI work remains blocked.

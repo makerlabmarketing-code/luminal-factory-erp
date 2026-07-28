@@ -39,6 +39,10 @@ export function StaffExpensesContent({
   const [expCategory, setExpCategory] = useState('');
   const [expAmount, setExpAmount] = useState('');
   const [expBillUrl, setExpBillUrl] = useState('');
+  const [expDate, setExpDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [expDescription, setExpDescription] = useState('');
+  const [expProjectId, setExpProjectId] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -73,6 +77,7 @@ export function StaffExpensesContent({
   }, [loadExpensesData]);
 
   const handleSubmitExpense = async () => {
+    if (isSubmitting) return;
     if (!worker) {
       showToast('Lỗi', 'Chưa xác định danh tính thợ trực ca!', 'error');
       return;
@@ -80,28 +85,37 @@ export function StaffExpensesContent({
 
     const numericAmount = parseCurrency(expAmount);
 
-    if (!expCategory.trim() || !numericAmount) {
-      showToast('Thiếu thông tin', 'Vui lòng điền đủ thông tin vật tư và tiền chi!', 'error');
+    if (!expCategory.trim() || !numericAmount || !expDate || !expDescription.trim()) {
+      showToast('Thiếu thông tin', 'Vui lòng nhập danh mục, số tiền, ngày chi và mô tả.', 'error');
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await submitStaffExpense({
         employee: worker,
         category: expCategory,
         amount: numericAmount,
+        transactionDate: expDate,
+        description: expDescription,
+        projectId: expProjectId,
         billUrl: expBillUrl,
+        idempotencyKey: crypto.randomUUID(),
       });
 
       setExpCategory('');
       setExpAmount('');
       setExpBillUrl('');
+      setExpDescription('');
+      setExpProjectId('');
 
       showToast('Nộp phiếu thành công', 'Yêu cầu hoàn ứng đã được gửi lên hệ thống chờ duyệt!', 'success');
       loadExpensesData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể gửi phiếu hoàn ứng.';
       showToast('Lỗi', message, 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -157,6 +171,21 @@ export function StaffExpensesContent({
         </div>
 
         <div>
+          <label className="text-slate-400 font-bold">Ngày phát sinh:</label>
+          <input type="date" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5" value={expDate} onChange={(event) => setExpDate(event.target.value)} />
+        </div>
+
+        <div>
+          <label className="text-slate-400 font-bold">Mô tả:</label>
+          <textarea className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5" value={expDescription} onChange={(event) => setExpDescription(event.target.value)} />
+        </div>
+
+        <div>
+          <label className="text-slate-400 font-bold">Mã dự án (tùy chọn):</label>
+          <input className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5" value={expProjectId} onChange={(event) => setExpProjectId(event.target.value)} />
+        </div>
+
+        <div>
           <label className="text-slate-400 font-bold">Số tiền mặt thực chi (VND):</label>
           <input
             type="text"
@@ -178,9 +207,10 @@ export function StaffExpensesContent({
 
         <button
           onClick={handleSubmitExpense}
+          disabled={isSubmitting}
           className="w-full bg-emerald-600 hover:bg-emerald-700 transition text-white font-black p-3.5 rounded-xl uppercase text-xs mt-2 cursor-pointer"
         >
-          Nộp phiếu hoàn ứng
+          {isSubmitting ? 'Đang gửi...' : 'Nộp phiếu hoàn ứng'}
         </button>
       </div>
 
@@ -222,6 +252,8 @@ export function StaffExpensesContent({
                   <tr key={expense.id} className="hover:bg-slate-950/10 transition">
                     <td className="p-4">
                       <p className="font-bold text-slate-200">{expense.category}</p>
+                      <p className="mt-1 text-slate-400">Người hưởng lợi: {expense.beneficiary_name || 'Chưa xác định'}</p>
+                      {expense.description && <p className="mt-1 text-slate-400">{expense.description}</p>}
 
                       {expense.bill_url && (
                         <a
@@ -247,7 +279,7 @@ export function StaffExpensesContent({
                             : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                         }`}
                       >
-                        {expense.is_paid ? '✅ Đã thanh toán' : '⏳ Chờ duyệt'}
+                        {expense.reimbursement_status === 'PAID' ? '✅ Đã thanh toán' : expense.reimbursement_status === 'APPROVED' ? '✓ Đã duyệt' : expense.reimbursement_status === 'REJECTED' ? '✕ Bị từ chối' : '⏳ Chờ duyệt'}
                       </span>
                     </td>
 
