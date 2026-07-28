@@ -7,7 +7,7 @@ export interface StaffPortalState {}
 export interface StaffSession {}
 
 export interface StaffNavigationItem {}
-export type StaffPortalTab = 'attendance' | 'tasks' | 'expenses' | 'profile';
+export type StaffPortalTab = 'attendance' | 'tasks' | 'expenses' | 'payroll' | 'profile';
 
 export type StaffEmployee = Employee;
 export type StaffBranch = Facility;

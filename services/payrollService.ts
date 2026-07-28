@@ -51,3 +51,20 @@ export function calculateSalary(decimalHours: number, hourlyRate: number): numbe
   if (decimalHours <= 0 || hourlyRate <= 0) return 0;
   return Math.round(decimalHours * hourlyRate);
 }
+
+export function calculateMonthlyPayroll(
+  workedMinutes: number,
+  hourlyRate: number,
+  approvedAdjustmentAmount = 0
+) {
+  const workedHours = calculateActualHoursFromMinutes(workedMinutes);
+  const baseSalary = calculateSalary(workedHours, hourlyRate);
+
+  return {
+    workedMinutes,
+    workedHours,
+    baseSalary,
+    approvedAdjustmentAmount,
+    finalPayableAmount: baseSalary + approvedAdjustmentAmount,
+  };
+}
