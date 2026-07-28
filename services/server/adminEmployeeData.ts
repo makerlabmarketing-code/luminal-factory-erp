@@ -8,7 +8,7 @@ import {
   requireWorkspaceAccess,
   type AuthContext,
 } from '@/services/server/auth';
-import { findFacility, getFacilityDirectory, type FacilityDirectoryItem } from '@/services/server/facilityDirectory';
+import { findFacility, loadFacilityDirectory, type FacilityDirectoryItem } from '@/services/server/facilityDirectory';
 import { resolveEmployeeFacility, type FacilityResolutionStatus } from '@/lib/employeeFacility';
 import { accountConnectionExplanations, resolveAccountConnectionStatus, type AccountConnectionStatus } from '@/lib/accountConnection';
 
@@ -239,8 +239,8 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
         .from('employees')
         .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code')
         .order('id', { ascending: false }),
-      getFacilityDirectory().then(
-        (facilities) => ({ facilities, failed: false as const }),
+      loadFacilityDirectory(supabase).then(
+        ({ facilities }) => ({ facilities, failed: false as const }),
         () => ({ facilities: [] as FacilityDirectoryItem[], failed: true as const })
       ),
       supabase
@@ -355,7 +355,7 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
 
   const employeeRow = employee as EmployeeRow;
   const [facilityResult, workspaceResult, permissionResult, membershipResult, authResult] = await Promise.all([
-    getFacilityDirectory().then((facilities) => ({ data: facilities, failed: false as const }), () => ({ data: [] as FacilityDirectoryItem[], failed: true as const })),
+    loadFacilityDirectory(supabase).then(({ facilities }) => ({ data: facilities, failed: false as const }), () => ({ data: [] as FacilityDirectoryItem[], failed: true as const })),
     supabase.from('employee_workspace_access').select('employee_id, workspace, status, revoked_at').eq('employee_id', employeeId).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('employee_permissions').select('employee_id, permission_code, effect, status, revoked_at').eq('employee_id', employeeId).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('project_members').select('project_id, member_role, status, projects(name)').eq('employee_id', employeeId).limit(20).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),

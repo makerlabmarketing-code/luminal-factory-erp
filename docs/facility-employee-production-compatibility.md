@@ -33,6 +33,16 @@ The repository contract does not establish a database foreign key from `employee
 
 ## Diagnosed application failures
 
+The production-visible list failure had an application-side cause: the authorized
+`/api/admin/facilities` request delegated its read to `getFacilityDirectoryResult`,
+which always constructed a privileged client and therefore made
+`SUPABASE_SECRET_KEY` a hidden requirement. Employee core reads use the request
+session and survived because facility/account enrichment errors are intentionally
+captured; the Facility page treated the same directory error as fatal. The list and
+Employee enrichment now query with the already-authorized request-scoped client.
+Production RLS/grant compatibility is still unverified and is the remaining database
+gate, not a reason to restore the secret-dependent read.
+
 1. The facility page's client parser compared `message` with the machine error code, so `facility_schema_unavailable` could not be classified correctly. The corrected route/parser preserves server codes and adds retry metadata.
 2. Legacy facility rows were previously assigned a fake display code equal to their numeric ID. Legacy rows now keep an empty code and disable code/status persistence capability instead of pretending the schema supports it.
 3. Employee facility display previously returned the stored `branch_code` whenever enrichment did not resolve it, exposing raw numeric IDs. One server resolver now returns structured resolution status and a safe display value.
@@ -42,6 +52,18 @@ The repository contract does not establish a database foreign key from `employee
 ## Reconciliation decision
 
 No data mutation is part of this slice. After the read-only audit, a separate reviewed reconciliation may be required for values that do not match a facility ID, code, or name. Never rewrite `employees.branch_code` automatically: numeric and textual legacy values must be mapped with business confirmation to avoid attaching an employee to the wrong facility.
+
+## Operator order for the Facility Directory read boundary
+
+Keep `FACILITY_ACTIVE_STATE_ENABLED=false`/unset throughout this sequence.
+
+1. Run `supabase/validation/20260727_facility_employee_compatibility_audit.sql` read-only and retain the redacted schema, FK, aggregate assignment, grant, and policy output.
+2. Run `supabase/drafts/20260728_facility_directory_rls_pre_run.sql` read-only. If an equivalent scoped SELECT policy and grant already exist, do not run the forward draft; compare and record the existing policy instead.
+3. Obtain live approval for the reviewed RLS change. Only then run `supabase/drafts/20260728_facility_directory_rls_forward.sql` if the pre-run proves it is required.
+4. Run `supabase/drafts/20260728_facility_directory_rls_post_run.sql`, then perform every authorized/unauthorized smoke fixture listed in that file.
+5. Confirm migration history and run `supabase/validation/20260723120000_facility_status_code_validation.sql`; do not rerun the tracked `20260723120000_facility_status_code.sql` outside the approved migration path.
+6. Verify the Facilities page, Employee list/detail legacy values, assigned-facility Attendance lookup, and inactive exclusion. Do not enable the flag until all evidence is PASS.
+7. If the new read boundary causes authorization exposure or regression, run `supabase/drafts/20260728_facility_directory_rls_rollback.sql`. Use the existing status/code rollback only for a separately approved status/code rollback decision.
 
 ## Request behavior
 

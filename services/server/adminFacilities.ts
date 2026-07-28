@@ -2,7 +2,7 @@ import 'server-only';
 
 import { createClient } from '@/utils/supabase/server';
 import { AuthFlowError, hasPermission, requireWorkspaceAccess } from '@/services/server/auth';
-import { getFacilityDirectoryResult } from '@/services/server/facilityDirectory';
+import { loadFacilityDirectory } from '@/services/server/facilityDirectory';
 
 export interface AdminFacilityDto {
   id: number | string;
@@ -176,10 +176,16 @@ function parseFacilityId(value: unknown): string | number {
 
 export async function listAdminFacilities() {
   await requireFacilityView();
-  const directory = await getFacilityDirectoryResult();
+  // Use the already-authorized request session for this user-facing read. This
+  // avoids turning an optional server secret into a requirement for the page and
+  // keeps the database RLS policy as a second authorization boundary.
+  const directory = await loadFacilityDirectory(await createClient());
   return {
     success: true,
-    capabilities: { canPersistStatusAndCode: directory.canPersistStatusAndCode, canManageFacilities: directory.canPersistStatusAndCode },
+    capabilities: {
+      canPersistStatusAndCode: directory.canPersistStatusAndCode,
+      canManageFacilities: directory.canPersistStatusAndCode && isFacilityActiveStateEnabled(),
+    },
     facilities: directory.facilities.map((facility) => ({
       id: facility.id,
       facilityName: facility.name,

@@ -28,7 +28,7 @@ describe('staff attendance portal regression contract', () => {
 
     expect(route).toMatch(/getFacilityDirectory/);
     expect(route).toMatch(/branch\.code/);
-    expect(adminEmployeeData).toMatch(/getFacilityDirectory/);
+    expect(adminEmployeeData).toMatch(/loadFacilityDirectory/);
     expect(directory).toMatch(/FACILITY_SELECT/);
     expect(directory).toMatch(/is_active/);
   });
