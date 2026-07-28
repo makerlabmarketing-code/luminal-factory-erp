@@ -17,6 +17,10 @@ import {
 type AttendanceMutationBody = Record<string, unknown>;
 type AttendanceAction = 'load' | 'update';
 
+function isAttendanceRecoveryEnabled() {
+  return process.env.ATTENDANCE_RECOVERY_ENABLED === 'true';
+}
+
 async function requireAttendanceView() {
   const authContext = await requireWorkspaceAccess('ADMIN_WORKSPACE');
   const canView = await hasPermission(authContext, 'ATTENDANCE_VIEW');
@@ -42,6 +46,15 @@ async function requireAttendanceManage() {
       status: 403,
       code: 'permission_forbidden',
       message: 'Bạn không có quyền điều chỉnh chấm công.',
+      failureStage: 'permission_check',
+    });
+  }
+
+  if (!isAttendanceRecoveryEnabled()) {
+    throw new AuthFlowError({
+      status: 503,
+      code: 'attendance_recovery_disabled',
+      message: 'Điều chỉnh chấm công đang chờ kích hoạt.',
       failureStage: 'permission_check',
     });
   }
@@ -171,7 +184,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ...payload,
       permissions: {
-        canAdjustAttendance: canManage,
+        canAdjustAttendance: canManage && isAttendanceRecoveryEnabled(),
       },
     });
   } catch (error) {

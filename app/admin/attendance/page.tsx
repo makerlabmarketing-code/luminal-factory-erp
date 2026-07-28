@@ -104,11 +104,7 @@ export default function AdminAttendanceManagement() {
 
       setEmployees(payload.employees || []);
 
-      const finalShifts = [...(payload.shifts || [])];
-      if (!finalShifts.some((shift) => shift.shift_name.includes('Tối'))) {
-        finalShifts.push({ id: 't_mock', shift_name: 'Ca Tối', start_time: '18:00:00', end_time: '22:00:00' });
-      }
-      setShifts(finalShifts);
+      setShifts(payload.shifts || []);
       setAttendanceRecords(payload.attendanceRecords || []);
       setCanAdjustAttendance(Boolean(payload.permissions?.canAdjustAttendance));
       setSourceCounts(payload.sourceCounts || { attendance: 0, attendanceLogs: 0 });
@@ -240,6 +236,15 @@ export default function AdminAttendanceManagement() {
           >
             Thử lại
           </button>
+        </div>
+      )}
+
+      {!canAdjustAttendance && !loadError && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-xs text-amber-100">
+          <p className="font-bold text-amber-300">Chế độ chỉ xem</p>
+          <p className="mt-1 text-amber-100/80">
+            Điều chỉnh chấm công đang chờ xác nhận gói phân quyền và kiểm tra vận hành.
+          </p>
         </div>
       )}
 
