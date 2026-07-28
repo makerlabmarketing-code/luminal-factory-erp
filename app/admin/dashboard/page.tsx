@@ -1,6 +1,7 @@
 import AdminDashboardCharts, { AdminDashboardError } from './AdminDashboardCharts';
 import { AuthFlowError } from '@/services/server/auth';
 import { DashboardDataError, getAdminDashboardDto } from '@/services/server/adminDashboardData';
+import { AdminPage, AdminPageHeader } from '@/component/AdminUI';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -9,7 +10,10 @@ export const fetchCache = 'force-no-store';
 export default async function AdminDashboardPage() {
   try {
     const dashboard = await getAdminDashboardDto();
-    return <AdminDashboardCharts dashboard={dashboard} />;
+    return <AdminPage>
+      <AdminPageHeader title="Tổng quan vận hành" description="Theo dõi nhanh dòng tiền và tình hình vận hành hiện tại." />
+      <AdminDashboardCharts dashboard={dashboard} />
+    </AdminPage>;
   } catch (error) {
     logDashboardError(error);
     return <AdminDashboardError />;

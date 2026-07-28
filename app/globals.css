@@ -2,26 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+:root { color-scheme: dark; --admin-accent: 59 130 246; --admin-border: 30 41 59; }
+* { border-color: rgb(var(--admin-border)); }
+html { background: #020617; }
+body { margin: 0; background: #020617; color: #e2e8f0; font-feature-settings: "cv02", "cv03", "cv04", "cv11"; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid rgb(var(--admin-accent)); outline-offset: 2px; }
+
+@layer components {
+  .admin-nav-item { @apply flex min-h-[40px] items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 transition-colors hover:bg-slate-800/70 hover:text-slate-100; }
+  .admin-nav-item-active { @apply bg-blue-500/10 text-blue-300 ring-1 ring-inset ring-blue-500/20; }
+  .admin-icon-button { @apply inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50; }
+  .admin-page { @apply mx-auto w-full max-w-[1440px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8; }
+  .admin-page-header { @apply flex flex-col gap-4 border-b border-slate-800/80 pb-5 sm:flex-row sm:items-end sm:justify-between; }
+  .admin-page-title { @apply text-xl font-bold tracking-tight text-slate-50 sm:text-2xl; }
+  .admin-page-description { @apply mt-1.5 max-w-3xl text-xs leading-5 text-slate-400 sm:text-sm; }
+  .admin-card { @apply rounded-xl border border-slate-800/80 bg-slate-900/80 shadow-[0_1px_2px_rgba(0,0,0,0.25)]; }
+  .admin-table-shell { @apply overflow-hidden rounded-xl border border-slate-800/80 bg-slate-900/80; }
+  .admin-button { @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
+  .admin-button-primary { @apply admin-button bg-blue-600 text-white hover:bg-blue-500; }
+  .admin-button-secondary { @apply admin-button border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800; }
+  .admin-badge { @apply inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold; }
+  .admin-field { @apply min-h-[40px] w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none placeholder:text-slate-600 focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-900 disabled:text-slate-500; }
+  .admin-label { @apply block text-xs font-semibold text-slate-300; }
+  .admin-dialog-backdrop { @apply fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm; }
+  .admin-dialog { @apply max-h-[calc(100vh-2rem)] w-full overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl; }
+  .admin-skeleton { @apply animate-pulse rounded-lg bg-slate-800/80; }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
-
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-}
+.admin-shell .min-h-screen.bg-slate-950 { min-height: auto; }
+.admin-shell table th { letter-spacing: .04em; font-weight: 600; }
+.admin-shell table tbody tr { transition: background-color 150ms ease; }
+.admin-shell input:disabled, .admin-shell select:disabled, .admin-shell textarea:disabled, .admin-shell button:disabled { cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

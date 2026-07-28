@@ -75,20 +75,22 @@ export default function AdminLoginForm({ message }: AdminLoginFormProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans text-white">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl">
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 font-sans text-white">
+      <form onSubmit={handleSubmit} className="admin-card w-full max-w-sm space-y-5 p-6 sm:p-8">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto border border-blue-500/20">
             <KeyRound className="w-6 h-6" />
           </div>
-          <h2 className="text-sm font-bold">Đăng nhập ERP</h2>
+          <h1 className="text-xl font-bold tracking-tight">Đăng nhập ERP</h1>
+          <p className="text-xs text-slate-500">Truy cập khu vực vận hành Luminal Factory</p>
         </div>
 
         <div className="space-y-2">
           <input
             type="email"
             placeholder="Email"
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-600 transition"
+            aria-label="Email"
+            className="admin-field"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             disabled={checking}
@@ -98,7 +100,8 @@ export default function AdminLoginForm({ message }: AdminLoginFormProps) {
           <input
             type="password"
             placeholder="Mật khẩu"
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-600 transition"
+            aria-label="Mật khẩu"
+            className="admin-field"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             disabled={checking}
@@ -114,7 +117,7 @@ export default function AdminLoginForm({ message }: AdminLoginFormProps) {
           )}
         </div>
 
-        <button type="submit" disabled={checking} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 font-bold text-xs p-3 rounded-xl transition flex items-center justify-center gap-1">
+        <button type="submit" disabled={checking} className="admin-button-primary w-full">
           <ButtonLoadingState loading={checking} loadingText="Đang đăng nhập..." idleText="Đăng nhập" />
         </button>
 

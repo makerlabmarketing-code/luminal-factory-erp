@@ -20,6 +20,7 @@ import { ButtonLoadingState, useGlobalLoading } from '@/component/GlobalLoading'
 import { useNotification } from '@/component/NotificationContext';
 import type { AccountConnectionStatus, EmployeeDetailDto } from '@/services/server/adminEmployeeData';
 import { accountConnectionExplanations, accountConnectionLabels } from '@/lib/accountConnection';
+import { AdminPage } from '@/component/AdminUI';
 
 type DetailTab =
   | 'overview'
@@ -238,8 +239,8 @@ export default function AdminEmployeeDetailClient({
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 p-4 text-slate-100 sm:p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <main>
+      <AdminPage>
         <header className="rounded-lg border border-slate-800 bg-slate-900 p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 space-y-3">
@@ -400,7 +401,7 @@ export default function AdminEmployeeDetailClient({
         )}
         {activeTab === 'finance' && <ComingSoon icon={<KeyRound className="h-5 w-5" />} title="Tài chính cá nhân" />}
         {activeTab === 'history' && <ComingSoon icon={<Shield className="h-5 w-5" />} title="Lịch sử thay đổi" />}
-      </div>
+      </AdminPage>
 
       {formState && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">

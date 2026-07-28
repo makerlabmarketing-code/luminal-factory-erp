@@ -27,6 +27,7 @@ import type {
 } from '@/services/server/adminEmployeeData';
 import { AdminListRequestError, useAdminListData, type AdminListErrorCode } from '@/hooks/useAdminListData';
 import { accountConnectionExplanations, accountConnectionLabels } from '@/lib/accountConnection';
+import { AdminPage } from '@/component/AdminUI';
 
 interface EmployeeFormState {
   employeeId: string | null;
@@ -265,8 +266,8 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6 text-slate-100">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <AdminPage>
+      <div className="space-y-6">
         <div className="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="flex items-center gap-2 text-base font-bold">
@@ -289,7 +290,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
           )}
         </div>
 
-        <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
+        <section className="admin-table-shell">
           {loadError && (
             <div className="border-b border-slate-800 p-6 text-center">
               <h2 className="font-bold text-amber-300">{loadError === 'forbidden' ? 'Không có quyền truy cập' : 'Không thể tải danh sách nhân sự'}</h2>
@@ -543,6 +544,6 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
           </form>
         </div>
       )}
-    </div>
+    </AdminPage>
   );
 }

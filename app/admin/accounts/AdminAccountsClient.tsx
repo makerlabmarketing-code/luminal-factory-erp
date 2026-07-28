@@ -30,6 +30,7 @@ import {
   type PermissionEditorState,
 } from "@/lib/account-permissions";
 import { AdminListRequestError, useAdminListData } from '@/hooks/useAdminListData';
+import { AdminPage } from '@/component/AdminUI';
 
 interface ApiActionResponse {
   success?: boolean;
@@ -362,8 +363,8 @@ export default function AdminAccountsClient({
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 p-4 text-slate-100 sm:p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <main>
+      <AdminPage>
         {(listError || listLoading) && <section className="rounded-lg border border-slate-800 bg-slate-900 p-6 text-center"><h2 className="font-bold text-amber-300">{listLoading ? 'Đang tải danh sách tài khoản...' : 'Không thể tải danh sách tài khoản'}</h2>{listError && <><p className="mt-2 text-xs text-slate-400">Hệ thống gặp lỗi khi tải dữ liệu tài khoản. Vui lòng thử lại.</p><button type="button" onClick={() => void refreshAccounts()} disabled={isRefreshing} className="mt-3 rounded-lg border border-blue-500/40 px-3 py-2 text-xs font-bold text-blue-300">{isRefreshing ? 'Đang thử lại...' : 'Thử lại'}</button></>}</section>}
         <header className="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -390,7 +391,7 @@ export default function AdminAccountsClient({
           </div>
         </header>
 
-        <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
+        <section className="admin-table-shell">
           <div className="border-b border-slate-800 bg-slate-950/40 px-5 py-3 text-xs font-bold text-slate-400">
             Danh sách tài khoản ({filteredAccounts.length}) · Trang{" "}
             {currentPage}/{totalPages}
@@ -623,7 +624,7 @@ export default function AdminAccountsClient({
             </div>
           </div>
         </section>
-      </div>
+      </AdminPage>
 
       {(editorLoading || editorAccount) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
