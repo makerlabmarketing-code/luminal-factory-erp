@@ -20,6 +20,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
+import { ProjectTimelineSection } from './ProjectTimelineSection';
 import { OperationalState } from '@/component/OperationalState';
 import type { TaskAssignmentDTO, TaskAssignmentStatus } from '@/lib/types/task-assignment';
 import {
@@ -1398,6 +1399,7 @@ export default function ProjectDetailPage() {
           </div>
 
           <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+            <ProjectTimelineSection projectId={projectId} cancelled={isProjectCancelled} />
             <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
               <h2 className="text-sm font-black text-slate-100">Thông tin dự án</h2>
               <dl className="mt-3 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-1">

@@ -1289,3 +1289,17 @@ Status: ✅ safe application work complete; atomic create rollout remains `LIVE_
 - The reviewed RPC, rollback, pre-run and post-run artifacts remain operator-gated. No SQL, database push, migration repair, deployment, live mutation, merge, or production flag change was performed.
 
 Current gate: operator validation and protected-main delivery of the atomic task-create RPC package, followed by smoke testing, are required before enabling `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED=true`.
+
+## 2026-07-28 Task comments and project activity application boundary
+
+Status: ✅ safe application work complete; persistence rollout remains `LIVE_OPERATOR_VERIFICATION_REQUIRED`.
+
+- Added bounded, section-local Project Detail timeline loading and targeted comment refresh. The capability-off state uses: “Bình luận và lịch sử hoạt động đang chờ kích hoạt.”
+- Comment payloads accept only text and an optional task ID, sanitize control characters, reject client actor/permission fields, derive the actor from the authenticated server session, and block cancelled/cross-project mutation.
+- Added an immutable-history, authorization/RLS, forward, rollback, pre-run, and post-run operator package. No SQL, database push, runtime flag change, deployment, or live mutation was performed.
+
+Current gate: operator validates and delivers the reviewed package, then smoke-tests authorization and immutability before enabling `TASK_COMMENTS_ACTIVITY_ENABLED=true`.
+
+## 2026-07-28 Operator package register refresh
+
+Status: ✅ operator handoff register updated without production execution. The handoff now fixes the dependency order, exact reviewed artifacts, runtime gates, expected rollout effects, authorization impact, smoke tests, and rollback triggers for Facility, Phase Workflow, atomic task create, comments/activity, templates, Attendance recovery, workspace permissions, ledger/storage, and Payroll. Packages without an approved schema or business decision remain `BLOCKED_BY_BUSINESS_DECISION`; no draft is represented as runnable.
