@@ -3,6 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import { AuthFlowError } from '@/services/server/auth';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface FacilityDirectoryItem {
   id: string;
@@ -54,8 +55,9 @@ export function toFacilityDirectoryItem(row: FacilityRow): FacilityDirectoryItem
 }
 
 /** Server-only directory read. Callers must authorize the workspace before calling. */
-export const getFacilityDirectoryResult = cache(async (): Promise<FacilityDirectoryResult> => {
-  const supabase = createSupabaseAdminClient();
+export async function loadFacilityDirectory(
+  supabase: Pick<SupabaseClient, 'from'>
+): Promise<FacilityDirectoryResult> {
   const current = await supabase
     .from('facilities')
     .select(FACILITY_SELECT)
@@ -85,7 +87,12 @@ export const getFacilityDirectoryResult = cache(async (): Promise<FacilityDirect
   }
 
   return { facilities: ((legacy.data || []) as unknown as FacilityRow[]).map(toFacilityDirectoryItem), canPersistStatusAndCode: false };
-});
+}
+
+/** Privileged compatibility reader for server workflows that do not have a user session. */
+export const getFacilityDirectoryResult = cache(async (): Promise<FacilityDirectoryResult> =>
+  loadFacilityDirectory(createSupabaseAdminClient())
+);
 
 export const getFacilityDirectory = cache(async () => (await getFacilityDirectoryResult()).facilities);
 

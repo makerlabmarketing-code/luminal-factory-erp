@@ -69,7 +69,7 @@ describe("administration information architecture correction slice", () => {
     const facilities = source("services/server/adminFacilities.ts");
     const staffAttendanceRoute = source("app/api/staff/attendance/route.ts");
 
-    expect(facilities).toMatch(/getFacilityDirectory/);
+    expect(facilities).toMatch(/loadFacilityDirectory/);
     expect(staffAttendanceRoute).toMatch(/getFacilityDirectory/);
     expect(staffAttendanceRoute).toMatch(/getDistance/);
     expect(staffAttendanceRoute).toMatch(/matchedBranch\.radius/);

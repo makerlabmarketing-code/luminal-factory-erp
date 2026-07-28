@@ -5,6 +5,7 @@ import { useNotification } from '@/component/NotificationContext';
 import { fetchCoordinatesFromAddress } from '@/ultis/geocoding';
 import { MapPin, Plus, Trash2, Edit2, X, RefreshCcw, Navigation, Loader2 } from 'lucide-react';
 import { AdminListRequestError, useAdminListData } from '@/hooks/useAdminListData';
+import { AdminPage } from '@/component/AdminUI';
 
 type AdminFacility = {
   id: number | string;
@@ -151,7 +152,8 @@ export default function AdminFacilitiesManagement() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 text-slate-100 bg-slate-950 min-h-screen font-sans">
+    <AdminPage>
+    <div className="space-y-6">
       <div className="flex justify-between items-center border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-base font-bold flex items-center gap-2"><MapPin className="w-5 h-5 text-blue-500" /> Danh Sách Cơ Sở & Quản Lý Vị Trí Làm Việc</h1>
@@ -261,5 +263,6 @@ export default function AdminFacilitiesManagement() {
         </div>
       )}
     </div>
+    </AdminPage>
   );
 }
