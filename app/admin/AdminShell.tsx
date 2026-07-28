@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { LoadingLink } from "@/component/GlobalLoading";
 import {
   ArrowLeftRight, BriefcaseBusiness, CalendarDays, Database, FolderKanban,
-  LayoutDashboard, Mail, MapPin, Menu, PanelLeftClose, PiggyBank, ShieldCheck,
+  LayoutDashboard, Mail, MapPin, Menu, PanelLeftClose, PiggyBank, ShieldCheck, WalletCards,
   Users, X,
 } from "lucide-react";
 import { useState } from "react";
@@ -22,7 +22,7 @@ const menuGroups = [
     { name: "Cơ sở làm việc", path: "/admin/facilities", icon: MapPin },
     { name: "Tài khoản & quyền truy cập", path: "/admin/accounts", icon: ShieldCheck },
   ] },
-  { groupTitle: "Tài chính", items: [{ name: "Sổ thu chi", path: "/admin/capital", icon: PiggyBank }] },
+  { groupTitle: "Tài chính", items: [{ name: "Sổ thu chi", path: "/admin/capital", icon: PiggyBank }, { name: "Quyết toán lương", path: "/admin/payroll", icon: WalletCards }] },
   { groupTitle: "Cấu hình hệ thống", items: [
     { name: "Danh mục hệ thống", path: "/admin/metadata", icon: Database },
     { name: "Mẫu email", path: "/admin/email-editor", icon: Mail },

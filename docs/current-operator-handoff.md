@@ -43,6 +43,7 @@ Keep these server-only flags false or unset until the corresponding package, aut
 - `TASK_COMMENTS_ACTIVITY_ENABLED`
 - `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED`
 - `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED`
+- `PAYROLL_SETTLEMENT_ENABLED`
 
 ## Business decisions required
 
@@ -52,7 +53,7 @@ Approval is still required for the finance category model, executor/beneficiary/
 
 ### Payroll
 
-Approval is still required for official shift boundaries, settlement revision versus immutability, the first settlement month, and employee own-salary access. Payroll has no approved runnable settlement package; design the forward, rollback, validation, RLS, compatibility, and smoke artifacts only after the business contract is approved.
+The Payroll business decisions are approved and the application/package is `READY_FOR_OPERATOR`. The forward migration, pre/post validation, rollback, RLS/grants, permission catalog, immutable settlement and adjustment RPCs, smoke checklist, staff own-salary UI, admin confirmation UI, and focused regression tests are present. Keep `PAYROLL_SETTLEMENT_ENABLED=false` until the operator completes the registered package and explicitly configures the first official settlement month. Do not backfill historical settlements or rewrite legacy salary rows.
 
 ## Production smoke-test checklist
 
@@ -65,7 +66,7 @@ For each approved gate, retain the pre-run output, confirm migration history bef
 - Project/task atomic create: exactly-once all-or-nothing persistence, duplicate/invalid/cross-project/inactive-member denial, no partial rows, and service-role-only RPC execution.
 - Account/workspace: employee/Auth linkage, known/unknown permission codes, authorized grant/revoke, and fail-closed fixtures.
 - Legacy ledger/dashboard: empty and populated reads, create/edit retry and duplicate-submit protection, paid-ledger dashboard data, denied/error states, and sanitized errors. Do not activate the new reimbursement/storage workflow.
-- Payroll: retain current calculation regression only; do not attempt settlement rollout before the business decisions and package exist.
+- Payroll: run the registered pre/forward/post package, configure the first month explicitly, then verify own-row isolation, denied cross-employee access, unauthorized settlement denial, duplicate rejection, immutable original, adjustment/audit provenance, and unchanged legacy rows before enabling the runtime gate.
 
 ## Safe merge and rollout order
 
@@ -75,4 +76,4 @@ For each approved gate, retain the pre-run output, confirm migration history bef
 4. Keep all seven runtime flags false/unset after merge.
 5. Execute the operator gates in the order above, retaining pre/post, authorization, RLS, smoke, and monitoring evidence at every gate.
 6. Enable only the single gate whose evidence is complete. Stop and disable it on any matrix/runbook rollback trigger.
-7. Leave Ledger/Reimbursement and Payroll disabled until their business decisions and reviewed delivery packages are approved.
+7. Leave Ledger/Reimbursement blocked. Keep Payroll disabled until its reviewed operator package, explicit first-month configuration, authorization fixtures, and smoke tests pass.

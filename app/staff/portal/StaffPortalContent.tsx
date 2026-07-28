@@ -7,6 +7,7 @@ import { StaffAttendanceContent } from '../attendance/AttendanceView';
 import { StaffTasksContent } from '../tasks/TasksView';
 import { StaffExpensesContent } from '../expenses/ExpensesView';
 import { StaffProfileContent } from '../profile/ProfileView';
+import PayrollView from '../payroll/PayrollView';
 import type { StaffPortalTab } from '@/lib/types/staff';
 import type { Employee } from '@/lib/types/employee';
 import type { Facility } from '@/lib/types/facility';
@@ -33,6 +34,7 @@ export default function StaffPortalContent({
     attendance: true,
     tasks: false,
     expenses: false,
+    payroll: false,
     profile: false,
   });
   const canSwitchWorkspace = Boolean(
@@ -55,6 +57,7 @@ export default function StaffPortalContent({
       attendance: activeTab === 'attendance' ? 'block' : 'hidden',
       tasks: activeTab === 'tasks' ? 'block' : 'hidden',
       expenses: activeTab === 'expenses' ? 'block' : 'hidden',
+      payroll: activeTab === 'payroll' ? 'block' : 'hidden',
       profile: activeTab === 'profile' ? 'block' : 'hidden',
     }),
     [activeTab]
@@ -116,6 +119,10 @@ export default function StaffPortalContent({
         {visitedTabs.expenses && <StaffExpensesContent workerData={worker} />}
       </div>
 
+      <div className={tabClasses.payroll}>
+        {visitedTabs.payroll && <PayrollView />}
+      </div>
+
       <div className={tabClasses.profile}>
         {visitedTabs.profile && <StaffProfileContent workerData={worker} assignedBranchData={assignedBranch} />}
       </div>
@@ -129,6 +136,9 @@ export default function StaffPortalContent({
         </button>
         <button onClick={() => setActiveTab('expenses')} className={`flex flex-col items-center gap-1 transition-all duration-200 focus:outline-none cursor-pointer ${activeTab === 'expenses' ? 'text-blue-400 font-black' : 'text-slate-500'}`}>
           <Banknote className="w-4 h-4" /><span>Báo Chi Tiêu</span>
+        </button>
+        <button onClick={() => setActiveTab('payroll')} className={`flex flex-col items-center gap-1 transition-all duration-200 focus:outline-none cursor-pointer ${activeTab === 'payroll' ? 'text-blue-400 font-black' : 'text-slate-500'}`}>
+          <Banknote className="w-4 h-4" /><span>Bảng Lương</span>
         </button>
         <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 transition-all duration-200 focus:outline-none cursor-pointer ${activeTab === 'profile' ? 'text-blue-400 font-black' : 'text-slate-500'}`}>
           <User className="w-4 h-4" /><span>Cá Nhân</span>
