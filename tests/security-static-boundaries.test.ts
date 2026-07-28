@@ -237,10 +237,14 @@ describe('static security boundaries', () => {
 
   it('does not render the staff login form from the protected staff layout', () => {
     const staffLayout = readFileSync(join(repositoryRoot, 'app/staff/layout.tsx'), 'utf8');
+    const staffPage = readFileSync(join(repositoryRoot, 'app/staff/page.tsx'), 'utf8');
+    const staffPortalData = readFileSync(
+      join(repositoryRoot, 'services/server/staffPortalData.ts'),
+      'utf8'
+    );
 
-    expect(staffLayout).toMatch(/getServerAuthContext/);
-    expect(staffLayout).toMatch(/canAccessStaff/);
-    expect(staffLayout).toMatch(/LOGIN_ENTRY_PATH/);
+    expect(staffPage).toMatch(/getStaffPortalLoadState/);
+    expect(staffPortalData).toMatch(/requireWorkspaceAccess\('STAFF_WORKSPACE'\)/);
     expect(staffLayout).toMatch(/dynamic = 'force-dynamic'/);
     expect(staffLayout).toMatch(/revalidate = 0/);
     expect(staffLayout).toMatch(/fetchCache = 'force-no-store'/);

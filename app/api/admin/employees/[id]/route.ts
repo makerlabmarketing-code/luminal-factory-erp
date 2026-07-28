@@ -8,16 +8,26 @@ function toJsonResponse(result: unknown, init?: ResponseInit) {
   return response;
 }
 
+function logEmployeeRouteError(correlationId: string, error: unknown) {
+  const safeError = error instanceof AuthFlowError
+    ? { code: error.code, failureStage: error.failureStage, status: error.status }
+    : { code: 'employee_update_failed', failureStage: 'unknown', message: error instanceof Error ? error.message.slice(0, 240) : String(error).slice(0, 240) };
+
+  console.error('[employee-route]', { correlationId, error: safeError });
+}
+
 function toErrorResponse(error: unknown) {
+  const correlationId = crypto.randomUUID();
+  logEmployeeRouteError(correlationId, error);
   if (error instanceof AuthFlowError) {
     return toJsonResponse(
-      { success: false, message: error.message, code: error.code, failureStage: error.failureStage },
+      { success: false, message: error.message, code: error.code, failureStage: error.failureStage, correlationId },
       { status: error.status }
     );
   }
 
   return toJsonResponse(
-    { success: false, message: 'Không thể xử lý hồ sơ nhân sự.', code: 'employee_unhandled_failure', failureStage: 'unknown' },
+    { success: false, message: 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.', code: 'employee_update_failed', failureStage: 'unknown', correlationId },
     { status: 500 }
   );
 }

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createClient } from '@/utils/supabase/server';
+import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import { AuthFlowError, hasPermission, requireWorkspaceAccess } from '@/services/server/auth';
 import { loadFacilityDirectory } from '@/services/server/facilityDirectory';
 
@@ -32,6 +33,8 @@ type FacilityPayload = {
   lat: number;
   lng: number;
   radius: number;
+  code?: string;
+  is_active?: boolean;
 };
 
 const BASE_FACILITY_SELECT = 'id, facility_name, address, lat, lng, radius';
@@ -54,6 +57,65 @@ function assertFacilityMutationEnabled() {
 
 function getFacilitySelect() {
   return isFacilityActiveStateEnabled() ? ACTIVE_FACILITY_SELECT : BASE_FACILITY_SELECT;
+}
+
+function normalizeFacilityCode(value: string): string {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 64) || 'FACILITY';
+}
+
+function logFacilityPersistenceError(stage: string, error: unknown) {
+  const safeError = error && typeof error === 'object'
+    ? {
+        code: 'code' in error ? String(error.code || 'unknown') : 'unknown',
+        message: 'message' in error ? String(error.message || '').slice(0, 240) : 'unknown',
+        details: 'details' in error ? String(error.details || '').slice(0, 240) : null,
+      }
+    : { code: 'unknown', message: String(error).slice(0, 240), details: null };
+
+  console.error('[facility-persistence]', { stage, error: safeError });
+}
+
+function toFacilityPersistenceFailure(message = 'Không thể lưu cơ sở làm việc. Vui lòng thử lại.') {
+  return new AuthFlowError({
+    status: 500,
+    code: 'facility_persistence_failed',
+    message,
+    failureStage: 'persistence',
+  });
+}
+
+async function createUniqueFacilityCode(facilityName: string): Promise<string> {
+  const supabaseAdmin = createSupabaseAdminClient();
+  const baseCode = normalizeFacilityCode(facilityName);
+  const { data, error } = await supabaseAdmin
+    .from('facilities')
+    .select('code')
+    .ilike('code', `${baseCode}%`);
+
+  if (error) {
+    logFacilityPersistenceError('facility_code_lookup', error);
+    throw toFacilityPersistenceFailure();
+  }
+
+  const existingCodes = new Set(((data || []) as Array<{ code?: string | null }>).map((row) => row.code));
+  if (!existingCodes.has(baseCode)) return baseCode;
+
+  for (let suffix = 2; suffix < 1000; suffix += 1) {
+    const candidate = `${baseCode}_${suffix}`;
+    if (!existingCodes.has(candidate)) return candidate;
+  }
+
+  throw new AuthFlowError({
+    status: 409,
+    code: 'facility_persistence_failed',
+    message: 'Không thể tạo mã cơ sở duy nhất. Vui lòng đổi tên cơ sở.',
+    failureStage: 'persistence',
+  });
 }
 
 async function requireFacilityView() {
@@ -202,8 +264,13 @@ export async function listAdminFacilities() {
 export async function createAdminFacility(body: Record<string, unknown>) {
   await requireFacilityManage();
   assertFacilityMutationEnabled();
-  const payload = parseFacilityPayload(body);
-  const supabase = await createClient();
+  const parsedPayload = parseFacilityPayload(body);
+  const payload: FacilityPayload = {
+    ...parsedPayload,
+    code: await createUniqueFacilityCode(parsedPayload.facility_name),
+    is_active: true,
+  };
+  const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from('facilities')
     .insert(payload)
@@ -211,12 +278,8 @@ export async function createAdminFacility(body: Record<string, unknown>) {
     .single();
 
   if (error) {
-    throw new AuthFlowError({
-      status: 500,
-      code: 'admin_verification_failed',
-      message: 'Không thể tạo cơ sở làm việc.',
-      failureStage: 'persistence',
-    });
+    logFacilityPersistenceError('facility_create', error);
+    throw toFacilityPersistenceFailure();
   }
 
   return { success: true, facility: toFacilityDto(data as unknown as FacilityRow) };
@@ -227,7 +290,7 @@ export async function updateAdminFacility(body: Record<string, unknown>) {
   assertFacilityMutationEnabled();
   const facilityId = parseFacilityId(body.id);
   const payload = parseFacilityPayload(body);
-  const supabase = await createClient();
+  const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from('facilities')
     .update(payload)
@@ -236,12 +299,8 @@ export async function updateAdminFacility(body: Record<string, unknown>) {
     .single();
 
   if (error) {
-    throw new AuthFlowError({
-      status: 500,
-      code: 'admin_verification_failed',
-      message: 'Không thể cập nhật cơ sở làm việc.',
-      failureStage: 'persistence',
-    });
+    logFacilityPersistenceError('facility_update', error);
+    throw toFacilityPersistenceFailure();
   }
 
   return { success: true, facility: toFacilityDto(data as unknown as FacilityRow) };
@@ -251,13 +310,14 @@ export async function deleteAdminFacility(body: Record<string, unknown>) {
   await requireFacilityManage();
   assertFacilityMutationEnabled();
   const facilityId = parseFacilityId(body.id);
-  const supabase = await createClient();
+  const supabase = createSupabaseAdminClient();
   const { error } = await supabase.from('facilities').delete().eq('id', facilityId);
 
   if (error) {
+    logFacilityPersistenceError('facility_delete', error);
     throw new AuthFlowError({
       status: 500,
-      code: 'admin_verification_failed',
+      code: 'facility_persistence_failed',
       message: 'Không thể xóa cơ sở làm việc. Vui lòng kiểm tra nhân sự đang được gán vào cơ sở này.',
       failureStage: 'persistence',
     });

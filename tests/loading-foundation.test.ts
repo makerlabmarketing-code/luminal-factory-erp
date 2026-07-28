@@ -108,6 +108,8 @@ describe('global loading foundation', () => {
     expect(employeeClientSource).toMatch(/Đang gửi lời mời\.\.\./);
     expect(employeeClientSource).toMatch(/Đang lưu thay đổi\.\.\./);
     expect(employeeClientSource).toMatch(/ButtonLoadingState/);
-    expect(employeeClientSource).toMatch(/disabled=\{!accountAction\.path \|\| accountAction\.disabled \|\| isPending \|\| Boolean\(activeActionKey\)\}/);
+    expect(employeeClientSource).toMatch(/accountAction && !accountAction\.path/);
+    expect(employeeClientSource).toMatch(/href=\{`\/admin\/employees\/\$\{employee\.employeeId\}`\}/);
+    expect(employeeClientSource).toMatch(/disabled=\{accountAction\.disabled \|\| isPending \|\| Boolean\(activeActionKey\)\}/);
   });
 });

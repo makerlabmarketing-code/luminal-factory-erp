@@ -18,7 +18,7 @@ import {
   requireWorkspaceAccess,
   type ServerEmployee,
 } from '@/services/server/auth';
-import { getFacilityDirectory } from '@/services/server/facilityDirectory';
+import { loadFacilityDirectory } from '@/services/server/facilityDirectory';
 
 const ATTENDANCE_SELECT =
   'id, employee_id, work_date, shift_name, check_in, check_out, total_hours, total_salary, status';
@@ -77,7 +77,8 @@ function isAttendanceRecordComplete(record: AttendanceRecord): boolean {
 }
 
 async function loadFacilities() {
-  const facilities = await getFacilityDirectory();
+  const directory = await loadFacilityDirectory(await createClient());
+  const facilities = directory.facilities;
   return facilities.filter((facility) => facility.isActive).map((facility) => ({
     id: facility.id,
     code: facility.code,
@@ -132,6 +133,72 @@ async function getAttendanceRecordByShift(
   return ((data as AttendanceRecord[] | null)?.[0]) || null;
 }
 
+function safeAttendanceErrorDetails(error: unknown) {
+  if (error instanceof AuthFlowError) {
+    return {
+      code: error.code,
+      failureStage: error.failureStage,
+      status: error.status,
+      supabaseErrorCode: error.safeDetails?.supabase_error_code || null,
+    };
+  }
+
+  if (error && typeof error === 'object' && 'code' in error) {
+    return {
+      code: String((error as { code?: unknown }).code || 'unknown'),
+      failureStage: 'persistence',
+    };
+  }
+
+  return { code: 'attendance_load_failed', failureStage: 'unknown' };
+}
+
+function logStaffAttendanceBoundary(params: {
+  correlationId: string;
+  route: '/api/staff/attendance';
+  code: string;
+  authStage?: string;
+  employeeStage?: string;
+  workspaceStage?: string;
+  attendanceStage?: string;
+  facilityStage?: string;
+  retryable: boolean;
+  error?: unknown;
+}) {
+  console.error('[staff-portal]', {
+    correlationId: params.correlationId,
+    route: params.route,
+    code: params.code,
+    authStage: params.authStage || null,
+    employeeStage: params.employeeStage || null,
+    workspaceStage: params.workspaceStage || null,
+    attendanceStage: params.attendanceStage || null,
+    facilityStage: params.facilityStage || null,
+    retryable: params.retryable,
+    error: params.error ? safeAttendanceErrorDetails(params.error) : null,
+  });
+}
+
+async function loadOptionalMatchedBranch(employee: ServerEmployee): Promise<Facility | null> {
+  try {
+    const branches = await loadFacilities();
+    return findMatchedBranch(employee, branches);
+  } catch (error) {
+    logStaffAttendanceBoundary({
+      correlationId: crypto.randomUUID(),
+      route: '/api/staff/attendance',
+      code: 'facility_lookup_failed',
+      authStage: 'verified',
+      employeeStage: 'resolved',
+      workspaceStage: 'allowed',
+      facilityStage: 'failed',
+      retryable: true,
+      error,
+    });
+    return null;
+  }
+}
+
 async function loadAttendancePayload(employee: ServerEmployee, monthInput: string) {
   const month = businessMonthFromDateInput(monthInput);
   const monthRange = businessMonthRange(month);
@@ -144,8 +211,7 @@ async function loadAttendancePayload(employee: ServerEmployee, monthInput: strin
   const currentShiftRecord = openRecord
     ? null
     : await getAttendanceRecordByShift(employee.id, todayStr, currentShift);
-  const branches = await loadFacilities();
-  const matchedBranch = findMatchedBranch(employee, branches);
+  const matchedBranch = await loadOptionalMatchedBranch(employee);
   const attendancePayload = await loadAttendanceData({
     monthInput,
     employeeId: employee.id,
@@ -171,9 +237,19 @@ async function loadAttendancePayload(employee: ServerEmployee, monthInput: strin
 }
 
 function toStaffAttendanceErrorResponse(error: unknown) {
+  const correlationId = crypto.randomUUID();
+
   if (error instanceof StaffAttendanceError) {
+    logStaffAttendanceBoundary({
+      correlationId,
+      route: '/api/staff/attendance',
+      code: error.code,
+      attendanceStage: error.code,
+      retryable: error.status >= 500,
+      error,
+    });
     return NextResponse.json(
-      { error: error.message, code: error.code },
+      { error: error.message, code: error.code, correlationId },
       { status: error.status }
     );
   }
@@ -185,15 +261,32 @@ function toStaffAttendanceErrorResponse(error: unknown) {
       employee_inactive: 'attendance_employee_inactive',
       workspace_forbidden: 'attendance_workspace_required',
     };
-
+    logStaffAttendanceBoundary({
+      correlationId,
+      route: '/api/staff/attendance',
+      code: codeByAuthCode[error.code] || 'attendance_load_failed',
+      authStage: error.failureStage,
+      employeeStage: error.failureStage === 'employee_lookup' ? 'failed' : undefined,
+      workspaceStage: error.failureStage === 'workspace_access' ? 'failed' : undefined,
+      retryable: error.status >= 500,
+      error,
+    });
     return NextResponse.json(
-      { error: error.message, code: codeByAuthCode[error.code] || 'attendance_load_failed' },
+      { error: error.message, code: codeByAuthCode[error.code] || 'attendance_load_failed', correlationId },
       { status: error.status }
     );
   }
 
+  logStaffAttendanceBoundary({
+    correlationId,
+    route: '/api/staff/attendance',
+    code: 'attendance_load_failed',
+    attendanceStage: 'unknown',
+    retryable: true,
+    error,
+  });
   return NextResponse.json(
-    { error: 'Không thể xử lý dữ liệu chấm công.', code: 'attendance_load_failed' },
+    { error: 'Không thể xử lý dữ liệu chấm công.', code: 'attendance_load_failed', correlationId },
     { status: 500 }
   );
 }
