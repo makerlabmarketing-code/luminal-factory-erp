@@ -1,6 +1,6 @@
 // app/admin/capital/page.tsx
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/utils/supabase/client';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
@@ -150,6 +150,7 @@ export default function AdminFinancialLedger() {
   const [companyBankAccount, setCompanyBankAccount] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [monthInput, setMonthInput] = useState(() => {
     const d = new Date();
@@ -198,7 +199,7 @@ export default function AdminFinancialLedger() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(8);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setLoadError('');
     setExpenseSourcesLoading(true);
@@ -209,9 +210,9 @@ export default function AdminFinancialLedger() {
         .select('id, full_name, bank_name, bank_account_number');
       if (employeesError) throw employeesError;
       setEmployees(emps || []);
-      if (emps && emps.length > 0 && !reporter) {
+      if (emps && emps.length > 0) {
         const defaultPayer = emps.find((employee) => employee.full_name?.trim() === DEFAULT_COMPANY_PAYER_NAME) || emps[0];
-        setReporter(defaultPayer.full_name);
+        setReporter((current) => current || defaultPayer.full_name);
       }
 
       const { data: paymentSourceRows, error: paymentSourceError } = await supabase
@@ -228,17 +229,17 @@ export default function AdminFinancialLedger() {
       if (metadataError) throw metadataError;
       const normalizedTransactionTypes = normalizeSystemMetadataOptions(meta?.data, DEFAULT_FINANCIAL_TRANSACTION_TYPES);
       setTransactionTypes(normalizedTransactionTypes);
-      if (!normalizedTransactionTypes.some((option) => option.code === type)) {
-        setType(normalizedTransactionTypes[0]?.code || 'CHI_PHI');
-      }
+      setType((current) => normalizedTransactionTypes.some((option) => option.code === current)
+        ? current
+        : normalizedTransactionTypes[0]?.code || 'CHI_PHI');
 
       const { data: contribMeta, error: contributionMetadataError } = await supabase.from('system_metadata').select('data').eq('name', CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME).maybeSingle();
       if (contributionMetadataError) throw contributionMetadataError;
       const normalizedContributionTypes = normalizeSystemMetadataOptions(contribMeta?.data, DEFAULT_CAPITAL_CONTRIBUTION_TYPES);
       setContributionTypes(normalizedContributionTypes);
-      if (!normalizedContributionTypes.some((option) => option.code === subType)) {
-        setSubType((normalizedContributionTypes[0]?.code as 'TIEN_MAT' | 'HIEN_VAT' | undefined) || 'TIEN_MAT');
-      }
+      setSubType((current) => normalizedContributionTypes.some((option) => option.code === current)
+        ? current
+        : (normalizedContributionTypes[0]?.code as 'TIEN_MAT' | 'HIEN_VAT' | undefined) || 'TIEN_MAT');
 
       const financeConfigResponse = await fetch('/api/admin/finance/config', {
         method: 'GET',
@@ -279,12 +280,12 @@ export default function AdminFinancialLedger() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedMonth, showToast]);
 
   useEffect(() => {
     setCurrentPage(1);
     loadData();
-  }, [selectedMonth]);
+  }, [loadData]);
 
   useEffect(() => {
     setFormMonthInput(monthInput);
@@ -327,6 +328,7 @@ export default function AdminFinancialLedger() {
   const currentLedgerData = finalGroupedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleInsertLedger = async () => {
+    if (isSubmitting) return;
     const numericAmount = parseCurrency(amount);
     if (!category.trim() || !numericAmount) {
       showToast('Thiếu số liệu', 'Vui lòng điền đủ nội dung khoản mục và giá tiền!', 'error');
@@ -343,6 +345,7 @@ export default function AdminFinancialLedger() {
     const insertReporter = selectedPaymentSource?.reporterName || reporter;
     const isSelfPaidExpense = type === 'CHI_PHI' && isSelfPaidSource(selectedPaymentSource);
 
+    setIsSubmitting(true);
     try {
       if (isSelfPaidExpense) {
         const { error } = await supabase.from('financial_ledger').insert([
@@ -363,6 +366,7 @@ export default function AdminFinancialLedger() {
       setShowAddModal(false);
       showToast('Ghi sổ thành công', 'Dữ liệu tài chính đã được hạch toán đồng bộ.', 'success');
     } catch { showToast('Thất bại', 'Không thể ghi sổ giao dịch.', 'error'); }
+    finally { setIsSubmitting(false); }
   };
 
   const handleOpenEdit = (item: FinancialLedgerEntry & { linkedChild?: FinancialLedgerEntry | null }) => {
@@ -388,6 +392,7 @@ export default function AdminFinancialLedger() {
   };
 
   const handleSaveEdit = async () => {
+    if (isSubmitting) return;
     const numericAmount = parseCurrency(editAmount);
     if (!editCategory.trim() || !numericAmount) return showToast('Thiếu số liệu', 'Vui lòng điền đủ thông tin sửa hạch toán!', 'error');
     if (!editingId) return;
@@ -407,6 +412,7 @@ export default function AdminFinancialLedger() {
     const editReporterName = selectedPaymentSource?.reporterName || editReporter;
     const isSelfPaidExpense = editType === 'CHI_PHI' && isSelfPaidSource(selectedPaymentSource);
 
+    setIsSubmitting(true);
     try {
       const { data: oldLink } = await supabase.from('financial_ledger').select('id').eq('type', 'VON_GOP').eq('category', originalLinkedCategory).eq('requested_by', originalItem.requested_by).maybeSingle();
 
@@ -429,6 +435,7 @@ export default function AdminFinancialLedger() {
       else setMonthInput(editMonthInput);
       showToast('Thành công', 'Đã cập nhật sửa đổi dữ liệu hạch toán đồng bộ.', 'success');
     } catch { showToast('Thất bại', 'Không thể cập nhật giao dịch.', 'error'); }
+    finally { setIsSubmitting(false); }
   };
 
   const handleTogglePaid = async (id: number | string, currentStatus: boolean) => {
@@ -526,7 +533,8 @@ export default function AdminFinancialLedger() {
         <LedgerLoadingSkeleton />
       ) : loadError ? (
         <div className="rounded-2xl border border-red-900/40 bg-red-950/20 p-8 text-center text-sm font-bold text-red-300">
-          Không tải được dữ liệu.
+          <p>Không tải được dữ liệu.</p>
+          <button type="button" onClick={() => void loadData()} className="mt-3 rounded-lg border border-red-500/40 px-3 py-2 text-xs hover:bg-red-950/40">Thử lại</button>
         </div>
       ) : (
         <>
@@ -680,7 +688,7 @@ export default function AdminFinancialLedger() {
                 <p className="text-[11px] text-slate-400">Chờ duyệt, Từ chối, Đã thanh toán và lịch sử kiểm toán sẽ được ghi qua biên máy chủ sau khi gói schema/RLS được duyệt.</p>
               </section>
             </div>
-            <div className="pt-2 border-t border-slate-800 flex gap-2"><button onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition">Hủy</button><button onClick={handleInsertLedger} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg">Ghi Sổ</button></div>
+            <div className="pt-2 border-t border-slate-800 flex gap-2"><button onClick={() => setShowAddModal(false)} disabled={isSubmitting} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition disabled:opacity-60">Hủy</button><button onClick={handleInsertLedger} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg disabled:opacity-60">{isSubmitting ? 'Đang ghi...' : 'Ghi Sổ'}</button></div>
           </div>
         </div>
       )}
@@ -783,7 +791,7 @@ export default function AdminFinancialLedger() {
                 <p className="text-[11px] text-slate-400">Chờ duyệt, Từ chối, Đã thanh toán và lịch sử kiểm toán sẽ được ghi qua biên máy chủ sau khi gói schema/RLS được duyệt.</p>
               </section>
             </div>
-            <div className="pt-2 border-t border-slate-800 flex gap-2"><button onClick={() => { setShowEditModal(false); setEditingId(null); }} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition">Hủy</button><button onClick={handleSaveEdit} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg">Cập Nhật</button></div>
+            <div className="pt-2 border-t border-slate-800 flex gap-2"><button onClick={() => { setShowEditModal(false); setEditingId(null); }} disabled={isSubmitting} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition disabled:opacity-60">Hủy</button><button onClick={handleSaveEdit} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg disabled:opacity-60">{isSubmitting ? 'Đang lưu...' : 'Cập Nhật'}</button></div>
           </div>
         </div>
       )}
