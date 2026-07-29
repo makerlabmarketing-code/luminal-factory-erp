@@ -51,6 +51,16 @@ This table is the scheduling authority for the current Cloud continuation. It cl
 
 No item is currently `SAFE_CLOUD_WORK_AVAILABLE`. The exact next safe Cloud item selected for this continuation was this repository reconciliation and operator-handoff correction; it is now `COMPLETE`. No application defect or approved UI/RPC/RLS package gap remained after inspection, so no application code, SQL, runtime flag, deployment, or completed Employee persistence scope was reopened.
 
+### Employee Detail and Employee Profile disposition
+
+- Employee Detail seven-tab application: `APPLICATION_COMPLETE` at completion commit `298fabb`; repository validation: `PASS`.
+- Employee Profile schema extension: `BLOCKED_BY_BUSINESS_DECISION`. Package `20260729_employee_profile_extension` remains draft-only and production migration is `NOT_EXECUTED`.
+- Employee audit/operator package: `READY_FOR_OPERATOR` for review only. Preserve its pre-run, forward, post-run, rollback, RLS/audit, and validation artifacts without promotion or execution.
+- Required decisions: final field semantics/nullability; per-field Admin read/edit; per-field Staff own-profile read/edit; sensitive-field visibility; audit field allowlist; audit retention period; storage of old/new sensitive values; and hard-delete versus archive-only audit retention.
+- No production SQL, authenticated production smoke, runtime flag activation, deployment, or merge occurred in this continuation.
+
+After applying the required skips, there is **no exact next `SAFE_CLOUD_WORK_AVAILABLE` item**. The next incomplete operational item is Item 16, Gate 2 Attendance recovery, but it is operator-only. Employee Profile can become the next safe repository slice only after all eight business/security decisions are approved; Phase Templates and the SaaS UI phases retain their existing blockers. This classification prevents Employee Profile from stopping the roadmap while also preventing speculative work.
+
 ## Reconciled roadmap
 
 The order below preserves the functional roadmap sequence. Dependency corrections are explicit in **Remaining gate** and in the runtime matrix; they do not duplicate a feature as a second phase.
@@ -175,3 +185,11 @@ ERP transactional email now has a default-disabled server SMTP gate, Admin-autho
 All seven existing Employee Detail tabs were audited without moving domain fields into Overview. Existing project memberships/tasks, current-month attendance, assigned account role, banking, rate and permission sources are now represented in their owning tabs with isolated optional-query warnings and Retry. Unsupported personal/job/audit fields are `SCHEMA_EXTENSION_REQUIRED`; the unexecuted `20260729_employee_profile_extension` pre/forward/post/rollback/validation draft package is `READY_FOR_OPERATOR`. Payroll, reimbursement and Attendance recovery remain runtime/operator-gated and are not simulated.
 
 **Exact next roadmap item:** operator/business review of the Employee Profile schema extension package. Production SQL remains prohibited until the draft semantics, RLS, sensitive-field visibility and audit retention are approved; afterward Item 16 Gate 2 Attendance evidence remains the next existing operational gate.
+
+## 2026-07-29 — Employee Detail completion status reconciliation
+
+The seven-tab Employee Detail application remains `APPLICATION_COMPLETE` and repository validation remains `PASS`; preserve completion commit `298fabb` and the documented tab ownership contract. The schema extension itself is `BLOCKED_BY_BUSINESS_DECISION`, while its non-executable audit/operator package is `READY_FOR_OPERATOR`. Production migration is `NOT_EXECUTED`.
+
+The unresolved contract is deliberately explicit: (1) field semantics/nullability, (2) Admin per-field read/edit, (3) Staff own-profile per-field read/edit, (4) sensitive visibility, (5) audit allowlist, (6) retention period, (7) old/new sensitive-value storage, and (8) hard-delete versus archive-only audit retention. No draft SQL was executed or promoted, no authenticated production smoke ran, no runtime flag changed, and no deployment or merge occurred.
+
+The continuation inspected the remaining roadmap classifications and found no item eligible as `SAFE_CLOUD_WORK_AVAILABLE`. Completed Project Detail, Child Task, Account presentation, Ledger/Reimbursement, Payroll UI, email foundation, loading/retry/empty-state, targeted-refresh, and duplicate-request slices remain closed absent new defect evidence. The exact next incomplete operational action remains operator-owned Attendance Gate 2; the exact next safe Cloud implementation item is **none until a blocker is resolved or new evidence identifies a repository defect**.
