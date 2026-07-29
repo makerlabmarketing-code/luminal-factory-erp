@@ -12,9 +12,21 @@
 
 `EMPLOYEE_PROFILE_PERSISTENCE_PASS`: the operator verified authenticated production Admin and Staff updates, navigation and hard-refresh readback, Admin partial-field preservation, Staff own-row targeting, and active-workspace notification isolation. `public.employees` is the authoritative employee profile source for both workspaces. Both workspaces now share that persistence/readback contract; Staff writes remain limited to phone, bank name, and bank account number, while mutation success remains separate from optional enrichment/readback warnings. The incident is **CLOSED**. No SQL, RLS broadening, or runtime flag change was required.
 
-The exact next incomplete roadmap item is **Item 16, Gate 2 — Attendance recovery operator evidence**. Repository-safe Gate 2 review may proceed, but `ATTENDANCE_RECOVERY_ENABLED` remains false/unset and live PASS requires operator evidence.
+The exact next incomplete roadmap item is **Item 16, Gate 2 — Attendance recovery operator evidence**. Attendance application work is `APPLICATION_COMPLETE`, repository validation is `PASS`, and live Gate 2 is `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`. `ATTENDANCE_RECOVERY_ENABLED` is false/unset and live PASS requires retained operator evidence.
 
-Attendance repository-safe review is complete. Normal Staff check-in/check-out has no recovery-flag dependency and retains authenticated own-row targeting. The package review covered pre-run, tracked forward, post-run, rollback, RLS, authorization, and smoke artifacts. Pre-run coverage now includes `shifts` and `current_employee_id()`; post-run coverage emits helper availability and a checkable zero-row missing-policy result; focused static regression protects these boundaries. No SQL was run and no live Attendance PASS is claimed.
+Attendance repository-safe review is complete. Normal Staff check-in/check-out has no recovery-flag dependency and retains authenticated own-row targeting. The package review covered pre-run, tracked forward, post-run, rollback, RLS, authorization, and smoke artifacts. Pre-run coverage now includes `shifts` and `current_employee_id()`; post-run coverage emits helper availability and a checkable zero-row missing-policy result; focused static regression protects these boundaries. No production SQL or runtime activation was performed, and no live Attendance PASS is claimed.
+
+## Attendance Gate 2 — remaining operator actions
+
+Execute and retain evidence in this order:
+
+1. Verify production migration history. Never replay `20260715073600_attendance_recovery_rls.sql` when it is already recorded.
+2. Run the registered Attendance Gate 2 read-only pre-run and retain its output.
+3. Run and retain the registered post-run validation evidence against the verified live state.
+4. Perform authenticated production authorization and smoke checks for Staff own-row access, Staff cross-employee denial, Admin view-only denial, authorized `ATTENDANCE_MANAGE` recovery, and disconnected/inactive denial.
+5. Keep `ATTENDANCE_RECOVERY_ENABLED=false` until all pre-run, post-run, authorization, RLS, and smoke evidence passes.
+
+There is no further Attendance implementation task unless a concrete repository defect is discovered. After unsafe/operator-only items are skipped, no approved safe Cloud roadmap item remains: Items 12–13 await operator delivery, Item 16 is operator-only, and Items 17–19 remain approval- or dependency-blocked. Remaining business decisions are the Phase Template contract and the bounded dependency scope for any future SaaS UI foundation.
 
 
 The branch contains the completed application slices and focused tests recorded in the [implementation roadmap](ERP_IMPLEMENTATION_ROADMAP.md). The seven production runtime gates have complete pre-run, forward, post-run/validation, rollback, authorization/RLS, regression, disabled-state, and smoke-test coverage according to the [activation matrix](runtime-gate-activation-matrix.md). The exact operator commands and stop conditions remain owned by the [production runbook](production-runtime-gate-operator-runbook.md); the ordered SQL/RPC register remains owned by the [SQL handoff](production-operator-sql-handoff.md).
