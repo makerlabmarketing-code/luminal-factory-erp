@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calculateFinalizedAttendanceSummary,
   calculateShiftUnitsFromMinutes,
   getAttendanceShiftName,
   getFinalizedShiftUnitsForRecord,
@@ -7,6 +8,7 @@ import {
   isOpenAttendanceRecordStale,
   mergeAttendanceRecords,
   resolveAttendanceShiftState,
+  summarizeAttendanceScope,
 } from '../services/attendanceService';
 
 describe('attendance shift calculation', () => {
@@ -145,5 +147,91 @@ describe('attendance shift calculation', () => {
     expect(isOpenAttendanceRecordStale(openRecord, beforeMidnight)).toBe(false);
     expect(isOpenAttendanceRecordStale(openRecord, afterMidnight)).toBe(true);
     expect(getAttendanceShiftName(new Date('2026-07-30T01:00:00.000Z'))).toBe('Ca Sáng');
+  });
+
+  it('classifies selected-month, stale, excluded, and outside-month records separately', () => {
+    const summary = summarizeAttendanceScope({
+      monthInput: '2026-07',
+      now: new Date('2026-07-30T02:00:00.000Z'),
+      records: [
+        {
+          id: 1,
+          employee_id: 10,
+          work_date: '2026-07-10',
+          shift_name: 'Ca Sáng',
+          check_in: '08:00:00',
+          check_out: '11:00:00',
+        },
+        {
+          id: 2,
+          employee_id: 10,
+          work_date: '2026-07-11',
+          shift_name: 'Ca Sáng',
+          check_in: '08:00:00',
+          check_out: null,
+        },
+        {
+          id: 3,
+          employee_id: 10,
+          work_date: '2026-07-12',
+          shift_name: 'Ca Sáng',
+          check_in: '08:00:00',
+          check_out: '08:00:00',
+        },
+        {
+          id: 4,
+          employee_id: 10,
+          work_date: '2026-05-21',
+          shift_name: 'Ca Tối',
+          check_in: '22:24:05',
+          check_out: null,
+        },
+      ],
+    });
+
+    expect(summary.selectedMonth).toEqual({
+      records: 3,
+      completed: 1,
+      open: 1,
+      stale: 1,
+      excluded: 1,
+    });
+    expect(summary.outsideSelectedMonth).toEqual({
+      records: 1,
+      open: 1,
+      stale: 1,
+      excluded: 0,
+    });
+  });
+
+  it('aggregates only completed positive-duration rows', () => {
+    const summary = calculateFinalizedAttendanceSummary([
+      {
+        id: 1,
+        employee_id: 10,
+        work_date: '2026-07-10',
+        shift_name: 'Ca Sáng',
+        check_in: '08:00:00',
+        check_out: '11:00:00',
+      },
+      {
+        id: 2,
+        employee_id: 10,
+        work_date: '2026-07-11',
+        shift_name: 'Ca Sáng',
+        check_in: '08:00:00',
+        check_out: null,
+      },
+      {
+        id: 3,
+        employee_id: 10,
+        work_date: '2026-07-12',
+        shift_name: 'Ca Sáng',
+        check_in: '08:00:00',
+        check_out: '08:00:00',
+      },
+    ]);
+
+    expect(summary).toEqual({ totalShifts: 1, totalHours: 3 });
   });
 });
