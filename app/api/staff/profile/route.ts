@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import { AuthFlowError, requireWorkspaceAccess } from '@/services/server/auth';
 
 const MAX_PROFILE_FIELD_LENGTH = 120;
@@ -19,6 +19,7 @@ function toErrorResponse(error: unknown) {
 }
 
 export async function PATCH(request: Request) {
+  const correlationId = crypto.randomUUID();
   try {
     const authContext = await requireWorkspaceAccess('STAFF_WORKSPACE');
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
@@ -27,23 +28,28 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Dữ liệu hồ sơ không hợp lệ.' }, { status: 400 });
     }
 
-    const payload = {
-      phone: cleanProfileField(body.phone),
-      bank_name: cleanProfileField(body.bankName),
-      bank_account_number: cleanProfileField(body.bankAccountNumber),
-    };
+    const allowedKeys = new Set(['phone', 'bankName', 'bankAccountNumber']);
+    if (Object.keys(body).some((key) => !allowedKeys.has(key))) {
+      return NextResponse.json({ error: 'Bạn không được phép cập nhật trường này.', correlationId }, { status: 403 });
+    }
+    const payload: Record<string, string> = {};
+    if (Object.prototype.hasOwnProperty.call(body, 'phone')) payload.phone = cleanProfileField(body.phone);
+    if (Object.prototype.hasOwnProperty.call(body, 'bankName')) payload.bank_name = cleanProfileField(body.bankName);
+    if (Object.prototype.hasOwnProperty.call(body, 'bankAccountNumber')) payload.bank_account_number = cleanProfileField(body.bankAccountNumber);
 
-    const supabase = await createClient();
-    const { error } = await supabase
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
       .from('employees')
       .update(payload)
-      .eq('id', authContext.employee.id);
+      .eq('id', authContext.employee.id)
+      .select('phone, bank_name, bank_account_number')
+      .single();
 
     if (error) {
-      return NextResponse.json({ error: 'Không thể lưu hồ sơ nhân sự.' }, { status: 500 });
+      return NextResponse.json({ error: 'Không thể lưu hồ sơ nhân sự.', failureStage: 'persistence', correlationId }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, employee: data, correlationId });
   } catch (error) {
     return toErrorResponse(error);
   }

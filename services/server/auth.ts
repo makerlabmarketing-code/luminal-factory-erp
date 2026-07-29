@@ -53,6 +53,7 @@ export type AuthFlowErrorCode =
   | 'employee_email_required'
   | 'employee_email_invalid'
   | 'employee_phone_invalid'
+  | 'employee_update_empty'
   | 'employee_facility_invalid'
   | 'employee_status_required'
   | 'employee_status_invalid'
