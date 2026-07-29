@@ -38,6 +38,17 @@ export interface AdminActionResult {
   message: string;
   code?: string;
   failureStage?: string;
+  employee?: EmployeeAccountRow;
+  warnings?: string[];
+}
+
+function safePersistenceDetails(error: { code?: string; details?: string; hint?: string } | null) {
+  return {
+    supabase_error_code: error?.code || 'unknown',
+    // Deliberately retain only the machine code. Database text can contain private row values.
+    supabase_operation: 'update',
+    target_relation: 'public.employees',
+  };
 }
 
 function cleanText(value: unknown, maxLength = 160): string | null {
@@ -206,7 +217,21 @@ function toSafeAuthErrorMessage(message?: string): string {
 }
 
 async function loadTargetEmployee(employeeId: string): Promise<EmployeeAccountRow> {
-  const supabaseAdmin = createSupabaseAdminClient();
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = createSupabaseAdminClient();
+  } catch {
+    throw new AuthFlowError({
+      status: 500,
+      code: 'employee_persistence_failed',
+      message: 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.',
+      failureStage: 'admin_client_creation',
+      safeDetails: {
+        supabase_operation: 'client_creation',
+        target_relation: 'public.employees',
+      },
+    });
+  }
   const { data, error } = await supabaseAdmin
     .from('employees')
     .select('id, full_name, email, title, phone, status, is_active, auth_user_id, branch_code')
@@ -538,21 +563,83 @@ export async function createEmployee(input: EmployeeMutationInput): Promise<Admi
   };
 }
 
-export async function updateEmployee(employeeId: string, input: EmployeeMutationInput): Promise<AdminActionResult> {
-  await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
+export async function updateEmployee(employeeId: string, input: EmployeeMutationInput, correlationId?: string): Promise<AdminActionResult> {
+  const actor = await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
   const targetEmployee = await loadTargetEmployee(employeeId);
 
   const payload = await buildEmployeeUpdatePayload(input, targetEmployee);
   if (payload.email) await ensureEmployeeEmailAvailable(payload.email, employeeId);
 
-  const supabaseAdmin = createSupabaseAdminClient();
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = createSupabaseAdminClient();
+  } catch {
+    throw new AuthFlowError({
+      status: 500,
+      code: 'employee_persistence_failed',
+      message: 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.',
+      failureStage: 'admin_client_creation',
+      safeDetails: {
+        supabase_operation: 'client_creation',
+        target_relation: 'public.employees',
+      },
+    });
+  }
   const { error } = await supabaseAdmin.from('employees').update(payload).eq('id', employeeId);
 
   if (error) {
-    safeFailure(500, 'employee_persistence_failed', 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.', 'persistence');
+    const safeDetails = safePersistenceDetails(error);
+    console.error('[employee-persistence]', {
+      correlationId: correlationId || null,
+      route: `/api/admin/employees/${employeeId}`,
+      method: 'PATCH',
+      actorEmployeeId: String(actor.employee.id),
+      authorizationResult: 'allowed',
+      failureStage: 'core_mutation',
+      sourceBoundary: 'services/server/adminEmployeeActions.ts:updateEmployee',
+      coreMutationRan: true,
+      ...safeDetails,
+    });
+    throw new AuthFlowError({
+      status: 500,
+      code: 'employee_persistence_failed',
+      message: 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.',
+      failureStage: 'persistence',
+      safeDetails,
+    });
   }
 
-  return { success: true, message: 'Đã cập nhật hồ sơ nhân sự.', code: 'employee_updated', failureStage: 'persisted' };
+  const { data: persisted, error: readbackError } = await supabaseAdmin
+    .from('employees')
+    .select('id, full_name, email, title, phone, status, is_active, auth_user_id, branch_code')
+    .eq('id', employeeId)
+    .maybeSingle();
+
+  if (readbackError || !persisted) {
+    console.warn('[employee-persistence]', {
+      correlationId: correlationId || null,
+      route: `/api/admin/employees/${employeeId}`,
+      method: 'PATCH',
+      actorEmployeeId: String(actor.employee.id),
+      authorizationResult: 'allowed',
+      failureStage: 'core_readback',
+      sourceBoundary: 'services/server/adminEmployeeActions.ts:updateEmployee',
+      coreMutationRan: true,
+      mutationResult: 'persisted',
+      supabaseOperation: 'select',
+      targetRelation: 'public.employees',
+      supabaseErrorCode: readbackError?.code || 'row_not_returned',
+    });
+  }
+
+  return {
+    success: true,
+    message: 'Đã cập nhật hồ sơ nhân sự.',
+    code: 'employee_updated',
+    failureStage: 'persisted',
+    employee: (persisted || { ...targetEmployee, ...payload }) as EmployeeAccountRow,
+    warnings: readbackError || !persisted ? ['employee_readback_failed'] : [],
+  };
 }
 
 export async function deactivateEmployee(employeeId: string): Promise<AdminActionResult> {

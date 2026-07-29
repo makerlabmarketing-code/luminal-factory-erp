@@ -38,7 +38,7 @@ export async function PATCH(
   const correlationId = crypto.randomUUID();
   try {
     const body = (await request.json().catch(() => null)) || {};
-    const result = await updateEmployee(params.id, body);
+    const result = await updateEmployee(params.id, body, correlationId);
     console.info('[employee-route]', {
       correlationId,
       code: result.code || 'employee_updated',
