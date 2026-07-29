@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateShiftUnitsFromMinutes,
+  getAttendanceShiftName,
+  getFinalizedShiftUnitsForRecord,
+  getWorkedMinutesForRecord,
   isOpenAttendanceRecordStale,
   mergeAttendanceRecords,
+  resolveAttendanceShiftState,
 } from '../services/attendanceService';
 
 describe('attendance shift calculation', () => {
@@ -72,5 +76,74 @@ describe('attendance shift calculation', () => {
         new Date(2026, 6, 28, 8)
       )
     ).toBe(false);
+  });
+
+  it('resolves no open shift as NO_OPEN_SHIFT', () => {
+    expect(resolveAttendanceShiftState(null, new Date('2026-07-30T02:00:00.000Z')))
+      .toBe('NO_OPEN_SHIFT');
+  });
+
+  it('resolves an open shift on the Vietnam business date as ACTIVE_SHIFT_TODAY', () => {
+    const record = {
+      id: 1,
+      employee_id: 10,
+      work_date: '2026-07-30',
+      shift_name: 'Ca Sáng',
+      check_in: '08:00:00',
+      check_out: null,
+    };
+
+    expect(resolveAttendanceShiftState(record, new Date('2026-07-30T02:00:00.000Z')))
+      .toBe('ACTIVE_SHIFT_TODAY');
+    expect(getWorkedMinutesForRecord(record, new Date('2026-07-30T02:00:00.000Z')))
+      .toBe(60);
+  });
+
+  it('resolves an earlier open shift as STALE_OPEN_SHIFT without elapsed time', () => {
+    const record = {
+      id: 1,
+      employee_id: 10,
+      work_date: '2026-07-29',
+      shift_name: 'Ca Tối',
+      check_in: '22:00:00',
+      check_out: null,
+    };
+
+    const now = new Date('2026-07-30T02:00:00.000Z');
+    expect(resolveAttendanceShiftState(record, now)).toBe('STALE_OPEN_SHIFT');
+    expect(getWorkedMinutesForRecord(record, now)).toBe(0);
+    expect(getFinalizedShiftUnitsForRecord(record)).toBe(0);
+  });
+
+  it('calculates shift units only for completed attendance', () => {
+    const baseRecord = {
+      id: 1,
+      employee_id: 10,
+      work_date: '2026-07-30',
+      shift_name: 'Ca Sáng',
+      check_in: '08:00:00',
+    };
+
+    expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: null })).toBe(0);
+    expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: '10:00:00' })).toBe(1);
+    expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: '13:01:00' })).toBe(2);
+    expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: '14:01:00' })).toBe(3);
+  });
+
+  it('uses the Asia/Ho_Chi_Minh date boundary for stale detection and shift names', () => {
+    const beforeMidnight = new Date('2026-07-29T16:59:59.999Z');
+    const afterMidnight = new Date('2026-07-29T17:00:00.000Z');
+    const openRecord = {
+      id: 1,
+      employee_id: 10,
+      work_date: '2026-07-29',
+      shift_name: 'Ca Tối',
+      check_in: '22:00:00',
+      check_out: null,
+    };
+
+    expect(isOpenAttendanceRecordStale(openRecord, beforeMidnight)).toBe(false);
+    expect(isOpenAttendanceRecordStale(openRecord, afterMidnight)).toBe(true);
+    expect(getAttendanceShiftName(new Date('2026-07-30T01:00:00.000Z'))).toBe('Ca Sáng');
   });
 });

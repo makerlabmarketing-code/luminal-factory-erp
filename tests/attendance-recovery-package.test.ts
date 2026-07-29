@@ -19,7 +19,7 @@ describe('Attendance Gate 2 repository package', () => {
 
     expect(staffRoute).toMatch(/export async function POST/);
     expect(staffRoute).toMatch(/\.from\('attendance'\)\s*\.update/);
-    expect(staffRoute).toMatch(/supabase\.from\('attendance'\)\.insert/);
+    expect(staffRoute).toMatch(/supabase\s*\.from\('attendance'\)\s*\.insert/);
     expect(staffRoute).toMatch(/\.eq\('employee_id', authContext\.employee\.id\)/);
     expect(staffRoute).not.toContain('ATTENDANCE_RECOVERY_ENABLED');
     expect(adminRoute).toMatch(/process\.env\.ATTENDANCE_RECOVERY_ENABLED === 'true'/);

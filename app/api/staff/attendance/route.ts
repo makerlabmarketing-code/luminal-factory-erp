@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { getDistance } from 'geolib';
 import { createClient } from '@/utils/supabase/server';
 import {
   businessMonthFromDateInput,
   businessMonthFromInstant,
-  businessMonthRange,
   formatBusinessDateInput,
   formatBusinessMonthInput,
   businessDateFromInstant,
@@ -12,6 +12,11 @@ import {
 import type { AttendanceRecord } from '@/lib/types/attendance';
 import type { Facility } from '@/lib/types/facility';
 import { calculateHoursFromStrings, calculateSalary } from '@/services/payrollService';
+import {
+  getAttendanceShiftName,
+  isOpenAttendanceRecordStale,
+  resolveAttendanceShiftState,
+} from '@/services/attendanceService';
 import { loadAttendanceData } from '@/services/server/attendanceData';
 import {
   AuthFlowError,
@@ -22,7 +27,7 @@ import { loadFacilityDirectory } from '@/services/server/facilityDirectory';
 
 const ATTENDANCE_SELECT =
   'id, employee_id, work_date, shift_name, check_in, check_out, total_hours, total_salary, status';
-const STAFF_ATTENDANCE_ALLOWED_FIELDS = new Set(['userLat', 'userLng']);
+const STAFF_ATTENDANCE_ALLOWED_FIELDS = new Set(['action', 'month', 'userLat', 'userLng']);
 
 class StaffAttendanceError extends Error {
   status: number;
@@ -45,15 +50,6 @@ function getEmployeeHourlyRate(employee: ServerEmployee): number {
   return Number(employee.hourly_rate || 30000);
 }
 
-function autoDetectShift(date: Date) {
-  const hour = date.getHours();
-
-  if (hour >= 6 && hour < 12) return 'Ca Sáng';
-  if (hour >= 12 && hour < 18) return 'Ca Chiều';
-
-  return 'Ca Tối';
-}
-
 function findMatchedBranch(employee: ServerEmployee, branches: Facility[]): Facility | null {
   const matchedBranch = branches.find((branch) => {
     if (String(employee.branch_code || '') === String(branch.id || '')) return true;
@@ -70,10 +66,6 @@ function findMatchedBranch(employee: ServerEmployee, branches: Facility[]): Faci
 
 function resolveBranchName(branch?: Facility | null) {
   return branch?.facility_name || branch?.name || 'Chưa gán cơ sở';
-}
-
-function isAttendanceRecordComplete(record: AttendanceRecord): boolean {
-  return Boolean(record.check_in && record.check_out);
 }
 
 async function loadFacilities() {
@@ -126,6 +118,24 @@ async function getAttendanceRecordByShift(
     .eq('work_date', workDate)
     .eq('shift_name', shiftName)
     .order('id', { ascending: true })
+    .limit(1);
+
+  if (error) throw error;
+
+  return ((data as AttendanceRecord[] | null)?.[0]) || null;
+}
+
+async function getLatestAttendanceRecordForDate(
+  employeeId: number | string,
+  workDate: string
+) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('attendance')
+    .select(ATTENDANCE_SELECT)
+    .eq('employee_id', employeeId)
+    .eq('work_date', workDate)
+    .order('id', { ascending: false })
     .limit(1);
 
   if (error) throw error;
@@ -199,18 +209,20 @@ async function loadOptionalMatchedBranch(employee: ServerEmployee): Promise<Faci
   }
 }
 
-async function loadAttendancePayload(employee: ServerEmployee, monthInput: string) {
-  const month = businessMonthFromDateInput(monthInput);
-  const monthRange = businessMonthRange(month);
-  const startDate = formatBusinessDateInput(monthRange.localStart);
-  const endDate = formatBusinessDateInput(monthRange.localEnd);
-  const todayStr = formatBusinessDateInput(businessDateFromInstant(new Date()));
-  const currentShift = autoDetectShift(new Date());
+async function loadAttendancePayload(
+  employee: ServerEmployee,
+  monthInput: string,
+  now = new Date()
+) {
+  businessMonthFromDateInput(monthInput);
+  const todayStr = formatBusinessDateInput(businessDateFromInstant(now));
 
   const openRecord = await getOpenAttendanceRecord(employee.id);
-  const currentShiftRecord = openRecord
-    ? null
-    : await getAttendanceRecordByShift(employee.id, todayStr, currentShift);
+  const shiftState = resolveAttendanceShiftState(openRecord, now);
+  const currentShiftRecord =
+    shiftState === 'ACTIVE_SHIFT_TODAY'
+      ? openRecord
+      : await getLatestAttendanceRecordForDate(employee.id, todayStr);
   const matchedBranch = await loadOptionalMatchedBranch(employee);
   const attendancePayload = await loadAttendanceData({
     monthInput,
@@ -229,8 +241,11 @@ async function loadAttendancePayload(employee: ServerEmployee, monthInput: strin
       hourly_rate: employee.hourly_rate ?? null,
     },
     localBranchName: resolveBranchName(matchedBranch),
-    todayRecord: openRecord || currentShiftRecord || null,
-    isInShift: Boolean(openRecord),
+    shiftState,
+    currentShift: shiftState === 'ACTIVE_SHIFT_TODAY' ? openRecord : null,
+    staleOpenShift: shiftState === 'STALE_OPEN_SHIFT' ? openRecord : null,
+    todayRecord: currentShiftRecord || null,
+    isInShift: shiftState === 'ACTIVE_SHIFT_TODAY',
     attendanceHistory: attendancePayload.attendanceRecords,
     sourceCounts: attendancePayload.sourceCounts,
   };
@@ -333,8 +348,118 @@ export async function POST(request: Request) {
 
     assertKnownPostFields(body);
 
-    const userLat = Number(body?.userLat);
-    const userLng = Number(body?.userLng);
+    const action = body.action;
+    if (action !== 'check_in' && action !== 'check_out') {
+      throw new StaffAttendanceError(
+        422,
+        'attendance_invalid_payload',
+        'Thao tác chấm công không hợp lệ.'
+      );
+    }
+
+    const monthInput =
+      typeof body.month === 'string'
+        ? body.month
+        : formatBusinessMonthInput(businessMonthFromInstant(new Date()));
+    try {
+      businessMonthFromDateInput(monthInput);
+    } catch {
+      throw new StaffAttendanceError(
+        422,
+        'attendance_invalid_payload',
+        'Kỳ chấm công không hợp lệ.'
+      );
+    }
+
+    const now = new Date();
+    const todayStr = formatBusinessDateInput(businessDateFromInstant(now));
+    const timeStr = now.toLocaleTimeString('vi-VN', {
+      hour12: false,
+      timeZone: 'Asia/Ho_Chi_Minh',
+    });
+    const currentShift = getAttendanceShiftName(now);
+    const openRecord = await getOpenAttendanceRecord(authContext.employee.id);
+    const supabase = await createClient();
+
+    if (openRecord && isOpenAttendanceRecordStale(openRecord, now)) {
+      throw new StaffAttendanceError(
+        409,
+        'attendance_stale_shift_operator_required',
+        'Có ca làm trước đó chưa được kết thúc. Vui lòng báo quản lý để kiểm tra.'
+      );
+    }
+
+    if (action === 'check_out') {
+      if (!openRecord) {
+        throw new StaffAttendanceError(
+          409,
+          'attendance_no_open_shift',
+          'Không có ca đang mở để kết thúc.'
+        );
+      }
+
+      const timeOut = normalizeTimeValue(timeStr);
+      const totalHours = calculateHoursFromStrings(openRecord.check_in || null, timeOut);
+      const totalSalary = calculateSalary(totalHours, getEmployeeHourlyRate(authContext.employee));
+      const { data, error } = await supabase
+        .from('attendance')
+        .update({
+          check_out: timeOut,
+          total_hours: totalHours,
+          total_salary: totalSalary,
+          status: 'PRESENT',
+        })
+        .eq('id', openRecord.id)
+        .eq('employee_id', authContext.employee.id)
+        .is('check_out', null)
+        .select(ATTENDANCE_SELECT)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) {
+        throw new StaffAttendanceError(
+          409,
+          'attendance_shift_changed',
+          'Ca làm đã thay đổi. Vui lòng tải lại dữ liệu.'
+        );
+      }
+
+      revalidatePath('/staff/attendance');
+      const attendance = await loadAttendancePayload(authContext.employee, monthInput, now);
+
+      return NextResponse.json({
+        success: true,
+        code: 'attendance_checked_out',
+        message: `Đã tan ca [${openRecord.shift_name}] thành công.`,
+        record: data,
+        attendance,
+      });
+    }
+
+    if (openRecord) {
+      throw new StaffAttendanceError(
+        409,
+        'attendance_already_checked_in',
+        'Bạn đang có một ca làm việc chưa kết thúc.'
+      );
+    }
+
+    const existingShift = await getAttendanceRecordByShift(
+      authContext.employee.id,
+      todayStr,
+      currentShift
+    );
+
+    if (existingShift) {
+      throw new StaffAttendanceError(
+        409,
+        'attendance_already_checked_out',
+        `Ca [${currentShift}] đã có dữ liệu chấm công.`
+      );
+    }
+
+    const userLat = Number(body.userLat);
+    const userLng = Number(body.userLng);
 
     if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
       throw new StaffAttendanceError(
@@ -368,67 +493,48 @@ export async function POST(request: Request) {
       );
     }
 
-    const now = new Date();
-    const todayStr = formatBusinessDateInput(businessDateFromInstant(now));
-    const timeStr = now.toLocaleTimeString('vi-VN', { hour12: false });
-    const currentShift = autoDetectShift(now);
-    const openRecord = await getOpenAttendanceRecord(authContext.employee.id);
-    const supabase = await createClient();
-
-    if (openRecord) {
-      const timeOut = normalizeTimeValue(timeStr);
-      const totalHours = calculateHoursFromStrings(openRecord.check_in || null, timeOut);
-      const totalSalary = calculateSalary(totalHours, getEmployeeHourlyRate(authContext.employee));
-      const { error } = await supabase
-        .from('attendance')
-        .update({
-          check_out: timeOut,
-          total_hours: totalHours,
-          total_salary: totalSalary,
-          status: 'PRESENT',
-        })
-        .eq('id', openRecord.id)
-        .eq('employee_id', authContext.employee.id);
-
-      if (error) throw error;
-
-      return NextResponse.json({
-        success: true,
-        code: 'attendance_checked_out',
-        message: `Đã tan ca [${openRecord.shift_name}] thành công.`,
-      });
-    }
-
-    const existingShift = await getAttendanceRecordByShift(
+    const openRecordAfterLocation = await getOpenAttendanceRecord(
+      authContext.employee.id,
+      todayStr
+    );
+    const existingShiftAfterLocation = await getAttendanceRecordByShift(
       authContext.employee.id,
       todayStr,
       currentShift
     );
-
-    if (existingShift) {
+    if (openRecordAfterLocation || existingShiftAfterLocation) {
       throw new StaffAttendanceError(
         409,
-        'attendance_already_checked_out',
-        `Ca [${currentShift}] đã có dữ liệu chấm công.`
+        'attendance_already_checked_in',
+        'Ca làm đã được ghi nhận. Vui lòng tải lại dữ liệu.'
       );
     }
 
-    const { error } = await supabase.from('attendance').insert([
-      {
-        employee_id: authContext.employee.id,
-        work_date: todayStr,
-        shift_name: currentShift,
-        check_in: normalizeTimeValue(timeStr),
-        status: 'PRESENT',
-      },
-    ]);
+    const { data, error } = await supabase
+      .from('attendance')
+      .insert([
+        {
+          employee_id: authContext.employee.id,
+          work_date: todayStr,
+          shift_name: currentShift,
+          check_in: normalizeTimeValue(timeStr),
+          status: 'PRESENT',
+        },
+      ])
+      .select(ATTENDANCE_SELECT)
+      .single();
 
     if (error) throw error;
+
+    revalidatePath('/staff/attendance');
+    const attendance = await loadAttendancePayload(authContext.employee, monthInput, now);
 
     return NextResponse.json({
       success: true,
       code: 'attendance_checked_in',
       message: `Đã ghi nhận [${currentShift}] lúc ${timeStr}.`,
+      record: data,
+      attendance,
     });
   } catch (error) {
     return toStaffAttendanceErrorResponse(error);
