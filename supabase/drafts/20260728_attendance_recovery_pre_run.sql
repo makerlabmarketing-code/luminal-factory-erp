@@ -4,6 +4,8 @@ from (values
   ('attendance', to_regclass('public.attendance') is not null),
   ('attendance_logs', to_regclass('public.attendance_logs') is not null),
   ('employees', to_regclass('public.employees') is not null),
+  ('shifts', to_regclass('public.shifts') is not null),
+  ('current_employee_id()', to_regprocedure('public.current_employee_id()') is not null),
   ('has_workspace_access(text)', to_regprocedure('public.has_workspace_access(text)') is not null),
   ('has_permission(text)', to_regprocedure('public.has_permission(text)') is not null)
 ) checks(object_name, object_exists)

@@ -1,6 +1,6 @@
 # Current Operator Handoff
 
-**Prepared:** 2026-07-28
+**Prepared:** 2026-07-29
 
 **Branch:** `work`
 
@@ -8,11 +8,20 @@
 
 ## Repository package verification
 
+## Employee Profile persistence closure
+
+`EMPLOYEE_PROFILE_PERSISTENCE_PASS`: the operator verified authenticated production Admin and Staff updates, navigation and hard-refresh readback, Admin partial-field preservation, Staff own-row targeting, and active-workspace notification isolation. `public.employees` is the authoritative employee profile source for both workspaces. Both workspaces now share that persistence/readback contract; Staff writes remain limited to phone, bank name, and bank account number, while mutation success remains separate from optional enrichment/readback warnings. The incident is **CLOSED**. No SQL, RLS broadening, or runtime flag change was required.
+
+The exact next incomplete roadmap item is **Item 16, Gate 2 — Attendance recovery operator evidence**. Repository-safe Gate 2 review may proceed, but `ATTENDANCE_RECOVERY_ENABLED` remains false/unset and live PASS requires operator evidence.
+
+Attendance repository-safe review is complete. Normal Staff check-in/check-out has no recovery-flag dependency and retains authenticated own-row targeting. The package review covered pre-run, tracked forward, post-run, rollback, RLS, authorization, and smoke artifacts. Pre-run coverage now includes `shifts` and `current_employee_id()`; post-run coverage emits helper availability and a checkable zero-row missing-policy result; focused static regression protects these boundaries. No SQL was run and no live Attendance PASS is claimed.
+
+
 The branch contains the completed application slices and focused tests recorded in the [implementation roadmap](ERP_IMPLEMENTATION_ROADMAP.md). The seven production runtime gates have complete pre-run, forward, post-run/validation, rollback, authorization/RLS, regression, disabled-state, and smoke-test coverage according to the [activation matrix](runtime-gate-activation-matrix.md). The exact operator commands and stop conditions remain owned by the [production runbook](production-runtime-gate-operator-runbook.md); the ordered SQL/RPC register remains owned by the [SQL handoff](production-operator-sql-handoff.md).
 
 Repository validation completed for this handoff:
 
-- `npm test`: PASS — 54 files and 440 tests.
+- `npm test`: PASS — 62 files and 494 tests.
 - `npm run lint`: PASS with three pre-existing warnings (`next/image` and two hook-dependency warnings).
 - `npx tsc --noEmit`: PASS.
 - `npm run build`: PASS with the recorded lint, Edge Runtime, webpack cache, and Node 20 deprecation warnings.
