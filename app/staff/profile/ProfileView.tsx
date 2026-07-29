@@ -77,7 +77,8 @@ export function StaffProfileContent({
   }
 
   const currentWage = getShiftWageByTitle(worker.title);
-  const assignedBranchName = assignedBranch?.name || assignedBranch?.facility_name || worker.branch_code || worker.branch || 'Chưa phân phối';
+  const legacyFacility = worker.branch_code || worker.branch;
+  const assignedBranchName = assignedBranch?.name || assignedBranch?.facility_name || (legacyFacility && !/^\d+$/.test(legacyFacility) ? legacyFacility : null) || 'Cơ sở chưa xác định';
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 text-xs max-w-2xl mx-auto animate-fadeIn w-full text-slate-100 font-sans">

@@ -57,6 +57,7 @@ export function findAssignedBranch(
   branches: Facility[]
 ): Facility | null {
   const matchedBranch = branches.find((branch) => {
+    if (branch.id != null && [employee.branch_code, employee.branch].some((value) => value != null && String(value) === String(branch.id))) return true;
     if (branch.code && employee.branch_code && branch.code === employee.branch_code) return true;
     if (branch.name && employee.branch && branch.name === employee.branch) return true;
     if (branch.name && employee.branch_code && branch.name === employee.branch_code) return true;
@@ -258,7 +259,16 @@ export async function getStaffPortalLoadState(): Promise<StaffPortalLoadState> {
 
 export async function getAuthenticatedStaffPortalData() {
   const authContext = await requireWorkspaceAccess('STAFF_WORKSPACE');
-  const branches = await getMetadataBranches();
+  let branches: Facility[] = [];
+  try {
+    branches = await getMetadataBranches();
+  } catch (error) {
+    logStaffPortalBoundary({
+      correlationId: crypto.randomUUID(), route: '/staff', code: 'facility_lookup_failed',
+      authStage: 'verified', employeeStage: 'resolved', workspaceStage: 'allowed',
+      facilityStage: 'failed', retryable: true, error,
+    });
+  }
   const adminAccess = await canAccessAdmin(authContext);
 
   return {

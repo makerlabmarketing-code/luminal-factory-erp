@@ -79,10 +79,12 @@ describe('employee admin list and account actions slice', () => {
   it('keeps Staff Workspace profile reads on the current employee only', () => {
     const staffPortalData = source('services/server/staffPortalData.ts');
     const staffProfileRoute = source('app/api/staff/profile/route.ts');
+    const staffProfilePersistence = source('services/server/staffProfilePersistence.ts');
 
     expect(staffPortalData).toMatch(/requireWorkspaceAccess\('STAFF_WORKSPACE'\)/);
     expect(staffProfileRoute).toMatch(/requireWorkspaceAccess\('STAFF_WORKSPACE'\)/);
-    expect(staffProfileRoute).toMatch(/\.eq\('id', authContext\.employee\.id\)/);
+    expect(staffProfileRoute).toContain('employeeId = authContext.employee.id');
+    expect(staffProfilePersistence.match(/\.eq\('id', employeeId\)/g)).toHaveLength(2);
   });
 
   it('renders account status labels and account actions from DTO state', () => {

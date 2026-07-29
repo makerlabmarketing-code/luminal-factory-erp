@@ -9,6 +9,7 @@ describe('employee profile workspace contract', () => {
   const actions = read('services/server/adminEmployeeActions.ts');
   const staff = read('app/staff/profile/ProfileView.tsx');
   const staffRoute = read('app/api/staff/profile/route.ts');
+  const persistence = read('services/server/staffProfilePersistence.ts');
   const permissions = read('lib/account-permissions.ts');
 
   it('opens detail from the list and has no list update mutation', () => {
@@ -38,8 +39,9 @@ describe('employee profile workspace contract', () => {
   it('protects staff own-profile fields and returns persisted readback', () => {
     expect(staffRoute).toContain("requireWorkspaceAccess('STAFF_WORKSPACE')");
     expect(staffRoute).toContain("new Set(['phone', 'bankName', 'bankAccountNumber'])");
-    expect(staffRoute).toContain(".eq('id', authContext.employee.id)");
-    expect(staffRoute).toContain(".select('phone, bank_name, bank_account_number')");
+    expect(staffRoute).toContain('employeeId = authContext.employee.id');
+    expect(persistence).toContain(".eq('id', employeeId)");
+    expect(persistence).toContain(".select('phone, bank_name, bank_account_number')");
     expect(staff).toContain("'Đã cập nhật thông tin cá nhân.'");
     expect(staff).toContain('setWorker((current)');
   });

@@ -9,6 +9,7 @@ describe('production employee persistence incident contract', () => {
   const admin = source('services/server/adminEmployeeActions.ts');
   const adminRoute = source('app/api/admin/employees/[id]/route.ts');
   const staffRoute = source('app/api/staff/profile/route.ts');
+  const staffPersistence = source('services/server/staffProfilePersistence.ts');
   const staffService = source('services/staffProfileService.ts');
   const staffView = source('app/staff/profile/ProfileView.tsx');
   const auth = source('services/server/auth.ts');
@@ -37,15 +38,16 @@ describe('production employee persistence incident contract', () => {
 
   it('resolves staff identity through auth_user_id and targets only that employee id', () => {
     expect(auth).toContain(".eq('auth_user_id', user.id)");
-    expect(staffRoute).toContain(".eq('id', authContext.employee.id)");
+    expect(staffRoute).toContain('employeeId = authContext.employee.id');
+    expect(staffPersistence).toContain(".eq('id', employeeId)");
     expect(staffRoute).not.toMatch(/\.from\(['"]profiles['"]\)/);
   });
 
   it('persists staff phone and bank fields in employees and reads them back from the same row', () => {
-    expect(staffRoute).toContain("payload.phone = cleanProfileField(body.phone)");
-    expect(staffRoute).toContain('payload.bank_name = cleanProfileField(body.bankName)');
-    expect(staffRoute).toContain('payload.bank_account_number = cleanProfileField(body.bankAccountNumber)');
-    expect(staffRoute).toContain(".select('phone, bank_name, bank_account_number')");
+    expect(staffPersistence).toContain('payload.phone = clean(body.phone)');
+    expect(staffPersistence).toContain('payload.bank_name = clean(body.bankName)');
+    expect(staffPersistence).toContain('payload.bank_account_number = clean(body.bankAccountNumber)');
+    expect(staffPersistence).toContain(".select('phone, bank_name, bank_account_number')");
     expect(staffService).toContain('return result.employee');
   });
 
@@ -55,14 +57,14 @@ describe('production employee persistence incident contract', () => {
   });
 
   it('does not erase profile data when optional facility enrichment is unavailable', () => {
-    expect(staffView).toContain('worker.branch_code || worker.branch');
+    expect(staffView).toContain('const legacyFacility = worker.branch_code || worker.branch');
     expect(staffView).toContain('setWorker((current) => current ? { ...current, ...saved } : current)');
   });
 
   it('uses employees as the single admin and staff source of truth', () => {
     expect(admin).toContain(".from('employees')");
-    expect(staffRoute).toContain(".from('employees')");
-    expect(`${admin}${staffRoute}`).not.toMatch(/\.from\(['"]profiles['"]\)/);
+    expect(staffPersistence).toContain(".from('employees')");
+    expect(`${admin}${staffRoute}${staffPersistence}`).not.toMatch(/\.from\(['"]profiles['"]\)/);
   });
 
   it('returns correlation and known stages for database and boundary failures', () => {
@@ -73,13 +75,13 @@ describe('production employee persistence incident contract', () => {
   });
 
   it('does not mutate unrelated employee rows and invalidates staff caches after success', () => {
-    expect(staffRoute.match(/\.eq\('id', authContext\.employee\.id\)/g)).toHaveLength(2);
+    expect(staffPersistence.match(/\.eq\('id', employeeId\)/g)).toHaveLength(2);
     expect(staffRoute).toContain("revalidatePath('/staff')");
     expect(staffRoute).toContain("revalidatePath('/staff/profile')");
   });
 
   it('supports both server-only Supabase privileged key names', () => {
-    expect(adminClient).toContain('process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY');
+    expect(adminClient).toContain('const key = current || legacy');
     expect(adminClient).toContain("import 'server-only'");
   });
 });
