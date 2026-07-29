@@ -8,6 +8,19 @@
 
 ## Repository package verification
 
+## Employee Detail and profile schema checkpoint
+
+- Employee Detail seven-tab implementation: `APPLICATION_COMPLETE`; preserve completion commit `298fabb` and the field ownership contract in [employee-detail-tab-audit.md](employee-detail-tab-audit.md).
+- Repository validation: `PASS`.
+- Employee Profile schema extension: `BLOCKED_BY_BUSINESS_DECISION` and ready for business/security review, not execution.
+- Production migration: `NOT_EXECUTED`.
+- Employee audit package `20260729_employee_profile_extension`: `READY_FOR_OPERATOR` for review only. Preserve every pre-run, forward, post-run, rollback, RLS/audit, and validation artifact in its current draft/validation location.
+- No production SQL, authenticated production smoke, runtime flag activation, deployment, or merge was performed.
+
+Business approval is still required for: (1) final field semantics and nullability; (2) Admin per-field read/edit permissions; (3) Staff own-profile per-field read/edit permissions; (4) sensitive-field visibility; (5) the audit field allowlist; (6) the audit retention period; (7) whether old/new sensitive values may be stored; and (8) whether audit retention permits hard deletion or is archive-only.
+
+Do not promote or execute the forward draft until every decision is approved. Employee Profile does not stop the rest of the roadmap: after the required skip of production and unresolved-decision work, the roadmap inspection found no remaining `SAFE_CLOUD_WORK_AVAILABLE` item. The next incomplete operational item is Item 16, Gate 2 Attendance recovery, owned by the operator; it is not safe Cloud implementation work.
+
 ## Employee Profile persistence closure
 
 `EMPLOYEE_PROFILE_PERSISTENCE_PASS`: the operator verified authenticated production Admin and Staff updates, navigation and hard-refresh readback, Admin partial-field preservation, Staff own-row targeting, and active-workspace notification isolation. `public.employees` is the authoritative employee profile source for both workspaces. Both workspaces now share that persistence/readback contract; Staff writes remain limited to phone, bank name, and bank account number, while mutation success remains separate from optional enrichment/readback warnings. The incident is **CLOSED**. No SQL, RLS broadening, or runtime flag change was required.
