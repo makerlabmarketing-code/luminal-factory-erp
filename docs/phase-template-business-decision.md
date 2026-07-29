@@ -1,7 +1,7 @@
 # Phase Template Business-Decision Package
 
 **Prepared:** 2026-07-29  
-**Status:** `BUSINESS_APPROVAL_REQUIRED`  
+**Status:** `BLOCKED_BY_BUSINESS_DECISION`
 **Boundary:** contract proposal only; no Phase Template application code, SQL, migration, RPC, RLS, seed data, runtime flag, deployment, or merge is authorized by this document.
 
 ## Current repository boundary

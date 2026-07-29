@@ -1,7 +1,7 @@
 # Luminal Factory ERP Implementation Roadmap
 
 **Reconciled:** 2026-07-29
-**Repository baseline:** `60ebcbb` (`test: harden attendance recovery gate package (#89)`)
+**Repository baseline:** `bb3f431` (`docs: prepare phase template decision package (#91)`)
 **Scope:** repository evidence only. This reconciliation did not execute SQL/RPC, enable a runtime flag, deploy, merge, begin SaaS UI work, or inspect GitHub comments.
 
 ## Status contract
@@ -21,6 +21,35 @@ This roadmap uses only the following statuses:
 - `SUPERSEDED`: replaced by a named roadmap item or authority and must not be reopened independently.
 
 Repository presence is not production proof. A migration, draft SQL file, RPC definition, or passing static test does not by itself make a database-dependent feature `COMPLETE`.
+
+## Cloud execution classification
+
+This table is the scheduling authority for the current Cloud continuation. It classifies every roadmap item using only the five requested execution dispositions. `READY_FOR_OPERATOR` includes items whose application work is complete but whose production evidence, protected migration delivery, runtime activation, or live smoke checks belong to an operator. `COMPLETE` means no remaining work exists inside that roadmap item's approved repository scope; it does not promote a linked operator gate to production PASS.
+
+| Roadmap item | Cloud classification | Reason |
+|---|---|---|
+| 1. Project Membership | `READY_FOR_OPERATOR` | Application and regression scope is complete; retained production role and cancelled-project fixtures remain operator evidence. |
+| 2. Project authorization | `READY_FOR_OPERATOR` | Server authorization is implemented; production membership/RLS fixtures remain operator evidence. |
+| 3. Project Detail | `COMPLETE` | The approved core detail, state, retry, accessibility, copy, and responsive scope is complete; linked gated mutations remain classified separately. |
+| 4. Project atomic create | `READY_FOR_OPERATOR` | The application boundary and complete operator package exist; the runtime flag stays false. |
+| 5. Phase Workflow | `READY_FOR_OPERATOR` | The reviewed package and compatibility coverage exist; protected delivery and retained live evidence remain. |
+| 6. Phase status mutation | `READY_FOR_OPERATOR` | Migration and validation artifacts exist; activation depends on the operator-verified foundation. |
+| 7. Child Task CRUD | `READY_FOR_OPERATOR` | Approved application CRUD is complete; atomic create delivery and smoke evidence remain operator-only. |
+| 8. Task comments/activity | `READY_FOR_OPERATOR` | Disabled/error behavior and the complete SQL/RPC/RLS package exist; delivery and activation remain operator-only. |
+| 9. Facility directory | `READY_FOR_OPERATOR` | Repository regression is closed; compatibility, RLS, and production fixtures remain operator-only. |
+| 10. Attendance | `READY_FOR_OPERATOR` | Preserve `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`; Gate 2 has no further safe Cloud implementation. |
+| 11. Employee Account/Workspace | `READY_FOR_OPERATOR` | Application presentation and server boundaries are complete; catalog/linkage/grant fixtures remain operator evidence. |
+| 12. Ledger/Reimbursement | `READY_FOR_OPERATOR` | The approved application and complete package `20260728153000` exist; Storage/RLS review, delivery, and smoke evidence remain operator-only. |
+| 13. Payroll | `READY_FOR_OPERATOR` | The approved disabled application UI and immutable-settlement package exist; first-month configuration, delivery, fixtures, and activation remain operator-only. |
+| 14. Dashboard | `READY_FOR_OPERATOR` | Approved error/retry behavior is complete; empty/populated/denied production fixtures remain operator evidence. |
+| 15. Functional stabilization | `COMPLETE` | All approved safe application defect, loading, retry, submission, targeted-refresh, and regression work is complete. |
+| 16. Runtime gate readiness | `READY_FOR_OPERATOR` | All seven packages are inventoried and default-disabled; live evidence and activation remain operator-only. |
+| 17. Phase Templates | `BLOCKED_BY_BUSINESS_DECISION` | The decision package preserves twelve unanswered questions; no implementation or executable package is approved. |
+| 18. SaaS UI foundation | `BLOCKED_BY_DEPENDENCY` | The bounded affected journeys and prerequisite operator gates are unresolved; no broad foundation implementation is safe. |
+| 19. Broad SaaS UI re-skin | `BLOCKED_BY_DEPENDENCY` | Operational boundaries and runtime evidence remain unresolved. |
+| 20. Production hardening | `BLOCKED_BY_DEPENDENCY` | Stabilized production capabilities and an approved UI scope must precede release hardening. |
+
+No item is currently `SAFE_CLOUD_WORK_AVAILABLE`. The exact next safe Cloud item selected for this continuation was this repository reconciliation and operator-handoff correction; it is now `COMPLETE`. No application defect or approved UI/RPC/RLS package gap remained after inspection, so no application code, SQL, runtime flag, deployment, or completed Employee persistence scope was reopened.
 
 ## Reconciled roadmap
 
@@ -44,9 +73,10 @@ The order below preserves the functional roadmap sequence. Dependency correction
 | 14. Dashboard | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Server-owned paid-ledger DTO, visible failure, and in-app retry are implemented and covered by `tests/admin-dashboard-dto.test.ts`. | Authorized production fixtures for empty, populated, denied, and error ledger states have not been retained as PASS evidence. | Operator performs the Dashboard read-only smoke checks in the [production runbook](production-runtime-gate-operator-runbook.md); do not redesign it in this task. |
 | 15. Functional stabilization | `BLOCKED_BY_DEPENDENCY` | `APPLICATION_COMPLETE` | The current journey matrix and safe application fixes are recorded in [the functional stabilization report](core-erp-functional-stabilization-report.md). Payroll request ordering, duplicate-submit feedback, and Retry state are covered by `tests/payroll-immutable-settlement.test.ts`. | Live operator verification/runtime activation remains for Account, Facility, Attendance, Project Workflow, Child Task create, Comments/Activity, Ledger/Reimbursement, Payroll, and Dashboard. | Safe repository work is complete. Continue with item 16 operator evidence; do not infer any gate active. |
 | 16. Runtime gate readiness | `READY_FOR_OPERATOR` | `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED` | All seven server-owned gates, artifacts, dependencies, smoke tests, activation prerequisites, rollback triggers, and default-false tests are owned by the [activation matrix](runtime-gate-activation-matrix.md) and [production runbook](production-runtime-gate-operator-runbook.md). Attendance repository validation is `PASS`; Employee persistence separately records `EMPLOYEE_PROFILE_PERSISTENCE_PASS`. | Live Attendance Gate 2 still needs migration-history verification, read-only pre-run output, retained post-run output, and authenticated production authorization/smoke evidence. | **Exact next incomplete item:** Gate 2, Attendance recovery, owned by the production operator. Keep `ATTENDANCE_RECOVERY_ENABLED=false` until all evidence passes; no safe Cloud application work remains for this gate. |
-| 17. SaaS UI foundation | `NOT_STARTED` | `NOT_STARTED` | `SETUP-CODEX-ERP.md` defines the future shared shell/design-system scope; the stabilization report classifies only a subset of journeys as safe for scoped planning. | Application stabilization is complete, but operational gates are unresolved and gated surfaces are not safe to redesign. | Do not implement yet. Scoped foundation work becomes safe only after the named affected journeys are isolated from unresolved contracts and the operator gates needed by its scope pass. |
-| 18. Broad SaaS UI re-skin | `BLOCKED_BY_DEPENDENCY` | `BLOCKED_BY_DEPENDENCY` | The stabilization report explicitly blocks broad redesign while operational boundaries remain unresolved. | Every stabilization journey must be ready, the seven runtime gates must have retained PASS evidence where applicable, and finance/payroll decisions must be resolved. | Keep broad re-skin blocked; do not reinterpret completed functional polish as a new re-skin slice. |
-| 19. Production hardening | `NOT_STARTED` | `BLOCKED_BY_DEPENDENCY` | `SETUP-CODEX-ERP.md` defines performance, accessibility, production build, monitoring, and release-readiness criteria. Existing application slices have local regression/build coverage but no completed release-hardening phase. | Depends on stabilized production capabilities and the approved UI scope; deployment remains a separate approval gate. | Begin only after stabilization and the approved UI phase; do not deploy or merge as part of roadmap reconciliation. |
+| 17. Phase Templates | `BLOCKED_BY_BUSINESS_DECISION` | `BLOCKED_BY_BUSINESS_DECISION` | The preserved [business-decision package](phase-template-business-decision.md) defines bounded options and twelve unanswered business questions without creating application code or executable SQL. | The business owner must answer all twelve questions and approve the seed catalog or an empty catalog. | Preserve the package. Do not implement, infer rules, promote draft SQL, or silently approve a contract. |
+| 18. SaaS UI foundation | `NOT_STARTED` | `BLOCKED_BY_DEPENDENCY` | `SETUP-CODEX-ERP.md` defines the future shared shell/design-system scope; the stabilization report classifies only a subset of journeys as safe for scoped planning. | Operational gates are unresolved and the approved bounded foundation scope is not isolated from them. | Do not implement yet. Reassess only after the affected journeys and prerequisite operator evidence are explicit. |
+| 19. Broad SaaS UI re-skin | `BLOCKED_BY_DEPENDENCY` | `BLOCKED_BY_DEPENDENCY` | The stabilization report explicitly blocks broad redesign while operational boundaries remain unresolved. | Every affected stabilization journey and runtime gate must have the required retained evidence, and the foundation scope must be approved. | Keep broad re-skin blocked; do not reinterpret completed functional polish as a new re-skin slice. |
+| 20. Production hardening | `NOT_STARTED` | `BLOCKED_BY_DEPENDENCY` | `SETUP-CODEX-ERP.md` defines performance, accessibility, production build, monitoring, and release-readiness criteria. Existing application slices have local regression/build coverage but no completed release-hardening phase. | Depends on stabilized production capabilities and the approved UI scope; deployment remains a separate approval gate. | Begin only after stabilization and the approved UI phase; do not deploy or merge as part of roadmap reconciliation. |
 
 ## 2026-07-29 Employee Profile persistence closure
 
