@@ -294,3 +294,21 @@ No SQL, migration execution, migration promotion, RLS mutation, RPC deployment, 
 Self-review classification: no newly actionable P0/P1 finding was identified in the draft-only Batch 3E1 package. The package prepares forward, rollback, validation, compatibility/backfill, security, and tests for Staff own-row access on `employees`, `attendance`, and `attendance_logs`; it does not promote SQL to `supabase/migrations/`, execute SQL, mutate live RLS, add anon or broad authenticated policies, expose privileged credentials, alter payroll/finance authorization, or change attendance calculations/source-of-truth.
 
 No SQL, migration execution, migration promotion, RLS mutation, RPC deployment, backfill, deployment, destructive operation, direct PostgreSQL TCP retry, Auth mutation, permission mutation, employee data mutation, attendance data mutation, payroll mutation, finance mutation, or production data mutation was performed. Batch 3E1 remains `LIVE_APPROVAL_REQUIRED` before Supabase GitHub Integration delivery.
+
+## 2026-07-29 Employee persistence incident review source status
+
+`REVIEW_SOURCE_UNAVAILABLE`: current Codex GitHub Code Review findings, unresolved PR
+conversations, and Vercel production logs were not exposed in this environment. The
+operator-supplied correlation IDs, current latest-main code, schema/migration evidence,
+and focused regression suite were used as the available sources.
+
+Self-review classified the shared privileged-client key-name dependency, conflated
+mutation/readback operation, missing Staff cache invalidation, facility fallback label,
+and insufficient Staff structured diagnostics as actionable. The repair accepts both
+server-only Supabase privileged key names, preserves dirty-field-only updates, separates
+core mutation from readback, returns merged persisted state with a warning if readback
+fails, invalidates Staff profile routes, and logs only sanitized operation metadata and
+machine error codes. No SQL, RLS, grant, runtime flag, Auth record, production data,
+deployment, Attendance, or roadmap change was made. Closure remains
+`OPERATOR_PRODUCTION_SMOKE_REQUIRED` until both authenticated paths persist after hard
+refresh and fresh correlation logs confirm the production result.
