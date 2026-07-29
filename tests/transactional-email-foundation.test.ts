@@ -40,6 +40,13 @@ describe('ERP transactional email foundation', () => {
     expect(editor).toContain("'Không thể gửi email thử nghiệm'");
     expect(editor).toContain('testDeliveryResult');
   });
+  it('keeps the editor readable and preserves failed form submissions', () => {
+    expect(editor).toContain("const isDirty =");
+    expect(editor).toContain("Dữ liệu đã nhập vẫn được giữ lại. Vui lòng thử lại.");
+    expect(editor).toContain("Không tìm thấy mẫu email phù hợp.");
+    expect(editor).not.toContain('Ká»‹ch Báº£n');
+    expect(editor).not.toContain('LÆ°u Ká»‹ch Báº£n');
+  });
   it('keeps business delivery separate from Supabase Auth', () => {
     expect(service).toContain('nodemailer.createTransport');
     expect(service).not.toContain('auth.admin.inviteUserByEmail');
