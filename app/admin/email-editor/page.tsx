@@ -1,6 +1,6 @@
 ﻿// app/admin/email-editor/page.tsx
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/utils/supabase/client';
 import { useNotification } from '@/component/NotificationContext';
 import { Mail, Plus, Trash2, Edit2, X, Save, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RefreshCcw, Send, Sparkles } from 'lucide-react';
@@ -30,6 +30,8 @@ export default function AdminEmailTemplates() {
   const [testMailAddress, setTestMailAddress] = useState('admin@gmail.com');
   const [activeTestTemplate, setActiveTestTemplate] = useState<any>(null);
   const [sendingTestMail, setSendingTestMail] = useState(false);
+  const testSendInFlight = useRef(false);
+  const [testDeliveryResult, setTestDeliveryResult] = useState<string | null>(null);
 
   // Form Fields
   const [groupType, setGroupType] = useState('WELCOME');
@@ -96,14 +98,19 @@ export default function AdminEmailTemplates() {
 
   const handleTriggerTestMailModal = (t: any) => {
     setActiveTestTemplate(t);
+    setSelectedPreview(t);
+    setTestDeliveryResult(null);
     setShowTestMailPopup(true);
   };
 
   const executeSendTestEmail = async () => {
+    if (testSendInFlight.current) return;
     if (!testMailAddress.trim()) return showToast('Thiếu địa chỉ', 'Vui lòng nhập email nhận thử nghiệm!', 'error');
     if (!activeTestTemplate?.id) return showToast('Thiếu template', 'Không xác định được template cần gửi thử.', 'error');
 
+    testSendInFlight.current = true;
     setSendingTestMail(true);
+    setTestDeliveryResult(null);
 
     try {
       const response = await fetch('/api/admin/email/test', {
@@ -121,19 +128,21 @@ export default function AdminEmailTemplates() {
       const payload = responseText ? JSON.parse(responseText) : null;
 
       if (!response.ok) {
-        throw new Error(payload?.error || 'Không thể gửi email test.');
+        throw new Error(payload?.message || 'Không thể gửi email thử nghiệm.');
       }
 
-      setShowTestMailPopup(false);
+      setTestDeliveryResult(`Đã gửi thành công. Mã tra cứu: ${payload?.correlationId || 'không có'}`);
       showToast(
-        'Gửi SMTP',
-        `Đã gửi thử template [${activeTestTemplate?.template_name || ''}] tới ${testMailAddress.trim()} thành công!`,
+        'Đã gửi email thử nghiệm',
+        `Đã gửi mẫu [${activeTestTemplate?.template_name || ''}] tới ${testMailAddress.trim()}.`,
         'success'
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể gửi email test.';
-      showToast('SMTP lỗi', message, 'error');
+      setTestDeliveryResult(message);
+      showToast('Không thể gửi email thử nghiệm', message, 'error');
     } finally {
+      testSendInFlight.current = false;
       setSendingTestMail(false);
     }
   };
@@ -291,18 +300,16 @@ export default function AdminEmailTemplates() {
         </div>
       )}
 
-      {/* ðŸ”¥ POPUP FORM NHáº¬P EMAIL Gá»¬I THá»¬ NGHIá»†M Äá»’NG Bá»˜ CAO Cáº¤P */}
+      {/* Gửi email thử nghiệm: chỉ gửi tới địa chỉ Admin nhập rõ ràng. */}
       {showTestMailPopup && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn font-sans">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-sm text-center space-y-4 shadow-2xl relative text-xs">
-            <button onClick={() => setShowTestMailPopup(false)} className="absolute right-4 top-4 text-slate-500 hover:text-white"><X className="w-4 h-4"/></button>
-            <div className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mx-auto"><Send className="w-5 h-5"/></div>
-            <div className="space-y-1">
-              <h4 className="text-sm font-black text-slate-100 uppercase tracking-wide">Gá»­i thÆ° nghiá»‡m ká»‹ch báº£n</h4>
-              <p className="text-[11px] text-slate-400 font-medium">Báº¯n lá»‡nh phÃ¡t thá»­ nghiá»‡m cáº¥u trÃºc ká»‹ch báº£n [{activeTestTemplate?.template_name}] qua cá»•ng SMTP xÆ°á»Ÿng.</p>
-            </div>
-            <div className="text-left"><label className="text-slate-500 font-bold block mb-1">Nháº­p Ä‘á»‹a chá»‰ Email nháº­n:</label><input type="email" className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl font-mono text-purple-400 font-bold focus:outline-none" value={testMailAddress} onChange={e => setTestMailAddress(e.target.value)} /></div>
-            <div className="grid grid-cols-2 gap-2 pt-1 font-sans"><button onClick={() => setShowTestMailPopup(false)} disabled={sendingTestMail} className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl font-bold text-slate-400 disabled:opacity-50">Há»§y</button><button onClick={executeSendTestEmail} disabled={sendingTestMail} className="bg-purple-600 text-white font-black p-2.5 rounded-xl shadow-lg disabled:opacity-50">{sendingTestMail ? 'Äang gá»­i...' : 'ðŸš€ PhÃ¡t lá»‡nh báº¯n'}</button></div>
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 font-sans">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-lg space-y-4 shadow-2xl relative text-xs">
+            <button aria-label="Đóng" onClick={() => setShowTestMailPopup(false)} disabled={sendingTestMail} className="absolute right-4 top-4 text-slate-500 hover:text-white disabled:opacity-50"><X className="w-4 h-4"/></button>
+            <div><h4 className="text-sm font-black text-slate-100">Gửi email thử nghiệm</h4><p className="mt-1 text-slate-400">Xem trước mẫu và nhập rõ địa chỉ nhận. Thao tác này không gửi hàng loạt.</p></div>
+            <div className="rounded-xl border border-slate-700 bg-slate-950 p-3"><p className="font-bold text-amber-300">{activeTestTemplate?.subject || 'Chưa cập nhật tiêu đề'}</p><div className="mt-2 max-h-36 overflow-y-auto text-slate-300" dangerouslySetInnerHTML={{ __html: activeTestTemplate?.html_content || activeTestTemplate?.body || '<p>Chưa cập nhật nội dung</p>' }}/></div>
+            <label className="block text-left"><span className="text-slate-400 font-bold">Email nhận thử nghiệm</span><input type="email" autoComplete="off" className="mt-1 w-full bg-slate-950 border border-slate-700 p-2.5 rounded-xl text-purple-300 focus:outline-none focus:border-purple-500" value={testMailAddress} onChange={e => setTestMailAddress(e.target.value)} /></label>
+            {testDeliveryResult && <p role="status" className="rounded-lg border border-slate-700 bg-slate-950 p-3 text-slate-300">{testDeliveryResult}</p>}
+            <div className="grid grid-cols-2 gap-2"><button onClick={() => setShowTestMailPopup(false)} disabled={sendingTestMail} className="border border-slate-700 p-2.5 rounded-xl font-bold text-slate-300 disabled:opacity-50">Hủy</button><button onClick={executeSendTestEmail} disabled={sendingTestMail} className="bg-purple-600 text-white font-bold p-2.5 rounded-xl disabled:opacity-50">{sendingTestMail ? 'Đang gửi...' : 'Gửi email thử nghiệm'}</button></div>
           </div>
         </div>
       )}

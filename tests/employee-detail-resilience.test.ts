@@ -7,7 +7,7 @@ const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), '
 describe('employee detail enrichment resilience', () => {
   it('loads employee core before optional enrichment queries', () => {
     const service = read('services/server/adminEmployeeData.ts');
-    const coreIndex = service.indexOf(".select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code, hourly_rate, created_at')");
+    const coreIndex = service.indexOf(".select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code, hourly_rate, bank_name, bank_account_number, role, created_at')");
     const enrichmentIndex = service.indexOf('const [facilityResult, workspaceResult');
     expect(coreIndex).toBeGreaterThan(-1);
     expect(enrichmentIndex).toBeGreaterThan(coreIndex);

@@ -47,7 +47,8 @@ describe('corrective slice 2 employee profile and account lifecycle', () => {
     expect(detailClient).toMatch(/Lưu thay đổi/);
     expect(`${listClient}${detailClient}`).toMatch(/Điện thoại/);
     expect(`${listClient}${detailClient}`).toMatch(/Cơ sở làm việc/);
-    expect(`${listClient}${detailClient}`).not.toMatch(/bankAccount|bank_account|salary|baseSalary|permissions:/);
+    expect(listClient).not.toMatch(/bankAccount|bank_account|salary|baseSalary|permissions:/);
+    expect(detailClient).toMatch(/bankName|bankAccountNumber/);
   });
 
   it('separates invitation, retry and password reset from profile creation', () => {

@@ -105,3 +105,13 @@ Remaining operator work: retain pre-run legacy salary counts, approve/deliver th
 Item 15 safe application work is complete. The final pass prevents stale Payroll month responses from replacing current state, exposes Vietnamese pending states for settlement/adjustment, preserves the synchronous duplicate-submit lock, and disables Retry during an active replacement request. The runtime-disabled response remains **Tính năng quyết toán lương chưa được kích hoạt.** No legacy settlement or reimbursement persistence is simulated.
 
 The exact next roadmap item is **Item 16 — Runtime gate readiness/operator evidence**, beginning with Facility verification in the registered order. Scoped SaaS UI work is `PARTIALLY_SAFE` for later planning on functional-only journeys; broad re-skin remains blocked. No SQL was executed, no runtime flag was enabled, and no deployment or merge occurred.
+
+## 2026-07-29 handoff — profile completeness and ERP email
+
+Employee completeness is `APPLICATION_COMPLETE` with no schema package required; `public.employees` remains authoritative and [the field inventory](employee-field-inventory.md) records missing/optional/derived/business-decision-blocked fields. ERP transactional email is `READY_FOR_OPERATOR`: configure the server-only variables and follow [the one-recipient production checklist](email-setup.md). `EMAIL_DELIVERY_ENABLED` remains false/unset. Supabase Auth owns invite/verification/recovery mail; the ERP SMTP provider owns only business templates. No live send occurred.
+
+The exact next roadmap item remains **Item 16, Gate 2 — Attendance recovery operator evidence**.
+
+## 2026-07-29 Employee Detail tab clarification
+
+The seven-tab audit is complete in [employee-detail-tab-audit.md](employee-detail-tab-audit.md). Existing sources are wired within their business tabs; no duplicate mutation path was added. Missing personal/job/audit sources are `SCHEMA_EXTENSION_REQUIRED`, and package `20260729_employee_profile_extension` is `READY_FOR_OPERATOR` but remains draft-only outside `supabase/migrations/`. No SQL was executed. Operator/business review must decide field semantics, sensitive read/edit policy, audit retention and whether the reviewed forward draft may become a tracked migration.

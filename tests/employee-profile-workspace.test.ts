@@ -20,17 +20,21 @@ describe('employee profile workspace contract', () => {
   it('derives editable versus read-only detail controls from server capability', () => {
     expect(detail).toContain('data.capabilities.canEditEmployee ? <form');
     expect(detail).toContain('<Field label="Họ tên"');
+    expect(detail).toContain("value || 'Chưa cập nhật'");
   });
   it('shows save only for real dirty fields and sends changed fields only', () => {
     expect(detail).toContain('const dirtyFields');
     expect(detail).toContain('const editorActions = dirty &&');
     expect(detail).toContain('Object.fromEntries(dirtyFields.map');
+    expect(detail).toContain("finance: ['bankName', 'bankAccountNumber']");
   });
   it('keeps canonical facility and unchanged columns intact', () => {
     expect(actions).toContain("payload.branch_code = await validateFacilityAssignment(input.department, current.branch_code)");
     expect(actions).toContain("hasOwnProperty.call(input, 'phone')");
     expect(actions).toContain("hasOwnProperty.call(input, 'title')");
     expect(actions).toContain("hasOwnProperty.call(input, 'employmentStatus')");
+    expect(actions).toContain("hasOwnProperty.call(input, 'bankName')");
+    expect(actions).toContain("hasOwnProperty.call(input, 'bankAccountNumber')");
   });
   it('keeps optional enrichment section-local', () => {
     expect(detail).toContain('Hồ sơ chính vẫn dùng được');

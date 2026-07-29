@@ -1,3 +1,5 @@
+import 'server-only';
+
 import nodemailer from 'nodemailer';
 import { createServerSupabaseClient } from '@/utils/supabase/server';
 import { mergeAttendanceRecords, isAttendanceRecordOverdue } from '@/services/attendanceService';
@@ -5,273 +7,61 @@ import { businessDateFromInstant, formatBusinessDateInput } from '@/lib/business
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 
-type SystemSettingKey =
-  | 'SMTP_HOST'
-  | 'SMTP_PORT'
-  | 'SMTP_USER'
-  | 'SMTP_PASS'
-  | 'SMTP_FROM_NAME';
+export const EMAIL_SERVER_ENVIRONMENT_KEYS = [
+  'EMAIL_DELIVERY_ENABLED', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM_NAME',
+] as const;
 
-interface EmailTemplateRecord {
-  id: number;
-  group_type?: string | null;
-  template_name?: string | null;
-  subject?: string | null;
-  html_content?: string | null;
-  body?: string | null;
+type EmailFailureCode = 'DELIVERY_DISABLED' | 'PROVIDER_NOT_CONFIGURED' | 'INVALID_TEMPLATE' | 'MISSING_PLACEHOLDERS' | 'PROVIDER_AUTH' | 'PROVIDER_NETWORK' | 'PROVIDER_REJECTED';
+export class EmailDeliveryError extends Error {
+  constructor(public readonly code: EmailFailureCode, message: string, public readonly status = 422) { super(message); this.name = 'EmailDeliveryError'; }
 }
 
-interface EmailHistoryRecord {
-  recipient: string;
-  subject: string;
-  group_type: string;
-  body: string;
-  status: 'SUCCESS' | 'FAILED';
-  sent_at: string;
-  error_message?: string | null;
+interface EmailTemplateRecord { id: number; group_type?: string | null; template_name?: string | null; subject?: string | null; html_content?: string | null; body?: string | null; }
+interface EmailHistoryRecord { recipient: string; subject: string; group_type: string; body: string; status: 'SUCCESS' | 'FAILED'; sent_at: string; error_message?: string | null; }
+const PLACEHOLDER = /{{\s*([A-Za-z0-9_]+)\s*}}|\[([A-Za-z0-9_]+)\]/g;
+
+export function sanitizeEmailCorrelationId(value?: string): string {
+  return value && /^[A-Za-z0-9_-]{8,64}$/.test(value) ? value : crypto.randomUUID();
 }
-
-function replaceTemplateVariables(input: string, variables: Record<string, string>): string {
-  return Object.entries(variables).reduce((result, [key, value]) => {
-    const safeValue = value || '';
-
-    return result
-      .replace(new RegExp(`{{\\s*${key}\\s*}}`, 'g'), safeValue)
-      .replace(new RegExp(`\\[${key}\\]`, 'g'), safeValue);
-  }, input);
+export function getTemplatePlaceholders(...inputs: string[]): string[] {
+  const found = new Set<string>();
+  inputs.forEach((input) => { const pattern = new RegExp(PLACEHOLDER.source, 'g'); let match: RegExpExecArray | null; while ((match = pattern.exec(input))) found.add(match[1] || match[2]); });
+  return Array.from(found).sort();
 }
-
-function stripHtmlTags(value: string): string {
-  return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+export function renderEmailTemplate(template: Pick<EmailTemplateRecord, 'subject' | 'html_content' | 'body'>, variables: Record<string, string>) {
+  const subjectSource = template.subject?.trim() || '';
+  const htmlSource = (template.html_content || template.body || '').trim();
+  if (!subjectSource || !htmlSource) throw new EmailDeliveryError('INVALID_TEMPLATE', 'Mẫu email cần có tiêu đề và nội dung.');
+  const placeholders = getTemplatePlaceholders(subjectSource, htmlSource);
+  const missingPlaceholders = placeholders.filter((key) => !String(variables[key] ?? '').trim());
+  const replace = (input: string) => input.replace(PLACEHOLDER, (_, curly, square) => variables[curly || square] ?? '');
+  return { subject: replace(subjectSource), html: replace(htmlSource), missingPlaceholders, placeholders };
 }
-
-function normalizeSmtpPassword(value: string): string {
-  return value.replace(/\s+/g, '');
-}
-
-function getSmtpErrorMessage(error: unknown): string {
-  const smtpError = error as {
-    code?: string;
-    command?: string;
-    response?: string;
-    responseCode?: number;
-    message?: string;
-  };
-  const rawMessage = smtpError?.message || 'Gửi email thất bại.';
-  const detailParts = [
-    rawMessage,
-    smtpError?.response,
-    smtpError?.code,
-    smtpError?.command,
-    smtpError?.responseCode ? String(smtpError.responseCode) : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  if (/535|Invalid login|Username and Password not accepted|BadCredentials/i.test(detailParts)) {
-    return 'Gmail từ chối đăng nhập SMTP. Hãy kiểm tra SMTP_USER đúng email Gmail và SMTP_PASS là Google App Password 16 ký tự mới tạo, không phải mật khẩu Gmail thường.';
-  }
-
-  if (/EAUTH/i.test(detailParts)) {
-    return 'SMTP xác thực thất bại. Vui lòng kiểm tra tài khoản gửi và mật khẩu ứng dụng.';
-  }
-
-  if (/ETIMEDOUT|Greeting never received|ESOCKET|ECONNREFUSED|ENOTFOUND/i.test(detailParts)) {
-    return 'Không kết nối được máy chủ SMTP. Hãy kiểm tra SMTP_HOST, SMTP_PORT và mạng máy chủ.';
-  }
-
-  return rawMessage;
-}
-
-function getRequiredEnvValue(key: SystemSettingKey): string {
-  return String(process.env[key] || '').trim();
-}
-
+function stripHtmlTags(value: string) { return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); }
+function getRequiredEnvValue(key: typeof EMAIL_SERVER_ENVIRONMENT_KEYS[number]) { return String(process.env[key] || '').trim(); }
+function enabled() { return getRequiredEnvValue('EMAIL_DELIVERY_ENABLED').toLowerCase() === 'true'; }
 export function getSmtpConfig() {
-  const host = getRequiredEnvValue('SMTP_HOST').toLowerCase();
-  const port = Number(getRequiredEnvValue('SMTP_PORT') || '0');
-  const user = getRequiredEnvValue('SMTP_USER');
-  const rawPass = getRequiredEnvValue('SMTP_PASS');
-  const pass = normalizeSmtpPassword(rawPass);
-  const fromName = getRequiredEnvValue('SMTP_FROM_NAME') || 'Luminal ERP';
-
-  const missingKeys: SystemSettingKey[] = [];
-
-  if (!host) missingKeys.push('SMTP_HOST');
-  if (!port) missingKeys.push('SMTP_PORT');
-  if (!user) missingKeys.push('SMTP_USER');
-  if (!pass) missingKeys.push('SMTP_PASS');
-
-  if (missingKeys.length > 0) {
-    throw new Error(`Thiếu cấu hình SMTP trong biến môi trường server: ${missingKeys.join(', ')}`);
-  }
-
-  if (![465, 587].includes(port)) {
-    throw new Error(`SMTP_PORT hiện là ${port}. Với Gmail nên dùng 465 hoặc 587.`);
-  }
-
-  if (host === 'smtp.gmail.com' && /^smtp_?pass$/i.test(pass)) {
-    throw new Error('SMTP_PASS đang là giá trị mẫu. Hãy nhập Google App Password thật do Google cấp.');
-  }
-
-  if (host === 'smtp.gmail.com' && pass.length !== 16) {
-    throw new Error('SMTP_PASS phải là Google App Password 16 ký tự. Không dùng mật khẩu Gmail thường.');
-  }
-
-  return {
-    host,
-    port,
-    user,
-    pass,
-    fromName,
-    secure: port === 465,
-  };
+  if (!enabled()) throw new EmailDeliveryError('DELIVERY_DISABLED', 'Tính năng gửi email giao dịch đang tắt.', 503);
+  const host = getRequiredEnvValue('SMTP_HOST'); const port = Number(getRequiredEnvValue('SMTP_PORT') || 0);
+  const user = getRequiredEnvValue('SMTP_USER'); const pass = getRequiredEnvValue('SMTP_PASS').replace(/\s+/g, '');
+  const missing = [!host && 'SMTP_HOST', !port && 'SMTP_PORT', !user && 'SMTP_USER', !pass && 'SMTP_PASS'].filter(Boolean);
+  if (missing.length) throw new EmailDeliveryError('PROVIDER_NOT_CONFIGURED', `Chưa cấu hình dịch vụ gửi email. Biến server còn thiếu: ${missing.join(', ')}.`, 503);
+  if (port < 1 || port > 65535) throw new EmailDeliveryError('PROVIDER_NOT_CONFIGURED', 'SMTP_PORT không hợp lệ.', 503);
+  return { host, port, user, pass, fromName: getRequiredEnvValue('SMTP_FROM_NAME') || 'Luminal ERP', secure: port === 465 };
 }
-
-export async function getEmailTemplateById(templateId: number): Promise<EmailTemplateRecord> {
-  const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from('email_templates')
-    .select('*')
-    .eq('id', templateId)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) {
-    throw new Error('Không tìm thấy email template.');
-  }
-
-  return data as EmailTemplateRecord;
+export async function getEmailTemplateById(templateId: number): Promise<EmailTemplateRecord> { const { data, error } = await createServerSupabaseClient().from('email_templates').select('id, group_type, template_name, subject, html_content, body').eq('id', templateId).maybeSingle(); if (error) throw error; if (!data) throw new EmailDeliveryError('INVALID_TEMPLATE', 'Không tìm thấy mẫu email.', 404); return data as EmailTemplateRecord; }
+export async function getEmailTemplateByGroup(groupType: string): Promise<EmailTemplateRecord> { const { data, error } = await createServerSupabaseClient().from('email_templates').select('id, group_type, template_name, subject, html_content, body').eq('group_type', groupType).limit(1).maybeSingle(); if (error) throw error; if (!data) throw new EmailDeliveryError('INVALID_TEMPLATE', `Chưa cấu hình mẫu email cho nhóm ${groupType}.`, 404); return data as EmailTemplateRecord; }
+async function logEmailHistory(payload: EmailHistoryRecord) { const { error } = await createServerSupabaseClient().from('email_history').insert([{ ...payload, error_message: payload.error_message || null }]); if (error) console.error('[erp-email-history]', { failure: 'history_write_failed', code: String(error.code || 'unknown') }); }
+function classifyProviderFailure(error: unknown): EmailDeliveryError { const record = error as { code?: string; responseCode?: number }; if (record?.code === 'EAUTH') return new EmailDeliveryError('PROVIDER_AUTH', 'Dịch vụ gửi email từ chối xác thực.', 502); if (/ETIMEDOUT|ESOCKET|ECONNREFUSED|ENOTFOUND/.test(record?.code || '')) return new EmailDeliveryError('PROVIDER_NETWORK', 'Không thể kết nối dịch vụ gửi email.', 502); return new EmailDeliveryError('PROVIDER_REJECTED', 'Dịch vụ gửi email từ chối yêu cầu.', 502); }
+async function sendWithTemplate(params: { template: EmailTemplateRecord; recipient: string; variables?: Record<string, string>; correlationId?: string }) {
+  const correlationId = sanitizeEmailCorrelationId(params.correlationId); const config = getSmtpConfig();
+  const rendered = renderEmailTemplate(params.template, params.variables || {});
+  if (rendered.missingPlaceholders.length) throw new EmailDeliveryError('MISSING_PLACEHOLDERS', `Thiếu giá trị cho biến: ${rendered.missingPlaceholders.join(', ')}.`);
+  try { const result = await nodemailer.createTransport({ host: config.host, port: config.port, secure: config.secure, auth: { user: config.user, pass: config.pass } }).sendMail({ from: `"${config.fromName}" <${config.user}>`, to: params.recipient, subject: rendered.subject, html: rendered.html, text: stripHtmlTags(rendered.html), headers: { 'X-Correlation-ID': correlationId } }); await logEmailHistory({ recipient: params.recipient, subject: rendered.subject, group_type: params.template.group_type || 'SYSTEM', body: rendered.html, status: 'SUCCESS', sent_at: new Date().toISOString() }); console.info('[erp-email-delivery]', { correlationId, outcome: 'success', templateId: params.template.id }); return { messageId: result.messageId, subject: rendered.subject, correlationId };
+  } catch (error) { const failure = classifyProviderFailure(error); await logEmailHistory({ recipient: params.recipient, subject: rendered.subject, group_type: params.template.group_type || 'SYSTEM', body: rendered.html, status: 'FAILED', sent_at: new Date().toISOString(), error_message: failure.code }); console.error('[erp-email-delivery]', { correlationId, outcome: 'failed', failureCode: failure.code, templateId: params.template.id }); throw failure; }
 }
-
-export async function getEmailTemplateByGroup(groupType: string): Promise<EmailTemplateRecord> {
-  const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from('email_templates')
-    .select('*')
-    .eq('group_type', groupType)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) {
-    throw new Error(`Chưa cấu hình email template cho group ${groupType}.`);
-  }
-
-  return data as EmailTemplateRecord;
-}
-
-async function logEmailHistory(payload: EmailHistoryRecord): Promise<void> {
-  const supabase = createServerSupabaseClient();
-  const historyPayload = {
-    recipient: payload.recipient,
-    subject: payload.subject,
-    group_type: payload.group_type,
-    body: payload.body,
-    status: payload.status,
-    sent_at: payload.sent_at,
-    error_message: payload.error_message || null,
-  };
-
-  const { error } = await supabase.from('email_history').insert([historyPayload]);
-
-  if (error) {
-    console.error('Khong ghi duoc email_history:', error.message);
-  }
-}
-
-export async function sendTemplateEmail(params: {
-  templateId: number;
-  recipient: string;
-  variables?: Record<string, string>;
-}) {
-  const smtpConfig = await getSmtpConfig();
-  const template = await getEmailTemplateById(params.templateId);
-  return sendWithTemplate({
-    smtpConfig,
-    template,
-    recipient: params.recipient,
-    variables: params.variables,
-  });
-}
-
-export async function sendTemplateEmailByGroup(params: {
-  groupType: string;
-  recipient: string;
-  variables?: Record<string, string>;
-}) {
-  const smtpConfig = await getSmtpConfig();
-  const template = await getEmailTemplateByGroup(params.groupType);
-  return sendWithTemplate({
-    smtpConfig,
-    template,
-    recipient: params.recipient,
-    variables: params.variables,
-  });
-}
-
-async function sendWithTemplate(params: {
-  smtpConfig: Awaited<ReturnType<typeof getSmtpConfig>>;
-  template: EmailTemplateRecord;
-  recipient: string;
-  variables?: Record<string, string>;
-}) {
-  const transporter = nodemailer.createTransport({
-    host: params.smtpConfig.host,
-    port: params.smtpConfig.port,
-    secure: params.smtpConfig.secure,
-    auth: {
-      user: params.smtpConfig.user,
-      pass: params.smtpConfig.pass,
-    },
-  });
-
-  const variables = params.variables || {};
-  const renderedSubject = replaceTemplateVariables(params.template.subject || '(Không có tiêu đề)', variables);
-  const htmlBody = replaceTemplateVariables(
-    params.template.html_content || params.template.body || '<p>(Trống nội dung)</p>',
-    variables
-  );
-  const textBody = stripHtmlTags(htmlBody);
-
-  try {
-    const result = await transporter.sendMail({
-      from: `"${params.smtpConfig.fromName}" <${params.smtpConfig.user}>`,
-      to: params.recipient,
-      subject: renderedSubject,
-      html: htmlBody,
-      text: textBody,
-    });
-
-    await logEmailHistory({
-      recipient: params.recipient,
-      subject: renderedSubject,
-      group_type: params.template.group_type || 'SYSTEM',
-      body: htmlBody,
-      status: 'SUCCESS',
-      sent_at: new Date().toISOString(),
-    });
-
-    return {
-      messageId: result.messageId,
-      subject: renderedSubject,
-    };
-  } catch (error) {
-    const message = getSmtpErrorMessage(error);
-
-    await logEmailHistory({
-      recipient: params.recipient,
-      subject: renderedSubject,
-      group_type: params.template.group_type || 'SYSTEM',
-      body: htmlBody,
-      status: 'FAILED',
-      sent_at: new Date().toISOString(),
-      error_message: message,
-    });
-
-    throw new Error(message);
-  }
-}
+export async function sendTemplateEmail(params: { templateId: number; recipient: string; variables?: Record<string, string>; correlationId?: string }) { return sendWithTemplate({ ...params, template: await getEmailTemplateById(params.templateId) }); }
+export async function sendTemplateEmailByGroup(params: { groupType: string; recipient: string; variables?: Record<string, string>; correlationId?: string }) { return sendWithTemplate({ ...params, template: await getEmailTemplateByGroup(params.groupType) }); }
 
 export async function getCheckoutReminderCandidates() {
   const supabase = createServerSupabaseClient();
