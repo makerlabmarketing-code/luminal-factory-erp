@@ -7,6 +7,7 @@ import {
 import {
   BUSINESS_TIME_ZONE,
   businessDateFromInstant,
+  businessMonthFromDateInput,
   formatBusinessDateInput,
 } from '../lib/business-date';
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
@@ -18,6 +19,27 @@ export type AttendanceShiftState =
   | 'NO_OPEN_SHIFT'
   | 'ACTIVE_SHIFT_TODAY'
   | 'STALE_OPEN_SHIFT';
+
+export interface AttendanceScopeSummary {
+  selectedMonth: {
+    records: number;
+    completed: number;
+    open: number;
+    stale: number;
+    excluded: number;
+  };
+  outsideSelectedMonth: {
+    records: number;
+    open: number;
+    stale: number;
+    excluded: number;
+  };
+}
+
+export interface FinalizedAttendanceSummary {
+  totalShifts: number;
+  totalHours: number;
+}
 
 function getBusinessTimeParts(instant: Date): { hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -245,6 +267,82 @@ export function resolveAttendanceShiftState(
 export function getFinalizedShiftUnitsForRecord(record: AttendanceRecord): number {
   if (!isAttendanceRecordComplete(record)) return 0;
   return calculateShiftUnitsFromMinutes(getWorkedMinutesForRecord(record));
+}
+
+export function calculateFinalizedAttendanceSummary(
+  records: AttendanceRecord[]
+): FinalizedAttendanceSummary {
+  return mergeAttendanceRecords(records).reduce(
+    (summary, record) => {
+      if (!isAttendanceRecordComplete(record)) return summary;
+
+      const workedMinutes = getWorkedMinutesForRecord(record);
+      if (workedMinutes <= 0) return summary;
+
+      return {
+        totalShifts:
+          summary.totalShifts + calculateShiftUnitsFromMinutes(workedMinutes),
+        totalHours: Number(
+          (summary.totalHours + workedMinutes / 60).toFixed(2)
+        ),
+      };
+    },
+    { totalShifts: 0, totalHours: 0 }
+  );
+}
+
+export function summarizeAttendanceScope(params: {
+  records: AttendanceRecord[];
+  monthInput: string;
+  now?: Date;
+}): AttendanceScopeSummary {
+  const month = businessMonthFromDateInput(params.monthInput);
+  const monthPrefix = `${String(month.year).padStart(4, '0')}-${String(month.month).padStart(2, '0')}-`;
+  const now = params.now || new Date();
+  const normalizedRecords = mergeAttendanceRecords(params.records);
+  const selectedMonthRecords = normalizedRecords.filter((record) =>
+    record.work_date.startsWith(monthPrefix)
+  );
+  const outsideSelectedMonthRecords = normalizedRecords.filter(
+    (record) => !record.work_date.startsWith(monthPrefix)
+  );
+
+  const summarize = (records: AttendanceRecord[]) => {
+    const openRecords = records.filter(isMissingCheckoutRecord);
+    const completedRecords = records.filter(
+      (record) =>
+        isAttendanceRecordComplete(record) &&
+        getWorkedMinutesForRecord(record) > 0
+    );
+    const excludedRecords = records.filter(
+      (record) =>
+        !isMissingCheckoutRecord(record) &&
+        !completedRecords.includes(record)
+    );
+
+    return {
+      records: records.length,
+      completed: completedRecords.length,
+      open: openRecords.length,
+      stale: openRecords.filter((record) =>
+        isOpenAttendanceRecordStale(record, now)
+      ).length,
+      excluded: excludedRecords.length,
+    };
+  };
+
+  const selectedMonth = summarize(selectedMonthRecords);
+  const outsideSelectedMonth = summarize(outsideSelectedMonthRecords);
+
+  return {
+    selectedMonth,
+    outsideSelectedMonth: {
+      records: outsideSelectedMonth.records,
+      open: outsideSelectedMonth.open,
+      stale: outsideSelectedMonth.stale,
+      excluded: outsideSelectedMonth.excluded,
+    },
+  };
 }
 
 export function isAttendanceRecordOverdue(params: {

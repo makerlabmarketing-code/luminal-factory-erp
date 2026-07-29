@@ -10,9 +10,11 @@ import {
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 import {
+  type AttendanceScopeSummary,
   enrichAttendanceRecord,
   mergeAttendanceRecords,
   normalizeTimeValue,
+  summarizeAttendanceScope,
 } from '@/services/attendanceService';
 
 export const ATTENDANCE_SELECT =
@@ -76,6 +78,7 @@ export interface AttendanceDataResult {
     attendance: number;
     attendanceLogs: number;
   };
+  diagnostics?: AttendanceScopeSummary | null;
 }
 
 function timeFromInstant(value?: string | null): string | null {
@@ -185,6 +188,7 @@ export async function loadAttendanceData(params: {
   monthInput: string;
   employeeId?: number | string | null;
   includeDirectory?: boolean;
+  includeDiagnostics?: boolean;
 }): Promise<AttendanceDataResult> {
   const supabase = await createClient();
   const range = getMonthRange(params.monthInput);
@@ -209,17 +213,52 @@ export async function loadAttendanceData(params: {
     logQuery = logQuery.eq('employee_id', params.employeeId);
   }
 
-  const [attendanceResult, logResult, employeeResult, shiftResult] = await Promise.all([
+  const includeDiagnostics =
+    params.includeDiagnostics === true &&
+    params.employeeId !== null &&
+    params.employeeId !== undefined;
+  const diagnosticsAttendanceQuery = includeDiagnostics
+    ? supabase
+        .from('attendance')
+        .select(ATTENDANCE_SELECT)
+        .eq('employee_id', params.employeeId)
+        .order('work_date', { ascending: false })
+        .order('id', { ascending: false })
+    : Promise.resolve(null);
+  const diagnosticsLogQuery = includeDiagnostics
+    ? supabase
+        .from('attendance_logs')
+        .select(ATTENDANCE_LOG_SELECT)
+        .eq('employee_id', params.employeeId)
+        .order('check_in_time', { ascending: false })
+    : Promise.resolve(null);
+
+  const [
+    attendanceResult,
+    logResult,
+    employeeResult,
+    shiftResult,
+    diagnosticsAttendanceResult,
+    diagnosticsLogResult,
+  ] = await Promise.all([
     attendanceQuery,
     logQuery,
     includeDirectory ? supabase.from('employees').select(EMPLOYEE_SELECT).order('full_name') : Promise.resolve(null),
     includeDirectory ? supabase.from('shifts').select(SHIFT_SELECT).order('start_time') : Promise.resolve(null),
+    diagnosticsAttendanceQuery,
+    diagnosticsLogQuery,
   ]);
 
   if (attendanceResult.error) throwQueryError('attendance_select', attendanceResult.error);
   if (logResult.error) throwQueryError('attendance_logs_select', logResult.error);
   if (employeeResult?.error) throwQueryError('employee_directory_select', employeeResult.error);
   if (shiftResult?.error) throwQueryError('shifts_select', shiftResult.error);
+  if (diagnosticsAttendanceResult?.error) {
+    throwQueryError('attendance_select', diagnosticsAttendanceResult.error);
+  }
+  if (diagnosticsLogResult?.error) {
+    throwQueryError('attendance_logs_select', diagnosticsLogResult.error);
+  }
 
   const { attendanceRecords, legacyLogRecords } = mapAttendanceRows(
     (attendanceResult.data || []) as AttendanceRecord[],
@@ -229,6 +268,20 @@ export async function loadAttendanceData(params: {
     if (a.work_date !== b.work_date) return b.work_date.localeCompare(a.work_date);
     return String(b.id).localeCompare(String(a.id));
   });
+  let diagnostics: AttendanceScopeSummary | null = null;
+  if (diagnosticsAttendanceResult && diagnosticsLogResult) {
+    const diagnosticRows = mapAttendanceRows(
+      (diagnosticsAttendanceResult.data || []) as AttendanceRecord[],
+      (diagnosticsLogResult.data || []) as AttendanceLogRow[]
+    );
+    diagnostics = summarizeAttendanceScope({
+      records: [
+        ...diagnosticRows.attendanceRecords,
+        ...diagnosticRows.legacyLogRecords,
+      ],
+      monthInput: params.monthInput,
+    });
+  }
 
   return {
     employees: (employeeResult?.data || []) as Employee[],
@@ -238,5 +291,6 @@ export async function loadAttendanceData(params: {
       attendance: attendanceRecords.length,
       attendanceLogs: legacyLogRecords.length,
     },
+    diagnostics,
   };
 }

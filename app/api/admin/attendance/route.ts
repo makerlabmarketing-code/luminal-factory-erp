@@ -178,7 +178,11 @@ export async function GET(request: Request) {
       url.searchParams.get('month') ||
       formatBusinessMonthInput(businessMonthFromInstant(new Date()));
     const employeeId = url.searchParams.get('employeeId') || null;
-    const payload = await loadAttendanceData({ monthInput, employeeId });
+    const payload = await loadAttendanceData({
+      monthInput,
+      employeeId,
+      includeDiagnostics: Boolean(employeeId),
+    });
     const canManage = await hasPermission(authContext, 'ATTENDANCE_MANAGE');
 
     return NextResponse.json({
