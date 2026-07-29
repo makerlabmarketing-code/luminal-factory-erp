@@ -90,6 +90,10 @@ Expected: all required columns/indexes exist; no null/duplicate normalized code;
 
 ### 4.2 Attendance recovery
 
+**Current state:** application `APPLICATION_COMPLETE`; repository validation `PASS`; live Gate 2 `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`; `ATTENDANCE_RECOVERY_ENABLED=false`/unset. No production SQL or runtime activation has been performed and no live Attendance PASS is recorded.
+
+Operator evidence order: verify migration history first; run and retain the read-only pre-run; retain post-run validation; perform authenticated production authorization and smoke checks; keep `ATTENDANCE_RECOVERY_ENABLED=false` until every result passes. The tracked forward command below is not an instruction to replay a migration already present in production history.
+
 ```bash
 psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/20260728_attendance_recovery_pre_run.sql
 # Tracked migration: verify migration history; never replay when already applied
