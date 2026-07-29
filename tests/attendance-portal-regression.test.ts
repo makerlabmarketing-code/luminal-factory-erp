@@ -42,7 +42,7 @@ describe('staff attendance portal regression contract', () => {
     expect(route).not.toMatch(/body\.(employeeId|checkIn|checkOut|checkInTime|checkOutTime)/);
     expect(route).toMatch(/employee_id: authContext\.employee\.id/);
     expect(route).toMatch(/const now = new Date\(\)/);
-    expect(client).toMatch(/body: JSON\.stringify\(\{ userLat, userLng \}\)/);
+    expect(client).toMatch(/body: JSON\.stringify\(\{\s*action,\s*month: historyMonthInput,\s*\.\.\.coordinates/);
     expect(client).not.toMatch(/employeeId|checkInTime|checkOutTime/);
   });
 
@@ -76,8 +76,6 @@ describe('staff attendance portal regression contract', () => {
 
   it('prevents double submit while check-in or check-out is in flight', () => {
     const client = source('app/staff/attendance/AttendanceView.tsx');
-    const loading = source('component/GlobalLoading.tsx');
-
     expect(client).toMatch(/const \[submitting, setSubmitting\] = useState\(false\)/);
     expect(client).toMatch(/const submitLockRef = useRef\(false\)/);
     expect(client).toMatch(/if \(submitLockRef\.current\) return/);
@@ -86,18 +84,17 @@ describe('staff attendance portal regression contract', () => {
     expect(client).toMatch(/setSubmitting\(true\)/);
     expect(client).toMatch(/setSubmitting\(false\)/);
     expect(client).toMatch(/disabled=\{submitting\}/);
-    expect(client).toMatch(/showGlobalLoading\(isInShift \? 'Đang kết thúc ca\.\.\.' : 'Đang ghi nhận vào ca\.\.\.'\)/);
-    expect(loading).toMatch(/Đang ghi nhận vào ca/);
-    expect(loading).toMatch(/Đang kết thúc ca/);
+    expect(client).toMatch(/Đang bắt đầu ca\.\.\./);
+    expect(client).toMatch(/Đang kết thúc ca\.\.\./);
   });
 
   it('shows current and stale open shifts and provides an in-page load retry', () => {
     const client = source('app/staff/attendance/AttendanceView.tsx');
 
-    expect(client).toMatch(/isOpenAttendanceRecordStale/);
-    expect(client).toMatch(/Ca đang mở từ ngày trước/);
+    expect(client).toMatch(/shiftState === 'STALE_OPEN_SHIFT'/);
+    expect(client).toMatch(/Có ca làm trước đó chưa được kết thúc\./);
     expect(client).toMatch(/Bạn đang trong ca làm việc/);
-    expect(client).toMatch(/onClick=\{\(\) => void loadAttendanceData\(\)\}/);
+    expect(client).toMatch(/onClick=\{\(\) => void loadAttendanceData\(historyMonthInput\)\}/);
     expect(client).toMatch(/Thử lại/);
     expect(client.indexOf('if (fetchError)')).toBeLessThan(client.lastIndexOf('if (!worker)'));
   });

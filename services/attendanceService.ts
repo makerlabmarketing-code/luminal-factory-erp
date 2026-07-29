@@ -4,10 +4,44 @@ import {
   calculateSalary,
   calculateWorkedMinutesFromStrings,
 } from './payrollService';
+import {
+  BUSINESS_TIME_ZONE,
+  businessDateFromInstant,
+  formatBusinessDateInput,
+} from '../lib/business-date';
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 
 const SHIFT_MINUTES = 180;
+
+export type AttendanceShiftState =
+  | 'NO_OPEN_SHIFT'
+  | 'ACTIVE_SHIFT_TODAY'
+  | 'STALE_OPEN_SHIFT';
+
+function getBusinessTimeParts(instant: Date): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BUSINESS_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(instant);
+  const values = parts.reduce<Record<string, string>>((result, part) => {
+    result[part.type] = part.value;
+    return result;
+  }, {});
+
+  return { hour: Number(values.hour), minute: Number(values.minute) };
+}
+
+export function getAttendanceShiftName(instant: Date): string {
+  const { hour } = getBusinessTimeParts(instant);
+
+  if (hour >= 6 && hour < 12) return 'Ca Sáng';
+  if (hour >= 12 && hour < 18) return 'Ca Chiều';
+
+  return 'Ca Tối';
+}
 
 async function createBrowserDataClient() {
   const { createClient } = await import('@/utils/supabase/client');
@@ -81,12 +115,15 @@ export function getWorkedMinutesForRecord(record: AttendanceRecord, now = new Da
   }
 
   if (record.check_in && !record.check_out) {
-    const recordStart = new Date(`${record.work_date}T${record.check_in.slice(0, 8)}`);
-    if (!Number.isFinite(recordStart.getTime()) || now.getTime() <= recordStart.getTime()) {
-      return 0;
-    }
+    if (isOpenAttendanceRecordStale(record, now)) return 0;
 
-    return Math.floor((now.getTime() - recordStart.getTime()) / 60000);
+    const checkInMatch = /^(\d{1,2}):(\d{2})/.exec(record.check_in);
+    if (!checkInMatch) return 0;
+
+    const checkInMinutes = Number(checkInMatch[1]) * 60 + Number(checkInMatch[2]);
+    const businessTime = getBusinessTimeParts(now);
+    const currentMinutes = businessTime.hour * 60 + businessTime.minute;
+    return Math.max(0, currentMinutes - checkInMinutes);
   }
 
   return 0;
@@ -190,13 +227,24 @@ export function isOpenAttendanceRecordStale(
 ): boolean {
   if (!isMissingCheckoutRecord(record)) return false;
 
-  const currentWorkDate = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
+  const currentWorkDate = formatBusinessDateInput(businessDateFromInstant(now));
 
   return record.work_date < currentWorkDate;
+}
+
+export function resolveAttendanceShiftState(
+  openRecord: AttendanceRecord | null,
+  now = new Date()
+): AttendanceShiftState {
+  if (!openRecord) return 'NO_OPEN_SHIFT';
+  return isOpenAttendanceRecordStale(openRecord, now)
+    ? 'STALE_OPEN_SHIFT'
+    : 'ACTIVE_SHIFT_TODAY';
+}
+
+export function getFinalizedShiftUnitsForRecord(record: AttendanceRecord): number {
+  if (!isAttendanceRecordComplete(record)) return 0;
+  return calculateShiftUnitsFromMinutes(getWorkedMinutesForRecord(record));
 }
 
 export function isAttendanceRecordOverdue(params: {

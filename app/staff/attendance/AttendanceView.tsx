@@ -1,10 +1,9 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useGlobalLoading } from '@/component/GlobalLoading';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
-import { Power, RefreshCcw, AlertTriangle, CheckCircle2, Building2 } from 'lucide-react';
+import { LogIn, LogOut, RefreshCcw, AlertTriangle, CheckCircle2, Building2 } from 'lucide-react';
 import {
   businessDateFromDateInput,
   businessMonthFromInstant,
@@ -15,10 +14,12 @@ import type { AttendanceRecord } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 import type { Facility as FacilityType } from '@/lib/types/facility';
 import {
+  type AttendanceShiftState,
   calculateShiftUnitsFromMinutes,
   formatWorkedDuration,
+  getAttendanceShiftName,
+  getFinalizedShiftUnitsForRecord,
   getWorkedMinutesForRecord,
-  isOpenAttendanceRecordStale,
 } from '@/services/attendanceService';
 
 interface AttendanceViewProps {
@@ -31,6 +32,9 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 interface StaffAttendancePayload {
   employee: Employee;
   localBranchName: string;
+  shiftState: AttendanceShiftState;
+  currentShift: AttendanceRecord | null;
+  staleOpenShift: AttendanceRecord | null;
   todayRecord: AttendanceRecord | null;
   isInShift: boolean;
   attendanceHistory: AttendanceRecord[];
@@ -39,6 +43,18 @@ interface StaffAttendancePayload {
 interface StaffAttendanceErrorPayload {
   error?: string;
   code?: string;
+  correlationId?: string;
+}
+
+interface StaffAttendanceMutationPayload extends StaffAttendanceErrorPayload {
+  message?: string;
+  record?: AttendanceRecord;
+  attendance?: StaffAttendancePayload;
+}
+
+interface AttendanceMutationError {
+  message: string;
+  correlationId?: string;
 }
 
 function isAttendanceRecordComplete(record: AttendanceRecord): boolean {
@@ -47,15 +63,6 @@ function isAttendanceRecordComplete(record: AttendanceRecord): boolean {
 
 function isMissingCheckoutRecord(record: AttendanceRecord): boolean {
   return Boolean(record.check_in && !record.check_out);
-}
-
-function autoDetectShift(date: Date) {
-  const hour = date.getHours();
-
-  if (hour >= 6 && hour < 12) return 'Ca Sáng';
-  if (hour >= 12 && hour < 18) return 'Ca Chiều';
-
-  return 'Ca Tối';
 }
 
 function getCurrentPosition(): Promise<GeolocationPosition> {
@@ -90,6 +97,18 @@ function messageForAttendanceError(payload: StaffAttendanceErrorPayload | null):
   if (payload?.code === 'attendance_already_checked_out') {
     return payload.error || 'Ca này đã có dữ liệu chấm công.';
   }
+  if (payload?.code === 'attendance_already_checked_in') {
+    return payload.error || 'Bạn đang có một ca làm việc chưa kết thúc.';
+  }
+  if (payload?.code === 'attendance_no_open_shift') {
+    return payload.error || 'Không có ca đang mở để kết thúc.';
+  }
+  if (payload?.code === 'attendance_shift_changed') {
+    return payload.error || 'Ca làm đã thay đổi. Vui lòng tải lại dữ liệu.';
+  }
+  if (payload?.code === 'attendance_stale_shift_operator_required') {
+    return payload.error || 'Có ca làm trước đó chưa được kết thúc. Vui lòng báo quản lý để kiểm tra.';
+  }
 
   return payload?.error || 'Không thể chấm công.';
 }
@@ -99,37 +118,54 @@ export function StaffAttendanceContent({
   assignedBranchData,
 }: AttendanceViewProps) {
   const { showToast } = useNotification();
-  const { showGlobalLoading, hideGlobalLoading } = useGlobalLoading();
   const [worker, setWorker] = useState<Employee | null>(workerData || null);
   const [localBranchName, setLocalBranchName] = useState(
     assignedBranchData?.facility_name || assignedBranchData?.name || 'Đang nạp định vị...'
   );
-  const [isInShift, setIsInShift] = useState(false);
+  const [shiftState, setShiftState] = useState<AttendanceShiftState>('NO_OPEN_SHIFT');
+  const [currentShift, setCurrentShift] = useState<AttendanceRecord | null>(null);
+  const [staleOpenShift, setStaleOpenShift] = useState<AttendanceRecord | null>(null);
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [liveTime, setLiveTime] = useState(new Date());
-  const [historyMonthInput, setHistoryMonthInput] = useState(() => {
-    return formatBusinessMonthInput(businessMonthFromInstant(new Date()));
-  });
+  const initialHistoryMonth = useRef(
+    formatBusinessMonthInput(businessMonthFromInstant(new Date()))
+  );
+  const [historyMonthInput, setHistoryMonthInput] = useState(initialHistoryMonth.current);
   const [historyPage, setHistoryPage] = useState(1);
   const [fetching, setFetching] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [mutationError, setMutationError] = useState<AttendanceMutationError | null>(null);
   const submitLockRef = useRef(false);
 
-  const applyAttendancePayload = (payload: StaffAttendancePayload) => {
+  const applyAttendancePayload = useCallback((
+    payload: StaffAttendancePayload,
+    options: { resetHistoryPage?: boolean } = {}
+  ) => {
     setWorker(payload.employee);
     setLocalBranchName(payload.localBranchName);
+    setShiftState(payload.shiftState);
+    setCurrentShift(payload.currentShift);
+    setStaleOpenShift(payload.staleOpenShift);
     setTodayRecord(payload.todayRecord);
-    setIsInShift(payload.isInShift);
     setAttendanceHistory(payload.attendanceHistory);
-    setHistoryPage(1);
-  };
+    if (options.resetHistoryPage) setHistoryPage(1);
+  }, []);
 
-  const loadAttendanceData = useCallback(async (monthValue = historyMonthInput) => {
+  const loadAttendanceData = useCallback(async (
+    monthValue: string,
+    options: {
+      showLoading?: boolean;
+      resetHistoryPage?: boolean;
+      preserveVisibleDataOnError?: boolean;
+    } = {}
+  ) => {
+    const showLoading = options.showLoading !== false;
+
     try {
-      setFetching(true);
-      setFetchError(null);
+      if (showLoading) setFetching(true);
+      if (!options.preserveVisibleDataOnError) setFetchError(null);
       const response = await fetch(`/api/staff/attendance?month=${encodeURIComponent(monthValue)}`, {
         cache: 'no-store',
       });
@@ -139,71 +175,99 @@ export function StaffAttendanceContent({
         throw new Error(result?.error || 'Không thể tải dữ liệu chấm công.');
       }
 
-      applyAttendancePayload((await response.json()) as StaffAttendancePayload);
+      applyAttendancePayload((await response.json()) as StaffAttendancePayload, {
+        resetHistoryPage: options.resetHistoryPage,
+      });
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể tải dữ liệu chấm công.';
-      setFetchError(message);
-      showToast('Lỗi kết nối', message, 'error');
+      if (!options.preserveVisibleDataOnError) {
+        setFetchError(message);
+        showToast('Lỗi kết nối', message, 'error');
+      }
+      return false;
     } finally {
-      setFetching(false);
+      if (showLoading) setFetching(false);
     }
-  }, [historyMonthInput, showToast]);
+  }, [applyAttendancePayload, showToast]);
 
   useEffect(() => {
     const timer = setInterval(() => setLiveTime(new Date()), 1000);
 
-    void loadAttendanceData();
+    void loadAttendanceData(initialHistoryMonth.current, { resetHistoryPage: true });
 
     return () => clearInterval(timer);
   }, [loadAttendanceData]);
 
   const handleToggleShift = async () => {
     if (submitLockRef.current) return;
+    if (shiftState === 'STALE_OPEN_SHIFT') return;
 
     if (!worker) {
       showToast('Lỗi', 'Không tìm thấy hồ sơ nhân sự!', 'error');
       return;
     }
 
-    if (!navigator.geolocation) {
-      showToast('Lỗi thiết bị', 'Thiết bị không hỗ trợ định vị GPS!', 'error');
-      return;
-    }
-
+    const action = shiftState === 'ACTIVE_SHIFT_TODAY' ? 'check_out' : 'check_in';
     submitLockRef.current = true;
     setSubmitting(true);
-    showGlobalLoading(isInShift ? 'Đang kết thúc ca...' : 'Đang ghi nhận vào ca...');
+    setMutationError(null);
 
     try {
-      const position = await getCurrentPosition();
-      const userLat = position.coords.latitude;
-      const userLng = position.coords.longitude;
+      let coordinates: { userLat: number; userLng: number } | undefined;
+      if (action === 'check_in') {
+        if (!navigator.geolocation) {
+          throw new Error('Thiết bị không hỗ trợ định vị GPS.');
+        }
+
+        const position = await getCurrentPosition();
+        coordinates = {
+          userLat: position.coords.latitude,
+          userLng: position.coords.longitude,
+        };
+      }
 
       const response = await fetch('/api/staff/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userLat, userLng }),
+        body: JSON.stringify({
+          action,
+          month: historyMonthInput,
+          ...coordinates,
+        }),
       });
 
-      const result = (await response.json().catch(() => null)) as
-        | (StaffAttendanceErrorPayload & { message?: string })
-        | null;
+      const result = (await response.json().catch(() => null)) as StaffAttendanceMutationPayload | null;
 
       if (!response.ok) {
-        throw new Error(messageForAttendanceError(result));
+        const errorState = {
+          message: messageForAttendanceError(result),
+          correlationId: result?.correlationId,
+        };
+        setMutationError(errorState);
+        showToast('Không thể cập nhật ca làm', errorState.message, 'error');
+        return;
       }
 
+      if (!result?.attendance || !result.record) {
+        throw new Error('Phản hồi chấm công không đầy đủ. Vui lòng thử lại.');
+      }
+
+      applyAttendancePayload(result.attendance);
       showToast('Cập nhật ca làm', result?.message || 'Đã ghi nhận chấm công.', 'success');
-      await loadAttendanceData();
+      void loadAttendanceData(historyMonthInput, {
+        showLoading: false,
+        preserveVisibleDataOnError: true,
+      });
     } catch (error) {
       const message = isGeolocationError(error)
         ? 'Vui lòng mở quyền truy cập vị trí GPS mức chính xác cao!'
         : error instanceof Error ? error.message : 'Không thể chấm công.';
-      showToast('Lỗi kết nối', message, 'error');
+      setMutationError({ message });
+      showToast('Không thể cập nhật ca làm', message, 'error');
     } finally {
       submitLockRef.current = false;
       setSubmitting(false);
-      hideGlobalLoading();
     }
   };
 
@@ -224,7 +288,7 @@ export function StaffAttendanceContent({
         <p className="text-[11px] text-red-100/80">{fetchError}</p>
         <button
           type="button"
-          onClick={() => void loadAttendanceData()}
+          onClick={() => void loadAttendanceData(historyMonthInput)}
           className="inline-flex items-center gap-2 rounded-lg border border-red-400/30 bg-red-950/30 px-3 py-2 font-bold text-red-100 transition hover:bg-red-900/40 focus:outline-none focus:ring-2 focus:ring-red-400"
         >
           <RefreshCcw className="h-3.5 w-3.5" />
@@ -254,13 +318,18 @@ export function StaffAttendanceContent({
     return total + hours;
   }, 0);
   const totalMonthlyShifts = completedAttendanceRecords.reduce((total, record) => {
-    return total + calculateShiftUnitsFromMinutes(getWorkedMinutesForRecord(record));
+    return total + getFinalizedShiftUnitsForRecord(record);
   }, 0);
-  const todayWorkedMinutes = todayRecord ? getWorkedMinutesForRecord(todayRecord, liveTime) : 0;
-  const todayShiftUnits = calculateShiftUnitsFromMinutes(todayWorkedMinutes);
-  const hasStaleOpenShift = todayRecord
-    ? isOpenAttendanceRecordStale(todayRecord, liveTime)
-    : false;
+  const activeShiftElapsedMinutes =
+    shiftState === 'ACTIVE_SHIFT_TODAY' && currentShift
+      ? getWorkedMinutesForRecord(currentShift, liveTime)
+      : 0;
+  const finalizedTodayMinutes =
+    todayRecord && isAttendanceRecordComplete(todayRecord)
+      ? getWorkedMinutesForRecord(todayRecord)
+      : 0;
+  const finalizedTodayShiftUnits =
+    todayRecord ? getFinalizedShiftUnitsForRecord(todayRecord) : 0;
   const historyTotalPages = Math.max(1, Math.ceil(attendanceHistory.length / HISTORY_ITEMS_PER_PAGE));
   const safeHistoryPage = Math.min(historyPage, historyTotalPages);
   const paginatedAttendanceHistory = attendanceHistory.slice(
@@ -293,68 +362,119 @@ export function StaffAttendanceContent({
         </div>
       </div>
 
-      {isInShift && todayRecord && (
-        <div className={`w-full rounded-2xl border p-4 ${hasStaleOpenShift ? 'border-amber-500/40 bg-amber-950/30' : 'border-blue-500/30 bg-blue-950/20'}`} role={hasStaleOpenShift ? 'alert' : 'status'}>
+      {shiftState === 'ACTIVE_SHIFT_TODAY' && currentShift && (
+        <div className="w-full rounded-lg border border-blue-500/30 bg-blue-950/20 p-4" role="status">
           <div className="flex items-start gap-3">
-            {hasStaleOpenShift ? (
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
-            ) : (
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
-            )}
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
             <div className="min-w-0">
-              <p className={`text-xs font-bold ${hasStaleOpenShift ? 'text-amber-300' : 'text-blue-300'}`}>
-                {hasStaleOpenShift ? 'Ca đang mở từ ngày trước' : 'Bạn đang trong ca làm việc'}
-              </p>
+              <p className="text-xs font-bold text-blue-300">Bạn đang trong ca làm việc</p>
               <p className="mt-1 text-[11px] text-slate-300">
-                Vào lúc {todayRecord.check_in?.slice(0, 5)} · {formatWorkedDuration(todayWorkedMinutes)}
+                Vào lúc {currentShift.check_in?.slice(0, 5)} · Đã làm{' '}
+                {formatWorkedDuration(activeShiftElapsedMinutes)}
               </p>
-              {hasStaleOpenShift && (
-                <p className="mt-1 text-[11px] text-amber-200/90">
-                  Hãy kết thúc ca nếu bạn vẫn đang làm việc, hoặc báo quản lý để kiểm tra dữ liệu.
-                </p>
-              )}
             </div>
           </div>
         </div>
       )}
 
-      {!isInShift && todayRecord?.check_out && (
-        <div className="w-full bg-emerald-950/20 border border-emerald-900/40 p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 animate-fadeIn">
-          <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-          <p className="text-xs font-bold text-emerald-400">Ca làm việc đã hoàn thành!</p>
-          <div className="flex flex-col sm:flex-row justify-between gap-1 w-full text-[11px] font-mono border-t border-emerald-900/30 pt-2 mt-2">
-            <span className="text-slate-400">Thời gian: {formatWorkedDuration(todayWorkedMinutes)}</span>
-            <span className="text-emerald-300 font-bold">Ca quy đổi: {todayShiftUnits} ca</span>
+      {shiftState === 'STALE_OPEN_SHIFT' && staleOpenShift && (
+        <div className="w-full rounded-lg border border-amber-500/40 bg-amber-950/30 p-4" role="alert">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-amber-300">
+                Có ca làm trước đó chưa được kết thúc.
+              </p>
+              <p className="mt-1 text-[11px] text-amber-100/90">
+                Ngày {formatBusinessDate(businessDateFromDateInput(staleOpenShift.work_date))},
+                vào lúc {staleOpenShift.check_in?.slice(0, 5)}.
+              </p>
+              <p className="mt-1 text-[11px] text-amber-200/90">
+                Vui lòng báo quản lý xử lý. Chức năng khôi phục ca hiện chưa được kích hoạt.
+              </p>
+            </div>
           </div>
         </div>
       )}
 
-      <button
-        onClick={handleToggleShift}
-        disabled={submitting}
-        aria-busy={submitting}
-        className={`w-36 h-36 rounded-full border-4 font-black text-xs tracking-wider uppercase transition-all duration-300 transform hover:scale-105 shadow-2xl flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:pointer-events-none disabled:opacity-60 cursor-pointer ${
-          isInShift
-            ? 'bg-red-950/40 border-red-500 text-red-400'
-            : 'bg-emerald-950/40 border-emerald-500 text-emerald-400'
-        }`}
-      >
-        <Power className="w-7 h-7" />
-        <span>{submitting ? 'ĐANG GHI' : isInShift ? 'TẮT MÁY VỀ' : 'VÀO CA MÁY'}</span>
-      </button>
+      {shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out && (
+        <div className="w-full bg-emerald-950/20 border border-emerald-900/40 p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 animate-fadeIn">
+          <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+          <p className="text-xs font-bold text-emerald-400">Ca làm việc đã hoàn thành!</p>
+          <div className="flex flex-col sm:flex-row justify-between gap-1 w-full text-[11px] font-mono border-t border-emerald-900/30 pt-2 mt-2">
+            <span className="text-slate-400">Thời gian: {formatWorkedDuration(finalizedTodayMinutes)}</span>
+            <span className="text-emerald-300 font-bold">Ca quy đổi: {finalizedTodayShiftUnits} ca</span>
+          </div>
+        </div>
+      )}
+
+      {shiftState !== 'STALE_OPEN_SHIFT' && (
+        <button
+          type="button"
+          onClick={handleToggleShift}
+          disabled={submitting}
+          aria-busy={submitting}
+          className={`inline-flex min-h-12 w-full max-w-xs items-center justify-center gap-2 rounded-lg border px-5 py-3 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:pointer-events-none disabled:opacity-60 ${
+            shiftState === 'ACTIVE_SHIFT_TODAY'
+              ? 'border-red-500/50 bg-red-950/40 text-red-200 hover:bg-red-900/50 focus:ring-red-400'
+              : 'border-emerald-500/50 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/50 focus:ring-emerald-400'
+          }`}
+        >
+          {shiftState === 'ACTIVE_SHIFT_TODAY' ? (
+            <LogOut className="h-4 w-4" />
+          ) : (
+            <LogIn className="h-4 w-4" />
+          )}
+          <span>
+            {submitting
+              ? shiftState === 'ACTIVE_SHIFT_TODAY'
+                ? 'Đang kết thúc ca...'
+                : 'Đang bắt đầu ca...'
+              : shiftState === 'ACTIVE_SHIFT_TODAY'
+                ? 'Kết thúc ca'
+                : 'Bắt đầu ca'}
+          </span>
+        </button>
+      )}
+
+      {mutationError && (
+        <div className="w-full rounded-lg border border-red-500/30 bg-red-950/30 p-3 text-sm text-red-100" role="alert">
+          <p>{mutationError.message}</p>
+          {mutationError.correlationId && (
+            <p className="mt-1 font-mono text-[10px] text-red-200/70">
+              Mã hỗ trợ: {mutationError.correlationId}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleToggleShift()}
+            disabled={submitting || shiftState === 'STALE_OPEN_SHIFT'}
+            className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-md border border-red-400/30 px-3 py-2 text-xs font-bold hover:bg-red-900/40 disabled:opacity-60"
+          >
+            <RefreshCcw className="h-3.5 w-3.5" />
+            Thử lại
+          </button>
+        </div>
+      )}
 
       <span className="text-[9px] text-purple-400 font-mono text-center bg-slate-950 p-2 rounded-lg border border-slate-800 w-full">
-        Hệ thống nhận diện ca: {autoDetectShift(liveTime)}
+        Hệ thống nhận diện ca: {getAttendanceShiftName(liveTime)}
       </span>
 
       <div className="grid grid-cols-2 gap-3 w-full">
         <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
           <p className="text-[10px] text-slate-500 font-bold uppercase">Hôm nay</p>
-          <p className="mt-1 text-sm font-black text-amber-400 font-mono">{formatWorkedDuration(todayWorkedMinutes)}</p>
+          <p className="mt-1 text-sm font-black text-amber-400 font-mono">
+            {shiftState === 'ACTIVE_SHIFT_TODAY'
+              ? formatWorkedDuration(activeShiftElapsedMinutes)
+              : formatWorkedDuration(finalizedTodayMinutes)}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
-          <p className="text-[10px] text-slate-500 font-bold uppercase">Ca tạm tính</p>
-          <p className="mt-1 text-sm font-black text-purple-400 font-mono">{todayShiftUnits} ca</p>
+          <p className="text-[10px] text-slate-500 font-bold uppercase">Ca đã chốt</p>
+          <p className="mt-1 text-sm font-black text-purple-400 font-mono">
+            {finalizedTodayShiftUnits} ca
+          </p>
         </div>
       </div>
 
@@ -372,7 +492,9 @@ export function StaffAttendanceContent({
               onChange={(value) => {
                 setHistoryMonthInput(value);
                 setHistoryPage(1);
-                if (worker) void loadAttendanceData(value);
+                if (worker) {
+                  void loadAttendanceData(value, { resetHistoryPage: true });
+                }
               }}
               accent="purple"
             />
@@ -399,7 +521,9 @@ export function StaffAttendanceContent({
               const isComplete = isAttendanceRecordComplete(record);
               const workedMinutes = getWorkedMinutesForRecord(record);
               const displayHours = Number((workedMinutes / 60).toFixed(2));
-              const shiftUnits = calculateShiftUnitsFromMinutes(workedMinutes);
+              const shiftUnits = isComplete
+                ? calculateShiftUnitsFromMinutes(workedMinutes)
+                : 0;
               const displayDate = formatBusinessDate(businessDateFromDateInput(record.work_date));
 
               return (
@@ -463,7 +587,9 @@ export function StaffAttendanceContent({
                   const isComplete = isAttendanceRecordComplete(record);
                   const workedMinutes = getWorkedMinutesForRecord(record);
                   const displayHours = Number((workedMinutes / 60).toFixed(2));
-                  const shiftUnits = calculateShiftUnitsFromMinutes(workedMinutes);
+                  const shiftUnits = isComplete
+                    ? calculateShiftUnitsFromMinutes(workedMinutes)
+                    : 0;
                   const displayDate = formatBusinessDate(businessDateFromDateInput(record.work_date));
 
                   return (
