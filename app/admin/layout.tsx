@@ -1,6 +1,7 @@
 // app/admin/layout.tsx
 import AdminLoginForm from './AdminLoginForm';
 import AdminShell from './AdminShell';
+import { NotificationProvider } from '@/component/NotificationContext';
 import { canAccessAdmin, canAccessStaff, getServerAdminAuthContext } from '@/services/server/auth';
 
 export const dynamic = 'force-dynamic';
@@ -33,11 +34,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <AdminShell
-      canAccessAdmin={adminAccess.allowed}
-      canAccessStaff={staffAccess.allowed}
-    >
-      {children}
-    </AdminShell>
+    <NotificationProvider workspace="admin">
+      <AdminShell
+        canAccessAdmin={adminAccess.allowed}
+        canAccessStaff={staffAccess.allowed}
+      >
+        {children}
+      </AdminShell>
+    </NotificationProvider>
   );
 }

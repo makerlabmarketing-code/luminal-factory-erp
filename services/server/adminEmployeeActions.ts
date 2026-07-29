@@ -20,6 +20,8 @@ interface EmployeeAccountRow {
   is_active?: boolean | null;
   auth_user_id?: string | null;
   branch_code?: string | null;
+  title?: string | null;
+  phone?: string | null;
 }
 
 interface EmployeeMutationInput {
@@ -50,6 +52,7 @@ function normalizeEmail(value?: string | null): string {
 
 const VALID_EMPLOYMENT_STATUSES = new Set(['ACTIVE', 'INACTIVE']);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^\+?\d{8,15}$/;
 
 function safeFailure(status: number, code: AuthFlowErrorCode, message: string, failureStage: AuthFailureStage): never {
   throw new AuthFlowError({ status, code, message, failureStage });
@@ -75,6 +78,18 @@ function validateEmploymentStatus(value: unknown): string {
     safeFailure(400, 'employee_status_invalid', 'Trạng thái làm việc không hợp lệ.', 'validation');
   }
   return status;
+}
+
+export function normalizeEmployeePhone(value: unknown): string | null {
+  const phone = cleanText(value, 32);
+  if (!phone) return null;
+
+  const normalizedPhone = phone.replace(/[\s.()-]/g, '');
+  if (!PHONE_PATTERN.test(normalizedPhone)) {
+    safeFailure(400, 'employee_phone_invalid', 'Số điện thoại không đúng định dạng.', 'validation');
+  }
+
+  return normalizedPhone;
 }
 
 function isSoftDeletedEmployee(row: EmployeeAccountRow): boolean {
@@ -119,8 +134,8 @@ function buildEmployeePayload(input: EmployeeMutationInput) {
   return {
     full_name: fullName,
     email,
-    title: cleanText(input.title) || '',
-    phone: cleanText(input.phone, 32),
+    title: cleanText(input.title),
+    phone: normalizeEmployeePhone(input.phone),
     branch_code: cleanText(input.department, 80),
     status,
   };
@@ -136,7 +151,7 @@ async function validateFacilityAssignment(value: unknown, currentValue?: string 
   const unchangedInactive = facility && !facility.isActive && facility.code === currentValue;
 
   if (!facility || (!facility.isActive && !unchangedInactive)) {
-    safeFailure(400, 'employee_status_invalid', 'Cơ sở làm việc không còn hoạt động. Vui lòng chọn cơ sở khác.', 'validation');
+    safeFailure(400, 'employee_facility_invalid', 'Cơ sở làm việc không còn hoạt động. Vui lòng chọn cơ sở khác.', 'validation');
   }
 
   return facility.code;
@@ -169,7 +184,7 @@ async function loadTargetEmployee(employeeId: string): Promise<EmployeeAccountRo
   const supabaseAdmin = createSupabaseAdminClient();
   const { data, error } = await supabaseAdmin
     .from('employees')
-    .select('id, full_name, email, status, is_active, auth_user_id, branch_code')
+    .select('id, full_name, email, title, phone, status, is_active, auth_user_id, branch_code')
     .eq('id', employeeId)
     .maybeSingle();
 

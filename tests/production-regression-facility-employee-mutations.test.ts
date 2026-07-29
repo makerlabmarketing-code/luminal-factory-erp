@@ -60,11 +60,13 @@ describe('production regression facility and employee mutations', () => {
     const buildBody = actions.slice(buildStart, buildEnd);
     const validateBody = actions.slice(buildEnd, validateEnd);
 
-    expect(buildBody).toMatch(/phone: cleanText\(input\.phone, 32\)/);
-    expect(buildBody).toMatch(/title: cleanText\(input\.title\) \|\| ''/);
+    expect(buildBody).toMatch(/phone: normalizeEmployeePhone\(input\.phone\)/);
+    expect(buildBody).toMatch(/title: cleanText\(input\.title\)/);
     expect(buildBody).toMatch(/branch_code: cleanText\(input\.department, 80\)/);
     expect(validateBody).toMatch(/if \(currentValue && requestedCode === currentValue\) return currentValue/);
     expect(validateBody).toMatch(/return facility\.code/);
+    expect(actions).toMatch(/const normalizedPhone = phone\.replace\(\/\[\\s\.\(\)-\]\/g, ''\)/);
+    expect(actions).toMatch(/employee_phone_invalid/);
   });
 
   it('maps employee unknown failures to a stable sanitized code with correlation', () => {
@@ -76,6 +78,8 @@ describe('production regression facility and employee mutations', () => {
     expect(`${createRoute}${updateRoute}`).toMatch(/correlationId/);
     expect(`${createRoute}${updateRoute}`).not.toMatch(/employee_unhandled_failure/);
     expect(`${createRoute}${updateRoute}`).not.toMatch(/JSON\.stringify\(error\)|postgres|PostgreSQL/);
+    expect(updateRoute).not.toMatch(/error\.message\.slice|String\(error\)/);
+    expect(updateRoute).toMatch(/failureStage: result\.failureStage \|\| 'persisted'/);
   });
 
   it('keeps failed saves open with toast, inline error and double-submit protection', () => {
@@ -91,6 +95,7 @@ describe('production regression facility and employee mutations', () => {
 
     for (const client of [listClient, detailClient]) {
       expect(client).toMatch(/setFormError\(message\)/);
+      expect(client).toContain('Không thể kết nối để cập nhật hồ sơ nhân sự. Vui lòng thử lại.');
       expect(client).toMatch(/showToast\('Không thể cập nhật', message, 'error'\)/);
       expect(client).toMatch(/showToast\('Đã cập nhật', 'Đã cập nhật hồ sơ nhân sự\.', 'success'\)/);
       expect(client).toMatch(/if \(!formState \|\| savingEmployee\) return/);
@@ -130,5 +135,19 @@ describe('production regression facility and employee mutations', () => {
     expect(facilityMutations).not.toMatch(/from\('employees'\)|from\('attendance'|from\('employee_workspace_access'|from\('employee_permissions'/);
     expect(updateEmployeeBody).toMatch(/from\('employees'\)\.update\(payload\)\.eq\('id', employeeId\)/);
     expect(updateEmployeeBody).not.toMatch(/from\('attendance'|from\('employee_workspace_access'|from\('employee_permissions'|from\('facilities'\)/);
+    expect(updateEmployeeBody).not.toMatch(/getAdminEmployee|getEmployeeDetail|loadFacilityDirectory|listAuthUsers/);
+  });
+
+  it('keeps employee failures in the editor and exposes the sanitized correlation reference', () => {
+    const listClient = source('app/admin/employees/AdminEmployeesClient.tsx');
+    const detailClient = source('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
+
+    for (const client of [listClient, detailClient]) {
+      expect(client).toMatch(/result\.correlationId \? ` Mã tra cứu: \$\{result\.correlationId\}\.` : ''/);
+      expect(client).toMatch(/setFormError\(message\)/);
+      expect(client.indexOf('setFormState(null)')).toBeGreaterThan(client.indexOf("if (!result.success)"));
+      expect(client).toMatch(/refreshPage\(\)/);
+      expect(client).not.toMatch(/window\.location\.reload/);
+    }
   });
 });

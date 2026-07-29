@@ -52,6 +52,8 @@ export type AuthFlowErrorCode =
   | 'employee_full_name_required'
   | 'employee_email_required'
   | 'employee_email_invalid'
+  | 'employee_phone_invalid'
+  | 'employee_facility_invalid'
   | 'employee_status_required'
   | 'employee_status_invalid'
   | 'employee_email_duplicate_active'
