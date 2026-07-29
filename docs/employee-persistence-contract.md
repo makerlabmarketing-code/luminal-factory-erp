@@ -1,6 +1,12 @@
 # Employee persistence contract and production incident
 
-## Incident evidence boundary
+## Incident closure
+
+**Status:** `EMPLOYEE_PROFILE_PERSISTENCE_PASS` — **CLOSED** (operator-verified in production on 2026-07-29).
+
+Authenticated production smoke verified that Admin profile updates persist through navigation and hard refresh while omitted fields remain unchanged. It also verified that Staff phone and bank updates persist through navigation and hard refresh and target only the authenticated employee. Success and error notifications remained isolated to the active workspace. No SQL, RLS broadening, or runtime flag change was required.
+
+## Historical diagnostic boundary
 
 The execution environment did not expose Vercel production logs for correlation IDs
 `5fde5ba6-848c-4309-963d-08b33e1574fd` and
@@ -14,9 +20,7 @@ reads used the authenticated request client. The privileged client accepted only
 The server now accepts either server-only key name, preferring `SUPABASE_SECRET_KEY`.
 No key is exposed to browser code. Sanitized structured logs record route, method,
 actor employee ID, authorization result, failure stage, operation, relation, whether
-the mutation ran, and only the Supabase machine error code. A fresh authenticated
-production attempt is still required to bind each original correlation ID to an exact
-database error and to confirm the configuration diagnosis.
+the mutation ran, and only the Supabase machine error code. The original correlation IDs were not bound to an exact database error. That historical diagnostic limitation does not keep the incident open because the repaired contract has now passed authenticated production mutation and readback smoke tests.
 
 ## Authoritative employee source
 
@@ -43,6 +47,7 @@ Legacy facility values remain readable; new assignments use canonical codes.
 
 ## Persistence and readback behavior
 
+- Admin and Staff persistence/readback use the same `public.employees` contract.
 - Admin patches contain only dirty fields; omitted fields are preserved.
 - Staff patches accept only `phone`, `bankName`, and `bankAccountNumber`, resolve the
   session through `employees.auth_user_id`, and update exactly `employees.id`.
@@ -54,9 +59,13 @@ Legacy facility values remain readable; new assignments use canonical codes.
 - Facility lookup is optional enrichment. A valid stored `branch_code` remains visible
   when directory enrichment is unavailable instead of being shown as unassigned.
 
+## Mutation outcome contract
+
+Mutation success is separate from optional enrichment and readback warnings. A successful core `public.employees` update remains successful if later optional facility/Auth enrichment or readback fails; the response returns the known core row and validated patch and reports the optional warning without replacing success.
+
 ## Database decision
 
 No SQL is included or executed. Repository evidence already establishes all required
-employee columns, and this incident is handled as an application privileged-client,
-mutation/readback, cache, and diagnostic-boundary repair. Production smoke remains
-required before the incident can be closed.
+employee columns, and this incident was handled as an application privileged-client,
+mutation/readback, cache, and diagnostic-boundary repair. Authenticated production
+smoke has passed, so the Employee Profile persistence incident is closed.

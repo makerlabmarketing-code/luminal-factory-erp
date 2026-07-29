@@ -1,6 +1,6 @@
 # Core ERP Functional Stabilization Report
 
-**Audit date:** 2026-07-28
+**Audit date:** 2026-07-29
 **Decision:** `BLOCKED_FOR_SAAS_UI_RESKIN`
 **Scope:** application behavior and repository-owned operator artifacts only. No GitHub comments were reviewed, no SQL/RPC was executed, no runtime flag was enabled, and nothing was deployed or merged.
 
@@ -9,10 +9,10 @@
 | Journey | Status | Working behavior | Remaining blocker | Required operator action | Ready for UI re-skin |
 |---|---|---|---|---|---|
 | 1. Authentication and role routing | FUNCTIONAL | Auth session lookup, employee connection, active-state check, Admin/Staff workspace separation, login, logout, callback, password reset, and the legacy `/staff/portal` redirect have regression coverage. | Production account/workspace fixtures were not exercised from this environment. | Smoke-test one Admin-only, Staff-only, dual-workspace, disconnected, and inactive account. | Yes |
-| 2. Employee list and employee detail | FUNCTIONAL | Core rows survive optional facility/Auth/workspace/permission/project enrichment failures; list and detail distinguish invalid ID, not found, forbidden, retryable failure, and partial enrichment warnings. | Live facility/Auth reconciliation remains operator verification. | Run the facility/employee compatibility audit and account-link fixture checks. | Yes |
+| 2. Employee list and employee detail | FUNCTIONAL / PRODUCTION_SMOKE_PASS | `public.employees` is authoritative for Admin and Staff; shared persistence/readback, partial Admin updates, approved Staff own-profile updates, optional-warning separation, and workspace notification isolation passed authenticated production smoke. | Facility/Auth directory reconciliation remains a separate operator gate; Employee Profile persistence has no remaining incident blocker. | Preserve the closed persistence contract; do not reopen it without new evidence. | Yes |
 | 3. Account connection, Workspace Permissions, and individual permissions | LIVE_OPERATOR_VERIFICATION_REQUIRED | Account connection and permission mutations use server-derived authorization; workspace and individual permission semantics remain separate and fail closed. | Permission catalog/grant package and production fixtures have not been operator-validated in this run. | Run the package in register order, validate known/unknown permission codes and grant/revoke fixtures, then retain runtime mutation gates disabled until PASS. | No |
 | 4. Facility directory and employee-facility resolution | LIVE_OPERATOR_VERIFICATION_REQUIRED | Directory reads support reviewed and legacy projections, preserve missing/unresolved values, and resolve employees by stable code/name compatibility without exposing raw numeric mappings. | Production compatibility audit and active-facility behavior are not attached as PASS. | Run both facility validation artifacts; enable `FACILITY_ACTIVE_STATE_ENABLED=true` only after PASS. | No |
-| 5. Staff Portal and attendance | LIVE_OPERATOR_VERIFICATION_REQUIRED | Staff Portal routes render separate attendance/task/expense/profile tabs; own attendance is independent from Project Membership; Admin attendance stays useful and read-only when recovery is disabled, with loading, error, and Retry states. | Live own-row/RLS and facility smoke tests remain; recovery mutation is disabled. | Validate facility first, then Attendance recovery RLS and own-row/admin authorization fixtures; only afterward enable `ATTENDANCE_RECOVERY_ENABLED=true`. | No |
+| 5. Staff Portal and attendance | LIVE_OPERATOR_VERIFICATION_REQUIRED | Staff Portal routes render separate attendance/task/expense/profile tabs; normal own-row check-in/check-out is independent from both Project Membership and the recovery flag; Admin attendance stays useful and read-only while recovery is disabled. The repository package and regression audit is complete. | Live own-row/RLS and authorized/denied recovery smoke evidence remains; recovery mutation is disabled. | Run the registered Gate 2 pre/post and authorization/RLS smoke sequence; enable `ATTENDANCE_RECOVERY_ENABLED=true` only after operator PASS. | No |
 | 6. Project list, creation, cancellation, and detail | FUNCTIONAL | List refresh is request-local; basic project creation persists once and routes by confirmed ID; cancellation and detail preserve server authorization; core detail renders before optional sections and exposes targeted retries. | Atomic phase/task creation is intentionally unavailable until its RPC contract is validated. | Keep `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED=false`; operator validation is required only for full workflow creation. | Yes |
 | 7. Project Membership | FUNCTIONAL | Add/change/revoke membership uses stable employee IDs and server capabilities; inactive membership is excluded from assignment; Attendance and facility access do not derive from membership. | Production membership fixtures were not exercised in this environment. | Smoke-test owner/manager/contributor/read-only/cancelled-project fixtures during the operator run. | Yes |
 | 8. Phase Workflow | RUNTIME_FLAG_DISABLED | Read-only phase compatibility, transition validation, dependency rules, cancelled-project locks, and safe capability responses are present. | Durable phase status/audit package has not completed operator pre-run/post-run validation; flags remain false. | Run the reviewed Phase Workflow package and smoke tests, then enable foundation and status flags in checklist order. | No |
@@ -23,6 +23,8 @@
 | 13. Dashboard | FUNCTIONAL | Server-owned paid-ledger DTO fails visibly instead of rendering fake zeroes; Retry now uses an in-app server refresh with pending state rather than a full-page navigation. | Live paid-ledger RLS/data fixture was not exercised here. | Smoke-test an authorized Admin with empty, populated, and denied/error ledger fixtures. | Yes |
 
 ## Application bugs fixed
+
+0. **Employee Profile persistence:** `EMPLOYEE_PROFILE_PERSISTENCE_PASS` closes the incident after production Admin and Staff persistence/readback, unchanged-field, own-row, and workspace-notification isolation verification. No SQL, RLS broadening, or runtime flag change was needed.
 
 1. **Ledger duplicate submission:** create and edit mutations now return early while a prior submit is in flight, disable both modal actions, and expose Vietnamese pending copy.
 2. **Ledger missing Retry:** a failed core ledger load now has a local `loadData()` Retry instead of a terminal error panel.
@@ -100,7 +102,7 @@ This section supersedes earlier classifications in this report where later Payro
 | Journey | Current application status | Remaining boundary |
 |---|---|---|
 | Authentication and role routing | FUNCTIONAL | Operator smoke fixtures only. |
-| Employee list/detail | FUNCTIONAL | Live Facility/Auth enrichment reconciliation remains operator verification. |
+| Employee list/detail | FUNCTIONAL / PRODUCTION_SMOKE_PASS | Employee Profile persistence is closed; Facility/Auth enrichment reconciliation remains a separate operator gate. |
 | Facility directory | FUNCTIONAL_READ_ONLY | Active-state mutation remains disabled pending Facility operator PASS. |
 | Account/workspace permissions | APPLICATION_COMPLETE | Catalog, linkage, grant/revoke, and denial fixtures remain operator work. |
 | Attendance | FUNCTIONAL_READ_ONLY | Recovery remains disabled pending Facility and Attendance authorization/RLS PASS. |
@@ -121,4 +123,4 @@ This section supersedes earlier classifications in this report where later Payro
 
 ### Completion and UI decision
 
-All safe Item 15 application work is complete. Live verification and activation are operator work, not unfinished application implementation. Scoped SaaS UI work is `PARTIALLY_SAFE`: future planning may cover Authentication, Employee, basic Project, Membership, and Dashboard boundaries, but no gated mutation surface may be redesigned and the broad re-skin remains blocked. The exact next roadmap item is **Item 16 — Runtime gate readiness/operator evidence**, beginning with Facility verification.
+All safe Item 15 application work is complete. Employee Profile persistence is closed with `EMPLOYEE_PROFILE_PERSISTENCE_PASS`. Live verification and activation for the remaining gates are operator work, not unfinished application implementation. Scoped SaaS UI work is `PARTIALLY_SAFE`, but no gated mutation surface may be redesigned and the broad re-skin remains blocked. The exact next roadmap item is **Item 16, Gate 2 — Attendance recovery operator evidence**; its runtime flag remains disabled.
