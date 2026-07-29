@@ -1,11 +1,10 @@
 // app/admin/attendance/page.tsx
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
 import DailyAttendanceModal from './components/DailyAttendanceModal';
 import { Calendar as CalendarIcon, Clock, LayoutGrid, CreditCard, User } from 'lucide-react';
-import { calculateHoursFromStrings } from '@/services/payrollService';
 import {
   businessDateFromDateInput,
   businessMonthCalendar,
@@ -16,6 +15,8 @@ import {
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 import {
+  type AttendanceScopeSummary,
+  calculateFinalizedAttendanceSummary,
   calculateShiftUnitsFromMinutes,
   formatWorkedDuration,
   getWorkedMinutesForRecord,
@@ -23,6 +24,7 @@ import {
   isAttendanceRecordOverdue,
   isMissingCheckoutRecord,
   mergeAttendanceRecords,
+  summarizeAttendanceScope,
 } from '@/services/attendanceService';
 
 interface PayrollSummary {
@@ -38,6 +40,7 @@ interface AdminAttendancePayload {
     attendance: number;
     attendanceLogs: number;
   };
+  diagnostics?: AttendanceScopeSummary | null;
   permissions?: {
     canAdjustAttendance: boolean;
   };
@@ -72,6 +75,8 @@ export default function AdminAttendanceManagement() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canAdjustAttendance, setCanAdjustAttendance] = useState(false);
   const [sourceCounts, setSourceCounts] = useState({ attendance: 0, attendanceLogs: 0 });
+  const [diagnostics, setDiagnostics] = useState<AttendanceScopeSummary | null>(null);
+  const loadRequestIdRef = useRef(0);
 
   // Bộ lọc chính cho toàn trang
   const [filterEmployeeId, setFilterEmployeeId] = useState('');
@@ -89,11 +94,14 @@ export default function AdminAttendanceManagement() {
   const [editDateStr, setEditDateStr] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
+    const requestId = ++loadRequestIdRef.current;
     setLoading(true);
     setLoadError(null);
 
     try {
-      const response = await fetch(`/api/admin/attendance?month=${encodeURIComponent(monthInput)}`, {
+      const searchParams = new URLSearchParams({ month: monthInput });
+      if (filterEmployeeId) searchParams.set('employeeId', filterEmployeeId);
+      const response = await fetch(`/api/admin/attendance?${searchParams.toString()}`, {
         cache: 'no-store',
       });
       const payload = (await response.json().catch(() => null)) as AdminAttendancePayload | null;
@@ -101,6 +109,7 @@ export default function AdminAttendanceManagement() {
       if (!response.ok || !payload) {
         throw new Error(messageForAttendanceLoadError(payload));
       }
+      if (requestId !== loadRequestIdRef.current) return;
 
       setEmployees(payload.employees || []);
 
@@ -108,14 +117,16 @@ export default function AdminAttendanceManagement() {
       setAttendanceRecords(payload.attendanceRecords || []);
       setCanAdjustAttendance(Boolean(payload.permissions?.canAdjustAttendance));
       setSourceCounts(payload.sourceCounts || { attendance: 0, attendanceLogs: 0 });
+      setDiagnostics(payload.diagnostics || null);
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current) return;
       const message = error instanceof Error ? error.message : 'Không thể tải dữ liệu chấm công.';
       setLoadError(message);
       showToast('Lỗi dữ liệu', message, 'error');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) setLoading(false);
     }
-  }, [monthInput, showToast]);
+  }, [filterEmployeeId, monthInput, showToast]);
 
   useEffect(() => { void loadData(); }, [loadData]);
 
@@ -124,24 +135,7 @@ export default function AdminAttendanceManagement() {
   };
 
   const calculatePayrollFromRecords = (targetRecords: AttendanceRecord[]): PayrollSummary => {
-    const normalizedRecords = mergeAttendanceRecords(targetRecords);
-    let totalShiftsCount = 0;
-    let totalHoursAccumulated = 0;
-
-    normalizedRecords.forEach((record) => {
-      const workedMinutes = getWorkedMinutesForRecord(record);
-      const decimalHours = workedMinutes > 0
-        ? Number((workedMinutes / 60).toFixed(2))
-        : calculateHoursFromStrings(record.check_in || null, record.check_out || null);
-
-      totalShiftsCount += calculateShiftUnitsFromMinutes(workedMinutes);
-      totalHoursAccumulated += decimalHours;
-    });
-
-    return { 
-      totalShifts: totalShiftsCount, 
-      totalHours: Number(totalHoursAccumulated.toFixed(2)),
-    };
+    return calculateFinalizedAttendanceSummary(targetRecords);
   };
 
   // TÍNH TOÁN ĐỒNG BỘ: Tính toán tổng giờ làm và tiền lương dựa trên định mức động từ Metadata
@@ -176,6 +170,14 @@ export default function AdminAttendanceManagement() {
       shifts,
     })
   );
+  const scopeSummary =
+    diagnostics ||
+    summarizeAttendanceScope({
+      records: normalizedMonthlyRecords,
+      monthInput,
+    });
+  const selectedMonthSummary = scopeSummary.selectedMonth;
+  const outsideMonthSummary = scopeSummary.outsideSelectedMonth;
   const { firstWeekday: firstDayOfMonth, daysInMonth } = businessMonthCalendar(currentBusinessMonth);
 
   if (loading) {
@@ -249,7 +251,7 @@ export default function AdminAttendanceManagement() {
       )}
 
       {/* STATS & SETTLEMENT BAR */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-center">
           <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1.5"><LayoutGrid className="w-4 h-4 text-purple-400"/> Tổng ca quy đổi</span>
           <span className="text-2xl font-black font-mono text-purple-400 mt-1">{payrollSummary.totalShifts} <span className="text-sm font-sans text-slate-500">Ca</span></span>
@@ -261,12 +263,40 @@ export default function AdminAttendanceManagement() {
         </div>
         
         <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-center">
-          <span className="text-[10px] text-slate-500 uppercase font-bold">Nguồn dữ liệu</span>
+          <span className="text-[10px] text-slate-500 uppercase font-bold">Bản ghi trong tháng</span>
+          <span className="text-2xl font-black font-mono text-slate-200 mt-1">
+            {selectedMonthSummary.records}
+          </span>
+        </div>
+
+        <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-center">
+          <span className="text-[10px] text-slate-500 uppercase font-bold">Phân loại</span>
           <span className="text-sm font-black font-mono text-slate-200 mt-1">
-            {sourceCounts.attendance} attendance · {sourceCounts.attendanceLogs} log cũ
+            {selectedMonthSummary.completed} hoàn tất · {selectedMonthSummary.open} chưa kết thúc
+          </span>
+          <span className="mt-1 text-[10px] text-slate-500">
+            {selectedMonthSummary.excluded} bản ghi bị loại khỏi tổng hợp
           </span>
         </div>
       </div>
+
+      <p className="text-[10px] text-slate-500">
+        Nguồn trong phạm vi: {sourceCounts.attendance} attendance · {sourceCounts.attendanceLogs} log cũ
+      </p>
+
+      {filterEmployeeId && outsideMonthSummary.records > 0 && (
+        <div className="bg-sky-950/20 border border-sky-500/20 rounded-2xl px-4 py-3 text-xs text-sky-100">
+          <p className="font-bold text-sky-300">
+            Có {outsideMonthSummary.records} bản ghi ngoài tháng đang chọn.
+          </p>
+          <p className="mt-1 text-sky-100/80">
+            Các bản ghi này không hiển thị trên lịch và không được tính vào tổng tháng.
+            {outsideMonthSummary.open > 0
+              ? ` Có ${outsideMonthSummary.open} ca chưa kết thúc, trong đó ${outsideMonthSummary.stale} ca từ ngày trước.`
+              : ''}
+          </p>
+        </div>
+      )}
 
       {missingCheckoutRecords.length > 0 && (
         <div className="bg-amber-950/20 border border-amber-500/20 rounded-2xl px-4 py-3 text-xs text-amber-100">
@@ -275,7 +305,7 @@ export default function AdminAttendanceManagement() {
             {overdueCheckoutRecords.length > 0 ? `, trong đó ${overdueCheckoutRecords.length} ca đã quá giờ.` : '.'}
           </p>
           <p className="mt-1 text-amber-100/80">
-            Hệ thống hiện chưa tự gửi email nhắc check-out. Giải pháp an toàn lúc này là mở từng ngày để bổ sung giờ ra, sau đó mình có thể nối tiếp bằng cron/email reminder theo `shift.end_time`.
+            Ca chưa kết thúc không được tính vào giờ hoặc số ca đã hoàn tất. Việc phục hồi cần được xử lý qua quy trình vận hành đã phê duyệt.
           </p>
         </div>
       )}
@@ -285,6 +315,14 @@ export default function AdminAttendanceManagement() {
         <h2 className="text-sm font-black text-slate-100 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-800/60 pb-3">
           <LayoutGrid className="w-4 h-4 text-purple-400" /> Bảng phân lịch chi tiết theo ngày
         </h2>
+
+        {selectedMonthSummary.records === 0 && (
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-300">
+            {outsideMonthSummary.records > 0
+              ? 'Không có bản ghi trong tháng đang chọn. Các bản ghi ngoài tháng đã được loại khỏi lịch và tổng hợp.'
+              : 'Không có bản ghi chấm công trong tháng đang chọn.'}
+          </div>
+        )}
 
         <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 select-none pt-2">
           <div>CN</div><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div>
