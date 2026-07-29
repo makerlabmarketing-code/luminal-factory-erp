@@ -10,14 +10,13 @@ function toJsonResponse(result: unknown, init?: ResponseInit) {
 
 function logEmployeeRouteError(correlationId: string, error: unknown) {
   const safeError = error instanceof AuthFlowError
-    ? { code: error.code, failureStage: error.failureStage, status: error.status }
-    : { code: 'employee_update_failed', failureStage: 'unknown', message: error instanceof Error ? error.message.slice(0, 240) : String(error).slice(0, 240) };
+    ? { code: error.code, failureStage: error.failureStage, status: error.status, ...error.safeDetails }
+    : { code: 'employee_update_failed', failureStage: 'unknown', errorType: error instanceof Error ? error.name : 'unknown' };
 
   console.error('[employee-route]', { correlationId, error: safeError });
 }
 
-function toErrorResponse(error: unknown) {
-  const correlationId = crypto.randomUUID();
+function toErrorResponse(correlationId: string, error: unknown) {
   logEmployeeRouteError(correlationId, error);
   if (error instanceof AuthFlowError) {
     return toJsonResponse(
@@ -36,10 +35,17 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const correlationId = crypto.randomUUID();
   try {
     const body = (await request.json().catch(() => null)) || {};
-    return toJsonResponse(await updateEmployee(params.id, body));
+    const result = await updateEmployee(params.id, body);
+    console.info('[employee-route]', {
+      correlationId,
+      code: result.code || 'employee_updated',
+      failureStage: result.failureStage || 'persisted',
+    });
+    return toJsonResponse({ ...result, correlationId });
   } catch (error) {
-    return toErrorResponse(error);
+    return toErrorResponse(correlationId, error);
   }
 }

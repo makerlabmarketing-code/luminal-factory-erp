@@ -19,7 +19,13 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-export function NotificationProvider({ children }: { children: React.ReactNode }) {
+export function NotificationProvider({
+  children,
+  workspace,
+}: {
+  children: React.ReactNode;
+  workspace: 'admin' | 'staff';
+}) {
   const [mounted, setMounted] = useState(false);
   const [toasts, setToasts] = useState<Array<{
     id: number;
@@ -31,6 +37,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     durationMs?: number;
   }>>([]);
   const nextToastId = useRef(0);
+  const toastTimers = useRef<Map<number, number>>(new Map());
 
   const [confirm, setConfirm] = useState<{ show: boolean; title: string; desc: string; onConfirm: () => void; cancelLabel: string; confirmLabel: string }>({
     show: false, title: '', desc: '', onConfirm: () => {}, cancelLabel: 'Hủy bỏ', confirmLabel: 'Xác nhận'
@@ -53,7 +60,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       durationMs: options.durationMs,
     }]);
     if (type !== 'error') {
-      window.setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), options.durationMs ?? (type === 'success' ? 4500 : 9000));
+      const timer = window.setTimeout(() => {
+        toastTimers.current.delete(id);
+        setToasts((current) => current.filter((item) => item.id !== id));
+      }, options.durationMs ?? (type === 'success' ? 4500 : 9000));
+      toastTimers.current.set(id, timer);
     }
   };
 
@@ -73,6 +84,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     setMounted(true);
+
+    return () => {
+      toastTimers.current.forEach((timer) => window.clearTimeout(timer));
+      toastTimers.current.clear();
+    };
   }, []);
 
   useEffect(() => {
@@ -91,7 +107,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const notificationLayer = (
     <>
       {toasts.length > 0 && (
-        <div className="fixed left-3 right-3 top-24 isolate flex flex-col items-end gap-3 font-sans sm:left-auto sm:right-6 sm:w-full sm:max-w-sm" style={{ zIndex: OVERLAY_Z_INDEX.notification }} aria-live="polite">
+        <div data-notification-workspace={workspace} className="fixed left-3 right-3 top-24 isolate flex flex-col items-end gap-3 font-sans sm:left-auto sm:right-6 sm:w-full sm:max-w-sm" style={{ zIndex: OVERLAY_Z_INDEX.notification }} aria-live="polite">
           {toasts.map((toast) => (
           <div key={toast.id} className={`w-full rounded-lg border p-4 shadow-2xl ${
             toast.type === 'success'

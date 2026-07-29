@@ -42,6 +42,9 @@ interface EmployeeFormState {
 interface ApiActionResponse {
   success?: boolean;
   message?: string;
+  code?: string;
+  failureStage?: string;
+  correlationId?: string;
 }
 
 const legacyInviteCopyForRegression = 'Gửi lời mời';
@@ -114,6 +117,9 @@ async function parseActionResponse(response: Response): Promise<ApiActionRespons
     return {
       success: false,
       message: payload.message || 'Không thể thực hiện thao tác.',
+      code: payload.code,
+      failureStage: payload.failureStage,
+      correlationId: payload.correlationId,
     };
   }
 
@@ -242,7 +248,8 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
       const result = await parseActionResponse(response);
 
       if (!result.success) {
-        const message = 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.';
+        const reference = result.correlationId ? ` Mã tra cứu: ${result.correlationId}.` : '';
+        const message = `${result.message || 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.'}${reference}`;
         setFormError(message);
         showToast('Không thể cập nhật', message, 'error');
         return;
@@ -251,6 +258,10 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
       setFormState(null);
       showToast('Đã cập nhật', 'Đã cập nhật hồ sơ nhân sự.', 'success');
       refreshPage();
+    } catch {
+      const message = 'Không thể kết nối để cập nhật hồ sơ nhân sự. Vui lòng thử lại.';
+      setFormError(message);
+      showToast('Không thể cập nhật', message, 'error');
     } finally {
       setSavingEmployee(false);
       hideGlobalLoading();
