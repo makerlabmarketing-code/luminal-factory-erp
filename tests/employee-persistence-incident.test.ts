@@ -7,6 +7,7 @@ const source = (path: string) => readFileSync(join(root, path), 'utf8');
 
 describe('production employee persistence incident contract', () => {
   const admin = source('services/server/adminEmployeeActions.ts');
+  const adminPersistence = source('services/server/adminEmployeePersistence.ts');
   const adminRoute = source('app/api/admin/employees/[id]/route.ts');
   const staffRoute = source('app/api/staff/profile/route.ts');
   const staffPersistence = source('services/server/staffProfilePersistence.ts');
@@ -31,7 +32,7 @@ describe('production employee persistence incident contract', () => {
 
   it('keeps successful admin mutation successful when readback fails', () => {
     const update = admin.slice(admin.indexOf('export async function updateEmployee'), admin.indexOf('export async function deactivateEmployee'));
-    expect(update.indexOf(".update(payload).eq('id', employeeId)")).toBeLessThan(update.indexOf(".select('id, full_name"));
+    expect(adminPersistence.indexOf(".update(payload).eq('id', employeeId)")).toBeLessThan(adminPersistence.indexOf(".select('id, full_name"));
     expect(update).toContain("warnings: readbackError || !persisted ? ['employee_readback_failed'] : []");
     expect(update).toContain('{ ...targetEmployee, ...payload }');
   });
