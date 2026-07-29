@@ -1,133 +1,114 @@
-import { NextResponse } from 'next/server';
-import { createSupabaseAdminClient } from '@/utils/supabase/admin';
-import { AuthFlowError, requireWorkspaceAccess } from '@/services/server/auth';
 import { revalidatePath } from 'next/cache';
+import { NextResponse } from 'next/server';
+import { AdminClientError, createSupabaseAdminClient } from '@/utils/supabase/admin';
+import { AuthFlowError, requireWorkspaceAccess } from '@/services/server/auth';
+import {
+  buildStaffProfileDatabaseUpdate,
+  persistStaffProfile,
+  sanitizePersistenceFailure,
+  type MutationTrace,
+} from '@/services/server/staffProfilePersistence';
 
 const MAX_PROFILE_FIELD_LENGTH = 120;
+const cleanProfileField = (value: unknown) => typeof value === 'string' ? value.trim().slice(0, MAX_PROFILE_FIELD_LENGTH) : '';
 
-function cleanProfileField(value: unknown): string {
-  if (typeof value !== 'string') return '';
-
-  return value.trim().slice(0, MAX_PROFILE_FIELD_LENGTH);
-}
-
-function toErrorResponse(correlationId: string, error: unknown) {
-  if (error instanceof AuthFlowError) {
-    console.error('[staff-profile-persistence]', {
-      correlationId,
-      route: '/api/staff/profile',
-      method: 'PATCH',
-      failureStage: error.failureStage,
-      code: error.code,
-      supabaseErrorCode: error.safeDetails?.supabase_error_code || null,
-      coreMutationRan: false,
-    });
-    return NextResponse.json({ error: error.message, code: error.code, failureStage: error.failureStage, correlationId }, { status: error.status });
-  }
-
+function logFailure(params: {
+  correlationId: string;
+  employeeId?: string | number;
+  code: string;
+  failureStage: string;
+  operation: string;
+  trace: MutationTrace;
+  error: unknown;
+}) {
+  const wrapped = params.error as { diagnosticCause?: unknown } | null;
+  const diagnostic = sanitizePersistenceFailure(wrapped?.diagnosticCause ?? params.error);
   console.error('[staff-profile-persistence]', {
-    correlationId,
+    correlationId: params.correlationId,
     route: '/api/staff/profile',
     method: 'PATCH',
-    failureStage: 'request_boundary',
-    code: 'staff_profile_unhandled_failure',
-    coreMutationRan: false,
-    errorType: error instanceof Error ? error.name : 'unknown',
+    actorEmployeeId: params.employeeId == null ? null : String(params.employeeId),
+    authorizationResult: params.employeeId == null ? 'not_completed' : 'allowed',
+    failureStage: params.failureStage,
+    code: params.code,
+    sourceBoundary: 'app/api/staff/profile/route.ts:PATCH',
+    coreMutationRan: params.trace.networkExecutionBegan,
+    supabaseOperation: params.operation,
+    targetRelation: 'public.employees',
+    ...params.trace,
+    ...diagnostic,
   });
-  return NextResponse.json({ error: 'Không thể lưu hồ sơ nhân sự.', code: 'staff_profile_unhandled_failure', failureStage: 'request_boundary', correlationId }, { status: 500 });
 }
+
+const failureResponse = (correlationId: string, code: string, failureStage: string) =>
+  NextResponse.json({ error: 'Không thể lưu hồ sơ nhân sự.', code, failureStage, correlationId }, { status: 500 });
 
 export async function PATCH(request: Request) {
   const correlationId = crypto.randomUUID();
+  const trace: MutationTrace = {
+    clientCreationCompleted: false,
+    updateBuilderCreated: false,
+    networkExecutionBegan: false,
+    resultErrorReturned: false,
+    readbackBegan: false,
+  };
+  let employeeId: string | number | undefined;
+
   try {
     const authContext = await requireWorkspaceAccess('STAFF_WORKSPACE');
+    employeeId = authContext.employee.id;
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-
-    if (!body) {
-      return NextResponse.json({ error: 'Dữ liệu hồ sơ không hợp lệ.' }, { status: 400 });
-    }
+    if (!body) return NextResponse.json({ error: 'Dữ liệu hồ sơ không hợp lệ.' }, { status: 400 });
 
     const allowedKeys = new Set(['phone', 'bankName', 'bankAccountNumber']);
     if (Object.keys(body).some((key) => !allowedKeys.has(key))) {
       return NextResponse.json({ error: 'Bạn không được phép cập nhật trường này.', correlationId }, { status: 403 });
     }
-    const payload: Record<string, string> = {};
-    if (Object.prototype.hasOwnProperty.call(body, 'phone')) payload.phone = cleanProfileField(body.phone);
-    if (Object.prototype.hasOwnProperty.call(body, 'bankName')) payload.bank_name = cleanProfileField(body.bankName);
-    if (Object.prototype.hasOwnProperty.call(body, 'bankAccountNumber')) payload.bank_account_number = cleanProfileField(body.bankAccountNumber);
+    const payload = buildStaffProfileDatabaseUpdate(body, cleanProfileField);
 
     let supabase;
     try {
       supabase = createSupabaseAdminClient();
-    } catch {
-      console.error('[staff-profile-persistence]', {
-        correlationId,
-        route: '/api/staff/profile',
-        method: 'PATCH',
-        actorEmployeeId: String(authContext.employee.id),
-        authorizationResult: 'allowed',
-        failureStage: 'admin_client_creation',
-        sourceBoundary: 'app/api/staff/profile/route.ts:PATCH',
-        coreMutationRan: false,
-        supabaseOperation: 'client_creation',
-        targetRelation: 'public.employees',
-      });
-      return NextResponse.json({ error: 'Không thể lưu hồ sơ nhân sự.', code: 'staff_profile_admin_client_unavailable', failureStage: 'admin_client_creation', correlationId }, { status: 500 });
-    }
-    const { error } = await supabase
-      .from('employees')
-      .update(payload)
-      .eq('id', authContext.employee.id);
-
-    if (error) {
-      console.error('[staff-profile-persistence]', {
-        correlationId,
-        route: '/api/staff/profile',
-        method: 'PATCH',
-        actorEmployeeId: String(authContext.employee.id),
-        authorizationResult: 'allowed',
-        failureStage: 'core_mutation',
-        sourceBoundary: 'app/api/staff/profile/route.ts:PATCH',
-        coreMutationRan: true,
-        supabaseOperation: 'update',
-        targetRelation: 'public.employees',
-        supabaseErrorCode: error.code || 'unknown',
-      });
-      return NextResponse.json({ error: 'Không thể lưu hồ sơ nhân sự.', code: 'staff_profile_persistence_failed', failureStage: 'core_mutation', correlationId }, { status: 500 });
+      trace.clientCreationCompleted = true;
+    } catch (error) {
+      const code = error instanceof AdminClientError ? error.code : 'admin_client_creation_failed';
+      logFailure({ correlationId, employeeId, code, failureStage: code === 'admin_client_configuration_failed' ? 'admin_client_configuration' : 'admin_client_creation', operation: 'client_creation', trace, error });
+      return failureResponse(correlationId, code, code === 'admin_client_configuration_failed' ? 'admin_client_configuration' : 'admin_client_creation');
     }
 
-    const { data, error: readbackError } = await supabase
-      .from('employees')
-      .select('phone, bank_name, bank_account_number')
-      .eq('id', authContext.employee.id)
-      .maybeSingle();
-    const employee = data || {
+    let result;
+    try {
+      result = await persistStaffProfile(supabase, employeeId, payload, trace);
+    } catch (error) {
+      logFailure({ correlationId, employeeId, code: 'employee_core_mutation_failed', failureStage: 'core_mutation', operation: 'update', trace, error });
+      return failureResponse(correlationId, 'employee_core_mutation_failed', 'core_mutation');
+    }
+
+    const employee = result.data || {
       phone: Object.prototype.hasOwnProperty.call(payload, 'phone') ? payload.phone : authContext.employee.phone ?? null,
       bank_name: Object.prototype.hasOwnProperty.call(payload, 'bank_name') ? payload.bank_name : authContext.employee.bank_name ?? null,
       bank_account_number: Object.prototype.hasOwnProperty.call(payload, 'bank_account_number') ? payload.bank_account_number : authContext.employee.bank_account_number ?? null,
     };
-
-    if (readbackError || !data) {
+    const warnings: string[] = [];
+    if (result.readbackError || !result.data) {
+      warnings.push('employee_core_readback_failed');
       console.warn('[staff-profile-persistence]', {
-        correlationId,
-        route: '/api/staff/profile',
-        method: 'PATCH',
-        actorEmployeeId: String(authContext.employee.id),
-        authorizationResult: 'allowed',
-        failureStage: 'core_readback',
-        sourceBoundary: 'app/api/staff/profile/route.ts:PATCH',
-        coreMutationRan: true,
-        mutationResult: 'persisted',
-        supabaseOperation: 'select',
-        targetRelation: 'public.employees',
-        supabaseErrorCode: readbackError?.code || 'row_not_returned',
+        correlationId, route: '/api/staff/profile', method: 'PATCH', actorEmployeeId: String(employeeId),
+        authorizationResult: 'allowed', failureStage: 'core_readback', code: 'employee_core_readback_failed',
+        coreMutationRan: true, mutationResult: 'persisted', supabaseOperation: 'select', targetRelation: 'public.employees',
+        ...trace, ...sanitizePersistenceFailure(result.readbackError),
       });
     }
 
     revalidatePath('/staff');
     revalidatePath('/staff/profile');
-    return NextResponse.json({ success: true, employee, warnings: readbackError || !data ? ['employee_readback_failed'] : [], correlationId });
+    return NextResponse.json({ success: true, employee, warnings, correlationId });
   } catch (error) {
-    return toErrorResponse(correlationId, error);
+    if (error instanceof AuthFlowError) {
+      logFailure({ correlationId, code: error.code, failureStage: error.failureStage, operation: 'authorization', trace, error });
+      return NextResponse.json({ error: error.message, code: error.code, failureStage: error.failureStage, correlationId }, { status: error.status });
+    }
+    logFailure({ correlationId, employeeId, code: 'staff_profile_unhandled_failure', failureStage: 'request_boundary', operation: 'request', trace, error });
+    return failureResponse(correlationId, 'staff_profile_unhandled_failure', 'request_boundary');
   }
 }
