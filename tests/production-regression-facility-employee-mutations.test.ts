@@ -137,7 +137,7 @@ describe('production regression facility and employee mutations', () => {
 
     expect(facilityMutations).toMatch(/from\('facilities'\)/);
     expect(facilityMutations).not.toMatch(/from\('employees'\)|from\('attendance'|from\('employee_workspace_access'|from\('employee_permissions'/);
-    expect(updateEmployeeBody).toMatch(/from\('employees'\)\.update\(payload\)\.eq\('id', employeeId\)/);
+    expect(updateEmployeeBody).toMatch(/persistAdminEmployee\(supabaseAdmin, employeeId, payload, trace\)/);
     expect(updateEmployeeBody).not.toMatch(/from\('attendance'|from\('employee_workspace_access'|from\('employee_permissions'|from\('facilities'\)/);
     expect(updateEmployeeBody).not.toMatch(/getAdminEmployee|getEmployeeDetail|loadFacilityDirectory|listAuthUsers/);
   });

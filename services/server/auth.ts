@@ -62,6 +62,7 @@ export type AuthFlowErrorCode =
   | 'employee_lookup_failed'
   | 'employee_persistence_failed'
   | 'employee_update_failed'
+  | 'admin_client_configuration_failed'
   | 'employee_invitation_failed'
   | 'employee_auth_lookup_failed'
   | 'employee_auth_duplicate'
@@ -99,6 +100,13 @@ export type AuthFailureStage =
   | 'persisted'
   | 'duplicate_check'
   | 'admin_client_creation'
+  | 'admin_client_configuration'
+  | 'payload_mapping'
+  | 'query_construction'
+  | 'core_mutation'
+  | 'returned_result_decode'
+  | 'core_readback'
+  | 'optional_enrichment'
   | 'project_insert'
   | 'unknown';
 
