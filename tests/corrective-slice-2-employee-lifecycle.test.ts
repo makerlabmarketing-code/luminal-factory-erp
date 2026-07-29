@@ -43,7 +43,8 @@ describe('corrective slice 2 employee profile and account lifecycle', () => {
 
     expect(buildBody).toMatch(/title: cleanText\(input\.title\)/);
     expect(buildBody).not.toMatch(/title: cleanText\(input\.title\) \|\| 'Nhân sự'/);
-    expect(`${listClient}${detailClient}`).toMatch(/Sửa nhanh/);
+    expect(listClient).not.toMatch(/Sửa nhanh/);
+    expect(detailClient).toMatch(/Lưu thay đổi/);
     expect(`${listClient}${detailClient}`).toMatch(/Điện thoại/);
     expect(`${listClient}${detailClient}`).toMatch(/Cơ sở làm việc/);
     expect(`${listClient}${detailClient}`).not.toMatch(/bankAccount|bank_account|salary|baseSalary|permissions:/);

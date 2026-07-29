@@ -67,6 +67,8 @@ describe('production regression facility and employee mutations', () => {
     expect(validateBody).toMatch(/return facility\.code/);
     expect(actions).toMatch(/const normalizedPhone = phone\.replace\(\/\[\\s\.\(\)-\]\/g, ''\)/);
     expect(actions).toMatch(/employee_phone_invalid/);
+    expect(actions).toMatch(/buildEmployeeUpdatePayload/);
+    expect(actions).toMatch(/Object\.prototype\.hasOwnProperty\.call\(input, 'phone'\)/);
   });
 
   it('maps employee unknown failures to a stable sanitized code with correlation', () => {
@@ -80,6 +82,7 @@ describe('production regression facility and employee mutations', () => {
     expect(`${createRoute}${updateRoute}`).not.toMatch(/JSON\.stringify\(error\)|postgres|PostgreSQL/);
     expect(updateRoute).not.toMatch(/error\.message\.slice|String\(error\)/);
     expect(updateRoute).toMatch(/failureStage: result\.failureStage \|\| 'persisted'/);
+    expect(updateRoute).not.toMatch(/failureStage: 'unknown'/);
   });
 
   it('keeps failed saves open with toast, inline error and double-submit protection', () => {
@@ -93,29 +96,30 @@ describe('production regression facility and employee mutations', () => {
     expect(facilitiesClient).toMatch(/showToast\('Đã lưu', 'Đã lưu cơ sở làm việc\.', 'success'\)/);
     expect(facilitiesClient).toMatch(/finally\s*\{\s*setIsSaving\(false\)/);
 
-    for (const client of [listClient, detailClient]) {
-      expect(client).toMatch(/setFormError\(message\)/);
-      expect(client).toContain('Không thể kết nối để cập nhật hồ sơ nhân sự. Vui lòng thử lại.');
-      expect(client).toMatch(/showToast\('Không thể cập nhật', message, 'error'\)/);
-      expect(client).toMatch(/showToast\('Đã cập nhật', 'Đã cập nhật hồ sơ nhân sự\.', 'success'\)/);
-      expect(client).toMatch(/if \(!formState \|\| savingEmployee\) return/);
-      expect(client).toMatch(/finally\s*\{\s*setSavingEmployee\(false\)/);
+    for (const client of [detailClient]) {
+      expect(client).toMatch(/setError\(message\)/);
+      expect(client).toMatch(/showToast\('Không thể cập nhật'/);
+      expect(client).toMatch(/showToast\('Đã cập nhật', 'Đã cập nhật thông tin nhân sự\.', 'success'\)/);
+      expect(client).toMatch(/if \(!dirty \|\| saving\) return/);
+      expect(client).toMatch(/finally \{ setSaving\(false\); \}/);
       expect(client).toMatch(/role="alert"/);
     }
+    expect(listClient).not.toContain("method: 'PATCH'");
   });
 
-  it('keeps quick edit on the employee detail route and makes modals internally scrollable', () => {
+  it('consolidates editing on the employee detail route', () => {
     const listClient = source('app/admin/employees/AdminEmployeesClient.tsx');
     const detailClient = source('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
     const facilitiesClient = source('app/admin/facilities/page.tsx');
 
     expect(listClient).toMatch(/href=\{`\/admin\/employees\/\$\{employee\.employeeId\}`\}/);
     expect(listClient).not.toMatch(/openEditForm\(employee\)/);
-    expect(detailClient).toMatch(/onClick=\{openQuickEdit\}/);
+    expect(listClient).not.toMatch(/Sửa nhanh/);
+    expect(detailClient).toMatch(/Lưu thay đổi/);
     expect(detailClient).toMatch(/router\.refresh\(\)/);
     expect(detailClient).not.toMatch(/router\.push\(['"]\/admin\/employees['"]\)/);
 
-    for (const client of [facilitiesClient, listClient, detailClient]) {
+    for (const client of [facilitiesClient, listClient]) {
       expect(client).toMatch(/max-h-\[calc\(100vh-2rem\)\]/);
       expect(client).toMatch(/overflow-y-auto/);
       expect(client).toMatch(/document\.body\.style\.overflow = 'hidden'/);
@@ -142,11 +146,10 @@ describe('production regression facility and employee mutations', () => {
     const listClient = source('app/admin/employees/AdminEmployeesClient.tsx');
     const detailClient = source('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
 
-    for (const client of [listClient, detailClient]) {
+    for (const client of [detailClient]) {
       expect(client).toMatch(/result\.correlationId \? ` Mã tra cứu: \$\{result\.correlationId\}\.` : ''/);
-      expect(client).toMatch(/setFormError\(message\)/);
-      expect(client.indexOf('setFormState(null)')).toBeGreaterThan(client.indexOf("if (!result.success)"));
-      expect(client).toMatch(/refreshPage\(\)/);
+      expect(client).toMatch(/setError\(message\)/);
+      expect(client).toMatch(/router\.refresh\(\)/);
       expect(client).not.toMatch(/window\.location\.reload/);
     }
   });

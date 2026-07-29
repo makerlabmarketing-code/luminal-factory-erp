@@ -55,6 +55,8 @@ export interface PermissionGroup {
   }>;
 }
 
+export const PERMISSION_MANAGEMENT_PATH = "/admin/accounts";
+
 export const ALL_PERMISSION_CODES: PermissionCode[] = [
   "EMPLOYEE_VIEW",
   "EMPLOYEE_MANAGE",
@@ -87,24 +89,23 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     label: "Nhân sự",
     permissions: [
-      { code: "EMPLOYEE_VIEW", label: "Xem nhân sự" },
+      { code: "EMPLOYEE_VIEW", label: "Xem hồ sơ nhân sự" },
       { code: "EMPLOYEE_MANAGE", label: "Quản lý hồ sơ nhân sự" },
-      { code: "ACCOUNT_MANAGE", label: "Quản lý tài khoản" },
     ],
   },
   {
     label: "Tài chính",
     permissions: [
-      { code: "FINANCE_VIEW", label: "Xem tài chính" },
-      { code: "FINANCE_CREATE", label: "Tạo bản ghi tài chính" },
-      { code: "FINANCE_UPDATE", label: "Cập nhật tài chính" },
-      { code: "FINANCE_DELETE", label: "Xóa tài chính" },
+      { code: "FINANCE_VIEW", label: "Xem sổ thu chi" },
+      { code: "FINANCE_CREATE", label: "Tạo khoản thu chi" },
+      { code: "FINANCE_UPDATE", label: "Cập nhật khoản thu chi" },
+      { code: "FINANCE_DELETE", label: "Hủy hoặc xóa khoản thu chi theo chính sách" },
       { code: "FINANCE_APPROVE", label: "Duyệt hoàn ứng" },
       { code: "FINANCE_PAY", label: "Xác nhận thanh toán hoàn ứng" },
     ],
   },
   {
-    label: "Dự án",
+    label: "Dự án & công việc",
     permissions: [
       { code: "PROJECT_VIEW", label: "Xem dự án" },
       { code: "PROJECT_MANAGE", label: "Quản lý dự án" },
@@ -113,7 +114,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    label: "Công việc",
+    label: "Dự án & công việc",
     permissions: [
       { code: "TASK_VIEW", label: "Xem công việc" },
       { code: "TASK_MANAGE", label: "Quản lý nội dung công việc" },
@@ -133,20 +134,39 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     label: "Chấm công",
     permissions: [
-      { code: "ATTENDANCE_VIEW", label: "Xem chấm công" },
+      { code: "ATTENDANCE_VIEW", label: "Xem dữ liệu chấm công" },
       { code: "ATTENDANCE_MANAGE", label: "Quản lý chấm công" },
     ],
   },
   {
-    label: "Hệ thống",
+    label: "Danh mục hệ thống",
     permissions: [
       { code: "SYSTEM_SETTINGS_VIEW", label: "Xem cài đặt hệ thống" },
       { code: "SYSTEM_SETTINGS_MANAGE", label: "Quản lý cài đặt hệ thống" },
+    ],
+  },
+  {
+    label: "Mẫu email",
+    permissions: [
       { code: "EMAIL_TEMPLATE_VIEW", label: "Xem mẫu email" },
       { code: "EMAIL_TEMPLATE_MANAGE", label: "Quản lý mẫu email" },
     ],
   },
+  {
+    label: "Tài khoản & phân quyền",
+    permissions: [
+      { code: "ACCOUNT_MANAGE", label: "Quản lý tài khoản và quyền truy cập" },
+    ],
+  },
 ];
+
+export function getPermissionPresentation(code: string): { group: string; label: string; code: string } {
+  for (const group of PERMISSION_GROUPS) {
+    const permission = group.permissions.find((item) => item.code === code);
+    if (permission) return { group: group.label, label: permission.label, code };
+  }
+  return { group: "Danh mục hệ thống", label: "Quyền hệ thống chưa đặt tên", code };
+}
 
 const hrManagerPermissions: PermissionCode[] = [
   "EMPLOYEE_VIEW",

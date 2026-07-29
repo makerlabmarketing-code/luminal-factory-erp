@@ -11,7 +11,7 @@ function toJsonResponse(result: unknown, init?: ResponseInit) {
 function logEmployeeRouteError(correlationId: string, error: unknown) {
   const safeError = error instanceof AuthFlowError
     ? { code: error.code, failureStage: error.failureStage, status: error.status, ...error.safeDetails }
-    : { code: 'employee_update_failed', failureStage: 'unknown', errorType: error instanceof Error ? error.name : 'unknown' };
+    : { code: 'employee_update_failed', failureStage: 'persistence', errorType: error instanceof Error ? error.name : 'unknown' };
 
   console.error('[employee-route]', { correlationId, error: safeError });
 }
@@ -26,7 +26,7 @@ function toErrorResponse(correlationId: string, error: unknown) {
   }
 
   return toJsonResponse(
-    { success: false, message: 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.', code: 'employee_update_failed', failureStage: 'unknown', correlationId },
+    { success: false, message: 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.', code: 'employee_update_failed', failureStage: 'persistence', correlationId },
     { status: 500 }
   );
 }

@@ -30,7 +30,6 @@ import { accountConnectionExplanations, accountConnectionLabels } from '@/lib/ac
 import { AdminPage } from '@/component/AdminUI';
 
 interface EmployeeFormState {
-  employeeId: string | null;
   fullName: string;
   email: string;
   title: string;
@@ -68,7 +67,6 @@ const statusClassNames: Record<AccountConnectionStatus, string> = {
 };
 
 const emptyForm: EmployeeFormState = {
-  employeeId: null,
   fullName: '',
   email: '',
   title: '',
@@ -233,9 +231,9 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
 
     try {
       const response = await fetch(
-        formState.employeeId ? `/api/admin/employees/${formState.employeeId}` : '/api/admin/employees',
+        '/api/admin/employees',
         {
-          method: formState.employeeId ? 'PATCH' : 'POST',
+          method: 'POST',
           headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
@@ -427,18 +425,10 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                                   className="flex items-center gap-2 rounded-md px-3 py-2 text-[11px] font-bold text-slate-200 hover:bg-slate-800"
                                 >
                                   <UserRound className="h-3.5 w-3.5" />
-                                  Xem hồ sơ
+                                  Xem chi tiết
                                 </Link>
                                 {capabilities.canEditEmployees && (
                                   <>
-                                    <Link
-                                      href={`/admin/employees/${employee.employeeId}`}
-                                      onClick={() => setOpenActionMenuId(null)}
-                                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold text-blue-300 hover:bg-slate-800"
-                                    >
-                                      <Edit2 className="h-3.5 w-3.5" />
-                                      Sửa nhanh hồ sơ
-                                    </Link>
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -509,7 +499,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/80 p-4">
           <form onSubmit={submitEmployeeForm} className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 p-5 pb-3">
-              <h2 className="font-bold text-blue-300">{formState.employeeId ? 'Sửa nhanh hồ sơ' : 'Tạo hồ sơ nhân sự'}</h2>
+              <h2 className="font-bold text-blue-300">Tạo hồ sơ nhân sự</h2>
               <button type="button" disabled={savingEmployee} onClick={() => setFormState(null)} className="text-slate-500 hover:text-white disabled:opacity-60"><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-4 overflow-y-auto p-5">

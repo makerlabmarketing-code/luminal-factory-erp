@@ -6,24 +6,27 @@ export function getShiftWageByTitle(title?: string | null): number {
   return 100000;
 }
 
-export async function updateStaffProfile(params: {
-  phone: string;
-  bankName: string;
-  bankAccountNumber: string;
-}): Promise<void> {
+export interface StaffProfileUpdate {
+  phone?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+}
+
+export async function updateStaffProfile(params: StaffProfileUpdate): Promise<{ phone: string | null; bank_name: string | null; bank_account_number: string | null }> {
   const response = await fetch('/api/staff/profile', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      phone: params.phone,
-      bankName: params.bankName,
-      bankAccountNumber: params.bankAccountNumber,
-    }),
+    credentials: 'include',
+    cache: 'no-store',
+    body: JSON.stringify(params),
   });
 
   if (!response.ok) {
-    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+    const result = (await response.json().catch(() => null)) as { error?: string; correlationId?: string } | null;
 
-    throw new Error(result?.error || 'Không thể lưu hồ sơ.');
+    const reference = result?.correlationId ? ` Mã tra cứu: ${result.correlationId}.` : '';
+    throw new Error(`${result?.error || 'Không thể lưu hồ sơ.'}${reference}`);
   }
+  const result = await response.json() as { employee: { phone: string | null; bank_name: string | null; bank_account_number: string | null } };
+  return result.employee;
 }

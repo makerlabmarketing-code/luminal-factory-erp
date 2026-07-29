@@ -25,6 +25,8 @@ export function StaffProfileContent({
   const [profilePhone, setProfilePhone] = useState('');
   const [profileBankName, setProfileBankName] = useState('');
   const [profileBankAcc, setProfileBankAcc] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     setWorker(workerData || null);
@@ -35,19 +37,30 @@ export function StaffProfileContent({
   }, [workerData]);
 
   const handleSaveProfile = async () => {
-    if (!worker) return;
+    if (!worker || saving) return;
 
+    const changes = {
+      ...(profilePhone !== (worker.phone || '') ? { phone: profilePhone } : {}),
+      ...(profileBankName !== (worker.bank_name || '') ? { bankName: profileBankName } : {}),
+      ...(profileBankAcc !== (worker.bank_account_number || '') ? { bankAccountNumber: profileBankAcc } : {}),
+    };
+    if (Object.keys(changes).length === 0) return;
+
+    setSaving(true);
+    setSaveError(null);
     try {
-      await updateStaffProfile({
-        phone: profilePhone,
-        bankName: profileBankName,
-        bankAccountNumber: profileBankAcc,
-      });
-
-      showToast('Thành công', 'Hồ sơ tài khoản đã được lưu cấu hình!', 'success');
+      const saved = await updateStaffProfile(changes);
+      setWorker((current) => current ? { ...current, ...saved } : current);
+      setProfilePhone(saved.phone || '');
+      setProfileBankName(saved.bank_name || '');
+      setProfileBankAcc(saved.bank_account_number || '');
+      showToast('Đã cập nhật', 'Đã cập nhật thông tin cá nhân.', 'success');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể lưu hồ sơ.';
-      showToast('Thất bại', message, 'error');
+      setSaveError(message);
+      showToast('Không thể cập nhật', 'Không thể cập nhật thông tin. Vui lòng thử lại.', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -125,12 +138,15 @@ export function StaffProfileContent({
         </div>
       </div>
 
-      <button
+      {saveError && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-200">{saveError}</p>}
+      {(profilePhone !== (worker.phone || '') || profileBankName !== (worker.bank_name || '') || profileBankAcc !== (worker.bank_account_number || '')) && <button
+        type="button"
+        disabled={saving}
         onClick={handleSaveProfile}
         className="w-full bg-blue-600 text-white font-black p-3 rounded-xl transition shadow-lg flex items-center justify-center gap-1 cursor-pointer"
       >
-        <ShieldCheck className="w-4 h-4" /> Lưu hồ sơ
-      </button>
+        <ShieldCheck className="w-4 h-4" /> {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+      </button>}
     </div>
   );
 }

@@ -81,11 +81,13 @@ describe("account and permission management slice", () => {
     expect(PERMISSION_GROUPS.map((group) => group.label)).toEqual([
       "Nhân sự",
       "Tài chính",
-      "Dự án",
-      "Công việc",
+      "Dự án & công việc",
+      "Dự án & công việc",
       "Hoàn trả",
       "Chấm công",
-      "Hệ thống",
+      "Danh mục hệ thống",
+      "Mẫu email",
+      "Tài khoản & phân quyền",
     ]);
   });
 

@@ -141,6 +141,31 @@ function buildEmployeePayload(input: EmployeeMutationInput) {
   };
 }
 
+async function buildEmployeeUpdatePayload(
+  input: EmployeeMutationInput,
+  current: EmployeeAccountRow
+): Promise<Record<string, string | null>> {
+  const payload: Record<string, string | null> = {};
+
+  if (Object.prototype.hasOwnProperty.call(input, 'fullName')) {
+    const fullName = cleanText(input.fullName);
+    if (!fullName) safeFailure(400, 'employee_full_name_required', 'Vui lòng nhập họ tên nhân sự.', 'validation');
+    payload.full_name = fullName;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'email')) payload.email = validateEmail(input.email);
+  if (Object.prototype.hasOwnProperty.call(input, 'title')) payload.title = cleanText(input.title);
+  if (Object.prototype.hasOwnProperty.call(input, 'phone')) payload.phone = normalizeEmployeePhone(input.phone);
+  if (Object.prototype.hasOwnProperty.call(input, 'employmentStatus')) payload.status = validateEmploymentStatus(input.employmentStatus);
+  if (Object.prototype.hasOwnProperty.call(input, 'department')) {
+    payload.branch_code = await validateFacilityAssignment(input.department, current.branch_code);
+  }
+
+  if (Object.keys(payload).length === 0) {
+    safeFailure(400, 'employee_update_empty', 'Không có thay đổi hợp lệ để lưu.', 'validation');
+  }
+  return payload;
+}
+
 async function validateFacilityAssignment(value: unknown, currentValue?: string | null): Promise<string | null> {
   const requestedCode = cleanText(value, 80);
   if (!requestedCode) return null;
@@ -517,9 +542,8 @@ export async function updateEmployee(employeeId: string, input: EmployeeMutation
   await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
   const targetEmployee = await loadTargetEmployee(employeeId);
 
-  const payload = buildEmployeePayload(input);
-  payload.branch_code = await validateFacilityAssignment(input.department, targetEmployee.branch_code);
-  await ensureEmployeeEmailAvailable(payload.email, employeeId);
+  const payload = await buildEmployeeUpdatePayload(input, targetEmployee);
+  if (payload.email) await ensureEmployeeEmailAvailable(payload.email, employeeId);
 
   const supabaseAdmin = createSupabaseAdminClient();
   const { error } = await supabaseAdmin.from('employees').update(payload).eq('id', employeeId);

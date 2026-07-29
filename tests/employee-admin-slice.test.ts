@@ -36,7 +36,7 @@ describe('employee admin list and account actions slice', () => {
     expect(directory).toMatch(/message: 'Không thể tải danh sách cơ sở làm việc.'/);
     expect(listClient).toMatch(/facility\.isActive \|\| facility\.code === formState\?\.department/);
     expect(listClient).toMatch(/Chưa có cơ sở đang hoạt động/);
-    expect(detailClient).toMatch(/facility\.isActive \|\| facility\.code === formState\.department/);
+    expect(detailClient).toMatch(/f\.isActive \|\| f\.code === draft\.department/);
     expect(detailClient).toMatch(/Ngừng hoạt động/);
     expect(actions).toMatch(/validateFacilityAssignment/);
     expect(actions).toMatch(/!facility\.isActive/);
@@ -117,7 +117,7 @@ describe('employee admin list and account actions slice', () => {
     expect(detailClient).toMatch(/Tổng quan/);
     expect(detailClient).toMatch(/Thông tin công việc/);
     expect(detailClient).toMatch(/Tài khoản & phân quyền/);
-    expect(detailClient).toMatch(/Sắp triển khai/);
+    expect(detailClient).toMatch(/Chưa có dữ liệu trong khu vực này/);
     expect(loadingSource).toMatch(/animate-pulse/);
     expect(serviceSource).toMatch(/EmployeeDetailDto/);
     expect(serviceSource).toMatch(/requireAdminEmployeePermission\('EMPLOYEE_VIEW'\)/);
@@ -136,12 +136,12 @@ describe('employee admin list and account actions slice', () => {
     expect(serviceSource).not.toMatch(/qr_token|raw_user_meta_data|access_token|refresh_token|password/);
   });
 
-  it('links the employee list to the detail page and keeps quick edit separate', () => {
+  it('links the employee list to the single detail editing workspace', () => {
     const clientSource = source('app/admin/employees/AdminEmployeesClient.tsx');
 
     expect(clientSource).toMatch(/href=\{`\/admin\/employees\/\$\{employee\.employeeId\}`\}/);
-    expect(clientSource).toMatch(/Xem hồ sơ/);
-    expect(clientSource).toMatch(/Sửa nhanh/);
+    expect(clientSource).toMatch(/Xem chi tiết/);
+    expect(clientSource).not.toMatch(/Sửa nhanh/);
     expect(clientSource).toMatch(/MoreVertical/);
   });
 
