@@ -161,3 +161,17 @@ Roadmap item 15 is `APPLICATION_COMPLETE`. The repository audit found one active
 All safe roadmap application work is complete. This is not a claim that production capabilities are active. The nine requested gates remain false/unset: `FINANCE_REIMBURSEMENT_ENABLED`, `PAYROLL_SETTLEMENT_ENABLED`, `FACILITY_ACTIVE_STATE_ENABLED`, `ATTENDANCE_RECOVERY_ENABLED`, `PHASE_WORKFLOW_FOUNDATION_ENABLED`, `PHASE_STATUS_MUTATION_ENABLED`, `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED`, `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED`, and `TASK_COMMENTS_ACTIVITY_ENABLED`. No SQL was executed, no flag was enabled, and no deployment or merge occurred.
 
 **Exact next roadmap item:** Item 16 — Runtime gate readiness, specifically operator execution and retained PASS evidence beginning with the independent Gate 1 Facility verification sequence. Item 17 scoped SaaS UI foundation is `PARTIALLY_SAFE` for planning only on journeys already classified functional; implementation was not started. Item 18 broad SaaS UI re-skin remains blocked.
+
+## 2026-07-29 — Employee completeness and transactional email foundation
+
+The explicitly approved Cloud slice is `APPLICATION_COMPLETE`. Employee Detail now uses **Chưa cập nhật** for successfully loaded nullable values, keeps core data visible during optional enrichment failure, retains local retry/no reload, independent dirty-tab saves and read-only permission behavior, and exposes existing contact/banking columns without a schema change. The repository-backed field/permission/dependency classification is owned by [employee-field-inventory.md](employee-field-inventory.md).
+
+ERP transactional email now has a default-disabled server SMTP gate, Admin-authorized single-recipient test action, preview, placeholder blocking, duplicate-submit protection, sanitized correlation/failure logging, and controlled result/toast states. Supabase Auth remains exclusively responsible for authentication mail. No secret, SQL, bulk/automatic send, runtime activation, deployment, or live email was performed. Production activation is `READY_FOR_OPERATOR` under [email-setup.md](email-setup.md).
+
+**Exact next roadmap item:** Item 16, Gate 2 — Attendance recovery operator evidence. It remains `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`; there is no further safe application implementation for that gate.
+
+## 2026-07-29 — Employee Detail tab completeness clarification
+
+All seven existing Employee Detail tabs were audited without moving domain fields into Overview. Existing project memberships/tasks, current-month attendance, assigned account role, banking, rate and permission sources are now represented in their owning tabs with isolated optional-query warnings and Retry. Unsupported personal/job/audit fields are `SCHEMA_EXTENSION_REQUIRED`; the unexecuted `20260729_employee_profile_extension` pre/forward/post/rollback/validation draft package is `READY_FOR_OPERATOR`. Payroll, reimbursement and Attendance recovery remain runtime/operator-gated and are not simulated.
+
+**Exact next roadmap item:** operator/business review of the Employee Profile schema extension package. Production SQL remains prohibited until the draft semantics, RLS, sensitive-field visibility and audit retention are approved; afterward Item 16 Gate 2 Attendance evidence remains the next existing operational gate.

@@ -11,6 +11,8 @@ import {
 import { findFacility, loadFacilityDirectory, type FacilityDirectoryItem } from '@/services/server/facilityDirectory';
 import { resolveEmployeeFacility, type FacilityResolutionStatus } from '@/lib/employeeFacility';
 import { accountConnectionExplanations, resolveAccountConnectionStatus, type AccountConnectionStatus } from '@/lib/accountConnection';
+import { loadAttendanceData } from '@/services/server/attendanceData';
+import { businessDateFromInstant, formatBusinessDateInput } from '@/lib/business-date';
 
 export type { AccountConnectionStatus } from '@/lib/accountConnection';
 
@@ -54,6 +56,7 @@ interface EmployeeRow {
   phone?: string | null;
   hourly_rate?: number | string | null;
   created_at?: string | null;
+  role?: string | null;
 }
 
 interface WorkspaceAccessRow {
@@ -114,6 +117,22 @@ export interface EmployeeProjectMembershipSummary {
   status: string;
 }
 
+export interface EmployeeTaskSummary {
+  taskId: string;
+  projectId: string;
+  title: string;
+  status: string;
+  deadline: string | null;
+}
+
+export interface EmployeeAttendanceSummary {
+  attendanceId: string;
+  workDate: string;
+  shiftName: string;
+  status: string | null;
+  workedHours: number | string | null;
+}
+
 export interface EmployeeDetailDto {
   employeeId: string;
   fullName: string;
@@ -125,6 +144,8 @@ export interface EmployeeDetailDto {
   facilityCode: string | null;
   facilities: FacilityDirectoryItem[];
   hourlyRate: number | string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
   createdAt: string | null;
   accountConnectionStatus: AccountConnectionStatus;
   invitationStatus: InvitationStatus;
@@ -132,11 +153,15 @@ export interface EmployeeDetailDto {
   hasAdminWorkspace: boolean;
   permissions: EmployeePermissionSummary[];
   projectMemberships: EmployeeProjectMembershipSummary[];
-  warnings: Array<'employee_facility_enrichment_failed' | 'account_lookup_failed' | 'employee_access_enrichment_failed'>;
+  activeTasks: EmployeeTaskSummary[];
+  attendanceHistory: EmployeeAttendanceSummary[];
+  assignedRole: string | null;
+  warnings: Array<'employee_facility_enrichment_failed' | 'account_lookup_failed' | 'employee_access_enrichment_failed' | 'employee_tasks_enrichment_failed' | 'employee_attendance_enrichment_failed'>;
   capabilities: {
     canEditEmployee: boolean;
     canManageAccount: boolean;
     canViewCompensation: boolean;
+    canEditPersonalFinance: boolean;
   };
 }
 
@@ -328,7 +353,7 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
 
   const { data: employee, error: employeeError } = await supabase
     .from('employees')
-    .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code, hourly_rate, created_at')
+    .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code, hourly_rate, bank_name, bank_account_number, role, created_at')
     .eq('id', employeeId)
     .maybeSingle();
 
@@ -354,11 +379,13 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
   }
 
   const employeeRow = employee as EmployeeRow;
-  const [facilityResult, workspaceResult, permissionResult, membershipResult, authResult] = await Promise.all([
+  const [facilityResult, workspaceResult, permissionResult, membershipResult, taskResult, attendanceResult, authResult] = await Promise.all([
     loadFacilityDirectory(supabase).then(({ facilities }) => ({ data: facilities, failed: false as const }), () => ({ data: [] as FacilityDirectoryItem[], failed: true as const })),
     supabase.from('employee_workspace_access').select('employee_id, workspace, status, revoked_at').eq('employee_id', employeeId).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('employee_permissions').select('employee_id, permission_code, effect, status, revoked_at').eq('employee_id', employeeId).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('project_members').select('project_id, member_role, status, projects(name)').eq('employee_id', employeeId).limit(20).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
+    supabase.from('tasks').select('id, project_id, title, status, deadline').eq('assignee_employee_id', employeeId).neq('status', 'COMPLETED').order('deadline', { ascending: true }).limit(20).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
+    loadAttendanceData({ monthInput: formatBusinessDateInput(businessDateFromInstant(new Date())).slice(0, 7), employeeId, includeDirectory: false }).then((data) => ({ data: data.attendanceRecords.slice(0, 20), failed: false as const }), () => ({ data: [], failed: true as const })),
     listAuthUsersById().then((data) => ({ data, failed: false as const }), () => ({ data: new Map<string, AuthUserSummary>(), failed: true as const })),
   ]);
   const facilities = facilityResult.data;
@@ -383,7 +410,9 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
     facility: resolvedFacility.facilityDisplayName,
     facilityCode: findFacility(facilities, employeeRow.branch_code)?.code || resolvedFacility.facilityCode,
     facilities,
-    hourlyRate: canViewFinance || canEditEmployee ? employeeRow.hourly_rate ?? null : null,
+    hourlyRate: canViewFinance ? employeeRow.hourly_rate ?? null : null,
+    bankName: canViewFinance ? (employee as { bank_name?: string | null }).bank_name ?? null : null,
+    bankAccountNumber: canViewFinance ? (employee as { bank_account_number?: string | null }).bank_account_number ?? null : null,
     createdAt: employeeRow.created_at || null,
     accountConnectionStatus: status.accountConnectionStatus,
     invitationStatus: status.invitationStatus,
@@ -401,15 +430,24 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
       memberRole: row.member_role || 'MEMBER',
       status: row.status || 'ACTIVE',
     })),
+    activeTasks: ((taskResult.data || []) as Array<{ id: number | string; project_id: number | string; title?: string | null; status?: string | null; deadline?: string | null }>).map((row) => ({
+      taskId: String(row.id), projectId: String(row.project_id), title: row.title || `Công việc ${row.id}`,
+      status: row.status || 'PENDING', deadline: row.deadline || null,
+    })),
+    attendanceHistory: attendanceResult.data.map((row) => ({ attendanceId: String(row.id), workDate: row.work_date, shiftName: row.shift_name, status: row.status || null, workedHours: row.total_hours ?? null })),
+    assignedRole: employeeRow.role || null,
     warnings: [
       ...(facilityResult.failed ? ['employee_facility_enrichment_failed' as const] : []),
       ...(authResult.failed ? ['account_lookup_failed' as const] : []),
       ...(workspaceResult.failed || permissionResult.failed || membershipResult.failed ? ['employee_access_enrichment_failed' as const] : []),
+      ...(taskResult.failed ? ['employee_tasks_enrichment_failed' as const] : []),
+      ...(attendanceResult.failed ? ['employee_attendance_enrichment_failed' as const] : []),
     ],
     capabilities: {
       canEditEmployee,
       canManageAccount,
-      canViewCompensation: canViewFinance || canEditEmployee,
+      canViewCompensation: canViewFinance,
+      canEditPersonalFinance: canViewFinance && canEditEmployee,
     },
   };
 }

@@ -9,6 +9,8 @@ export type AdminEmployeeDatabaseUpdate = Partial<{
   phone: string | null;
   branch_code: string | null;
   status: string;
+  bank_name: string | null;
+  bank_account_number: string | null;
 }>;
 
 export interface AdminMutationTrace {
@@ -71,7 +73,7 @@ export async function persistAdminEmployee(
 
   try {
     const readback = await supabase.from('employees')
-      .select('id, full_name, email, title, phone, status, is_active, auth_user_id, branch_code')
+      .select('id, full_name, email, title, phone, status, is_active, auth_user_id, branch_code, bank_name, bank_account_number')
       .eq('id', employeeId)
       .maybeSingle();
     return { data: readback.data, readbackError: readback.error };

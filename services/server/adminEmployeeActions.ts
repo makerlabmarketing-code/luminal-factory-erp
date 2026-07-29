@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { AuthFlowError, type AuthFailureStage, type AuthFlowErrorCode } from '@/services/server/auth';
+import { AuthFlowError, hasPermission, type AuthFailureStage, type AuthFlowErrorCode } from '@/services/server/auth';
 import { requireAdminEmployeePermission } from '@/services/server/adminEmployeeData';
 import { AdminClientError, createSupabaseAdminClient } from '@/utils/supabase/admin';
 import { persistAdminEmployee, sanitizeAdminMutationFailure, type AdminEmployeeDatabaseUpdate } from '@/services/server/adminEmployeePersistence';
@@ -31,6 +31,8 @@ interface EmployeeMutationInput {
   title?: unknown;
   department?: unknown;
   phone?: unknown;
+  bankName?: unknown;
+  bankAccountNumber?: unknown;
   employmentStatus?: unknown;
 }
 
@@ -158,6 +160,8 @@ async function buildEmployeeUpdatePayload(
   if (Object.prototype.hasOwnProperty.call(input, 'email')) payload.email = validateEmail(input.email);
   if (Object.prototype.hasOwnProperty.call(input, 'title')) payload.title = cleanText(input.title);
   if (Object.prototype.hasOwnProperty.call(input, 'phone')) payload.phone = normalizeEmployeePhone(input.phone);
+  if (Object.prototype.hasOwnProperty.call(input, 'bankName')) payload.bank_name = cleanText(input.bankName, 120);
+  if (Object.prototype.hasOwnProperty.call(input, 'bankAccountNumber')) payload.bank_account_number = cleanText(input.bankAccountNumber, 80);
   if (Object.prototype.hasOwnProperty.call(input, 'employmentStatus')) payload.status = validateEmploymentStatus(input.employmentStatus);
   if (Object.prototype.hasOwnProperty.call(input, 'department')) {
     payload.branch_code = await validateFacilityAssignment(input.department, current.branch_code);
@@ -558,6 +562,10 @@ export async function createEmployee(input: EmployeeMutationInput): Promise<Admi
 
 export async function updateEmployee(employeeId: string, input: EmployeeMutationInput, correlationId?: string): Promise<AdminActionResult> {
   const actor = await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
+  const touchesPersonalFinance = Object.prototype.hasOwnProperty.call(input, 'bankName') || Object.prototype.hasOwnProperty.call(input, 'bankAccountNumber');
+  if (touchesPersonalFinance && !(await hasPermission(actor, 'FINANCE_VIEW'))) {
+    safeFailure(403, 'permission_forbidden', 'Bạn không có quyền cập nhật thông tin tài chính cá nhân.', 'permission_check');
+  }
   const targetEmployee = await loadTargetEmployee(employeeId);
 
   const payload = await buildEmployeeUpdatePayload(input, targetEmployee);

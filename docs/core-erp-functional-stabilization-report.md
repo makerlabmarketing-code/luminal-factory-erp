@@ -126,3 +126,9 @@ This section supersedes earlier classifications in this report where later Payro
 All safe Item 15 application work is complete. Employee Profile persistence is closed with `EMPLOYEE_PROFILE_PERSISTENCE_PASS`. Attendance application work is `APPLICATION_COMPLETE`, repository validation is `PASS`, and live Gate 2 is `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`; no production SQL, authenticated production verification, runtime activation, or live Attendance PASS occurred. The operator must verify migration history, run the read-only pre-run, retain post-run evidence, perform authenticated authorization/smoke checks, and keep `ATTENDANCE_RECOVERY_ENABLED=false` until all evidence passes.
 
 After operator-only, approval-only, and deployment-only items are skipped, there is no approved safe Cloud application item. The exact next incomplete roadmap item remains **Item 16, Gate 2 — Attendance recovery operator evidence**. Remaining business decisions are the Phase Template contract and the bounded dependency scope for any future SaaS UI foundation; broad re-skin remains blocked.
+
+## 2026-07-29 bounded stabilization update
+
+Employee Detail completeness is `FUNCTIONAL`: existing identity, employment, facility, account, project, contact, payroll and banking sources are inventoried; nullable values no longer resemble load failures; optional enrichment stays section-local; and Admin tabs preserve permission-aware independent saves. No employee schema change was required.
+
+ERP transactional test delivery is `APPLICATION_COMPLETE / READY_FOR_OPERATOR`. It is server-only, default-disabled, Admin-authorized, one-recipient, placeholder-validating and correlation/failure-sanitizing. Required Vercel values and the live operator checklist are in [email-setup.md](email-setup.md). Supabase Auth email is not an ERP transactional provider. No production runtime activation or delivery is claimed.
