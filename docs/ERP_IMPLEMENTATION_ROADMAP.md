@@ -86,7 +86,7 @@ Facility Directory and Attendance are no longer active repository work. Their ap
 
 Applying the required skip rule to production SQL, authenticated production sessions, runtime activation, business approval, and deployment-only evidence leaves **no currently executable safe Cloud roadmap item**. The exact next incomplete item remains **Item 16, Gate 2 — Attendance recovery**, but it is operator-only. Items 12 and 13 are repository-complete packages awaiting operator delivery; items 17–19 remain approval- or dependency-blocked. This continuation therefore does not invent Attendance work, reopen Employee Profile, or jump ahead to SaaS UI or production hardening.
 
-The exact next action is the Attendance operator sequence above. New Cloud application work becomes eligible only after retained evidence or an approved scope makes a later dependency-blocked item safe. Remaining business decisions are the Phase Template contract and the bounded scope/dependency boundary for any SaaS UI foundation; broad re-skin remains blocked. Until then, no SQL, runtime activation, deployment, merge, speculative application work, or SaaS UI re-skin is authorized.
+The exact next operational action is the Attendance operator sequence above. The next business action is approval of the bounded [Phase Template decision package](phase-template-business-decision.md); this planning package does not reopen Attendance or authorize Phase Template implementation. New Cloud application work becomes eligible only after retained evidence or an approved scope makes a later dependency-blocked item safe. The bounded scope/dependency boundary for any SaaS UI foundation also remains undecided, and broad re-skin remains blocked. Until then, no SQL, runtime activation, deployment, merge, speculative application work, or SaaS UI re-skin is authorized.
 
 ## Seven runtime gates
 
@@ -110,7 +110,7 @@ Facility/Attendance and Project Workflow are independent roots. Within Project W
 
 ## Historical status normalization
 
-Earlier batch numbers, corrective slices, and “Phase 1–5 Project Workflow Completion” entries are commit/history labels, not parallel roadmap items. Their delivered application work is incorporated into items 1–16 above and must not be reopened or scheduled independently. The old Phase Template proposal is `DEFERRED` under the blocked Project Workflow/finance decision boundary; the earlier broad UI-polish phase is `SUPERSEDED` by items 17 and 18. Commit history remains the immutable implementation narrative; this document is the current scheduling authority.
+Earlier batch numbers, corrective slices, and “Phase 1–5 Project Workflow Completion” entries are commit/history labels, not parallel roadmap items. Their delivered application work is incorporated into items 1–16 above and must not be reopened or scheduled independently. The old Phase Template SQL proposal is `DEFERRED` and non-executable; the [current business-decision package](phase-template-business-decision.md) owns approval of scope, permissions, lifecycle, seeds, and compatibility. Phase Templates remain `BLOCKED_BY_BUSINESS_DECISION`. The earlier broad UI-polish phase is `SUPERSEDED` by items 17 and 18. Commit history remains the immutable implementation narrative; this document is the current scheduling authority.
 
 ## Rollback
 
