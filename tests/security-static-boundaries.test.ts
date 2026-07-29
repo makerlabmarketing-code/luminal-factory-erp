@@ -38,7 +38,7 @@ describe('static security boundaries', () => {
     );
 
     const offenders = files.filter((file) => {
-      if (file.endsWith('utils/supabase/admin.ts')) return false;
+      if (file.replaceAll('\\', '/').endsWith('utils/supabase/admin.ts')) return false;
       const source = readFileSync(file, 'utf8');
       return /SUPABASE_SERVICE_ROLE_KEY|service[_-]?role/i.test(source);
     });
