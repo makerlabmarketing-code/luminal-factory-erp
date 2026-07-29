@@ -1,5 +1,24 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-07-30 Attendance current-shift regression
+
+Fresh production evidence invalidated the prior Attendance application-complete
+claim. The Staff page treated a historical unfinished `attendance` row as
+today's active shift, displayed an unbounded duration and three provisional
+shifts, and did not visibly transition after the attempted checkout.
+
+The repository application correction is `APPLICATION_COMPLETE`: current shift state is explicit,
+previous-date open rows are read-only operator warnings, GPS is check-in-only,
+successful mutations return and apply persisted state before background refresh,
+completed records alone contribute shift units, and the primary action is
+compact. Repository validation and the exact recovery boundary are recorded in
+[attendance-current-shift-state-regression.md](attendance-current-shift-state-regression.md).
+
+No SQL, runtime activation, production mutation, deployment, Facility Fixture 4
+PASS, Facility Fixture 5, or Attendance Gate 2 continuation is claimed. The
+existing stale row is `READY_FOR_OPERATOR` under the prepared Attendance
+recovery package; `ATTENDANCE_RECOVERY_ENABLED` remains false or unset.
+
 **Reconciled:** 2026-07-29
 **Repository baseline:** `bb3f431` (`docs: prepare phase template decision package (#91)`)
 **Scope:** repository evidence only. This reconciliation did not execute SQL/RPC, enable a runtime flag, deploy, merge, begin SaaS UI work, or inspect GitHub comments.
