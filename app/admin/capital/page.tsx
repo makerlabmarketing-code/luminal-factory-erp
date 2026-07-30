@@ -1,6 +1,7 @@
 // app/admin/capital/page.tsx
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { supabase } from '@/utils/supabase/client';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
@@ -782,7 +783,7 @@ export default function AdminFinancialLedger() {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-sm text-center space-y-4 relative text-slate-200 shadow-2xl">
             <button onClick={() => { setShowQrModal(false); setActiveQrUrl(''); }} className="absolute top-4 right-4 text-slate-500"><X className="w-5 h-5" /></button>
             <h3 className="font-black text-xs uppercase tracking-wider text-cyan-400">{activeQrTarget.title}</h3>
-            <div className="bg-white p-3 rounded-2xl inline-block border-4 border-cyan-500/30"><img src={activeQrUrl} alt="VietQR" className="w-60 h-60 object-contain" /></div>
+            <div className="inline-block rounded-2xl border-4 border-cyan-500/30 bg-white p-3"><Image src={activeQrUrl} alt="VietQR" width={240} height={240} unoptimized className="h-60 w-60 object-contain" /></div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-left space-y-1 text-[11px] font-mono leading-relaxed">
               <p><span className="text-slate-500">Ngân hàng:</span> <span className="text-cyan-400 font-bold">{activeQrTarget.bankName}</span></p>
               <p><span className="text-slate-500">Số tài khoản:</span> <span className="text-slate-200 font-bold">{activeQrTarget.accountNo}</span></p>

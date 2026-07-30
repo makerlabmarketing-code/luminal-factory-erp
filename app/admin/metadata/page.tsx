@@ -1,6 +1,6 @@
 // app/admin/metadata/page.tsx
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/utils/supabase/client";
 import { useNotification } from "@/component/NotificationContext";
 import {
@@ -35,7 +35,7 @@ export default function MetadataManagement() {
 
   const [newCatName, setNewCatName] = useState("");
 
-  const loadMetadata = async () => {
+  const loadMetadata = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await supabase
@@ -46,19 +46,21 @@ export default function MetadataManagement() {
         data && data.length > 0 ? data : DEFAULT_SYSTEM_METADATA_CATEGORIES
       ) as SystemMetadataCategory[];
       setCategories(loadedCategories);
-      if (loadedCategories.length > 0 && !selectedCatId) {
-        setSelectedCatId(loadedCategories[0].id.toString());
+      if (loadedCategories.length > 0) {
+        setSelectedCatId((currentCategoryId) =>
+          currentCategoryId || loadedCategories[0].id.toString(),
+        );
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadMetadata();
-  }, []);
+    void loadMetadata();
+  }, [loadMetadata]);
 
   const handleCategoryFilterChange = (catId: string) => {
     setSelectedCatId(catId);
