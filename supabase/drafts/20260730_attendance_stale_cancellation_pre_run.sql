@@ -8,6 +8,8 @@ select
   a.work_date,
   a.check_in,
   a.check_out,
+  a.total_hours,
+  a.total_salary,
   a.status,
   a.cancellation_reason,
   a.cancelled_by_employee_id,
@@ -23,6 +25,8 @@ where a.id = :'target_row_id'::bigint
   and a.work_date = date '2026-05-21'
   and a.check_in is not null
   and a.check_out is null
+  and (a.total_hours is null or a.total_hours = 0)
+  and (a.total_salary is null or a.total_salary = 0)
   and a.cancelled_at is null;
 
 select count(*) as employee_open_row_count

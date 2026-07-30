@@ -18,6 +18,8 @@ declare
   settlement_count integer;
   changed_count integer;
   old_status text;
+  old_total_hours numeric;
+  old_total_salary numeric;
 begin
   if length(reason_text) < 10 then raise exception 'Cancellation reason must contain at least 10 characters'; end if;
   if not exists (select 1 from public.employees e where e.id = actor and e.status = 'ACTIVE' and coalesce(e.is_active, true)) then
@@ -31,14 +33,16 @@ begin
   end if;
 
   perform 1 from public.attendance a where a.employee_id = employee for update;
-  select count(*), min(a.status) into target_count, old_status
+  select count(*), min(a.status), min(a.total_hours), min(a.total_salary)
+  into target_count, old_status, old_total_hours, old_total_salary
   from public.attendance a
   where a.id = target_id and a.employee_id = employee
     and a.work_date = date '2026-05-21'
     and a.check_in is not null and a.check_out is null
-    and a.total_hours is null and a.total_salary is null
+    and (a.total_hours is null or a.total_hours = 0)
+    and (a.total_salary is null or a.total_salary = 0)
     and a.cancelled_at is null;
-  if target_count <> 1 then raise exception 'Expected exactly one still-open 2026-05-21 target row; found %', target_count; end if;
+  if target_count <> 1 then raise exception 'Expected exactly one still-open zero-contribution 2026-05-21 target row; found %', target_count; end if;
 
   select count(*) into open_count from public.attendance a
   where a.employee_id = employee and a.check_in is not null and a.check_out is null
@@ -53,9 +57,15 @@ begin
 
   update public.attendance
   set cancellation_reason = reason_text,
-      cancelled_by_employee_id = actor, cancelled_at = stamp
+      cancelled_by_employee_id = actor,
+      cancelled_at = stamp,
+      total_hours = null,
+      total_salary = null
   where id = target_id and employee_id = employee and work_date = date '2026-05-21'
-    and check_in is not null and check_out is null and cancelled_at is null;
+    and check_in is not null and check_out is null
+    and (total_hours is null or total_hours = 0)
+    and (total_salary is null or total_salary = 0)
+    and cancelled_at is null;
   get diagnostics changed_count = row_count;
   if changed_count <> 1 then raise exception 'Cancellation changed % rows instead of one', changed_count; end if;
 
@@ -64,6 +74,11 @@ begin
      reason, actor_employee_id, occurred_at, details)
   values
     (target_id, employee, 'CANCELLED', old_status, old_status, reason_text,
-     actor, stamp, jsonb_build_object('work_date', '2026-05-21', 'checkout_invented', false));
+     actor, stamp, jsonb_build_object(
+       'work_date', '2026-05-21',
+       'checkout_invented', false,
+       'previous_total_hours', old_total_hours,
+       'previous_total_salary', old_total_salary
+     ));
 end $$;
 commit;
