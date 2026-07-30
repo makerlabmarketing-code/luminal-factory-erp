@@ -26,7 +26,7 @@ import {
 import { loadFacilityDirectory } from '@/services/server/facilityDirectory';
 
 const ATTENDANCE_SELECT =
-  'id, employee_id, work_date, shift_name, check_in, check_out, total_hours, total_salary, status';
+  'id, employee_id, work_date, shift_name, check_in, check_out, total_hours, total_salary, status, cancelled_at';
 const STAFF_ATTENDANCE_ALLOWED_FIELDS = new Set(['action', 'month', 'userLat', 'userLng']);
 
 class StaffAttendanceError extends Error {

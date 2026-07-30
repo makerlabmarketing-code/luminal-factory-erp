@@ -25,6 +25,43 @@ describe('Attendance Gate 2 repository package', () => {
     expect(adminRoute).toMatch(/process\.env\.ATTENDANCE_RECOVERY_ENABLED === 'true'/);
   });
 
+  it('provides an audited one-row cancellation instead of a forced checkout', () => {
+    const forward = source('supabase/drafts/20260730_attendance_stale_cancellation_forward.sql');
+    expect(forward).toMatch(/a\.id = target_id and a\.employee_id = employee/);
+    expect(forward).toContain("date '2026-05-21'");
+    expect(forward).toMatch(/check_in is not null and a\.check_out is null/);
+    expect(forward).toMatch(/if target_count <> 1 then raise exception/);
+    expect(forward).toMatch(/if open_count <> 1 then raise exception/);
+    expect(forward).toMatch(/if settlement_count <> 0 then raise exception/);
+    expect(forward).toContain('set cancellation_reason = reason_text');
+    expect(forward).toContain('cancelled_by_employee_id = actor');
+    expect(forward).toContain('cancelled_at = stamp');
+    expect(withoutSqlComments(forward)).not.toMatch(/set\s+check_out\s*=|delete\s+from\s+public\.attendance/i);
+  });
+
+  it('retains immutable audit history and excludes cancellation from payroll', () => {
+    const migration = source('supabase/migrations/20260730024246_attendance_cancellation_audit.sql');
+    expect(migration).toMatch(/attendance_cancellation_audit_immutable[\s\S]*before update or delete/);
+    expect(migration).toContain('a.cancelled_at is null');
+    expect(migration).toMatch(/revoke all on public\.attendance_cancellation_audit from public, anon, authenticated/);
+    expect(migration).not.toMatch(/grant\s+(insert|update|delete|all)/i);
+  });
+
+  it('aborts wrong counts, payroll links, and already-closed targets', () => {
+    const forward = source('supabase/drafts/20260730_attendance_stale_cancellation_forward.sql');
+    expect(forward).toContain("Expected exactly one still-open 2026-05-21 target row");
+    expect(forward).toContain("Attendance row is referenced by % finalized payroll settlement item(s)");
+    expect(forward).toMatch(/check_out is null[\s\S]*target_count <> 1/);
+  });
+
+  it('rolls back only the explicit row and preserves both audit events', () => {
+    const rollback = source('supabase/rollbacks/20260730_attendance_stale_cancellation_rollback.sql');
+    expect(rollback).toMatch(/where id = target_id and employee_id = employee and cancelled_at is not null/);
+    expect(rollback).toMatch(/if changed_count <> 1 then raise exception/);
+    expect(rollback).toContain("'ROLLBACK_RESTORED'");
+    expect(rollback).not.toMatch(/delete\s+from/i);
+  });
+
   it('preflights every relation and helper required by the tracked forward migration', () => {
     const preRun = source('supabase/drafts/20260728_attendance_recovery_pre_run.sql');
 
