@@ -21,6 +21,7 @@ export interface AttendanceRecord {
     adjustment_note?: string | null;
     adjusted_by_employee_id?: number | string | null;
     adjusted_by_name?: string | null;
+    cancelled_at?: string | null;
     source?: 'attendance' | 'attendance_logs';
   }
   

@@ -197,7 +197,7 @@ The explicitly approved Cloud slice is `APPLICATION_COMPLETE`. Employee Detail n
 
 ERP transactional email now has a default-disabled server SMTP gate, Admin-authorized single-recipient test action, preview, placeholder blocking, duplicate-submit protection, sanitized correlation/failure logging, and controlled result/toast states. Supabase Auth remains exclusively responsible for authentication mail. No secret, SQL, bulk/automatic send, runtime activation, deployment, or live email was performed. Production activation is `READY_FOR_OPERATOR` under [email-setup.md](email-setup.md).
 
-**Exact next roadmap item:** Item 16, Gate 2 — Attendance recovery operator evidence. It remains `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`; there is no further safe application implementation for that gate.
+**Exact next roadmap item:** Item 16, Gate 2 — Attendance recovery operator evidence. The audited stale-row cancellation package is `PACKAGE_READY_FOR_OPERATOR`; production target identity, the expected one-row result, SQL execution, and live PASS remain operator-evidence gated. `ATTENDANCE_RECOVERY_ENABLED` remains false/unset.
 
 ## 2026-07-29 — Employee Detail tab completeness clarification
 

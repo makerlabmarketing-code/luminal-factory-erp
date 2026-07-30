@@ -132,6 +132,27 @@ describe('attendance shift calculation', () => {
     expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: '14:01:00' })).toBe(3);
   });
 
+  it('excludes cancelled rows from finalized hours and shifts while retaining the row', () => {
+    const cancelled = {
+      id: 91,
+      employee_id: 3,
+      work_date: '2026-05-21',
+      shift_name: 'Ca Sáng',
+      check_in: '08:00:00',
+      check_out: '11:00:00',
+      total_hours: 3,
+      status: 'CANCELLED',
+      cancelled_at: '2026-07-30T02:00:00Z',
+    };
+
+    expect(calculateFinalizedAttendanceSummary([cancelled])).toEqual({
+      totalShifts: 0,
+      totalHours: 0,
+    });
+    expect(mergeAttendanceRecords([cancelled])).toHaveLength(1);
+    expect(mergeAttendanceRecords([cancelled])[0].status).toBe('CANCELLED');
+  });
+
   it('uses the Asia/Ho_Chi_Minh date boundary for stale detection and shift names', () => {
     const beforeMidnight = new Date('2026-07-29T16:59:59.999Z');
     const afterMidnight = new Date('2026-07-29T17:00:00.000Z');

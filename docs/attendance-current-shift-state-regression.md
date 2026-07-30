@@ -87,27 +87,18 @@ Attendance recovery package:
 4. Rollback:
    `supabase/rollbacks/20260715073600_attendance_recovery_rls_rollback.sql`
 
-Authorization package status: `READY_FOR_OPERATOR`. Stale-row correction
-status: `BUSINESS_DECISION_REQUIRED`. Do not replay a migration already
-recorded remotely. Do not execute SQL or enable
-`ATTENDANCE_RECOVERY_ENABLED` from this application task.
+The original authorization package establishes the RLS boundary but does not
+provide audited cancellation. The business owner has now approved invalidation
+of the legacy/test row without a checkout timestamp and with zero Attendance or
+Payroll contribution. The reviewed cancellation migration, read-only pre-run,
+one-row forward, post-run, validation, immutable audit, authorization checks,
+rollback, and exact commands are owned by
+`docs/attendance-stale-row-cancellation-operator-runbook.md`.
 
-The read-only schema audit confirmed exactly one matching stale row. The live
-`attendance` table has no adjustment-reason, adjustment-actor, or adjustment
-timestamp columns and no audit trigger. The listed package establishes the RLS
-authorization boundary; it is not an auditable data-repair script.
-
-Before a one-row recovery can be prepared, the business owner must choose one
-of these outcomes:
-
-1. The row represents real work: provide the actual checkout date/time and
-   decide whether the completed shift contributes to May payroll.
-2. The row is an erroneous or abandoned check-in: approve invalidation and
-   confirm that it contributes zero hours and zero payroll.
-
-Do not invent a checkout time. Any later correction must target exactly the
-single approved row and retain actor, execution timestamp, old value, new
-value, effective business date, and reason in an approved audit record.
+Package status is `PACKAGE_READY_FOR_OPERATOR`. Only operator-retained pre-run
+evidence may establish the production target and affected-row count. Do not
+execute SQL, replay a recorded migration, enable `ATTENDANCE_RECOVERY_ENABLED`,
+or claim live PASS from repository preparation.
 
 The read-only candidate search found no other active employee that
 simultaneously has `STAFF_WORKSPACE`, an active Facility assignment, a linked

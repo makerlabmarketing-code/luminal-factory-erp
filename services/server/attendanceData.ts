@@ -18,7 +18,7 @@ import {
 } from '@/services/attendanceService';
 
 export const ATTENDANCE_SELECT =
-  'id, employee_id, work_date, shift_name, check_in, check_out, total_hours, total_salary, status';
+  'id, employee_id, work_date, shift_name, check_in, check_out, total_hours, total_salary, status, cancelled_at';
 export const ATTENDANCE_LOG_SELECT =
   'id, employee_id, check_in_time, check_out_time, hours_worked, earnings_today, status';
 export const EMPLOYEE_SELECT =

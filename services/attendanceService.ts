@@ -127,6 +127,7 @@ function laterTime(first: string | null | undefined, second: string | null | und
 }
 
 export function getWorkedMinutesForRecord(record: AttendanceRecord, now = new Date()): number {
+  if (isAttendanceRecordCancelled(record)) return 0;
   const storedHours = normalizeHoursValue(record.total_hours);
   if (storedHours !== null && record.check_out) {
     return Math.round(storedHours * 60);
@@ -236,11 +237,15 @@ export function mergeAttendanceRecords(records: AttendanceRecord[]): AttendanceR
 }
 
 export function isAttendanceRecordComplete(record: AttendanceRecord): boolean {
-  return Boolean(record.check_in && record.check_out);
+  return !isAttendanceRecordCancelled(record) && Boolean(record.check_in && record.check_out);
+}
+
+export function isAttendanceRecordCancelled(record: AttendanceRecord): boolean {
+  return record.status === 'CANCELLED' || Boolean(record.cancelled_at);
 }
 
 export function isMissingCheckoutRecord(record: AttendanceRecord): boolean {
-  return Boolean(record.check_in && !record.check_out);
+  return !isAttendanceRecordCancelled(record) && Boolean(record.check_in && !record.check_out);
 }
 
 export function isOpenAttendanceRecordStale(
