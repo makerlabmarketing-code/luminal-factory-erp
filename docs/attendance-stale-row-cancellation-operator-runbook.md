@@ -22,6 +22,8 @@ Before continuing, retain outputs proving all of the following:
 
 - the supplied target ID and employee ID `3` identify exactly one still-open row
   dated `2026-05-21`;
+- that row's provisional `total_hours` and `total_salary` are each either
+  `NULL` or exactly zero; any non-zero value requires a business decision;
 - that row is employee 3's only open, non-cancelled Attendance row;
 - no finalized payroll settlement summary references the target ID;
 - the supplied actor is active and has effective `ADMIN_WORKSPACE` plus
@@ -57,8 +59,8 @@ psql "$DATABASE_URL" -X \
 
 Review the retained pre-run output. Continue only when the exact target count
 and employee open-row count are both `1`, settlement references are `0`, actor
-checks pass, and the grants inventory contains only the intended authenticated
-`SELECT` grant.
+checks pass, both provisional totals are `NULL` or exactly zero, and the grants
+inventory contains only the intended authenticated `SELECT` grant.
 
 ```bash
 psql "$DATABASE_URL" -X \
@@ -85,8 +87,12 @@ PASS requires the target to remain present with `check_out`, `total_hours`, and
 `total_salary` all `NULL`; the original status preserved; exact actor/reason/timestamp
 metadata; one `CANCELLED` audit event; zero open-target rows; zero settlement
 references; zero invalid/forbidden result rows; and the immutable trigger in the
-final inventory. Keep `ATTENDANCE_RECOVERY_ENABLED=false` throughout this
-one-row package.
+final inventory. A zero-valued legacy total is provisional input only and is
+normalized to `NULL` by the same cancellation update so the cancelled row has
+zero finalized contribution. The immutable cancellation event retains both
+original provisional totals so an approved rollback can restore their exact
+`NULL` or zero representation. Keep `ATTENDANCE_RECOVERY_ENABLED=false`
+throughout this one-row package.
 
 ## Rollback sequence (only after an approved rollback decision)
 
@@ -115,5 +121,6 @@ psql "$DATABASE_URL" -X \
 ```
 
 Rollback PASS requires the preserved status and open state to remain only
-for the explicit target, cancellation metadata cleared, and both immutable
-`CANCELLED` and `ROLLBACK_RESTORED` events retained.
+for the explicit target, cancellation metadata cleared, original provisional
+totals restored exactly, and both immutable `CANCELLED` and
+`ROLLBACK_RESTORED` events retained.
