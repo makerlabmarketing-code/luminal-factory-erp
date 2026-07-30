@@ -1,6 +1,6 @@
 // app/admin/email-editor/page.tsx
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/utils/supabase/client';
 import { useNotification } from '@/component/NotificationContext';
 import { Mail, Plus, Trash2, Edit2, X, Save, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RefreshCcw, Send, Sparkles } from 'lucide-react';
@@ -55,7 +55,7 @@ export default function AdminEmailTemplates() {
   const currentForm = { groupType, scriptName, subject, body };
   const isDirty = JSON.stringify(currentForm) !== JSON.stringify(initialForm);
 
-  const loadData = async (isInitial = true) => {
+  const loadData = useCallback(async (isInitial = true) => {
     if (isInitial) setLoading(true);
     setDbError(null);
     try {
@@ -73,8 +73,8 @@ export default function AdminEmailTemplates() {
         setDbError(error.message);
       } else {
         setTemplates(data || []);
-        if (data && data.length > 0 && !selectedPreview) {
-          setSelectedPreview(data[0]);
+        if (data && data.length > 0) {
+          setSelectedPreview((currentPreview) => currentPreview ?? data[0]);
         }
       }
     } catch {
@@ -82,9 +82,9 @@ export default function AdminEmailTemplates() {
     } finally {
       if (isInitial) setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadData(true); }, []);
+  useEffect(() => { void loadData(true); }, [loadData]);
 
   const handleOpenAdd = () => {
     const next = { ...emptyForm, groupType: emailGroups[0]?.code || 'WELCOME' };

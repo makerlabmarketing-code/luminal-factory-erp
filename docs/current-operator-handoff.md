@@ -128,3 +128,9 @@ The exact next roadmap item remains **Item 16, Gate 2 — Attendance recovery op
 ## 2026-07-29 Employee Detail tab clarification
 
 The seven-tab audit is complete in [employee-detail-tab-audit.md](employee-detail-tab-audit.md). Existing sources are wired within their business tabs; no duplicate mutation path was added. Missing personal/job/audit sources are `SCHEMA_EXTENSION_REQUIRED`, and package `20260729_employee_profile_extension` is `READY_FOR_OPERATOR` but remains draft-only outside `supabase/migrations/`. No SQL was executed. Operator/business review must decide field semantics, sensitive read/edit policy, audit retention and whether the reviewed forward draft may become a tracked migration.
+
+## 2026-07-30 Cloud validation remediation
+
+New lint evidence made one bounded application slice safe: the email-template and metadata loaders now have stable effect dependencies without resetting the active preview/category, and the VietQR modal uses a dimensioned Next.js image boundary. Focused regression coverage was added. This does not alter any database/operator package, runtime flag, production state, or approved business contract.
+
+The exact deferred operator sequence and package order remain unchanged. Attendance Gate 2 is still the next incomplete operator-owned action. After resolving this concrete repository defect, no additional roadmap item is `SAFE_CLOUD_WORK_AVAILABLE`; do not reopen preserved packages or begin blocked Phase Template/SaaS work without new evidence or approval.
