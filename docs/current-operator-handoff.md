@@ -38,37 +38,32 @@ redacted synchronization transcript.
 ### B. Attendance stale-row cancellation
 
 Authority: [Attendance stale-row audited cancellation operator runbook](attendance-stale-row-cancellation-operator-runbook.md).
-PR #100 (`b8a8bfb`) is merged. Earlier forward attempts rolled back safely and
-no successful cancellation mutation is recorded.
+PR #100 (`b8a8bfb`) is merged. The approved production correction is complete:
+the guarded forward committed exactly once, the post-run passed, and the
+package-wide read-only validation passed. Exactly one Attendance row is
+cancelled and immutable cancellation audit event ID `1` is retained.
 
-1. Derive the current commands and filenames from the runbook and rerun its
-   updated read-only pre-run. Retain `attendance-cancellation-pre-run.txt`.
-2. Require all of the following: exact target count **1**; employee open-row
-   count **1**; `total_hours` is `NULL` or exact zero; `total_salary` is `NULL`
-   or exact zero; Payroll references **0**; actor is `ACTIVE`;
-   `ADMIN_WORKSPACE` is `PASS`; `ATTENDANCE_MANAGE` is `PASS`; active deny
-   count is **0**; grant inventory exactly as documented.
-3. **Stop for explicit mutation approval.** Do not weaken a predicate or change
-   an ID to make the guard pass.
-4. After approval, run the guarded forward exactly once. Expected affected
-   target-row count: **1**; retain the forward transcript.
-5. Run the package post-run and retain
-   `attendance-cancellation-post-run.txt`.
-6. Run package-wide validation and retain
-   `attendance-cancellation-validation.txt`.
-7. Retain the pre-run, approval, forward, post-run, validation, migration-history,
-   authorization/RLS, and smoke evidence together without secrets or PII.
-8. Perform Staff/Admin production smoke exactly as the runbook and production
-   runtime-gate runbook specify.
-9. Keep `ATTENDANCE_RECOVERY_ENABLED=false` or unset until every retained check
-   passes. Flag enablement is a separate approval, not part of this package.
+Retained evidence:
 
-Stop on any predicate/count mismatch, non-zero legacy total, Payroll reference,
-authorization/grant failure, unexpected affected-row count, missing immutable
-audit evidence, normal Staff check-in/out regression, or Admin denial/bypass.
-Rollback, only after separate approval, uses
-`supabase/rollbacks/20260730_attendance_stale_cancellation_rollback.sql` and the
-retained cancellation audit ID.
+- forward: `C:\Users\tungd\AppData\Local\Temp\attendance-cancellation-forward.txt`
+- post-run: `C:\Users\tungd\AppData\Local\Temp\attendance-cancellation-post-run.txt`
+- package validation: `C:\Users\tungd\AppData\Local\Temp\attendance-cancellation-validation.txt`
+
+Verified state: employee open-row count **0**; `check_out`, `total_hours`, and
+`total_salary` are `NULL`; finalized Payroll references **0**; duplicate state
+count **0**; audit event ID `1` is unique and protected by the immutable trigger
+and current grants.
+
+The next Attendance gate is production Staff/Admin smoke only. Perform that
+smoke exactly as the runbook and production runtime-gate runbook specify, retain
+the authorization/RLS and smoke evidence, and stop on any normal Staff
+check-in/out regression, authorization failure, Admin denial/bypass, count
+drift, or smoke failure.
+
+Keep `ATTENDANCE_RECOVERY_ENABLED=false`. Do not replay the forward. Rollback is
+not approved and remains separately approval-gated through
+`supabase/rollbacks/20260730_attendance_stale_cancellation_rollback.sql` using
+retained audit event ID `1`.
 
 ### C. Finance linked-ledger atomic edit
 
