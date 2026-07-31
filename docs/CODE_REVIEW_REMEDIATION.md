@@ -338,7 +338,7 @@ No SQL, RPC, migration, RLS/grant/permission mutation, production-row inspection
 
 ## 2026-07-31 Staff Task loader resilience review
 
-`REVIEW_SOURCE_UNAVAILABLE`: the checkout contains only the local `work` ref and has no configured remote or hosted PR metadata. Per the continuation boundary, hosted URLs were not retried. Current repository code, the consolidated roadmap/operator handoff, existing remediation ledger, and focused regression tests were used as the available review sources.
+The supplied preparation commit `9bcacfa` is represented by PR #107 and merged repository commit `8836b25`. The checkout still has no configured remote or hosted URL metadata, so no URL is claimed or retried. This reconciliation reuses that existing PR identity and does not create a duplicate pull request.
 
 | Finding | Classification | Evidence | Remediation / status |
 | --- | --- | --- | --- |
@@ -346,4 +346,4 @@ No SQL, RPC, migration, RLS/grant/permission mutation, production-row inspection
 | Failed manual refresh reported success and exposed no page-local recovery state. | P2_FUNCTIONAL_DEFECT | `loadTasksData` swallowed failures while `handleStaffRefresh` always emitted the success toast. | The loader now returns an explicit outcome, retains existing data, shows controlled Vietnamese error feedback, and renders a Retry warning. |
 | Repeated refresh clicks could overlap before a pending state became visible. | P2_FUNCTIONAL_DEFECT | The refresh action had neither a synchronous lock nor a disabled state. | Added a ref-backed synchronous lock, disabled/pending controls, and focused regression coverage. |
 
-Self-review found no actionable P0/P1 issue in this bounded application-only change. Task assignment and persistence gates remain unchanged. No SQL, production-row inspection, runtime activation, deployment, merge, or operator sequence change occurred.
+Self-review found no actionable P0/P1 issue in this bounded application-only change. PR #107 is merged, so the remediation is `COMPLETE_ON_MAIN` rather than `READY_FOR_PROTECTED_REVIEW`. The merged result fixes the duplicate initial fetch, refresh false-success, and overlapping refresh findings while preserving stale visible task data on refresh failure. Task assignment, persistence, business logic, and authorization gates remain unchanged. No SQL, production-row inspection, runtime activation, deployment, or operator sequence change occurred as part of the remediation delivery, and no completed task finding was reopened.
