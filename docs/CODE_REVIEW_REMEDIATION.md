@@ -335,3 +335,15 @@ No SQL, RPC, migration, RLS/grant mutation, production-row inspection, runtime-f
 | History retention, hard deletion, authorization, audit, and retry contracts are not approved. | BUSINESS_DECISION_REQUIRED | The repository has no retention job, archive/audit/retry model, or history-specific permissions; the UI currently deletes directly. | Documented concrete recommendations and alternatives without changing retention/deletion semantics, adding schema/RLS, or enabling retry/live email. |
 
 No SQL, RPC, migration, RLS/grant/permission mutation, production-row inspection, retention/deletion semantic change, runtime-flag/Vercel-variable change, live email, deployment, merge, or Attendance work was performed.
+
+## 2026-07-31 Staff Task loader resilience review
+
+`REVIEW_SOURCE_UNAVAILABLE`: the checkout contains only the local `work` ref and has no configured remote or hosted PR metadata. Per the continuation boundary, hosted URLs were not retried. Current repository code, the consolidated roadmap/operator handoff, existing remediation ledger, and focused regression tests were used as the available review sources.
+
+| Finding | Classification | Evidence | Remediation / status |
+| --- | --- | --- | --- |
+| Selecting the first Staff Task project recreated the loader callback and triggered a duplicate initial fetch. | P2_FUNCTIONAL_DEFECT | `loadTasksData` captured `selectedProjectName`, then changed it after the first successful response. | Replaced the captured-state branch with a functional state update and stabilized the callback on `workerData`; focused static coverage prevents the dependency regression. |
+| Failed manual refresh reported success and exposed no page-local recovery state. | P2_FUNCTIONAL_DEFECT | `loadTasksData` swallowed failures while `handleStaffRefresh` always emitted the success toast. | The loader now returns an explicit outcome, retains existing data, shows controlled Vietnamese error feedback, and renders a Retry warning. |
+| Repeated refresh clicks could overlap before a pending state became visible. | P2_FUNCTIONAL_DEFECT | The refresh action had neither a synchronous lock nor a disabled state. | Added a ref-backed synchronous lock, disabled/pending controls, and focused regression coverage. |
+
+Self-review found no actionable P0/P1 issue in this bounded application-only change. Task assignment and persistence gates remain unchanged. No SQL, production-row inspection, runtime activation, deployment, merge, or operator sequence change occurred.

@@ -5,7 +5,7 @@ import type {
   WorkflowSetting,
   WorkflowTask,
 } from '@/lib/types/workflow';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   Calendar,
@@ -48,17 +48,20 @@ export function StaffTasksContent({
   const [workerName, setWorkerName] = useState(workerData?.full_name || '');
   const [workerId, setWorkerId] = useState<number | string | null>(initialWorkerId);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [allWorkflowTasks, setAllWorkflowTasks] = useState<WorkflowSetting[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedProjectName, setSelectedProjectName] = useState<string | null>(null);
   const [localDriveInputs, setLocalDriveInputs] = useState<Record<string, string>>({});
   const [editableTasks, setEditableTasks] = useState<Record<string, EditableWorkflowTask>>({});
   const [savingTaskKey, setSavingTaskKey] = useState<string | null>(null);
+  const refreshLockRef = useRef(false);
 
   const loadTasksData = useCallback(async () => {
     if (!workerData) {
       setLoading(false);
-      return;
+      return true;
     }
 
     try {
@@ -74,28 +77,39 @@ export function StaffTasksContent({
       setLocalDriveInputs(maps.driveInputs);
       setEditableTasks(maps.editableTasks);
 
-      if (!selectedProjectName && tasksData.workflowItems.length > 0) {
+      setSelectedProjectName((currentProjectName) => {
+        if (currentProjectName || tasksData.workflowItems.length === 0) return currentProjectName;
         const groupedProjects = groupWorkflowByProject(tasksData.workflowItems);
         const firstProject = Object.keys(groupedProjects)[0];
-
-        if (firstProject) {
-          setSelectedProjectName(firstProject);
-        }
-      }
+        return firstProject || null;
+      });
+      setLoadFailed(false);
+      return true;
     } catch (error) {
       console.error(error);
+      setLoadFailed(true);
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [workerData, selectedProjectName]);
+  }, [workerData]);
 
   useEffect(() => {
     void loadTasksData();
   }, [loadTasksData]);
 
   const handleStaffRefresh = async () => {
-    await loadTasksData();
-    showToast('Hệ thống', 'Cập nhật thành công', 'success');
+    if (refreshLockRef.current) return;
+    refreshLockRef.current = true;
+    setIsRefreshing(true);
+    try {
+      const refreshed = await loadTasksData();
+      if (refreshed) showToast('Hệ thống', 'Cập nhật thành công', 'success');
+      else showToast('Không thể tải công việc', 'Vui lòng thử lại.', 'error');
+    } finally {
+      refreshLockRef.current = false;
+      setIsRefreshing(false);
+    }
   };
 
   const handleBufferChange = (
@@ -228,11 +242,21 @@ export function StaffTasksContent({
 
         <button
           onClick={handleStaffRefresh}
-          className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 p-2 rounded-xl transition flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+          disabled={isRefreshing}
+          className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 p-2 rounded-xl transition flex items-center gap-1 text-[11px] font-bold cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <RefreshCcw className="w-3.5 h-3.5" /> Làm mới dữ liệu
+          <RefreshCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} /> {isRefreshing ? 'Đang tải...' : 'Làm mới dữ liệu'}
         </button>
       </div>
+
+      {loadFailed && (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-red-900 bg-red-950/30 p-4 text-xs text-red-100 sm:flex-row sm:items-center sm:justify-between">
+          <span>Không thể tải công việc. Dữ liệu đang hiển thị có thể chưa được cập nhật.</span>
+          <button type="button" disabled={isRefreshing} onClick={handleStaffRefresh} className="rounded-lg border border-red-800 px-3 py-2 font-bold hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-50">
+            {isRefreshing ? 'Đang thử lại...' : 'Thử lại'}
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold tracking-wide">
         <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl flex items-center justify-between shadow-md">
