@@ -1,6 +1,6 @@
 # Linked finance ledger edit atomicity package
 
-Status: **READY_FOR_OPERATOR — NOT EXECUTED**.
+Status: **READY_FOR_LOCAL_OPERATOR — NOT EXECUTED**.
 
 ## Purpose
 
@@ -10,13 +10,14 @@ The reviewed forward draft provides the required single PostgreSQL transaction. 
 
 ## Exact operator sequence
 
-1. Review the pre-run, forward, validation, and rollback files together.
-2. In an approved non-production environment, run `supabase/drafts/20260731_finance_linked_ledger_edit_pre_run.sql` read-only and confirm the table, required columns, RLS, and policies.
-3. Confirm authenticated callers already have precisely the intended ledger INSERT/UPDATE/SELECT RLS access. Do not broaden a policy for this function.
-4. Apply `supabase/drafts/20260731_finance_linked_ledger_edit_forward.sql` in one approved change window.
+1. Pull latest `main` after the finance PR is merged.
+2. Run `supabase/drafts/20260731_finance_linked_ledger_edit_pre_run.sql` read-only.
+3. Confirm schema, RLS, policies, ownership, grants, and function prerequisites. Confirm authenticated callers already have precisely the intended ledger INSERT/UPDATE/SELECT RLS access; do not broaden a policy for this function.
+4. Apply the approved `SECURITY INVOKER` RPC from `supabase/drafts/20260731_finance_linked_ledger_edit_forward.sql` in one approved local change window.
 5. Run `supabase/validation/20260731_finance_linked_ledger_edit_validation.sql` and confirm one `security_definer = false` function, authenticated-only EXECUTE, and ledger RLS enabled.
-6. Exercise CREATE, UPDATE, CANCEL, and NONE in a disposable test transaction, including a forced dependent failure, then roll the test transaction back.
-7. Only after validation passes, wire the UI to the RPC and rerun the finance regression suite plus the full repository gates.
-8. If validation fails before application activation, run `supabase/drafts/20260731_finance_linked_ledger_edit_rollback.sql`.
+6. Wire the application to the RPC if it is not already wired.
+7. Test CREATE, UPDATE, CANCEL, and NONE in a disposable test transaction.
+8. Force a dependent failure and confirm no partial persistence, then roll the test transaction back.
+9. Retain pre-run, post-run, functional, forced-failure, and rollback evidence. If validation fails before application activation, run `supabase/drafts/20260731_finance_linked_ledger_edit_rollback.sql`.
 
 No SQL in this package was executed, no production rows were inspected, and no runtime flag was changed.
