@@ -323,3 +323,15 @@ refresh and fresh correlation logs confirm the production result.
 | Browser compensation is not a true atomic database boundary because the rollback request can also fail. | P1_PRODUCTION_BLOCKER / READY_FOR_OPERATOR | The interim client logs a sanitized correlation ID when compensation fails; only one database transaction can guarantee all-or-nothing persistence. | Prepared the non-executed `update_linked_financial_ledger_entry` `SECURITY INVOKER` RPC package with read-only pre-run, forward, post-run validation, rollback, RLS/grant checks, and operator sequence. UI wiring must wait until operator validation and approval. |
 
 No SQL, RPC, migration, RLS/grant mutation, production-row inspection, runtime-flag change, deployment, merge, or Attendance work was performed.
+
+## 2026-07-31 email-history decision preparation
+
+`REVIEW_SOURCE_UNAVAILABLE`: current hosted Code Review findings and unresolved PR conversations are not exposed in this environment. Self-review used the current email history/template pages, transactional email service, permission catalog, existing email runbook, ERP/Supabase/UI/workflow guidance, and repository tests.
+
+| Finding | Classification | Evidence | Remediation / status |
+| --- | --- | --- | --- |
+| Email history loaded the entire table and built every page button in browser memory. | ACTIONABLE | `app/admin/email-history/page.tsx` used `select('*')`, client filtering/slicing, and an array sized to the full page count. | Added field-bounded exact-count range reads, server filtering, request freshness protection, and a five-button pagination window without a schema change. |
+| Raw Supabase load errors were rendered in the UI and deletion allowed concurrent submits. | ACTIONABLE | The page assigned `error.message` directly and did not lock delete requests. | Replaced raw errors with controlled Vietnamese messages, retained only safe machine metadata in console diagnostics, and added a synchronous delete lock. |
+| History retention, hard deletion, authorization, audit, and retry contracts are not approved. | BUSINESS_DECISION_REQUIRED | The repository has no retention job, archive/audit/retry model, or history-specific permissions; the UI currently deletes directly. | Documented concrete recommendations and alternatives without changing retention/deletion semantics, adding schema/RLS, or enabling retry/live email. |
+
+No SQL, RPC, migration, RLS/grant/permission mutation, production-row inspection, retention/deletion semantic change, runtime-flag/Vercel-variable change, live email, deployment, merge, or Attendance work was performed.
