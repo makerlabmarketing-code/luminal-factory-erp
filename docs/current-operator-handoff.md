@@ -1,10 +1,38 @@
 # Current Operator Handoff
 
-**Prepared:** 2026-07-29
+**Prepared:** 2026-07-31
 
 **Branch:** `work`
 
 **Boundary:** repository delivery only. This handoff did not execute SQL/RPC, enable a runtime flag, deploy, or merge.
+
+## PR #100 reconciliation and exact deferred Attendance sequence
+
+The Cloud checkout is clean at merged PR #100 commit `b8a8bfb`. This task
+environment exposes only the task branch and no local `main`, `origin/main`, or
+Git remote, so equality is established against the operator-supplied merged
+commit rather than an unavailable remote ref. PR #100 introduced no
+`supabase/migrations/` diff and did not alter the existing tracked Attendance
+cancellation migration `20260730024246_attendance_cancellation_audit.sql`.
+
+The updated read-only pre-run and guarded forward accept provisional
+`total_hours` and `total_salary` independently when each value is `NULL` or
+exactly zero. Any non-zero value remains blocked by the exact-target predicate.
+The stale-row cancellation is `READY_FOR_LOCAL_OPERATOR`, not production PASS.
+
+Resume locally from VS Code/Codex CLI in exactly this order:
+
+1. rerun the updated read-only pre-run;
+2. confirm exactly one target row;
+3. confirm zero or `NULL` provisional totals only;
+4. run the guarded forward exactly once;
+5. run the post-run;
+6. run package validation;
+7. perform production Staff/Admin smoke.
+
+Do not enable `ATTENDANCE_RECOVERY_ENABLED` before every retained check passes.
+No step in this sequence, production-row inspection, Facility fixture, SQL, flag
+change, deployment, or automatic merge was performed in Cloud.
 
 ## Repository package verification
 

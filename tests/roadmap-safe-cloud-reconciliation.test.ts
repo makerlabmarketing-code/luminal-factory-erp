@@ -12,6 +12,14 @@ const operatorHandoff = readFileSync(
 );
 
 describe("roadmap Cloud-work reconciliation", () => {
+  it("records the merged PR #100 boundary and exact local Attendance handoff", () => {
+    expect(roadmap).toContain("## 2026-07-31 post-PR #100 Cloud reconciliation");
+    expect(roadmap).toContain("Attendance stale-row cancellation is `READY_FOR_LOCAL_OPERATOR`");
+    expect(roadmap).toContain("It did not change\n`supabase/migrations/`");
+    expect(roadmap).toContain("Any non-zero\n`total_hours` or `total_salary`");
+    expect(roadmap).toContain("run the guarded forward exactly once");
+  });
+
   it("records every roadmap item with one allowed Cloud classification", () => {
     const classificationSection = roadmap.slice(
       roadmap.indexOf("## Cloud execution classification"),
