@@ -57,3 +57,33 @@ describe("roadmap Cloud-work reconciliation", () => {
     );
   });
 });
+
+describe("consolidated local operator authorities", () => {
+  const currentHandoff = readFileSync(
+    "docs/current-operator-handoff.md",
+    "utf8",
+  );
+
+  it("keeps Attendance and Finance at guarded local-operator boundaries", () => {
+    expect(roadmap).toContain("Earlier forward attempts rolled back safely; **no successful cancellation mutation occurred**");
+    expect(roadmap).toContain("PR #103, `e82b873`");
+    expect(currentHandoff).toContain("**Stop for explicit mutation approval.**");
+    expect(currentHandoff).toContain("target count **1**");
+    expect(currentHandoff).toContain("zero partial persistence");
+  });
+
+  it("preserves disabled flags and the local master prompt guardrails", () => {
+    for (const flag of [
+      "ATTENDANCE_RECOVERY_ENABLED=false",
+      "FINANCE_REIMBURSEMENT_ENABLED=false",
+      "PAYROLL_SETTLEMENT_ENABLED=false",
+      "EMAIL_DELIVERY_ENABLED=false",
+      "FACILITY_ACTIVE_STATE_ENABLED=false",
+    ]) {
+      expect(currentHandoff).toContain(flag);
+    }
+    expect(currentHandoff).toContain("## Exact Local Codex CLI Master Prompt");
+    expect(currentHandoff).toContain("Never replay a migration already recorded");
+    expect(currentHandoff).toContain("Never skip ahead to another mutating package");
+  });
+});

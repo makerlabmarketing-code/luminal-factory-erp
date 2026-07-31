@@ -1,170 +1,169 @@
 # Current Operator Handoff
 
 **Prepared:** 2026-07-31
+**Authority:** this is the exact local execution authority. Status is owned by
+[the ERP implementation roadmap](ERP_IMPLEMENTATION_ROADMAP.md); package-specific
+predicates and commands remain in their linked runbooks.
+**Boundary:** no SQL/RPC was executed, no production row was inspected, no
+runtime flag was changed, no deployment occurred, and no merge is authorized by
+this handoff.
 
-**Branch:** `work`
+## Tonight's ordered execution sequence
 
-**Boundary:** repository delivery only. This handoff did not execute SQL/RPC, enable a runtime flag, deploy, or merge.
+Execute only the first incomplete gate. A `PASS` requires retained evidence; a
+prepared or merged package is not production `PASS`. Before every command record
+whether it is read-only or mutating, its expected affected-row count, stop
+conditions, and evidence filename. Stop for explicit approval before each
+package's first mutation.
 
-## PR #100 reconciliation and exact deferred Attendance sequence
+### A. Repository synchronization
 
-The Cloud checkout is clean at merged PR #100 commit `b8a8bfb`. This task
-environment exposes only the task branch and no local `main`, `origin/main`, or
-Git remote, so equality is established against the operator-supplied merged
-commit rather than an unavailable remote ref. PR #100 introduced no
-`supabase/migrations/` diff and did not alter the existing tracked Attendance
-cancellation migration `20260730024246_attendance_cancellation_audit.sql`.
+1. `git switch main`.
+2. `git pull origin main`.
+3. Confirm `git rev-parse main` equals `git rev-parse origin/main`.
+4. Confirm `git status --short` is empty.
+5. Confirm the expected Supabase project link and inspect migration history;
+   never replay an already-recorded migration. Attendance cancellation is
+   `20260730024246`; Attendance recovery RLS is the distinct
+   `20260715073600` migration.
+6. Confirm `psql`, `gh`, and the runbook-required environment variable *names*
+   are available without printing values. Never echo or retain credentials,
+   database URLs, tokens, or PII.
 
-The updated read-only pre-run and guarded forward accept provisional
-`total_hours` and `total_salary` independently when each value is `NULL` or
-exactly zero. Any non-zero value remains blocked by the exact-target predicate.
-The stale-row cancellation is `READY_FOR_LOCAL_OPERATOR`, not production PASS.
+Stop here on branch/ref mismatch, a dirty worktree, unexpected migration drift,
+wrong Supabase link, missing tools, or missing required environment. Repository
+synchronization is read-only with expected affected-row count zero. Retain a
+redacted synchronization transcript.
 
-Resume locally from VS Code/Codex CLI in exactly this order:
+### B. Attendance stale-row cancellation
 
-1. rerun the updated read-only pre-run;
-2. confirm exactly one target row;
-3. confirm zero or `NULL` provisional totals only;
-4. run the guarded forward exactly once;
-5. run the post-run;
-6. run package validation;
-7. perform production Staff/Admin smoke.
+Authority: [Attendance stale-row audited cancellation operator runbook](attendance-stale-row-cancellation-operator-runbook.md).
+PR #100 (`b8a8bfb`) is merged. Earlier forward attempts rolled back safely and
+no successful cancellation mutation is recorded.
 
-Do not enable `ATTENDANCE_RECOVERY_ENABLED` before every retained check passes.
-No step in this sequence, production-row inspection, Facility fixture, SQL, flag
-change, deployment, or automatic merge was performed in Cloud.
+1. Derive the current commands and filenames from the runbook and rerun its
+   updated read-only pre-run. Retain `attendance-cancellation-pre-run.txt`.
+2. Require all of the following: exact target count **1**; employee open-row
+   count **1**; `total_hours` is `NULL` or exact zero; `total_salary` is `NULL`
+   or exact zero; Payroll references **0**; actor authorization `PASS`; grant
+   inventory exactly as documented.
+3. **Stop for explicit mutation approval.** Do not weaken a predicate or change
+   an ID to make the guard pass.
+4. After approval, run the guarded forward exactly once. Expected affected
+   target-row count: **1**; retain the forward transcript.
+5. Run the package post-run and retain
+   `attendance-cancellation-post-run.txt`.
+6. Run package-wide validation and retain
+   `attendance-cancellation-validation.txt`.
+7. Retain the pre-run, approval, forward, post-run, validation, migration-history,
+   authorization/RLS, and smoke evidence together without secrets or PII.
+8. Perform Staff/Admin production smoke exactly as the runbook and production
+   runtime-gate runbook specify.
+9. Keep `ATTENDANCE_RECOVERY_ENABLED=false` or unset until every retained check
+   passes. Flag enablement is a separate approval, not part of this package.
 
-## Repository package verification
+Stop on any predicate/count mismatch, non-zero legacy total, Payroll reference,
+authorization/grant failure, unexpected affected-row count, missing immutable
+audit evidence, normal Staff check-in/out regression, or Admin denial/bypass.
+Rollback, only after separate approval, uses
+`supabase/rollbacks/20260730_attendance_stale_cancellation_rollback.sql` and the
+retained cancellation audit ID.
 
-## Employee Detail and profile schema checkpoint
+### C. Finance linked-ledger atomic edit
 
-- Employee Detail seven-tab implementation: `APPLICATION_COMPLETE`; preserve completion commit `298fabb` and the field ownership contract in [employee-detail-tab-audit.md](employee-detail-tab-audit.md).
-- Repository validation: `PASS`.
-- Employee Profile schema extension: `BLOCKED_BY_BUSINESS_DECISION` and ready for business/security review, not execution.
-- Production migration: `NOT_EXECUTED`.
-- Employee audit package `20260729_employee_profile_extension`: `READY_FOR_OPERATOR` for review only. Preserve every pre-run, forward, post-run, rollback, RLS/audit, and validation artifact in its current draft/validation location.
-- No production SQL, authenticated production smoke, runtime flag activation, deployment, or merge was performed.
+Authority: [linked finance ledger edit atomicity package](finance-linked-ledger-atomic-edit-operator-package.md).
+PR #103 (`e82b873`) is on `main`; its compensation-safe browser fix does not
+provide true database atomicity. The `SECURITY INVOKER` RPC package is prepared
+but not executed.
 
-Business approval is still required for: (1) final field semantics and nullability; (2) Admin per-field read/edit permissions; (3) Staff own-profile per-field read/edit permissions; (4) sensitive-field visibility; (5) the audit field allowlist; (6) the audit retention period; (7) whether old/new sensitive values may be stored; and (8) whether audit retention permits hard deletion or is archive-only.
+Proceed only after section B has retained its outcome and the finance PR/package
+is confirmed on synchronized `main`:
 
-Do not promote or execute the forward draft until every decision is approved. Employee Profile does not stop the rest of the roadmap: after the required skip of production and unresolved-decision work, the roadmap inspection found no remaining `SAFE_CLOUD_WORK_AVAILABLE` item. The next incomplete operational item is Item 16, Gate 2 Attendance recovery, owned by the operator; it is not safe Cloud implementation work.
+1. Run the package's read-only pre-run and retain its output. Expected row
+   mutation count: zero.
+2. Verify required tables/columns, RLS, policies, ownership, grants, and expected
+   function absence/presence. Existing authenticated ledger access must be
+   exactly intended; do not broaden policies for the function.
+3. Stop before forward if any invariant fails. Otherwise **stop for explicit
+   mutation approval**.
+4. Apply only the approved `SECURITY INVOKER` RPC in one approved window. The DDL
+   changes the function definition/grants and is expected to mutate zero
+   business rows.
+5. Run validation and retain output.
+6. Verify authenticated-only `EXECUTE`, `security_definer = false`, and existing
+   ledger RLS behavior.
+7. Wire/use the RPC only after validation, then verify CREATE, UPDATE, CANCEL,
+   and NONE using the package's disposable test boundary.
+8. Force a dependent failure and prove zero partial persistence.
+9. Retain pre-run, approval, forward, validation, grants/RLS, functional,
+   forced-failure, and rollback-ready evidence.
 
-## Employee Profile persistence closure
+Stop on invariant/validation failure, broader execution access, RLS regression,
+unexpected production-row mutation, or any partial persistence. Before
+application activation, rollback is
+`supabase/drafts/20260731_finance_linked_ledger_edit_rollback.sql`.
 
-`EMPLOYEE_PROFILE_PERSISTENCE_PASS`: the operator verified authenticated production Admin and Staff updates, navigation and hard-refresh readback, Admin partial-field preservation, Staff own-row targeting, and active-workspace notification isolation. `public.employees` is the authoritative employee profile source for both workspaces. Both workspaces now share that persistence/readback contract; Staff writes remain limited to phone, bank name, and bank account number, while mutation success remains separate from optional enrichment/readback warnings. The incident is **CLOSED**. No SQL, RLS broadening, or runtime flag change was required.
+### D. Remaining operator packages
 
-The exact next incomplete roadmap item is **Item 16, Gate 2 — Attendance recovery operator evidence**. The stale-row cancellation package is `PACKAGE_READY_FOR_OPERATOR`: it preserves the row and checkout `NULL`, excludes cancellation from Attendance and Payroll totals, records immutable actor/reason/timestamp history, and supplies an exact one-row rollback. No production target or affected-row count is claimed without retained operator evidence. `ATTENDANCE_RECOVERY_ENABLED` remains false/unset.
+Do not execute these as a batch. After B and C are closed with retained evidence,
+re-read the roadmap, select only the first eligible package below, run its
+read-only preflight, and stop before its first mutation:
 
-Attendance repository-safe review is complete. Normal Staff check-in/check-out has no recovery-flag dependency and retains authenticated own-row targeting. The package review covered pre-run, tracked forward, post-run, rollback, RLS, authorization, and smoke artifacts. Pre-run coverage now includes `shifts` and `current_employee_id()`; post-run coverage emits helper availability and a checkable zero-row missing-policy result; focused static regression protects these boundaries. No production SQL or runtime activation was performed, and no live Attendance PASS is claimed.
+1. **Employee salary configuration / Employee Profile extension —
+   `BLOCKED_BY_BUSINESS_DECISION`.** No mutation is eligible until all eight
+   profile field, permission, sensitive-data, audit, retention, and deletion
+   decisions in the roadmap are approved.
+2. **Ledger/Reimbursement — `READY_FOR_OPERATOR` / `LIVE_APPROVAL_REQUIRED`.**
+   Use package `20260728153000`; keep `FINANCE_REIMBURSEMENT_ENABLED=false`.
+3. **Payroll — `READY_FOR_OPERATOR`.** Depends on Attendance/Facility evidence;
+   use `20260728100414`, require an explicit first official month, and keep
+   `PAYROLL_SETTLEMENT_ENABLED=false`.
+4. **ERP transactional email — `READY_FOR_OPERATOR` for one-recipient smoke.**
+   Follow `docs/email-setup.md`, stop before the first live send, and keep
+   `EMAIL_DELIVERY_ENABLED=false` until its smoke gate passes. Email-history
+   governance remains business-decision-blocked.
+5. **Facility and Dashboard production fixtures.** Facility is
+   `LIVE_OPERATOR_VERIFICATION_REQUIRED`; Dashboard is read-only
+   `READY_FOR_OPERATOR`. Never invent or insert fixture data. Retain empty,
+   populated, denied, and error/retry evidence only after source dependencies
+   pass; keep `FACILITY_ACTIVE_STATE_ENABLED=false` until its gate passes.
 
-## Attendance Gate 2 — remaining operator actions
+Phase Templates are not in the mutation queue. They remain
+`BLOCKED_BY_BUSINESS_DECISION` until the exact twelve decisions in
+`docs/phase-template-business-decision.md` are answered.
 
-Execute and retain evidence in this order:
+## Exact Local Codex CLI Master Prompt
 
-1. Verify production migration history. Never replay `20260715073600_attendance_recovery_rls.sql` when it is already recorded.
-2. Run the registered Attendance Gate 2 read-only pre-run and retain its output.
-3. Run and retain the registered post-run validation evidence against the verified live state.
-4. Perform authenticated production authorization and smoke checks for Staff own-row access, Staff cross-employee denial, Admin view-only denial, authorized `ATTENDANCE_MANAGE` recovery, and disconnected/inactive denial.
-5. Keep `ATTENDANCE_RECOVERY_ENABLED=false` until all pre-run, post-run, authorization, RLS, and smoke evidence passes.
+Copy the prompt below into local VS Code/Codex CLI:
 
-There is no further Attendance implementation task unless a concrete repository defect is discovered. After unsafe/operator-only items are skipped, no approved safe Cloud roadmap item remains: Items 12–13 await operator delivery, Item 16 is operator-only, and Items 17–19 remain approval- or dependency-blocked. The next business-only action is review of the [Phase Template decision package](phase-template-business-decision.md); Phase Template implementation and the SaaS UI foundation remain prohibited pending separate approvals.
+```text
+Continue from the synchronized local repository state as a production operator assistant.
 
+First read docs/ERP_IMPLEMENTATION_ROADMAP.md (the sole status authority) and docs/current-operator-handoff.md (the exact execution authority). Then read only the package-specific runbook linked for the first incomplete eligible gate. Derive current filenames, variables, commands, predicates, migration IDs, evidence names, and rollback commands from those repository runbooks; do not substitute remembered or hardcoded assumptions.
 
-The branch contains the completed application slices and focused tests recorded in the [implementation roadmap](ERP_IMPLEMENTATION_ROADMAP.md). The seven production runtime gates have complete pre-run, forward, post-run/validation, rollback, authorization/RLS, regression, disabled-state, and smoke-test coverage according to the [activation matrix](runtime-gate-activation-matrix.md). The exact operator commands and stop conditions remain owned by the [production runbook](production-runtime-gate-operator-runbook.md); the ordered SQL/RPC register remains owned by the [SQL handoff](production-operator-sql-handoff.md).
+Verify the repository, main/origin-main equality, clean worktree, Supabase link, migration history, required tools, and required environment-variable names without printing secret values. Never replay a migration already recorded in migration history.
 
-Repository validation completed for this handoff:
+Execute only the first incomplete operator gate. Before every command, state:
+1. READ-ONLY or MUTATING;
+2. expected affected-row count (use zero for read-only/DDL business-row effects where the runbook says so);
+3. exact stop conditions;
+4. the evidence file that will retain redacted output.
 
-- `npm test`: PASS — 62 files and 494 tests.
-- `npm run lint`: PASS with three pre-existing warnings (`next/image` and two hook-dependency warnings).
-- `npx tsc --noEmit`: PASS.
-- `npm run build`: PASS with the recorded lint, Edge Runtime, webpack cache, and Node 20 deprecation warnings.
-- `git diff --check`: PASS.
+Run read-only preflight first. Stop before the package's first mutation and request explicit approval. After explicit approval, execute only that one approved package exactly once, then run its post-run, package validation, authorization/RLS checks, and documented smoke checks. Never skip ahead to another mutating package and never treat repository presence, a merged PR, or a successful preflight as production PASS.
 
-## Operator gate order
+Update docs/ERP_IMPLEMENTATION_ROADMAP.md and docs/current-operator-handoff.md only with the retained evidence outcome, redacted evidence filenames, and exact next gate. Do not expose credentials, tokens, password-bearing URLs, connection strings, secrets, or PII. Do not inspect unrelated production rows. Do not enable any runtime flag until that package's documented post-run, authorization/RLS, and smoke gate passes and separate flag approval is explicit. Do not deploy, merge, or automatically execute another package.
 
-Use the runbook's serial evidence order. Do not proceed to a dependent gate until its prerequisite evidence is retained as PASS:
+If any invariant, expected count, authorization/RLS check, migration-history check, or smoke check fails, stop, leave the runtime flag false/unset, preserve evidence, and report the package rollback reference without running rollback unless rollback itself is explicitly approved.
+```
 
-1. Facility active-state compatibility and verification.
-2. Attendance recovery after Facility PASS.
-3. Phase Workflow foundation (an independent root from Facility/Attendance).
-4. Phase status mutation after foundation PASS.
-5. Task comments/activity after foundation PASS.
-6. Project atomic create after comments/activity PASS.
-7. Task atomic create after comments/activity PASS.
+## Evidence update contract and exact stop point
 
-Phase status and comments/activity are dependency siblings after the foundation. Project atomic create and task atomic create are dependency siblings after comments/activity; the serial ordering exists only to simplify evidence capture.
+After one package finishes or stops, record only redacted evidence filenames,
+PASS/FAIL, affected-row counts, migration-history result, smoke result, and the
+next gate in both authorities. Package details stay in their runbooks; do not
+copy a competing command sequence into the roadmap.
 
-## Runtime flags remaining disabled
-
-Keep these server-only flags false or unset until the corresponding package, authorization/RLS checks, disabled and enabled smoke tests, and observation window pass:
-
-- `FINANCE_REIMBURSEMENT_ENABLED`
-- `FACILITY_ACTIVE_STATE_ENABLED`
-- `ATTENDANCE_RECOVERY_ENABLED`
-- `PHASE_WORKFLOW_FOUNDATION_ENABLED`
-- `PHASE_STATUS_MUTATION_ENABLED`
-- `TASK_COMMENTS_ACTIVITY_ENABLED`
-- `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED`
-- `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED`
-- `PAYROLL_SETTLEMENT_ENABLED`
-
-## Package decision status
-
-Ledger/Reimbursement and Payroll business contracts are approved and both repository packages are `READY_FOR_OPERATOR`. This does not authorize SQL execution or runtime activation. Ledger/Reimbursement still requires protected migration delivery, private Storage/RLS review, post-run authorization and smoke evidence. Payroll still requires protected migration delivery, explicit first official settlement month, post-run authorization/RLS evidence, and smoke tests.
-
-## Production smoke-test checklist
-
-For each approved gate, retain the pre-run output, confirm migration history before applying any tracked migration, apply through exactly one approved workflow, require post-run PASS, exercise both authorized and denied fixtures, monitor the affected routes/RPCs, and disable the flag before rollback. The minimum journey checks are:
-
-- Facility: directory read, legacy code/name resolution, active/inactive behavior, and browser-write denial.
-- Attendance: normal Staff access, check-in/out, current and stale open-shift states, history, facility label, retry/double-submit behavior, own-row isolation, and authorized recovery.
-- Phase Workflow: legacy and normalized display, valid transition plus one audit row, stale/dependency/cross-project/contributor/cancelled denials, and browser-execute denial.
-- Comments/activity: bounded reads, authorized project/task comment, immutable history, server-derived actor, and cross-project/browser-write denial.
-- Project/task atomic create: exactly-once all-or-nothing persistence, duplicate/invalid/cross-project/inactive-member denial, no partial rows, and service-role-only RPC execution.
-- Account/workspace: employee/Auth linkage, known/unknown permission codes, authorized grant/revoke, and fail-closed fixtures.
-- Legacy ledger/dashboard: empty and populated reads, create/edit retry and duplicate-submit protection, paid-ledger dashboard data, denied/error states, and sanitized errors. Do not activate the new reimbursement/storage workflow.
-- Payroll: run the registered pre/forward/post package, configure the first month explicitly, then verify own-row isolation, denied cross-employee access, unauthorized settlement denial, duplicate rejection, immutable original, adjustment/audit provenance, and unchanged legacy rows before enabling the runtime gate.
-
-## Safe merge and rollout order
-
-1. Review this branch and its PR for secrets, unexpected migrations, unresolved review findings, and target-branch conflicts.
-2. Require repository checks and protected-branch approval; do not merge from this handoff process.
-3. When approved, merge through protected `main`. Let the Supabase GitHub Integration apply only tracked forward migrations; never replay a migration already present in production history.
-4. Keep all nine runtime flags false/unset after merge.
-5. Execute the operator gates in the order above, retaining pre/post, authorization, RLS, smoke, and monitoring evidence at every gate.
-6. Enable only the single gate whose evidence is complete. Stop and disable it on any matrix/runbook rollback trigger.
-7. Keep Ledger/Reimbursement disabled until its reviewed package, private Storage/RLS boundary, authorization fixtures, and smoke tests pass. Keep Payroll disabled until its reviewed package, explicit first-month configuration, authorization fixtures, and smoke tests pass.
-
-## Ledger/Reimbursement package — 2026-07-28
-
-The former business-decision blocker is resolved. Repository delivery is complete and `LIVE_APPROVAL_REQUIRED`: pre-run `supabase/drafts/20260728153000_ledger_reimbursement_pre_run.sql`, forward migration `supabase/migrations/20260728153000_ledger_reimbursement_workflow.sql`, post-run validation, rollback, storage policy, and smoke checklist share the `20260728153000` identifier. Deliver the forward file only through protected main/Supabase GitHub Integration after review. Do not execute SQL directly, rewrite legacy rows, create a public bucket, or enable `FINANCE_REIMBURSEMENT_ENABLED` in this handoff.
-
-Remaining operator work: retain pre-run legacy salary counts, approve/deliver the migration and private Storage/RLS boundary, retain post-run/RLS/authorization/smoke PASS evidence, then separately approve the runtime flag. Existing salary rows with null beneficiary must remain null and render **Chưa xác định**. Payroll snapshots remain immutable; a ledger relationship uses only `source_type` and `source_reference`.
-
-## Functional stabilization handoff — 2026-07-28
-
-Item 15 safe application work is complete. The final pass prevents stale Payroll month responses from replacing current state, exposes Vietnamese pending states for settlement/adjustment, preserves the synchronous duplicate-submit lock, and disables Retry during an active replacement request. The runtime-disabled response remains **Tính năng quyết toán lương chưa được kích hoạt.** No legacy settlement or reimbursement persistence is simulated.
-
-The exact next roadmap item is **Item 16 — Runtime gate readiness/operator evidence**, beginning with Facility verification in the registered order. Scoped SaaS UI work is `PARTIALLY_SAFE` for later planning on functional-only journeys; broad re-skin remains blocked. No SQL was executed, no runtime flag was enabled, and no deployment or merge occurred.
-
-## 2026-07-29 handoff — profile completeness and ERP email
-
-Employee completeness is `APPLICATION_COMPLETE` with no schema package required; `public.employees` remains authoritative and [the field inventory](employee-field-inventory.md) records missing/optional/derived/business-decision-blocked fields. ERP transactional email is `READY_FOR_OPERATOR`: configure the server-only variables and follow [the one-recipient production checklist](email-setup.md). `EMAIL_DELIVERY_ENABLED` remains false/unset. Supabase Auth owns invite/verification/recovery mail; the ERP SMTP provider owns only business templates. No live send occurred.
-
-The exact next roadmap item remains **Item 16, Gate 2 — Attendance recovery operator evidence**.
-
-## 2026-07-29 Employee Detail tab clarification
-
-The seven-tab audit is complete in [employee-detail-tab-audit.md](employee-detail-tab-audit.md). Existing sources are wired within their business tabs; no duplicate mutation path was added. Missing personal/job/audit sources are `SCHEMA_EXTENSION_REQUIRED`, and package `20260729_employee_profile_extension` is `READY_FOR_OPERATOR` but remains draft-only outside `supabase/migrations/`. No SQL was executed. Operator/business review must decide field semantics, sensitive read/edit policy, audit retention and whether the reviewed forward draft may become a tracked migration.
-
-## 2026-07-30 Cloud validation remediation
-
-New lint evidence made one bounded application slice safe: the email-template and metadata loaders now have stable effect dependencies without resetting the active preview/category, and the VietQR modal uses a dimensioned Next.js image boundary. Focused regression coverage was added. This does not alter any database/operator package, runtime flag, production state, or approved business contract.
-
-The exact deferred operator sequence and package order remain unchanged. Attendance Gate 2 is still the next incomplete operator-owned action. After resolving this concrete repository defect, no additional roadmap item is `SAFE_CLOUD_WORK_AVAILABLE`; do not reopen preserved packages or begin blocked Phase Template/SaaS work without new evidence or approval.
-
-## 2026-07-31 finance delivery and email-history decision preparation
-
-Finance linked-ledger remediation is **READY_FOR_LOCAL_OPERATOR**. The compensation-safe browser flow, focused regression test, review-remediation record, and non-executed atomic RPC operator package are present in merged finance PR `#103` (`e82b873`). The requested handoff commit `658a6657d51a88d8fdf4bff1b2c3b1f9a0f5046f` is not present in this checkout, and hosted PR metadata cannot be queried because no supported review source exposes it here. Do not duplicate the already identified finance delivery. Follow the exact local sequence in [finance-linked-ledger-atomic-edit-operator-package.md](finance-linked-ledger-atomic-edit-operator-package.md); no Cloud SQL/RPC execution or finance-row inspection is permitted.
-
-The next bounded Cloud package is [email-history-business-decision-package.md](email-history-business-decision-package.md). It records current behavior, risks, recommendations, alternatives, migration/runtime impact, and reversibility for retention, deletion, authorization, audit, pagination, error handling, and retry. No business option is approved. Safe repository-only history loading/error/concurrency fixes may proceed, but retention/deletion semantics, permission catalog/RLS, retry delivery, migrations, live email, and `EMAIL_DELIVERY_ENABLED` remain unchanged pending explicit decisions. Attendance operator work remains deferred.
+**Current exact stop point:** documentation/PR review before merge. The first
+local operator action after an approved documentation PR merge is section A
+repository synchronization. The first potential production mutation is section
+B step 4, and local Codex must stop at section B step 3 for explicit approval.
