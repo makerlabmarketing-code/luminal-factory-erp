@@ -1,5 +1,46 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-07-31 post-PR #100 Cloud reconciliation
+
+The repository baseline is `b8a8bfb` (`fix(attendance): align stale cancellation
+legacy-total guards (#100)`), the merged PR #100 state. The Cloud task branch is
+clean and points directly at that baseline; this checkout does not expose local
+`main` or `origin/main` refs, so commit identity—not an unavailable remote ref—is
+the reconciliation proof.
+
+PR #100 changed only the Attendance cancellation draft pre-run, guarded forward,
+rollback, operator runbook, and focused package test. It did not change
+`supabase/migrations/`; the existing tracked cancellation migration
+`20260730024246_attendance_cancellation_audit.sql` remains unchanged. Both the
+read-only target predicate and both guarded forward predicates accept each
+provisional total only when it is `NULL` or exactly zero. Any non-zero
+`total_hours` or `total_salary` therefore fails the exact-one target guard and
+blocks mutation.
+
+Attendance stale-row cancellation is `READY_FOR_LOCAL_OPERATOR`. No pre-run,
+production-row inspection, forward SQL, post-run, package validation,
+authenticated Facility/Attendance fixture, runtime-flag change, deployment, or
+merge was performed by this Cloud reconciliation. Keep
+`ATTENDANCE_RECOVERY_ENABLED` false or unset. The deferred local sequence is:
+
+1. rerun the updated read-only pre-run;
+2. confirm exactly one target row;
+3. confirm both provisional totals are only zero or `NULL`;
+4. run the guarded forward exactly once;
+5. run the post-run;
+6. run package validation;
+7. perform production Staff/Admin smoke.
+
+The 20-item Cloud classification below was re-scanned after applying the user's
+priority order. Project/Task, Ledger/Reimbursement, Payroll UI, transactional
+email, Account/Permission, Employee Detail, shared stabilization, and Dashboard
+application scopes are preserved as complete or operator-gated because the
+approved implementations and regression seams already exist. No new concrete
+repository defect was found. Consequently no item is currently
+`SAFE_CLOUD_WORK_AVAILABLE`; Attendance and the database-dependent packages are
+operator-only, Phase Templates and Employee Profile still require business or
+security decisions, and broad SaaS/release phases remain dependency-blocked.
+
 ## 2026-07-30 Attendance current-shift regression
 
 Fresh production evidence invalidated the prior Attendance application-complete
