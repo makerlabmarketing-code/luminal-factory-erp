@@ -182,6 +182,7 @@ export default function AdminFinancialLedger() {
   const [editIsPaid, setEditIsPaid] = useState(false);
   const [editMonthInput, setEditMonthInput] = useState(monthInput);
   const [editExpenseSource, setEditExpenseSource] = useState<string>('QUY_CHUNG');
+  const [editError, setEditError] = useState<{ message: string; correlationId: string } | null>(null);
 
   // VietQR States
   const [showQrModal, setShowQrModal] = useState(false);
@@ -389,6 +390,7 @@ export default function AdminFinancialLedger() {
     // Khởi tạo nguồn chi trả cũ
     const linkedSource = expensePaymentSources.find((source) => source.reporterName === item.requested_by);
     setEditExpenseSource(hasLink && linkedSource ? linkedSource.id : COMMON_FUND_SOURCE_ID);
+    setEditError(null);
     setShowEditModal(true);
   };
 
@@ -414,33 +416,52 @@ export default function AdminFinancialLedger() {
     const isSelfPaidExpense = editType === 'CHI_PHI' && isSelfPaidSource(selectedPaymentSource);
 
     setIsSubmitting(true);
+    setEditError(null);
+    const correlationId = crypto.randomUUID();
     try {
-      const { data: oldLink, error: oldLinkError } = await supabase.from('financial_ledger').select('id').eq('type', 'VON_GOP').eq('category', originalLinkedCategory).eq('requested_by', originalItem.requested_by).maybeSingle();
+      const { data: oldLink, error: oldLinkError } = await supabase.from('financial_ledger').select('id, type, sub_type, category, amount, requested_by, month_period, is_paid').eq('type', 'VON_GOP').eq('category', originalLinkedCategory).eq('requested_by', originalItem.requested_by).maybeSingle();
       if (oldLinkError) throw oldLinkError;
 
-      if (isSelfPaidExpense && !oldLink) {
-        const { error } = await supabase.from('financial_ledger').insert([{ type: 'VON_GOP', sub_type: 'HIEN_VAT', category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod, is_paid: true }]);
-        if (error) throw error;
-      }
-      else if (!isSelfPaidExpense && oldLink) {
-        const { error } = await supabase.from('financial_ledger').update({ category: `[Hủy đối ứng] ${originalLinkedCategory}` }).eq('id', oldLink.id);
-        if (error) throw error;
-      }
-      else if (isSelfPaidExpense && oldLink) {
-        const { error } = await supabase.from('financial_ledger').update({ category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod }).eq('id', oldLink.id);
-        if (error) throw error;
-      }
-
-      const { error } = await supabase.from('financial_ledger').update({
+      const { error: primaryError } = await supabase.from('financial_ledger').update({
         type: editType, sub_type: editType === 'VON_GOP' ? editSubType : null, category: editCategory.trim(), amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod, is_paid: isSelfPaidExpense ? true : editIsPaid
       }).eq('id', editingId);
-      if (error) throw error;
+      if (primaryError) throw primaryError;
+
+      let linkedError: unknown = null;
+      if (isSelfPaidExpense && !oldLink) {
+        const { error } = await supabase.from('financial_ledger').insert([{ type: 'VON_GOP', sub_type: 'HIEN_VAT', category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod, is_paid: true }]);
+        linkedError = error;
+      } else if (!isSelfPaidExpense && oldLink) {
+        const { error } = await supabase.from('financial_ledger').update({ category: `[Hủy đối ứng] ${originalLinkedCategory}` }).eq('id', oldLink.id);
+        linkedError = error;
+      } else if (isSelfPaidExpense && oldLink) {
+        const { error } = await supabase.from('financial_ledger').update({ category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod }).eq('id', oldLink.id);
+        linkedError = error;
+      }
+
+      if (linkedError) {
+        const { error: rollbackError } = await supabase.from('financial_ledger').update({
+          type: originalItem.type,
+          sub_type: originalItem.sub_type,
+          category: originalItem.category,
+          amount: originalItem.amount,
+          requested_by: originalItem.requested_by,
+          month_period: originalItem.month_period,
+          is_paid: originalItem.is_paid,
+        }).eq('id', editingId);
+        if (rollbackError) console.error('[finance-ledger-edit-rollback]', { correlationId });
+        throw linkedError;
+      }
 
       setShowEditModal(false); setEditingId(null);
       if (targetPeriod === selectedMonth) loadData();
       else setMonthInput(editMonthInput);
       showToast('Thành công', 'Đã cập nhật sửa đổi dữ liệu hạch toán đồng bộ.', 'success');
-    } catch { showToast('Thất bại', 'Không thể cập nhật giao dịch.', 'error'); }
+    } catch {
+      const message = 'Không thể lưu thay đổi. Dữ liệu ổn định trước đó được giữ nguyên.';
+      setEditError({ message, correlationId });
+      showToast('Không thể cập nhật giao dịch', message, 'error');
+    }
     finally { setIsSubmitting(false); }
   };
 
@@ -785,6 +806,12 @@ export default function AdminFinancialLedger() {
                 <p className="text-[11px] text-slate-400">Chờ duyệt, Từ chối, Đã thanh toán và lịch sử kiểm toán sẽ được ghi qua biên máy chủ sau khi gói schema/RLS được duyệt.</p>
               </section>
             </div>
+            {editError && (
+              <div role="alert" className="rounded-xl border border-red-500/40 bg-red-950/30 p-3 text-red-200">
+                <p className="font-bold">{editError.message}</p>
+                <p className="mt-1 text-[10px] text-slate-400">Mã hỗ trợ: {editError.correlationId}</p>
+              </div>
+            )}
             <div className="pt-2 border-t border-slate-800 flex gap-2"><button onClick={() => { setShowEditModal(false); setEditingId(null); }} disabled={isSubmitting} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition disabled:opacity-60">Hủy</button><button onClick={handleSaveEdit} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg disabled:opacity-60">{isSubmitting ? 'Đang lưu...' : 'Cập Nhật'}</button></div>
           </div>
         </div>

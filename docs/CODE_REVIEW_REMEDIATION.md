@@ -312,3 +312,14 @@ machine error codes. No SQL, RLS, grant, runtime flag, Auth record, production d
 deployment, Attendance, or roadmap change was made. Closure remains
 `OPERATOR_PRODUCTION_SMOKE_REQUIRED` until both authenticated paths persist after hard
 refresh and fresh correlation logs confirm the production result.
+
+## 2026-07-31 Finance linked-ledger edit review
+
+`REVIEW_SOURCE_UNAVAILABLE`: hosted PR checks and unresolved conversations are not exposed in this environment. Commit `c91007c` identifies the historical GitHub PR as `#102`, but the checkout has no configured remote, so its hosted URL, source branch, target branch, checks, and unresolved-thread state could not be verified.
+
+| Finding | Classification | Evidence | Remediation / status |
+| --- | --- | --- | --- |
+| The linked row was mutated before the primary expense; a later primary failure left the dependent row persisted. | P1_PRODUCTION_BLOCKER | `handleSaveEdit` in `app/admin/capital/page.tsx` performed the linked INSERT/UPDATE before updating `editingId`. | Reordered the browser operations, added primary-row compensation on dependent failure, preserved the open form and stable in-memory ledger, and added Vietnamese inline/toast failure feedback with a secondary correlation ID. |
+| Browser compensation is not a true atomic database boundary because the rollback request can also fail. | P1_PRODUCTION_BLOCKER / READY_FOR_OPERATOR | The interim client logs a sanitized correlation ID when compensation fails; only one database transaction can guarantee all-or-nothing persistence. | Prepared the non-executed `update_linked_financial_ledger_entry` `SECURITY INVOKER` RPC package with read-only pre-run, forward, post-run validation, rollback, RLS/grant checks, and operator sequence. UI wiring must wait until operator validation and approval. |
+
+No SQL, RPC, migration, RLS/grant mutation, production-row inspection, runtime-flag change, deployment, merge, or Attendance work was performed.

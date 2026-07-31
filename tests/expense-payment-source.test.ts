@@ -63,7 +63,14 @@ describe('expense payment source binding', () => {
     );
 
     expect(editMutationBoundary).toMatch(/if \(oldLinkError\) throw oldLinkError/);
-    expect(editMutationBoundary.match(/if \(error\) throw error;/g)).toHaveLength(4);
+    expect(editMutationBoundary).toMatch(/if \(primaryError\) throw primaryError/);
+    expect(editMutationBoundary).toMatch(/if \(linkedError\) \{[\s\S]*error: rollbackError[\s\S]*throw linkedError/);
+    expect(editMutationBoundary.indexOf('error: primaryError')).toBeLessThan(
+      editMutationBoundary.indexOf('let linkedError')
+    );
+    expect(editMutationBoundary).toMatch(/setEditError\(\{ message, correlationId \}\)/);
+    expect(capitalPage).toMatch(/role="alert"[\s\S]*Mã hỗ trợ: \{editError\.correlationId\}/);
+    expect(capitalPage).toMatch(/disabled=\{isSubmitting\}[\s\S]*Đang lưu/);
     expect(paymentMutationBoundary).toMatch(/if \(error\) \{[\s\S]*Dữ liệu chưa được cập nhật/);
     expect(paymentMutationBoundary.match(/if \(error\) \{/g)).toHaveLength(2);
   });
