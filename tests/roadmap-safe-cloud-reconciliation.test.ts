@@ -70,6 +70,8 @@ describe("consolidated local operator authorities", () => {
     expect(currentHandoff).toContain("**Stop for explicit mutation approval.**");
     expect(currentHandoff).toContain("target count **1**");
     expect(currentHandoff).toContain("zero partial persistence");
+    expect(currentHandoff).toContain("actor is `ACTIVE`");
+    expect(currentHandoff).toContain("active deny\n   count is **0**");
   });
 
   it("preserves disabled flags and the local master prompt guardrails", () => {
@@ -85,5 +87,27 @@ describe("consolidated local operator authorities", () => {
     expect(currentHandoff).toContain("## Exact Local Codex CLI Master Prompt");
     expect(currentHandoff).toContain("Never replay a migration already recorded");
     expect(currentHandoff).toContain("Never skip ahead to another mutating package");
+    expect(currentHandoff).toContain("rollback boundary and rollback reference");
+  });
+
+  it("separates email review, decision, and live-delivery boundaries", () => {
+    const emailDecisionPackage = readFileSync(
+      "docs/email-history-business-decision-package.md",
+      "utf8",
+    );
+
+    expect(roadmap).toContain(
+      "| Email-history safe UI/read slice | `READY_FOR_PROTECTED_REVIEW` |",
+    );
+    expect(roadmap).toContain(
+      "| Email-history schema/RLS/archive/retry | `BLOCKED_BY_BUSINESS_DECISION` |",
+    );
+    expect(roadmap).toContain(
+      "| ERP transactional email live delivery | `BLOCKED_BY_DEPENDENCY` |",
+    );
+    expect(emailDecisionPackage.match(/^\| \d+ \|/gm)).toHaveLength(15);
+    expect(emailDecisionPackage).toContain(
+      "Every recommendation below is **UNAPPROVED**",
+    );
   });
 });
