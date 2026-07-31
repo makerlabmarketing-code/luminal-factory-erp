@@ -95,15 +95,27 @@ Raw Supabase/provider objects must stop at the server/repository boundary. Store
 
 ## Approval checklist
 
-No option below is approved by this document. Business/security owners must explicitly decide:
+Every recommendation below is **UNAPPROVED** until business and security owners
+explicitly accept it. Approval of one row does not approve another row or
+authorize schema, RLS, permission, archive, retry, delivery, or live-data work.
 
-1. Metadata/body retention periods and status-specific exceptions.
-2. Archive-only versus soft delete versus hard delete, including immediate treatment of the current hard-delete UI.
-3. New history permission codes, preset grants, and break-glass ownership.
-4. Audit owner/table, immutable fields, and audit retention after history purge.
-5. Cursor versus offset pagination, direct-page/count needs, filters, and supporting index approval.
-6. Persisted correlation/provider identifiers and restricted logging retention.
-7. Retryable statuses/failure codes, limits, cooldown, idempotency, and whether retries must use original rendered content or a newly rendered approved template version.
+| # | Decision | Current recommendation (unapproved) |
+|---|---|---|
+| 1 | Metadata retention duration | 24 months. |
+| 2 | Rendered-body retention and redaction | Retain 12 months, then redact the body while retaining approved metadata. |
+| 3 | Status-specific retention | Retain `SUCCESS` metadata for 24 months; retain `FAILED`, future `BOUNCED`, and unresolved future `PENDING` for 24 months or 12 months after final resolution, whichever is later. |
+| 4 | Archive, soft delete, or hard purge | Archive-only for ordinary operators; trusted policy-driven hard purge only after retention expiry and immutable audit. |
+| 5 | Purging failed, bounced, or pending records | Never purge before the status-specific resolution/retention boundary; unresolved `PENDING` must not age out. |
+| 6 | Dedicated permissions | Add least-privilege `EMAIL_HISTORY_VIEW`, `EMAIL_HISTORY_RETRY`, `EMAIL_HISTORY_ARCHIVE`, and break-glass/service-only `EMAIL_HISTORY_DELETE`, all enforced server-side and by RLS. |
+| 7 | Immutable audit ownership and retention | Use a separately owned append-only audit boundary that ordinary operators cannot update/delete and that survives history purge without body/recipient content. Retention still requires approval. |
+| 8 | Provider message ID persistence | Persist the provider message ID when available for incident correlation, under restricted read access. |
+| 9 | Correlation ID persistence | Persist an end-to-end correlation ID per attempt and expose only controlled support references. |
+| 10 | Cursor or offset pagination | Move to cursor pagination on `(sent_at, id)` descending; retain offset only as an explicitly accepted low-volume compromise. |
+| 11 | Page-size limits | Default 25, maximum 100. |
+| 12 | Retryable statuses and failure codes | Allow one-recipient retry only for classified transient `FAILED` and future resolved retryable `BOUNCED`; never retry `SUCCESS` or in-flight `PENDING`. The exact failure-code allowlist remains undecided. |
+| 13 | Retry limit and cooldown | Maximum 3 retries per 24 hours, with 5-minute, 30-minute, then 6-hour cooldowns. |
+| 14 | Idempotency behavior | Server-issued key unique to `(original_history_id, retry_number)`, synchronous lock/unique constraint, one active attempt per original, and a new immutable attempt row. |
+| 15 | Batch retry boundary | Do not support batch retry in the initial contract; require a separate later approval and safety design. |
 
 ## Safe repository-only changes in this slice
 

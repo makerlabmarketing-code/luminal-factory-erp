@@ -45,8 +45,9 @@ no successful cancellation mutation is recorded.
    updated read-only pre-run. Retain `attendance-cancellation-pre-run.txt`.
 2. Require all of the following: exact target count **1**; employee open-row
    count **1**; `total_hours` is `NULL` or exact zero; `total_salary` is `NULL`
-   or exact zero; Payroll references **0**; actor authorization `PASS`; grant
-   inventory exactly as documented.
+   or exact zero; Payroll references **0**; actor is `ACTIVE`;
+   `ADMIN_WORKSPACE` is `PASS`; `ATTENDANCE_MANAGE` is `PASS`; active deny
+   count is **0**; grant inventory exactly as documented.
 3. **Stop for explicit mutation approval.** Do not weaken a predicate or change
    an ID to make the guard pass.
 4. After approval, run the guarded forward exactly once. Expected affected
@@ -113,18 +114,20 @@ read-only preflight, and stop before its first mutation:
    `BLOCKED_BY_BUSINESS_DECISION`.** No mutation is eligible until all eight
    profile field, permission, sensitive-data, audit, retention, and deletion
    decisions in the roadmap are approved.
-2. **Ledger/Reimbursement — `READY_FOR_OPERATOR` / `LIVE_APPROVAL_REQUIRED`.**
+2. **Ledger/Reimbursement — `READY_FOR_LOCAL_OPERATOR`.**
    Use package `20260728153000`; keep `FINANCE_REIMBURSEMENT_ENABLED=false`.
-3. **Payroll — `READY_FOR_OPERATOR`.** Depends on Attendance/Facility evidence;
+3. **Payroll — `READY_FOR_LOCAL_OPERATOR`.** Depends on Attendance/Facility evidence;
    use `20260728100414`, require an explicit first official month, and keep
    `PAYROLL_SETTLEMENT_ENABLED=false`.
-4. **ERP transactional email — `READY_FOR_OPERATOR` for one-recipient smoke.**
-   Follow `docs/email-setup.md`, stop before the first live send, and keep
-   `EMAIL_DELIVERY_ENABLED=false` until its smoke gate passes. Email-history
-   governance remains business-decision-blocked.
+4. **ERP transactional email — `BLOCKED_BY_DEPENDENCY` for live delivery.**
+   After protected review and explicit configuration/smoke approval, follow
+   `docs/email-setup.md`, stop before the first live send, and keep
+   `EMAIL_DELIVERY_ENABLED=false` until its one-recipient smoke gate passes.
+   Email-history safe UI/read work is `READY_FOR_PROTECTED_REVIEW`; its
+   schema/RLS/archive/retry work is `BLOCKED_BY_BUSINESS_DECISION`.
 5. **Facility and Dashboard production fixtures.** Facility is
-   `LIVE_OPERATOR_VERIFICATION_REQUIRED`; Dashboard is read-only
-   `READY_FOR_OPERATOR`. Never invent or insert fixture data. Retain empty,
+   `READY_FOR_LOCAL_OPERATOR`; Dashboard is read-only
+   `READY_FOR_LOCAL_OPERATOR`. Never invent or insert fixture data. Retain empty,
    populated, denied, and error/retry evidence only after source dependencies
    pass; keep `FACILITY_ACTIVE_STATE_ENABLED=false` until its gate passes.
 
@@ -147,7 +150,8 @@ Execute only the first incomplete operator gate. Before every command, state:
 1. READ-ONLY or MUTATING;
 2. expected affected-row count (use zero for read-only/DDL business-row effects where the runbook says so);
 3. exact stop conditions;
-4. the evidence file that will retain redacted output.
+4. the evidence file that will retain redacted output;
+5. the rollback boundary and rollback reference.
 
 Run read-only preflight first. Stop before the package's first mutation and request explicit approval. After explicit approval, execute only that one approved package exactly once, then run its post-run, package validation, authorization/RLS checks, and documented smoke checks. Never skip ahead to another mutating package and never treat repository presence, a merged PR, or a successful preflight as production PASS.
 
