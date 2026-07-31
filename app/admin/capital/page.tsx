@@ -415,21 +415,26 @@ export default function AdminFinancialLedger() {
 
     setIsSubmitting(true);
     try {
-      const { data: oldLink } = await supabase.from('financial_ledger').select('id').eq('type', 'VON_GOP').eq('category', originalLinkedCategory).eq('requested_by', originalItem.requested_by).maybeSingle();
+      const { data: oldLink, error: oldLinkError } = await supabase.from('financial_ledger').select('id').eq('type', 'VON_GOP').eq('category', originalLinkedCategory).eq('requested_by', originalItem.requested_by).maybeSingle();
+      if (oldLinkError) throw oldLinkError;
 
       if (isSelfPaidExpense && !oldLink) {
-        await supabase.from('financial_ledger').insert([{ type: 'VON_GOP', sub_type: 'HIEN_VAT', category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod, is_paid: true }]);
+        const { error } = await supabase.from('financial_ledger').insert([{ type: 'VON_GOP', sub_type: 'HIEN_VAT', category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod, is_paid: true }]);
+        if (error) throw error;
       }
       else if (!isSelfPaidExpense && oldLink) {
-        await supabase.from('financial_ledger').update({ category: `[Hủy đối ứng] ${originalLinkedCategory}` }).eq('id', oldLink.id);
+        const { error } = await supabase.from('financial_ledger').update({ category: `[Hủy đối ứng] ${originalLinkedCategory}` }).eq('id', oldLink.id);
+        if (error) throw error;
       }
       else if (isSelfPaidExpense && oldLink) {
-        await supabase.from('financial_ledger').update({ category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod }).eq('id', oldLink.id);
+        const { error } = await supabase.from('financial_ledger').update({ category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod }).eq('id', oldLink.id);
+        if (error) throw error;
       }
 
-      await supabase.from('financial_ledger').update({
+      const { error } = await supabase.from('financial_ledger').update({
         type: editType, sub_type: editType === 'VON_GOP' ? editSubType : null, category: editCategory.trim(), amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod, is_paid: isSelfPaidExpense ? true : editIsPaid
       }).eq('id', editingId);
+      if (error) throw error;
 
       setShowEditModal(false); setEditingId(null);
       if (targetPeriod === selectedMonth) loadData();
@@ -440,7 +445,11 @@ export default function AdminFinancialLedger() {
   };
 
   const handleTogglePaid = async (id: number | string, currentStatus: boolean) => {
-    await supabase.from('financial_ledger').update({ is_paid: !currentStatus }).eq('id', id);
+    const { error } = await supabase.from('financial_ledger').update({ is_paid: !currentStatus }).eq('id', id);
+    if (error) {
+      showToast('Không thể đổi trạng thái', 'Dữ liệu chưa được cập nhật. Vui lòng thử lại.', 'error');
+      return;
+    }
     setLedger(prev => prev.map(l => l.id === id ? { ...l, is_paid: !currentStatus } : l));
     showToast('Đổi trạng thái', 'Đã cập nhật trạng thái tất toán.', 'info');
   };
@@ -448,7 +457,11 @@ export default function AdminFinancialLedger() {
   const handleInstantPaymentSuccess = async () => {
     if (!activeQrTarget?.id) return;
     const targetId = activeQrTarget.id;
-    await supabase.from('financial_ledger').update({ is_paid: true }).eq('id', targetId);
+    const { error } = await supabase.from('financial_ledger').update({ is_paid: true }).eq('id', targetId);
+    if (error) {
+      showToast('Không thể xác nhận thanh toán', 'Dữ liệu chưa được cập nhật. Vui lòng thử lại.', 'error');
+      return;
+    }
     setLedger(prev => prev.map(l => l.id === targetId ? { ...l, is_paid: true } : l));
     setShowQrModal(false); setActiveQrUrl('');
     showToast('Thanh toán xong', 'Đã chuyển khoản thành công!', 'success');

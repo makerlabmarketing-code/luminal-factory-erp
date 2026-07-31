@@ -50,4 +50,21 @@ describe('expense payment source binding', () => {
     expect(capitalPage).toMatch(/requested_by: editReporterName/);
     expect(capitalPage).not.toMatch(/payment_source|payment_source_id|shareholder_id|source_id/);
   });
+
+  it('does not report successful ledger edits or payments after a failed mutation', () => {
+    const capitalPage = source('app/admin/capital/page.tsx');
+    const editMutationBoundary = capitalPage.slice(
+      capitalPage.indexOf('const handleSaveEdit'),
+      capitalPage.indexOf('const handleTogglePaid')
+    );
+    const paymentMutationBoundary = capitalPage.slice(
+      capitalPage.indexOf('const handleTogglePaid'),
+      capitalPage.indexOf('const handleGenerateVietQR')
+    );
+
+    expect(editMutationBoundary).toMatch(/if \(oldLinkError\) throw oldLinkError/);
+    expect(editMutationBoundary.match(/if \(error\) throw error;/g)).toHaveLength(4);
+    expect(paymentMutationBoundary).toMatch(/if \(error\) \{[\s\S]*Dữ liệu chưa được cập nhật/);
+    expect(paymentMutationBoundary.match(/if \(error\) \{/g)).toHaveLength(2);
+  });
 });
