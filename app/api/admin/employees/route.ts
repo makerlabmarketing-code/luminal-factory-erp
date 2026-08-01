@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AuthFlowError } from '@/services/server/auth';
 import { createEmployee } from '@/services/server/adminEmployeeActions';
 import { getAdminEmployeeListData } from '@/services/server/adminEmployeeData';
+import { sanitizeAdminMutationFailure } from '@/services/server/adminEmployeePersistence';
 
 function toJsonResponse(result: unknown, init?: ResponseInit) {
   const response = NextResponse.json(result, init);
@@ -12,13 +13,12 @@ function toJsonResponse(result: unknown, init?: ResponseInit) {
 function logEmployeeRouteError(correlationId: string, error: unknown) {
   const safeError = error instanceof AuthFlowError
     ? { code: error.code, failureStage: error.failureStage, status: error.status }
-    : { code: 'employee_update_failed', failureStage: 'unknown', message: error instanceof Error ? error.message.slice(0, 240) : String(error).slice(0, 240) };
+    : { code: 'employee_update_failed', failureStage: 'unknown', ...sanitizeAdminMutationFailure(error) };
 
   console.error('[employee-route]', { correlationId, error: safeError });
 }
 
-function toErrorResponse(error: unknown) {
-  const correlationId = crypto.randomUUID();
+function toErrorResponse(error: unknown, correlationId: string, operation: 'create' | 'update' = 'update') {
   logEmployeeRouteError(correlationId, error);
   if (error instanceof AuthFlowError) {
     return toJsonResponse(
@@ -28,7 +28,7 @@ function toErrorResponse(error: unknown) {
   }
 
   return toJsonResponse(
-    { success: false, message: 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.', code: 'employee_update_failed', failureStage: 'unknown', correlationId },
+    { success: false, message: operation === 'create' ? 'Không thể lưu hồ sơ nhân sự. Vui lòng thử lại.' : 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.', code: operation === 'create' ? 'employee_persistence_failed' : 'employee_update_failed', failureStage: 'unknown', correlationId },
     { status: 500 }
   );
 }
@@ -46,10 +46,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const correlationId = crypto.randomUUID();
   try {
     const body = (await request.json().catch(() => null)) || {};
-    return toJsonResponse(await createEmployee(body));
+    return toJsonResponse(await createEmployee(body, correlationId));
   } catch (error) {
-    return toErrorResponse(error);
+    return toErrorResponse(error, correlationId, 'create');
   }
 }

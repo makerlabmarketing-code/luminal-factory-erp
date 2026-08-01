@@ -85,6 +85,37 @@ describe('production regression facility and employee mutations', () => {
     expect(updateRoute).not.toMatch(/failureStage: 'unknown'/);
   });
 
+  it('keeps employee create failures diagnosable without exposing database messages', () => {
+    const actions = source('services/server/adminEmployeeActions.ts');
+    const route = source('app/api/admin/employees/route.ts');
+    const createStart = actions.indexOf('export async function createEmployee');
+    const createBody = actions.slice(createStart);
+
+    expect(route).toMatch(/const correlationId = crypto\.randomUUID\(\)/);
+    expect(route).toMatch(/createEmployee\(body, correlationId\)/);
+    expect(route).toMatch(/sanitizeAdminMutationFailure/);
+    expect(route).not.toMatch(/error\.message\.slice|String\(error\)/);
+    expect(actions).toMatch(/employee_email_duplicate_active/);
+    expect(actions).toMatch(/service_unavailable/);
+    expect(actions).toMatch(/employee_created_after_uncertain_result/);
+    expect(actions).toMatch(/readEmployeeByEmail/);
+    expect(actions).toMatch(/employee_create_response_uncertain/);
+    expect(createBody).toMatch(/employee: result\.data/);
+  });
+
+  it('normalizes optional create fields and prevents repeated submissions synchronously', () => {
+    const actions = source('services/server/adminEmployeeActions.ts');
+    const client = source('app/admin/employees/AdminEmployeesClient.tsx');
+
+    expect(actions).toMatch(/phone: normalizeEmployeePhone\(input\.phone\)/);
+    expect(actions).toMatch(/title: cleanText\(input\.title\)/);
+    expect(actions).toMatch(/branch_code: await validateFacilityAssignment\(input\.department\)/);
+    expect(client).toMatch(/const savingEmployeeRef = useRef\(false\)/);
+    expect(client).toMatch(/savingEmployeeRef\.current\) return/);
+    expect(client).toMatch(/savingEmployeeRef\.current = true/);
+    expect(client).toMatch(/savingEmployeeRef\.current = false/);
+  });
+
   it('keeps failed saves open with toast, inline error and double-submit protection', () => {
     const facilitiesClient = source('app/admin/facilities/page.tsx');
     const listClient = source('app/admin/employees/AdminEmployeesClient.tsx');

@@ -14,7 +14,7 @@ describe('corrective slice 2 employee profile and account lifecycle', () => {
 
     expect(createBody).toMatch(/requireAdminEmployeePermission\('EMPLOYEE_MANAGE'\)/);
     expect(createBody).toMatch(/auth_user_id: null/);
-    expect(createBody).toMatch(/from\('employees'\)\.insert\(\[payload\]\)\.select\('id, auth_user_id'\)\.single\(\)/);
+    expect(createBody).toMatch(/from\('employees'\)\.insert\(\[payload\]\)\.select\(CREATE_EMPLOYEE_SELECT\)\.single\(\)/);
     expect(createBody).toMatch(/employee_created_without_auth/);
     expect(createBody).not.toMatch(/inviteUserByEmail|resetPasswordForEmail|employee_workspace_access|employee_permissions/);
   });
