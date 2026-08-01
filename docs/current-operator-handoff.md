@@ -1,12 +1,13 @@
 # Current Operator Handoff
 
-**Prepared:** 2026-07-31
+**Prepared:** 2026-08-01
 **Authority:** this is the exact local execution authority. Status is owned by
 [the ERP implementation roadmap](ERP_IMPLEMENTATION_ROADMAP.md); package-specific
 predicates and commands remain in their linked runbooks.
 **Boundary:** no SQL/RPC was executed, no production row was inspected, no
-runtime flag was changed, no deployment occurred, and no merge is authorized by
-this handoff.
+runtime flag was changed, and no manual deployment occurred. The read-only
+verification endpoints below are application code only; any automatic Vercel
+deployment after protected-main merge is observed, not manually controlled.
 
 ## Tonight's ordered execution sequence
 
@@ -82,6 +83,19 @@ grant only `STAFF_WORKSPACE`, and retain evidence that the account has no projec
 reimbursement, pre-existing Attendance, or settlement participation. The later
 approved smoke-test row is the sole Attendance exception and remains as retained
 operator evidence. No fixture was provisioned by the application slice.
+
+#### Deployment and runtime verification boundary
+
+The runbook-verification slice is now implemented on `main`. Before fixture
+provisioning, request `GET /api/system/version` from the approved production
+alias and retain a redacted response proving `status=available`,
+`deploymentEnvironment=production`, and the approved `main` SHA. Then, with an
+authenticated Admin session holding `ADMIN_WORKSPACE` and `ATTENDANCE_VIEW`,
+request `GET /api/admin/runtime/attendance-recovery`. Retain only the normalized
+`status`; `disabled` is required and `enabled` is an immediate stop condition.
+Both routes are read-only and no-store. Follow section 0 of the
+[production runtime runbook](production-runtime-gate-operator-runbook.md) for
+the exact response contracts and timestamp format.
 
 ### C. Finance linked-ledger atomic edit
 
@@ -208,7 +222,9 @@ PASS/FAIL, affected-row counts, migration-history result, smoke result, and the
 next gate in both authorities. Package details stay in their runbooks; do not
 copy a competing command sequence into the roadmap.
 
-**Current exact stop point:** documentation/PR review before merge. The first
-local operator action after an approved documentation PR merge is section A
-repository synchronization. The first potential production mutation is section
-B step 4, and local Codex must stop at section B step 3 for explicit approval.
+**Current exact stop point:** `READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`.
+The first local operator action is section A repository synchronization followed
+by the two read-only verification requests in section 0. Fixture creation,
+invitation, workspace/facility assignment, and hourly-rate persistence remain
+separately approved application mutations. Attendance check-in/check-out remains
+a later approval boundary.

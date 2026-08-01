@@ -74,7 +74,7 @@ describe('staff portal crash boundary', () => {
     const adminAttendanceRoute = source('app/api/admin/attendance/route.ts');
     const staffAttendanceRoute = source('app/api/staff/attendance/route.ts');
 
-    expect(adminAttendanceRoute).toMatch(/process\.env\.ATTENDANCE_RECOVERY_ENABLED === 'true'/);
+    expect(adminAttendanceRoute).toMatch(/isRecoveryEnabled\(process\.env\.ATTENDANCE_RECOVERY_ENABLED\)/);
     expect(staffAttendanceRoute).not.toMatch(/ATTENDANCE_RECOVERY_ENABLED|attendance_recovery_disabled/);
     expect(staffAttendanceRoute).toMatch(/employee_id: authContext\.employee\.id/);
     expect(staffAttendanceRoute).toMatch(/getOpenAttendanceRecord\(authContext\.employee\.id\)/);

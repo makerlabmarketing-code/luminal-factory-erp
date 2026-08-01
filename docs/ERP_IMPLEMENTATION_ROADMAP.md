@@ -343,6 +343,7 @@ created, invited, assigned only `STAFF_WORKSPACE` and one verified active facili
 set/read back at zero, and confirmed absent from real project, reimbursement,
 pre-existing Attendance, and settlement activity through separately approved Admin
 UI actions. The subsequently approved retained smoke row is the sole Attendance
-exception.
-The production runbook still lacks a registered read-only platform procedure for
-proving the production alias commit and the server-only Attendance recovery flag.
+exception. The runbook-verification slice now provides the read-only
+`/api/system/version` deployment identity response and the protected normalized
+`/api/admin/runtime/attendance-recovery` status response. Production verification
+and fixture provisioning remain operator approval boundaries.

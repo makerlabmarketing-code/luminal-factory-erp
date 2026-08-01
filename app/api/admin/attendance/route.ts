@@ -13,12 +13,13 @@ import {
   hasPermission,
   requireWorkspaceAccess,
 } from '@/services/server/auth';
+import { isAttendanceRecoveryEnabled as isRecoveryEnabled } from '@/lib/attendanceRecoveryGate';
 
 type AttendanceMutationBody = Record<string, unknown>;
 type AttendanceAction = 'load' | 'update';
 
 function isAttendanceRecoveryEnabled() {
-  return process.env.ATTENDANCE_RECOVERY_ENABLED === 'true';
+  return isRecoveryEnabled(process.env.ATTENDANCE_RECOVERY_ENABLED);
 }
 
 async function requireAttendanceView() {

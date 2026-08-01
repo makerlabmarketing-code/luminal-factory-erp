@@ -1,6 +1,6 @@
 # Runtime Gate Activation Matrix
 
-**Prepared:** 2026-07-28
+**Prepared:** 2026-08-01
 **Scope:** operator readiness only. No SQL was executed, no runtime flag was enabled, and no deployment or merge was performed.
 
 ## Safety contract
@@ -52,3 +52,14 @@ Project atomic create and task atomic create are siblings: both require normaliz
 | Attendance recovery | PASS (created) | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 
 The operator smoke-test owner is `docs/production-runtime-gate-operator-runbook.md`. Forward SQL remains a reviewed package, not authorization to execute it.
+
+## Read-only evidence procedures
+
+Before any Attendance fixture or smoke mutation, use the production runtime
+runbook's section 0. `GET /api/system/version` proves the production alias's
+immutable Vercel commit identity without authentication, database access, or
+environment disclosure. `GET /api/admin/runtime/attendance-recovery` proves the
+normalized server-owned recovery state for an authenticated Admin with
+`ADMIN_WORKSPACE` and `ATTENDANCE_VIEW`. Both routes are dynamic, no-store, and
+read-only. The required evidence is a production SHA approved for `main` and
+recovery status `disabled`; neither route activates a gate.
