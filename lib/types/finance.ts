@@ -32,6 +32,25 @@ export interface FinanceAttachment {
   sizeBytes: number;
   signedUrl?: string | null;
   legacyUrl?: string | null;
+  verificationState?: string | null;
+}
+
+export interface AdminLedgerMutationInput {
+  type: string;
+  subType?: string | null;
+  category: string;
+  amount: number;
+  monthPeriod: string;
+  transactionDate?: string | null;
+  description?: string | null;
+  projectId?: number | string | null;
+  beneficiaryEmployeeId?: number | string | null;
+  beneficiaryExternalName?: string | null;
+  payerEmployeeId?: number | string | null;
+  requestedBy?: string | null;
+  isPaid: boolean;
+  expenseSourceId?: string | null;
+  idempotencyKey?: string | null;
 }
 
 export type ExpensePaymentSourceKind = 'COMMON_FUND' | 'SHAREHOLDER';

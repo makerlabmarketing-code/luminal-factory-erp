@@ -129,13 +129,13 @@ describe('corrective slice 3B finance role model', () => {
   it('redesigns the dialog with Vietnamese finance role sections and beneficiary QR copy', () => {
     const page = source('app/admin/capital/page.tsx');
 
-    expect(page).toMatch(/Thông tin khoản chi/);
+    expect(page).toMatch(/Thông tin giao dịch/);
     expect(page).toMatch(/Người liên quan/);
     expect(page).toMatch(/Thanh toán/);
     expect(page).toMatch(/Chứng từ/);
     expect(page).toMatch(/Phê duyệt và lịch sử/);
     expect(page).toMatch(/Người hưởng lợi/);
-    expect(page).toMatch(/Người thực hiện chi/);
+    expect(page).toMatch(/Người thực hiện giao dịch/);
     expect(page).toMatch(/Người tạo phiếu/);
     expect(page).toMatch(/MISSING_EMPLOYEE_PAYMENT_INFO_MESSAGE/);
     expect(page).not.toMatch(/Nhân sự thực hiện/);
@@ -145,7 +145,7 @@ describe('corrective slice 3B finance role model', () => {
     const page = source('app/admin/capital/page.tsx');
 
     expect(page).toMatch(/onClick=\{\(\) => void loadData\(\)\}[\s\S]*Thử lại/);
-    expect(page).toMatch(/if \(isSubmitting\) return;/);
+    expect(page).toMatch(/if \(submitLock\.current\) return;/);
     expect(page).toMatch(/disabled=\{isSubmitting\}[\s\S]*Đang ghi/);
     expect(page).toMatch(/disabled=\{isSubmitting\}[\s\S]*Đang lưu/);
   });

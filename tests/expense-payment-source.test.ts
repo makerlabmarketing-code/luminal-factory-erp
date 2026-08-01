@@ -42,13 +42,13 @@ describe('expense payment source binding', () => {
 
   it('keeps create and edit expense source behavior on financial_ledger', () => {
     const capitalPage = source('app/admin/capital/page.tsx');
+    const ledgerServer = source('services/server/adminFinancialLedger.ts');
 
-    expect(capitalPage).toMatch(/isSelfPaidExpense/);
-    expect(capitalPage).toMatch(/type: 'CHI_PHI'/);
-    expect(capitalPage).toMatch(/type: 'VON_GOP'/);
-    expect(capitalPage).toMatch(/requested_by: insertReporter/);
-    expect(capitalPage).toMatch(/requested_by: editReporterName/);
-    expect(capitalPage).not.toMatch(/payment_source|payment_source_id|shareholder_id|source_id/);
+    expect(ledgerServer).toMatch(/isSelfPaidExpense/);
+    expect(ledgerServer).toMatch(/type: 'VON_GOP'/);
+    expect(ledgerServer).toMatch(/requested_by: requestedBy/);
+    expect(capitalPage).toMatch(/expenseSourceId: values\.expenseSource/);
+    expect(ledgerServer).not.toMatch(/payment_source|payment_source_id|shareholder_id|source_id/);
   });
 
   it('does not report successful ledger edits or payments after a failed mutation', () => {
@@ -62,16 +62,11 @@ describe('expense payment source binding', () => {
       capitalPage.indexOf('const handleGenerateVietQR')
     );
 
-    expect(editMutationBoundary).toMatch(/if \(oldLinkError\) throw oldLinkError/);
-    expect(editMutationBoundary).toMatch(/if \(primaryError\) throw primaryError/);
-    expect(editMutationBoundary).toMatch(/if \(linkedError\) \{[\s\S]*error: rollbackError[\s\S]*throw linkedError/);
-    expect(editMutationBoundary.indexOf('error: primaryError')).toBeLessThan(
-      editMutationBoundary.indexOf('let linkedError')
-    );
+    expect(editMutationBoundary).toMatch(/await updateAdminFinancialLedger\(editingId, input\)/);
     expect(editMutationBoundary).toMatch(/setEditError\(\{ message, correlationId \}\)/);
     expect(capitalPage).toMatch(/role="alert"[\s\S]*Mã hỗ trợ: \{editError\.correlationId\}/);
     expect(capitalPage).toMatch(/disabled=\{isSubmitting\}[\s\S]*Đang lưu/);
-    expect(paymentMutationBoundary).toMatch(/if \(error\) \{[\s\S]*Dữ liệu chưa được cập nhật/);
-    expect(paymentMutationBoundary.match(/if \(error\) \{/g)).toHaveLength(2);
+    expect(paymentMutationBoundary).toMatch(/await setAdminFinancialLedgerPaid/);
+    expect(paymentMutationBoundary.match(/catch \(error\)/g)).toHaveLength(2);
   });
 });

@@ -65,13 +65,13 @@ describe("consolidated local operator authorities", () => {
   );
 
   it("keeps Attendance and Finance at guarded local-operator boundaries", () => {
-    expect(roadmap).toContain("Earlier forward attempts rolled back safely; **no successful cancellation mutation occurred**");
+    expect(roadmap).toContain("the approved forward committed exactly once, post-run passed, and package-wide validation passed");
     expect(roadmap).toContain("PR #103, `e82b873`");
-    expect(currentHandoff).toContain("**Stop for explicit mutation approval.**");
-    expect(currentHandoff).toContain("target count **1**");
+    expect(currentHandoff).toContain("**stop for explicit\n   mutation approval**");
+    expect(currentHandoff).toContain("Exactly one Attendance row");
     expect(currentHandoff).toContain("zero partial persistence");
-    expect(currentHandoff).toContain("actor is `ACTIVE`");
-    expect(currentHandoff).toContain("active deny\n   count is **0**");
+    expect(currentHandoff).toContain("authenticated-only `EXECUTE`");
+    expect(currentHandoff).toContain("do not broaden policies for the function");
   });
 
   it("preserves disabled flags and the local master prompt guardrails", () => {

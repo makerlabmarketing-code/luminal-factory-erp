@@ -141,6 +141,7 @@ export function buildBeneficiaryVietQrUrl(params: {
 
 export const FINANCE_ATTACHMENT_POLICY = {
   maxSizeBytes: 10 * 1024 * 1024,
+  maxCount: 10,
   allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
   allowedTypesLabel: 'JPG, PNG, WEBP hoặc PDF',
 } as const;
@@ -154,8 +155,23 @@ export function validateFinanceAttachment(file: { name: string; size: number; ty
     return 'Chứng từ không được vượt quá 10 MB.';
   }
 
+  if (file.size <= 0) {
+    return 'Chứng từ không được để trống.';
+  }
+
   if (/[\\/\0]/.test(file.name)) {
     return 'Tên tệp chứng từ không hợp lệ.';
+  }
+
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  const extensionsByMime: Record<string, readonly string[]> = {
+    'image/jpeg': ['jpg', 'jpeg'],
+    'image/png': ['png'],
+    'image/webp': ['webp'],
+    'application/pdf': ['pdf'],
+  };
+  if (!extensionsByMime[file.type]?.includes(extension)) {
+    return 'Phần mở rộng của chứng từ không khớp với loại tệp.';
   }
 
   return null;

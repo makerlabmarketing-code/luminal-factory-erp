@@ -99,6 +99,34 @@ unexpected production-row mutation, or any partial persistence. Before
 application activation, rollback is
 `supabase/drafts/20260731_finance_linked_ledger_edit_rollback.sql`.
 
+#### Local Admin ledger application remediation
+
+The uncommitted local task branch contains a bounded Admin ledger repair. Browser
+mutations are replaced by a server-owned finance-permission boundary; executor
+and beneficiary render independently; beneficiary QR uses the stable beneficiary
+employee ID; legacy rows without a reliable beneficiary show `Chưa xác định`;
+and document operations are prepared behind the still-disabled reimbursement
+gate plus `FINANCE_ATTACHMENT_WRITES_ENABLED=false`. The server refuses extended
+schema activation when schema readiness is missing and refuses attachment access
+until the private bucket configuration is verified. Linked-row edits also fail
+closed until the approved atomic RPC is active; ordinary one-row edits remain
+available. Final local validation passes: lint, TypeScript, all 71 test files /
+566 tests, and the production build.
+
+This does not close section C or activate Ledger/Reimbursement. Keep
+`FINANCE_REIMBURSEMENT_ENABLED=false` and
+`FINANCE_ATTACHMENT_WRITES_ENABLED=false`. The private bucket package is draft-only:
+
+- forward: `supabase/drafts/20260801_finance_evidence_storage_forward.sql`
+- rollback: `supabase/drafts/20260801_finance_evidence_storage_rollback.sql`
+- validation: `supabase/validation/20260801_finance_evidence_storage_validation.sql`
+
+Do not execute, promote, or enable it without the existing Ledger/Reimbursement
+preflight and explicit live approval. Do not enable attachment writes until a
+database-atomic active-count invariant and authenticated concurrency/cleanup
+smoke have also passed. Existing `bill_url` values remain
+render-only compatibility. No legacy salary row is backfilled or inferred.
+
 ### D. Remaining operator packages
 
 Do not execute these as a batch. After B and C are closed with retained evidence,
