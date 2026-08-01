@@ -12,6 +12,7 @@ import {
   getPublicAppBaseUrl,
 } from '@/utils/auth/flow';
 import { findFacility, getFacilityDirectory } from '@/services/server/facilityDirectory';
+import { validateEmployeeHourlyRate } from '@/lib/employeeHourlyRate';
 
 interface EmployeeAccountRow {
   id: number | string;
@@ -33,6 +34,7 @@ interface EmployeeMutationInput {
   phone?: unknown;
   bankName?: unknown;
   bankAccountNumber?: unknown;
+  hourlyRate?: unknown;
   employmentStatus?: unknown;
 }
 
@@ -162,6 +164,11 @@ async function buildEmployeeUpdatePayload(
   if (Object.prototype.hasOwnProperty.call(input, 'phone')) payload.phone = normalizeEmployeePhone(input.phone);
   if (Object.prototype.hasOwnProperty.call(input, 'bankName')) payload.bank_name = cleanText(input.bankName, 120);
   if (Object.prototype.hasOwnProperty.call(input, 'bankAccountNumber')) payload.bank_account_number = cleanText(input.bankAccountNumber, 80);
+  if (Object.prototype.hasOwnProperty.call(input, 'hourlyRate')) {
+    const hourlyRate = validateEmployeeHourlyRate(input.hourlyRate);
+    if (!hourlyRate.ok) safeFailure(400, 'payload_validation_failed', hourlyRate.message, 'validation');
+    payload.hourly_rate = hourlyRate.value;
+  }
   if (Object.prototype.hasOwnProperty.call(input, 'employmentStatus')) payload.status = validateEmploymentStatus(input.employmentStatus);
   if (Object.prototype.hasOwnProperty.call(input, 'department')) {
     payload.branch_code = await validateFacilityAssignment(input.department, current.branch_code);
@@ -562,7 +569,10 @@ export async function createEmployee(input: EmployeeMutationInput): Promise<Admi
 
 export async function updateEmployee(employeeId: string, input: EmployeeMutationInput, correlationId?: string): Promise<AdminActionResult> {
   const actor = await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
-  const touchesPersonalFinance = Object.prototype.hasOwnProperty.call(input, 'bankName') || Object.prototype.hasOwnProperty.call(input, 'bankAccountNumber');
+  const touchesPersonalFinance =
+    Object.prototype.hasOwnProperty.call(input, 'bankName') ||
+    Object.prototype.hasOwnProperty.call(input, 'bankAccountNumber') ||
+    Object.prototype.hasOwnProperty.call(input, 'hourlyRate');
   if (touchesPersonalFinance && !(await hasPermission(actor, 'FINANCE_VIEW'))) {
     safeFailure(403, 'permission_forbidden', 'Bạn không có quyền cập nhật thông tin tài chính cá nhân.', 'permission_check');
   }
@@ -638,6 +648,18 @@ export async function updateEmployee(employeeId: string, input: EmployeeMutation
       supabaseErrorCode: sanitizeAdminMutationFailure(readbackError).supabaseErrorCode || 'row_not_returned',
     });
   }
+
+  console.info('[employee-persistence]', {
+    correlationId: correlationId || null,
+    route: `/api/admin/employees/${employeeId}`,
+    method: 'PATCH',
+    actorEmployeeId: String(actor.employee.id),
+    targetEmployeeId: String(employeeId),
+    authorizationResult: 'allowed',
+    failureStage: 'persisted',
+    mutationKeys: Object.keys(payload).sort(),
+    rowUpdated: trace.rowUpdated,
+  });
 
   return {
     success: true,

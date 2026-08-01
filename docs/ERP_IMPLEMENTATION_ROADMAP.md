@@ -322,3 +322,27 @@ The local task branch now routes Admin list/create/update/payment mutations thro
 Private attachment upload/list/signed preview/add/replace/remove plumbing is prepared but fails closed behind both `FINANCE_REIMBURSEMENT_ENABLED` and the new server-only `FINANCE_ATTACHMENT_WRITES_ENABLED` gate. The server also verifies the extended schema and the bucket's private/size/MIME configuration. Replacement uploads and records the new object before archiving and cleaning the old one; removal archives metadata before object cleanup; cleanup failures return a partial `202` result rather than false success. Content signatures, MIME/extension agreement, stable content-addressed paths, target-ledger existence, and duplicate content are checked server-side. The exact private-bucket draft package is `supabase/drafts/20260801_finance_evidence_storage_{forward,rollback}.sql` plus `supabase/validation/20260801_finance_evidence_storage_validation.sql`. It is not promoted or executed. Keep attachment writes disabled until an operator-approved database-atomic active-count invariant and authenticated concurrency/cleanup smoke are complete.
 
 The pre-commit production review removed the sequential compensation path from this Admin API: ordinary one-row edits remain available, while any edit that has or would create a linked counter-row now fails closed until the approved atomic RPC is active. Updates no longer replace creator or idempotency provenance, missing targets return `404`, and schema activation fails with a controlled Vietnamese `503` when readiness is absent. Final local validation passes: lint has no warnings/errors, `npx tsc --noEmit` passes, all 71 test files / 566 tests pass, and the production build passes. No SQL/RPC, migration, Storage policy, live object, runtime flag, legacy row, deployment, commit, push, or pull request was changed. Finance linked-ledger true atomicity remains `READY_FOR_LOCAL_OPERATOR`; Ledger/Reimbursement and private Storage remain `READY_FOR_LOCAL_OPERATOR`; both finance runtime flags stay false/unset. `LIVE_APPROVAL_REQUIRED` applies before any finance RPC, reimbursement migration, private bucket, Storage policy, backfill, or runtime activation.
+
+## 2026-08-01 — Attendance fixture hourly-rate administration
+
+The approved interim production-test policy allows one dedicated Attendance fixture
+to remain payroll-visible with an exact zero hourly rate and prohibits settlement,
+adjustment, reimbursement, real work, and real employee reuse. The bounded local
+slice adds hourly-rate editing to Employee Detail → **Tài chính cá nhân** through the
+existing stable employee PATCH route. Server authorization requires both
+`EMPLOYEE_MANAGE` and `FINANCE_VIEW`; client and server validation accept zero,
+reject negative or malformed values, allow at most two decimal places, and enforce
+the existing `numeric(14,2)` storage maximum. Partial updates preserve every omitted
+employee field, success refreshes Employee Detail, and structured persistence logs
+record actor, target, outcome, and mutation keys without compensation values.
+
+No payroll calculation, schema, migration, RLS, runtime flag, or production data is
+changed. After protected-main delivery, stop at
+`READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`: the production fixture must be
+created, invited, assigned only `STAFF_WORKSPACE` and one verified active facility,
+set/read back at zero, and confirmed absent from real project, reimbursement,
+pre-existing Attendance, and settlement activity through separately approved Admin
+UI actions. The subsequently approved retained smoke row is the sole Attendance
+exception.
+The production runbook still lacks a registered read-only platform procedure for
+proving the production alias commit and the server-only Attendance recovery flag.

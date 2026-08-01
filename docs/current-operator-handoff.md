@@ -65,6 +65,24 @@ not approved and remains separately approval-gated through
 `supabase/rollbacks/20260730_attendance_stale_cancellation_rollback.sql` using
 retained audit event ID `1`.
 
+#### Dedicated Attendance smoke fixture preparation
+
+The approved interim policy permits one unmistakably test-only active employee to
+remain payroll-visible only when `hourly_rate=0`; its completed Attendance evidence
+row may remain, but it must never be settled, adjusted, reimbursed, assigned real
+work, or reused as a real employee. Employee Detail → **Tài chính cá nhân** now
+supports an `EMPLOYEE_MANAGE` + `FINANCE_VIEW` hourly-rate PATCH through the existing
+server route. Zero is preserved, negative/invalid/over-precision/out-of-range values
+fail before persistence, and Payroll calculation remains unchanged.
+
+Production fixture creation is still a separate approval boundary. Before creating
+or inviting the fixture, the operator must provide a controlled test email, select an
+existing active facility with verified GPS/radius, set and read back the rate as zero,
+grant only `STAFF_WORKSPACE`, and retain evidence that the account has no project,
+reimbursement, pre-existing Attendance, or settlement participation. The later
+approved smoke-test row is the sole Attendance exception and remains as retained
+operator evidence. No fixture was provisioned by the application slice.
+
 ### C. Finance linked-ledger atomic edit
 
 Authority: [linked finance ledger edit atomicity package](finance-linked-ledger-atomic-edit-operator-package.md).
@@ -133,10 +151,10 @@ Do not execute these as a batch. After B and C are closed with retained evidence
 re-read the roadmap, select only the first eligible package below, run its
 read-only preflight, and stop before its first mutation:
 
-1. **Employee salary configuration / Employee Profile extension —
-   `BLOCKED_BY_BUSINESS_DECISION`.** No mutation is eligible until all eight
-   profile field, permission, sensitive-data, audit, retention, and deletion
-   decisions in the roadmap are approved.
+1. **Employee Profile extension — `BLOCKED_BY_BUSINESS_DECISION`.** The existing
+   `hourly_rate` field is not part of this schema extension and has its bounded
+   permission-aware Employee Detail editor. The eight proposed profile field,
+   sensitive-data, audit, retention, and deletion decisions remain unresolved.
 2. **Ledger/Reimbursement — `READY_FOR_LOCAL_OPERATOR`.**
    Use package `20260728153000`; keep `FINANCE_REIMBURSEMENT_ENABLED=false`.
 3. **Payroll — `READY_FOR_LOCAL_OPERATOR`.** Depends on Attendance/Facility evidence;

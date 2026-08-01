@@ -100,8 +100,8 @@ describe('production regression facility and employee mutations', () => {
       expect(client).toMatch(/setError\(message\)/);
       expect(client).toMatch(/showToast\('Không thể cập nhật'/);
       expect(client).toMatch(/showToast\('Đã cập nhật', 'Đã cập nhật thông tin nhân sự\.', 'success'\)/);
-      expect(client).toMatch(/if \(!dirty \|\| saving\) return/);
-      expect(client).toMatch(/finally \{ setSaving\(false\); \}/);
+      expect(client).toMatch(/if \(!dirty \|\| savingRef\.current\) return/);
+      expect(client).toMatch(/finally \{ savingRef\.current = false; setSaving\(false\); \}/);
       expect(client).toMatch(/role="alert"/);
     }
     expect(listClient).not.toContain("method: 'PATCH'");
