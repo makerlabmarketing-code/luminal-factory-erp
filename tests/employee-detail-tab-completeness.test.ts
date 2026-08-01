@@ -11,7 +11,7 @@ describe('Employee Detail business-tab completeness', () => {
     for (const label of ['Tổng quan', 'Thông tin công việc', 'Tài khoản & phân quyền', 'Dự án & công việc', 'Lịch làm & chấm công', 'Tài chính cá nhân', 'Lịch sử thay đổi']) expect(ui).toContain(label);
     expect(ui).toContain("overview: ['fullName', 'email', 'phone']");
     expect(ui).toContain("job: ['title', 'department', 'employmentStatus']");
-    expect(ui).toContain("finance: ['bankName', 'bankAccountNumber']");
+    expect(ui).toContain("finance: ['bankName', 'bankAccountNumber', 'hourlyRate']");
   });
   it('loads project tasks and attendance as optional enrichment after the core row', () => {
     const core = service.indexOf(".from('employees')");
@@ -22,7 +22,7 @@ describe('Employee Detail business-tab completeness', () => {
     expect(service).toContain('canEditPersonalFinance: canViewFinance && canEditEmployee');
   });
   it('renders empty and failure states locally without duplicating mutation routes', () => {
-    expect(ui).toContain("value || 'Chưa cập nhật'");
+    expect(ui).toContain("value === null || value === '' ? 'Chưa cập nhật' : value");
     expect(ui).toContain('function TabWarning');
     expect(ui).toContain('Thử tải lại');
     expect(ui).toContain('router.refresh()');
