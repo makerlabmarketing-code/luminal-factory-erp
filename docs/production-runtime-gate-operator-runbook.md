@@ -1,7 +1,7 @@
 # Production Runtime Gate Operator Runbook
 
 **Prepared:** 2026-08-01
-**Boundary:** commands below are operator instructions. They were not executed while preparing this runbook. Never enable a flag before its package and smoke tests pass. Disable the flag before any rollback.
+**Boundary:** package and mutation commands below are operator instructions. They were not executed while preparing this runbook. The read-only production evidence in section 0 was observed on 2026-08-01 and does not constitute fixture, smoke, migration, or runtime activation. Never enable a flag before its package and smoke tests pass. Disable the flag before any rollback.
 
 ## 0. Read-only deployment and runtime evidence
 
@@ -11,10 +11,16 @@ Asia/Bangkok with an explicit `+07:00` offset and retain the redacted response.
 
 ### 0.1 Production commit identity
 
-Request `GET /api/system/version` from the approved production alias. The route
+The authoritative production alias is `https://erp.luminalfactory.com`. Request
+`GET https://erp.luminalfactory.com/api/system/version`. The route
 is public because it returns only immutable deployment identity and uses
 `Cache-Control: no-store, max-age=0`; it does not read a database or expose
 environment contents.
+
+The Vercel deployment URL
+`https://luminal-factory-iok6w0d4r-duy-s-projects4.vercel.app/` is supporting
+deployment metadata only and must not replace the custom production alias in
+operator procedures.
 
 Expected available response:
 
@@ -40,11 +46,13 @@ The endpoint reads only server/build-provided `VERCEL_GIT_COMMIT_SHA` and
 
 ### 0.2 Attendance recovery status
 
-Using an authenticated Admin session with `ADMIN_WORKSPACE` and
-`ATTENDANCE_VIEW`, request `GET /api/admin/runtime/attendance-recovery` through
-the normal application session or another approved authenticated read-only
-method. The endpoint has no write method, uses `Cache-Control: no-store,
-max-age=0`, and returns only normalized status.
+Log in normally to `https://erp.luminalfactory.com` using an existing Admin
+account. In that same authenticated browser session, with
+`ADMIN_WORKSPACE` and `ATTENDANCE_VIEW`, request
+`GET https://erp.luminalfactory.com/api/admin/runtime/attendance-recovery`.
+The endpoint has no write method, uses `Cache-Control: no-store, max-age=0`,
+and returns only normalized status. Do not copy authenticated cookies,
+authorization headers, or tokens into a CLI command.
 
 Expected response:
 
@@ -64,6 +72,27 @@ the same normalizer used by Admin Attendance recovery. A `401`, `403`, `5xx`,
 missing response, or unexpected payload is **UNKNOWN** and blocks the smoke
 boundary until resolved. Never capture or print cookies, tokens, raw
 environment values, or unrelated configuration.
+
+### 0.3 Verified production evidence
+
+The following read-only evidence was observed on **2026-08-01** in
+Asia/Bangkok (`+07:00`) using the authoritative custom production alias and an
+existing authenticated Admin browser session:
+
+- `GET https://erp.luminalfactory.com/api/system/version` returned HTTP success
+  with `success=true`, `status=available`,
+  `commitSha=e2090766cd6d9193f43ed2006657859b9251647e`, and
+  `deploymentEnvironment=production`.
+- `GET https://erp.luminalfactory.com/api/admin/runtime/attendance-recovery`
+  returned HTTP success with `success=true`,
+  `gate=ATTENDANCE_RECOVERY_ENABLED`, `status=disabled`, and safe correlation
+  ID `bc763507-2dbb-4598-b89f-5f7f8a951429`.
+
+The approved main commit is therefore verified in production and the recovery
+gate is verified disabled. Retain only the route, timestamp, HTTP status,
+approved/reported SHA, deployment environment, normalized status, and safe
+correlation ID. This evidence does not provision a fixture or complete
+Attendance check-in/check-out smoke testing.
 
 ## 1. Choose exactly one delivery workflow
 
@@ -152,7 +181,7 @@ Expected: all required columns/indexes exist; no null/duplicate normalized code;
 
 ### 4.2 Attendance recovery
 
-**Current state:** application `APPLICATION_COMPLETE`; repository validation `PASS`; live Gate 2 `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`; `ATTENDANCE_RECOVERY_ENABLED=false`/unset. No production SQL or runtime activation has been performed and no live Attendance PASS is recorded.
+**Current state:** application `APPLICATION_COMPLETE`; repository validation `PASS`; read-only production runtime verification `PASS` for approved commit `e2090766cd6d9193f43ed2006657859b9251647e` with `ATTENDANCE_RECOVERY_ENABLED` normalized to `disabled`; live Gate 2 remains `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED` for migration-history, fixture, authorization, and smoke evidence. No production SQL or runtime activation has been performed and no live Attendance smoke PASS is recorded.
 
 Operator evidence order: verify migration history first; run and retain the read-only pre-run; retain post-run validation; perform authenticated production authorization and smoke checks; keep `ATTENDANCE_RECOVERY_ENABLED=false` until every result passes. The tracked forward command below is not an instruction to replay a migration already present in production history.
 

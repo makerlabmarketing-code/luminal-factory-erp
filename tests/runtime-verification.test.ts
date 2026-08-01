@@ -67,13 +67,23 @@ describe('read-only runtime verification contracts', () => {
   it('keeps operator evidence instructions aligned with the response contracts', () => {
     const runbook = source('docs/production-runtime-gate-operator-runbook.md');
     const handoff = source('docs/current-operator-handoff.md');
-    expect(runbook).toContain('GET /api/system/version');
-    expect(runbook).toContain('GET /api/admin/runtime/attendance-recovery');
+    const matrix = source('docs/runtime-gate-activation-matrix.md');
+    const roadmap = source('docs/ERP_IMPLEMENTATION_ROADMAP.md');
+    expect(runbook).toContain('GET https://erp.luminalfactory.com/api/system/version');
+    expect(runbook).toContain('GET https://erp.luminalfactory.com/api/admin/runtime/attendance-recovery');
+    expect(runbook).toContain('https://erp.luminalfactory.com');
+    expect(runbook).toContain('e2090766cd6d9193f43ed2006657859b9251647e');
+    expect(runbook).toContain('bc763507-2dbb-4598-b89f-5f7f8a951429');
     expect(runbook).toContain('PRODUCTION_DEPLOYMENT_REQUIRED');
     expect(runbook).toContain('status=disabled');
     expect(runbook).toContain('Asia/Bangkok');
     expect(handoff).toContain('READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL');
     expect(handoff).toContain('/api/system/version');
     expect(handoff).toContain('/api/admin/runtime/attendance-recovery');
+    expect(handoff).toContain('e2090766cd6d9193f43ed2006657859b9251647e');
+    expect(matrix).toContain('https://erp.luminalfactory.com');
+    expect(matrix).toContain('status=disabled');
+    expect(roadmap).toContain('READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL');
+    expect(roadmap).toContain('e2090766cd6d9193f43ed2006657859b9251647e');
   });
 });

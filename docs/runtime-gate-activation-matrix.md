@@ -1,11 +1,11 @@
 # Runtime Gate Activation Matrix
 
 **Prepared:** 2026-08-01
-**Scope:** operator readiness only. No SQL was executed, no runtime flag was enabled, and no deployment or merge was performed.
+**Scope:** operator readiness only. No SQL was executed, no runtime flag was enabled, and no manual deployment was performed. Read-only production runtime evidence was verified on 2026-08-01; fixture provisioning and Attendance smoke remain pending.
 
 ## Safety contract
 
-All seven flags are server-owned and default closed: only the exact server value `true` enables a capability. Browser environment variables, request payloads, actor IDs, roles, and client-supplied capability fields never grant authority. Operators must disable a flag before rollback. A package is `READY_FOR_OPERATOR` when its repository artifacts are complete; `LIVE_OPERATOR_VERIFICATION_REQUIRED` means a tracked package may already be in migration history and its live state must be verified rather than replayed. Attendance uses the more explicit `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED` to record that repository validation passed while live production evidence remains outstanding; it is not a live PASS.
+All seven flags are server-owned and default closed: only the exact server value `true` enables a capability. Browser environment variables, request payloads, actor IDs, roles, and client-supplied capability fields never grant authority. Operators must disable a flag before rollback. A package is `READY_FOR_OPERATOR` when its repository artifacts are complete; `LIVE_OPERATOR_VERIFICATION_REQUIRED` means a tracked package may already be in migration history and its live state must be verified rather than replayed. Attendance uses the more explicit `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED` for the remaining migration-history, authorization, fixture, and smoke evidence; its read-only deployment identity and recovery-status checks are now verified PASS and do not activate the gate.
 
 ## Authoritative dependency graph
 
@@ -56,10 +56,16 @@ The operator smoke-test owner is `docs/production-runtime-gate-operator-runbook.
 ## Read-only evidence procedures
 
 Before any Attendance fixture or smoke mutation, use the production runtime
-runbook's section 0. `GET /api/system/version` proves the production alias's
-immutable Vercel commit identity without authentication, database access, or
-environment disclosure. `GET /api/admin/runtime/attendance-recovery` proves the
-normalized server-owned recovery state for an authenticated Admin with
+runbook's section 0. The authoritative alias is
+`https://erp.luminalfactory.com`; the Vercel deployment URL is supporting
+metadata only. `GET https://erp.luminalfactory.com/api/system/version` proves
+the immutable Vercel commit identity without authentication, database access, or
+environment disclosure. In the same authenticated Admin browser session,
+`GET https://erp.luminalfactory.com/api/admin/runtime/attendance-recovery`
+proves the normalized server-owned recovery state for an Admin with
 `ADMIN_WORKSPACE` and `ATTENDANCE_VIEW`. Both routes are dynamic, no-store, and
-read-only. The required evidence is a production SHA approved for `main` and
-recovery status `disabled`; neither route activates a gate.
+read-only. On 2026-08-01 (+07:00), the version response verified production
+commit `e2090766cd6d9193f43ed2006657859b9251647e` and the runtime response
+verified `status=disabled` with safe correlation ID
+`bc763507-2dbb-4598-b89f-5f7f8a951429`. The next boundary is
+`READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`; neither route activates a gate.

@@ -5,9 +5,10 @@
 [the ERP implementation roadmap](ERP_IMPLEMENTATION_ROADMAP.md); package-specific
 predicates and commands remain in their linked runbooks.
 **Boundary:** no SQL/RPC was executed, no production row was inspected, no
-runtime flag was changed, and no manual deployment occurred. The read-only
-verification endpoints below are application code only; any automatic Vercel
-deployment after protected-main merge is observed, not manually controlled.
+runtime flag was changed, and no manual deployment occurred. The production
+runtime evidence below was collected through read-only endpoints; any automatic
+Vercel deployment after protected-main merge is observed, not manually
+controlled.
 
 ## Tonight's ordered execution sequence
 
@@ -55,9 +56,10 @@ Verified state: employee open-row count **0**; `check_out`, `total_hours`, and
 count **0**; audit event ID `1` is unique and protected by the immutable trigger
 and current grants.
 
-The next Attendance gate is production Staff/Admin smoke only. Perform that
-smoke exactly as the runbook and production runtime-gate runbook specify, retain
-the authorization/RLS and smoke evidence, and stop on any normal Staff
+The next Attendance gate is dedicated test-fixture provisioning approval,
+followed by production Staff/Admin smoke. Perform those steps exactly as the
+runbook and production runtime-gate runbook specify, retain the
+authorization/RLS and smoke evidence, and stop on any normal Staff
 check-in/out regression, authorization failure, Admin denial/bypass, count
 drift, or smoke failure.
 
@@ -86,16 +88,22 @@ operator evidence. No fixture was provisioned by the application slice.
 
 #### Deployment and runtime verification boundary
 
-The runbook-verification slice is now implemented on `main`. Before fixture
-provisioning, request `GET /api/system/version` from the approved production
-alias and retain a redacted response proving `status=available`,
-`deploymentEnvironment=production`, and the approved `main` SHA. Then, with an
-authenticated Admin session holding `ADMIN_WORKSPACE` and `ATTENDANCE_VIEW`,
-request `GET /api/admin/runtime/attendance-recovery`. Retain only the normalized
-`status`; `disabled` is required and `enabled` is an immediate stop condition.
-Both routes are read-only and no-store. Follow section 0 of the
+The runbook-verification slice is now implemented on `main`, and its production
+evidence is recorded. The authoritative alias is
+`https://erp.luminalfactory.com`; the Vercel URL is supporting metadata only.
+On 2026-08-01 (+07:00), `GET /api/system/version` returned
+`status=available`, `deploymentEnvironment=production`, and approved commit
+`e2090766cd6d9193f43ed2006657859b9251647e`. In the same existing authenticated
+Admin browser session with `ADMIN_WORKSPACE` and `ATTENDANCE_VIEW`,
+`GET /api/admin/runtime/attendance-recovery` returned
+`gate=ATTENDANCE_RECOVERY_ENABLED` and normalized `status=disabled` with safe
+correlation ID `bc763507-2dbb-4598-b89f-5f7f8a951429`.
+
+Both routes are read-only and no-store. No fixture was provisioned and no
+Attendance check-in/check-out smoke has occurred. The next boundary is
+`READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`. Follow section 0 of the
 [production runtime runbook](production-runtime-gate-operator-runbook.md) for
-the exact response contracts and timestamp format.
+the exact response contracts, evidence fields, and timestamp format.
 
 ### C. Finance linked-ledger atomic edit
 
