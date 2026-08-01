@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useState, useTransition } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -151,6 +151,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [savingEmployee, setSavingEmployee] = useState(false);
+  const savingEmployeeRef = useRef(false);
   const [isPending, startTransition] = useTransition();
   const itemsPerPage = 10;
   const { employees, capabilities } = employeeData;
@@ -223,8 +224,9 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
 
   const submitEmployeeForm = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!formState || savingEmployee) return;
+    if (!formState || savingEmployee || savingEmployeeRef.current) return;
 
+    savingEmployeeRef.current = true;
     setSavingEmployee(true);
     setFormError(null);
     showGlobalLoading('Đang lưu thay đổi...');
@@ -247,20 +249,21 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
 
       if (!result.success) {
         const reference = result.correlationId ? ` Mã tra cứu: ${result.correlationId}.` : '';
-        const message = `${result.message || 'Không thể cập nhật hồ sơ nhân sự. Vui lòng thử lại.'}${reference}`;
+        const message = `${result.message || 'Không thể lưu hồ sơ nhân sự. Vui lòng thử lại.'}${reference}`;
         setFormError(message);
         showToast('Không thể cập nhật', message, 'error');
         return;
       }
 
       setFormState(null);
-      showToast('Đã cập nhật', 'Đã cập nhật hồ sơ nhân sự.', 'success');
+      showToast('Đã tạo hồ sơ', 'Đã tạo hồ sơ nhân sự.', 'success');
       refreshPage();
     } catch {
-      const message = 'Không thể kết nối để cập nhật hồ sơ nhân sự. Vui lòng thử lại.';
+      const message = 'Không thể kết nối để lưu hồ sơ nhân sự. Vui lòng thử lại.';
       setFormError(message);
-      showToast('Không thể cập nhật', message, 'error');
+      showToast('Không thể lưu', message, 'error');
     } finally {
+      savingEmployeeRef.current = false;
       setSavingEmployee(false);
       hideGlobalLoading();
     }

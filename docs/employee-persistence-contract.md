@@ -22,6 +22,26 @@ No key is exposed to browser code. Sanitized structured logs record route, metho
 actor employee ID, authorization result, failure stage, operation, relation, whether
 the mutation ran, and only the Supabase machine error code. The original correlation IDs were not bound to an exact database error. That historical diagnostic limitation does not keep the incident open because the repaired contract has now passed authenticated production mutation and readback smoke tests.
 
+## 2026-08-01 — Employee create failure diagnostic boundary
+
+Production reported a generic create failure for a test-fixture attempt at
+`/api/admin/employees` (correlation ID retained by the operator). The approved
+read-only Admin readback and Vercel log-query procedures were not available in
+the execution environment, so the result is classified `READBACK_UNAVAILABLE`;
+the underlying database constraint is not inferred and no retry was performed.
+
+Source review identified a concrete create-path defect: insert errors and missing
+returned rows were collapsed into one generic `500`, no created employee ID was
+returned, and the route did not attach a stable correlation ID to the create
+action. The application repair maps safe duplicate, validation, permission,
+dependency, and unexpected failures; performs only a read-only email readback
+after an ambiguous response (never an automatic insert retry); returns the
+created employee when available; and prevents synchronous double submission in
+the Admin create dialog. Empty phone/title values remain nullable and facility
+input remains canonicalized to a stable facility code. No production employee,
+Auth identity, SQL, migration, or data repair was performed during this
+investigation.
+
 ## Authoritative employee source
 
 `public.employees` is the sole profile source of truth for both Admin and Staff.

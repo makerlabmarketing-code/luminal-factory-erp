@@ -65,6 +65,122 @@ function safeFailure(status: number, code: AuthFlowErrorCode, message: string, f
   throw new AuthFlowError({ status, code, message, failureStage });
 }
 
+const CREATE_EMPLOYEE_SELECT = 'id, full_name, email, title, phone, status, is_active, auth_user_id, branch_code';
+
+function throwCreatePersistenceFailure(
+  error: unknown,
+  correlationId: string | undefined,
+  actorEmployeeId: string,
+  failureStage: AuthFailureStage,
+  requestReachedSupabase: boolean
+): never {
+  const safeDetails = sanitizeAdminMutationFailure(error);
+  console.error('[employee-persistence]', {
+    correlationId: correlationId || null,
+    route: '/api/admin/employees',
+    method: 'POST',
+    actorEmployeeId,
+    authorizationResult: 'allowed',
+    failureStage,
+    mutationKeys: ['auth_user_id', 'branch_code', 'email', 'full_name', 'is_active', 'role', 'status', 'phone', 'title'],
+    requestReachedSupabase,
+    rowCreated: false,
+    ...safeDetails,
+  });
+
+  const supabaseCode = safeDetails.supabaseErrorCode;
+  if (supabaseCode === '23505') {
+    throw new AuthFlowError({
+      status: 409,
+      code: 'employee_email_duplicate_active',
+      message: 'Email này đang được dùng bởi hồ sơ nhân sự khác.',
+      failureStage: 'duplicate_check',
+      safeDetails,
+    });
+  }
+  if (supabaseCode === '23502' || supabaseCode === '23514') {
+    throw new AuthFlowError({
+      status: 400,
+      code: 'payload_validation_failed',
+      message: 'Thông tin hồ sơ nhân sự chưa hợp lệ. Vui lòng kiểm tra các trường bắt buộc.',
+      failureStage: 'validation',
+      safeDetails,
+    });
+  }
+  if (supabaseCode === '23503') {
+    throw new AuthFlowError({
+      status: 400,
+      code: 'payload_validation_failed',
+      message: 'Thông tin liên kết hồ sơ nhân sự chưa hợp lệ.',
+      failureStage: 'validation',
+      safeDetails,
+    });
+  }
+  if (supabaseCode === '42501' || safeDetails.errorCategory === 'permission_or_credential') {
+    throw new AuthFlowError({
+      status: 403,
+      code: 'permission_forbidden',
+      message: 'Bạn không có quyền lưu hồ sơ nhân sự.',
+      failureStage: 'permission_check',
+      safeDetails,
+    });
+  }
+  if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'schema_contract' || safeDetails.errorCategory === 'unavailable') {
+    throw new AuthFlowError({
+      status: 503,
+      code: 'service_unavailable',
+      message: 'Hệ thống chưa xác định được kết quả lưu hồ sơ. Vui lòng tra cứu theo email trước khi thử lại.',
+      failureStage: failureStage === 'core_readback' ? 'core_readback' : 'persistence',
+      safeDetails,
+    });
+  }
+  throw new AuthFlowError({
+    status: 500,
+    code: 'employee_persistence_failed',
+    message: 'Không thể lưu hồ sơ nhân sự. Vui lòng thử lại.',
+    failureStage,
+    safeDetails,
+  });
+}
+
+async function readEmployeeByEmail(supabaseAdmin: ReturnType<typeof createSupabaseAdminClient>, email: string): Promise<EmployeeAccountRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from('employees')
+    .select('id, email')
+    .ilike('email', email.trim());
+  if (error) throw error;
+  return ((data || []) as EmployeeAccountRow[]).filter((row) => normalizeEmail(row.email) === normalizeEmail(email));
+}
+
+async function recoverUncertainEmployeeCreate(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdminClient>,
+  email: string,
+  correlationId: string | undefined,
+  actorEmployeeId: string
+): Promise<AdminActionResult | null> {
+  const matches = await readEmployeeByEmail(supabaseAdmin, email);
+  if (matches.length !== 1) return null;
+
+  console.warn('[employee-persistence]', {
+    correlationId: correlationId || null,
+    route: '/api/admin/employees',
+    method: 'POST',
+    actorEmployeeId,
+    failureStage: 'core_readback',
+    requestReachedSupabase: true,
+    rowCreated: true,
+    resultUncertain: true,
+  });
+  return {
+    success: true,
+    message: 'Hồ sơ đã được lưu nhưng phản hồi ban đầu không xác định. Vui lòng không gửi lại.',
+    code: 'employee_created_after_uncertain_result',
+    failureStage: 'persisted',
+    employee: matches[0],
+    warnings: ['employee_create_response_uncertain'],
+  };
+}
+
 function validateEmail(value: unknown): string {
   const email = cleanText(value, 254);
   if (!email) {
@@ -189,7 +305,10 @@ async function validateFacilityAssignment(value: unknown, currentValue?: string 
   const facility = findFacility(facilities, requestedCode);
   const unchangedInactive = facility && !facility.isActive && facility.code === currentValue;
 
-  if (!facility || (!facility.isActive && !unchangedInactive)) {
+  if (!facility) {
+    safeFailure(404, 'employee_facility_invalid', 'Không tìm thấy cơ sở làm việc đã chọn.', 'validation');
+  }
+  if (!facility.isActive && !unchangedInactive) {
     safeFailure(400, 'employee_facility_invalid', 'Cơ sở làm việc không còn hoạt động. Vui lòng chọn cơ sở khác.', 'validation');
   }
 
@@ -540,8 +659,8 @@ export async function restoreEmployeeAccess(employeeId: string): Promise<AdminAc
   return { success: true, message: 'Đã khôi phục quyền truy cập.' };
 }
 
-export async function createEmployee(input: EmployeeMutationInput): Promise<AdminActionResult> {
-  await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
+export async function createEmployee(input: EmployeeMutationInput, correlationId?: string): Promise<AdminActionResult> {
+  const actor = await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
 
   const payload = {
     ...buildEmployeePayload(input),
@@ -552,11 +671,50 @@ export async function createEmployee(input: EmployeeMutationInput): Promise<Admi
   };
   await ensureEmployeeEmailAvailable(payload.email);
 
-  const supabaseAdmin = createSupabaseAdminClient();
-  const { data, error } = await supabaseAdmin.from('employees').insert([payload]).select('id, auth_user_id').single();
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdminClient>;
+  try {
+    supabaseAdmin = createSupabaseAdminClient();
+  } catch (error) {
+    throwCreatePersistenceFailure(error, correlationId, String(actor.employee.id), 'admin_client_creation', false);
+  }
 
-  if (error || !data) {
-    safeFailure(500, 'employee_persistence_failed', 'Không thể lưu hồ sơ nhân sự. Vui lòng thử lại.', 'persistence');
+  let result: { data: EmployeeAccountRow | null; error: unknown };
+  try {
+    result = await supabaseAdmin.from('employees').insert([payload]).select(CREATE_EMPLOYEE_SELECT).single();
+  } catch (error) {
+    const safeDetails = sanitizeAdminMutationFailure(error);
+    if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'schema_contract' || safeDetails.errorCategory === 'unavailable') {
+      try {
+        const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));
+        if (recovered) return recovered;
+      } catch (readbackError) {
+        throwCreatePersistenceFailure(readbackError, correlationId, String(actor.employee.id), 'core_readback', true);
+      }
+    }
+    throwCreatePersistenceFailure(error, correlationId, String(actor.employee.id), 'core_mutation', true);
+  }
+
+  if (result.error) {
+    const safeDetails = sanitizeAdminMutationFailure(result.error);
+    if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'schema_contract' || safeDetails.errorCategory === 'unavailable') {
+      try {
+        const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));
+        if (recovered) return recovered;
+      } catch (readbackError) {
+        throwCreatePersistenceFailure(readbackError, correlationId, String(actor.employee.id), 'core_readback', true);
+      }
+    }
+    throwCreatePersistenceFailure(result.error, correlationId, String(actor.employee.id), 'core_mutation', true);
+  }
+
+  if (!result.data) {
+    try {
+      const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));
+      if (recovered) return recovered;
+    } catch (readbackError) {
+      throwCreatePersistenceFailure(readbackError, correlationId, String(actor.employee.id), 'core_readback', true);
+    }
+    throwCreatePersistenceFailure({ code: 'employee_create_result_missing' }, correlationId, String(actor.employee.id), 'returned_result_decode', true);
   }
 
   return {
@@ -564,6 +722,7 @@ export async function createEmployee(input: EmployeeMutationInput): Promise<Admi
     message: 'Đã tạo hồ sơ nhân sự. Nhân sự đang ở trạng thái Chưa kết nối.',
     code: 'employee_created_without_auth',
     failureStage: 'persisted',
+    employee: result.data,
   };
 }
 
