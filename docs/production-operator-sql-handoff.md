@@ -88,7 +88,7 @@ The authoritative graph has independent Facility/Attendance and Project Workflow
 
 Status: `READY_FOR_OPERATOR` / `LIVE_APPROVAL_REQUIRED`. Use pre-run `supabase/drafts/20260728153000_ledger_reimbursement_pre_run.sql`, forward `supabase/migrations/20260728153000_ledger_reimbursement_workflow.sql`, post-run `supabase/validation/20260728153000_ledger_reimbursement_validation.sql`, rollback `supabase/rollbacks/20260728153000_ledger_reimbursement_workflow_rollback.sql`, private-storage design `supabase/drafts/20260728153000_ledger_storage_policy.md`, and smoke checklist `supabase/drafts/20260728153000_ledger_reimbursement_smoke.md`.
 
-Keep `FINANCE_REIMBURSEMENT_ENABLED=false` or unset until forward delivery, post-run schema/RPC/RLS validation, private bucket/server signed-URL review, authorization fixtures, idempotency, immutable history, no-delete, legacy salary, existing attachment, storage-error, and payroll-source smoke checks all pass. Rollback drops new workflow data and therefore requires export/approval; it never backfills or rewrites legacy salary rows.
+Keep `FINANCE_REIMBURSEMENT_ENABLED=false` and `FINANCE_ATTACHMENT_WRITES_ENABLED=false` or unset until forward delivery, post-run schema/RPC/RLS validation, private bucket/server signed-URL review, authorization fixtures, idempotency, immutable history, no-delete, legacy salary, existing attachment, storage-error, database-atomic attachment-count enforcement, concurrency, and payroll-source smoke checks all pass. Rollback drops new workflow data and therefore requires export/approval; it never backfills or rewrites legacy salary rows.
 
 ## Roadmap reconciliation handoff — 2026-07-29
 

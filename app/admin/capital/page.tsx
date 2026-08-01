@@ -1,17 +1,20 @@
 // app/admin/capital/page.tsx
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/utils/supabase/client';
 import { useNotification } from '@/component/NotificationContext';
+import { useGlobalLoading } from '@/component/GlobalLoading';
 import MonthPicker from '@/component/MonthPicker';
 import LedgerMetrics from './components/LedgerMetrics';
 import LedgerTable from './components/LedgerTable';
 import CapitalShareCard from './components/CapitalShareCard';
-import type { ExpensePaymentSourceOption, FinancialLedgerEntry } from '@/lib/types/finance';
+import type { AdminLedgerMutationInput, ExpensePaymentSourceOption, FinanceAttachment, FinancialLedgerEntry } from '@/lib/types/finance';
 import {
+  FINANCE_ATTACHMENT_POLICY,
   MISSING_EMPLOYEE_PAYMENT_INFO_MESSAGE,
   buildBeneficiaryVietQrUrl,
+  validateFinanceAttachment,
 } from '@/lib/financeExpenseWorkflow';
 import {
   CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME,
@@ -27,6 +30,15 @@ import {
   reportingPeriodFromMonthInput,
   summarizeFinancialLedger,
 } from '@/services/financialReportingService';
+import {
+  createAdminFinancialLedger,
+  loadAdminFinancialLedger,
+  removeAdminLedgerAttachment,
+  replaceAdminLedgerAttachment,
+  setAdminFinancialLedgerPaid,
+  updateAdminFinancialLedger,
+  uploadAdminLedgerAttachment,
+} from '@/services/adminFinancialLedgerService';
 import {
   PiggyBank, Plus, X, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight
 } from 'lucide-react';
@@ -140,6 +152,7 @@ function LedgerLoadingSkeleton() {
 
 export default function AdminFinancialLedger() {
   const { showToast } = useNotification();
+  const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
   const [ledger, setLedger] = useState<FinancialLedgerEntry[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [transactionTypes, setTransactionTypes] = useState<SystemMetadataOption[]>(() => [...DEFAULT_FINANCIAL_TRANSACTION_TYPES]);
@@ -152,6 +165,12 @@ export default function AdminFinancialLedger() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLock = useRef(false);
+  const pendingCreatedLedgerId = useRef<number | string | null>(null);
+  const createIdempotencyKey = useRef(crypto.randomUUID());
+  const [extendedSchemaEnabled, setExtendedSchemaEnabled] = useState(false);
+  const [attachmentsEnabled, setAttachmentsEnabled] = useState(false);
+  const [projects, setProjects] = useState<Array<{ id: number | string; name: string }>>([]);
 
   const [monthInput, setMonthInput] = useState(() => {
     const d = new Date();
@@ -167,6 +186,12 @@ export default function AdminFinancialLedger() {
   const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
   const [reporter, setReporter] = useState('');
+  const [beneficiaryEmployeeId, setBeneficiaryEmployeeId] = useState('');
+  const [beneficiaryExternalName, setBeneficiaryExternalName] = useState('');
+  const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [description, setDescription] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isPaid, setIsPaid] = useState(true);
   const [formMonthInput, setFormMonthInput] = useState(monthInput);
   const [expenseSource, setExpenseSource] = useState<string>('QUY_CHUNG');
@@ -179,10 +204,20 @@ export default function AdminFinancialLedger() {
   const [editCategory, setEditCategory] = useState('');
   const [editAmount, setEditAmount] = useState('');
   const [editReporter, setEditReporter] = useState('');
+  const [editBeneficiaryEmployeeId, setEditBeneficiaryEmployeeId] = useState('');
+  const [editBeneficiaryExternalName, setEditBeneficiaryExternalName] = useState('');
+  const [editTransactionDate, setEditTransactionDate] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editProjectId, setEditProjectId] = useState('');
+  const [editPendingFiles, setEditPendingFiles] = useState<File[]>([]);
+  const [editAttachments, setEditAttachments] = useState<FinanceAttachment[]>([]);
   const [editIsPaid, setEditIsPaid] = useState(false);
   const [editMonthInput, setEditMonthInput] = useState(monthInput);
   const [editExpenseSource, setEditExpenseSource] = useState<string>('QUY_CHUNG');
   const [editError, setEditError] = useState<{ message: string; correlationId: string } | null>(null);
+  const attachmentActionLock = useRef(false);
+  const paymentActionLock = useRef(false);
+  const [attachmentActionId, setAttachmentActionId] = useState<number | string | null>(null);
 
   // VietQR States
   const [showQrModal, setShowQrModal] = useState(false);
@@ -214,7 +249,7 @@ export default function AdminFinancialLedger() {
       setEmployees(emps || []);
       if (emps && emps.length > 0) {
         const defaultPayer = emps.find((employee) => employee.full_name?.trim() === DEFAULT_COMPANY_PAYER_NAME) || emps[0];
-        setReporter((current) => current || defaultPayer.full_name);
+        setReporter((current) => current || String(defaultPayer.id));
       }
 
       const { data: paymentSourceRows, error: paymentSourceError } = await supabase
@@ -265,14 +300,11 @@ export default function AdminFinancialLedger() {
         setCompanyBankAccount('');
       }
 
-      const { data: ledgers, error: ledgerError } = await supabase
-        .from('financial_ledger')
-        .select('id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at')
-        .eq('month_period', selectedMonth)
-        .order('id', { ascending: false });
-      if (ledgerError) throw ledgerError;
-
-      setLedger((ledgers || []) as FinancialLedgerEntry[]);
+      const ledgerResult = await loadAdminFinancialLedger(selectedMonth);
+      setLedger(ledgerResult.ledger);
+      setExtendedSchemaEnabled(ledgerResult.extendedSchemaEnabled);
+      setAttachmentsEnabled(ledgerResult.attachmentsEnabled);
+      setProjects(ledgerResult.projects);
     } catch (e) {
       console.error(e);
       setLoadError('Không tải được dữ liệu.');
@@ -296,7 +328,9 @@ export default function AdminFinancialLedger() {
   // Tìm kiếm dữ liệu
   const filteredLedger = ledger.filter(l =>
     (l.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (l.requested_by || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (l.requested_by || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (l.payer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (l.beneficiary_name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // --- MỚI: THUẬT TOÁN GOM NHÓM DATA TRƯỚC KHI PHÂN TRANG ---
@@ -329,46 +363,105 @@ export default function AdminFinancialLedger() {
   const totalPages = Math.ceil(finalGroupedData.length / itemsPerPage) || 1;
   const currentLedgerData = finalGroupedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const handleInsertLedger = async () => {
-    if (isSubmitting) return;
-    const numericAmount = parseCurrency(amount);
-    if (!category.trim() || !numericAmount) {
-      showToast('Thiếu số liệu', 'Vui lòng điền đủ nội dung khoản mục và giá tiền!', 'error');
-      return;
+  const validateSelectedFiles = (files: File[], existingCount = 0): string | null => {
+    if (files.length + existingCount > FINANCE_ATTACHMENT_POLICY.maxCount) return `Mỗi giao dịch tối đa ${FINANCE_ATTACHMENT_POLICY.maxCount} chứng từ.`;
+    const unique = new Set<string>();
+    for (const file of files) {
+      const error = validateFinanceAttachment(file);
+      if (error) return error;
+      const key = `${file.name}:${file.size}:${file.lastModified}`;
+      if (unique.has(key)) return 'Danh sách có chứng từ bị trùng.';
+      unique.add(key);
     }
+    return null;
+  };
 
-    const targetPeriod = reportingPeriodFromMonthInput(formMonthInput);
+  const mutationInput = (values: {
+    type: string; subType: string; category: string; amount: string; monthInput: string;
+    reporterId: string; beneficiaryEmployeeId: string; beneficiaryExternalName: string;
+    transactionDate: string; description: string; projectId: string; isPaid: boolean; expenseSource: string;
+  }): AdminLedgerMutationInput | null => {
+    const numericAmount = parseCurrency(values.amount);
+    const targetPeriod = reportingPeriodFromMonthInput(values.monthInput);
+    if (!values.category.trim()) {
+      showToast('Thiếu khoản mục', 'Vui lòng nhập nội dung giao dịch.', 'error');
+      return null;
+    }
+    if (!numericAmount) {
+      showToast('Số tiền không hợp lệ', 'Số tiền phải lớn hơn 0.', 'error');
+      return null;
+    }
     if (!isValidReportingPeriod(targetPeriod)) {
       showToast('Kỳ báo cáo không hợp lệ', 'Vui lòng chọn kỳ báo cáo hợp lệ.', 'error');
-      return;
+      return null;
     }
+    if (extendedSchemaEnabled && ['CHI_PHI', 'CHI_TIEU', 'HOAN_UNG'].includes(values.type) && !values.beneficiaryEmployeeId && !values.beneficiaryExternalName.trim()) {
+      showToast('Thiếu Người hưởng lợi', 'Vui lòng chọn nhân sự hoặc nhập Người hưởng lợi bên ngoài.', 'error');
+      return null;
+    }
+    if (values.beneficiaryEmployeeId && values.beneficiaryExternalName.trim()) {
+      showToast('Người hưởng lợi chưa hợp lệ', 'Chỉ chọn nhân sự hoặc nhập người bên ngoài.', 'error');
+      return null;
+    }
+    const selectedSource = findPaymentSourceOption(expensePaymentSources, values.expenseSource);
+    const payer = employees.find((employee) => String(employee.id) === values.reporterId);
+    return {
+      type: values.type,
+      subType: values.type === 'VON_GOP' ? values.subType : null,
+      category: values.category.trim(),
+      amount: numericAmount,
+      monthPeriod: targetPeriod,
+      transactionDate: extendedSchemaEnabled ? values.transactionDate || null : null,
+      description: extendedSchemaEnabled ? values.description.trim() || null : null,
+      projectId: extendedSchemaEnabled ? values.projectId || null : null,
+      beneficiaryEmployeeId: values.beneficiaryEmployeeId || null,
+      beneficiaryExternalName: values.beneficiaryExternalName.trim() || null,
+      payerEmployeeId: selectedSource?.kind === 'SHAREHOLDER' ? null : values.reporterId || null,
+      requestedBy: selectedSource?.reporterName || payer?.full_name || null,
+      isPaid: values.type === 'CHI_PHI' && isSelfPaidSource(selectedSource) ? true : values.isPaid,
+      expenseSourceId: values.expenseSource,
+      idempotencyKey: crypto.randomUUID(),
+    };
+  };
 
-    const selectedPaymentSource = findPaymentSourceOption(expensePaymentSources, expenseSource);
-    const insertReporter = selectedPaymentSource?.reporterName || reporter;
-    const isSelfPaidExpense = type === 'CHI_PHI' && isSelfPaidSource(selectedPaymentSource);
-
+  const handleInsertLedger = async () => {
+    if (submitLock.current) return;
+    const fileError = validateSelectedFiles(pendingFiles);
+    if (fileError) return showToast('Chứng từ chưa hợp lệ', fileError, 'error');
+    if (pendingFiles.length > 0 && !attachmentsEnabled) return showToast('Kho chứng từ chưa sẵn sàng', 'Vui lòng chờ kho riêng tư được kiểm tra và kích hoạt.', 'error');
+    const draftInput = mutationInput({ type, subType, category, amount, monthInput: formMonthInput, reporterId: reporter, beneficiaryEmployeeId, beneficiaryExternalName, transactionDate, description, projectId, isPaid, expenseSource });
+    const input = draftInput ? { ...draftInput, idempotencyKey: createIdempotencyKey.current } : null;
+    if (!input) return;
+    submitLock.current = true;
     setIsSubmitting(true);
+    showGlobalLoading('Đang lưu thay đổi...');
     try {
-      if (isSelfPaidExpense) {
-        const { error } = await supabase.from('financial_ledger').insert([
-          { type: 'CHI_PHI', category: category.trim(), amount: numericAmount, requested_by: insertReporter, month_period: targetPeriod, is_paid: true },
-          { type: 'VON_GOP', sub_type: 'HIEN_VAT', category: `[Đối ứng] Vốn hiện vật: ${category.trim()}`, amount: numericAmount, requested_by: insertReporter, month_period: targetPeriod, is_paid: true }
-        ]);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('financial_ledger').insert([{
-          type, sub_type: type === 'VON_GOP' ? subType : null, category: category.trim(), amount: numericAmount, requested_by: insertReporter, month_period: targetPeriod, is_paid: isPaid
-        }]);
-        if (error) throw error;
+      const existingLedgerId = pendingCreatedLedgerId.current;
+      const ledgerId = existingLedgerId || await createAdminFinancialLedger(input);
+      pendingCreatedLedgerId.current = ledgerId;
+      if (existingLedgerId) {
+        await updateAdminFinancialLedger(ledgerId, input);
       }
-
+      for (let index = 0; index < pendingFiles.length; index += 1) {
+        await uploadAdminLedgerAttachment(ledgerId, pendingFiles[index]);
+        setPendingFiles(pendingFiles.slice(index + 1));
+      }
+      pendingCreatedLedgerId.current = null;
+      createIdempotencyKey.current = crypto.randomUUID();
       setCategory(''); setAmount(''); setExpenseSource(COMMON_FUND_SOURCE_ID); setSubType('TIEN_MAT');
-      if (targetPeriod === selectedMonth) loadData();
+      setBeneficiaryEmployeeId(''); setBeneficiaryExternalName(''); setDescription(''); setProjectId(''); setPendingFiles([]);
+      if (input.monthPeriod === selectedMonth) await loadData();
       else setMonthInput(formMonthInput);
       setShowAddModal(false);
-      showToast('Ghi sổ thành công', 'Dữ liệu tài chính đã được hạch toán đồng bộ.', 'success');
-    } catch { showToast('Thất bại', 'Không thể ghi sổ giao dịch.', 'error'); }
-    finally { setIsSubmitting(false); }
+      showToast('Ghi sổ thành công', 'Giao dịch và chứng từ đã được lưu.', 'success');
+    } catch (error) {
+      const retryNote = pendingCreatedLedgerId.current ? ' Giao dịch đã được giữ; hãy thử lại để hoàn tất chứng từ, hệ thống sẽ không tạo dòng trùng.' : '';
+      showToast('Không thể ghi sổ', `${error instanceof Error ? error.message : 'Dữ liệu biểu mẫu được giữ nguyên để bạn thử lại.'}${retryNote}`, 'error');
+    } finally {
+      submitLock.current = false;
+      setIsSubmitting(false);
+      hideGlobalLoading();
+    }
   };
 
   const handleOpenEdit = (item: FinancialLedgerEntry & { linkedChild?: FinancialLedgerEntry | null }) => {
@@ -379,118 +472,95 @@ export default function AdminFinancialLedger() {
     setEditType(item.type || 'CHI_PHI');
     setEditCategory(item.category || '');
     setEditAmount(formatCurrency(String(item.amount || '')));
-    setEditReporter(item.requested_by || '');
+    setEditReporter(item.payer_employee_id == null ? '' : String(item.payer_employee_id));
+    setEditBeneficiaryEmployeeId(item.beneficiary_employee_id == null ? '' : String(item.beneficiary_employee_id));
+    setEditBeneficiaryExternalName(item.beneficiary_external_name || '');
+    setEditTransactionDate(item.transaction_date || '');
+    setEditDescription(item.description || '');
+    setEditProjectId(item.project_id == null ? '' : String(item.project_id));
+    setEditAttachments(item.attachments || []);
+    setEditPendingFiles([]);
     setEditIsPaid(Boolean(item.is_paid));
     setEditMonthInput(monthInputFromReportingPeriod(item.month_period || selectedMonth));
     setEditSubType(item.sub_type === 'HIEN_VAT' ? 'HIEN_VAT' : 'TIEN_MAT');
 
-    const hasLink = ledger.some(l =>
-      l.type === 'VON_GOP' && l.category === `[Đối ứng] Vốn hiện vật: ${item.category}` && l.requested_by === item.requested_by
-    );
     // Khởi tạo nguồn chi trả cũ
-    const linkedSource = expensePaymentSources.find((source) => source.reporterName === item.requested_by);
-    setEditExpenseSource(hasLink && linkedSource ? linkedSource.id : COMMON_FUND_SOURCE_ID);
+    setEditExpenseSource(COMMON_FUND_SOURCE_ID);
     setEditError(null);
     setShowEditModal(true);
   };
 
   const handleSaveEdit = async () => {
-    if (isSubmitting) return;
-    const numericAmount = parseCurrency(editAmount);
-    if (!editCategory.trim() || !numericAmount) return showToast('Thiếu số liệu', 'Vui lòng điền đủ thông tin sửa hạch toán!', 'error');
+    if (submitLock.current) return;
     if (!editingId) return;
-
-    const targetPeriod = reportingPeriodFromMonthInput(editMonthInput);
-    if (!isValidReportingPeriod(targetPeriod)) {
-      showToast('Kỳ báo cáo không hợp lệ', 'Vui lòng chọn kỳ báo cáo hợp lệ.', 'error');
-      return;
-    }
-
-    const originalItem = ledger.find(l => l.id === editingId);
-    if (!originalItem) return;
-
-    const originalLinkedCategory = `[Đối ứng] Vốn hiện vật: ${originalItem.category}`;
-    const newLinkedCategory = `[Đối ứng] Vốn hiện vật: ${editCategory.trim()}`;
-    const selectedPaymentSource = findPaymentSourceOption(expensePaymentSources, editExpenseSource);
-    const editReporterName = selectedPaymentSource?.reporterName || editReporter;
-    const isSelfPaidExpense = editType === 'CHI_PHI' && isSelfPaidSource(selectedPaymentSource);
-
+    const fileError = validateSelectedFiles(editPendingFiles, editAttachments.length);
+    if (fileError) return showToast('Chứng từ chưa hợp lệ', fileError, 'error');
+    if (editPendingFiles.length > 0 && !attachmentsEnabled) return showToast('Kho chứng từ chưa sẵn sàng', 'Vui lòng chờ kho riêng tư được kiểm tra và kích hoạt.', 'error');
+    const input = mutationInput({ type: editType, subType: editSubType, category: editCategory, amount: editAmount, monthInput: editMonthInput, reporterId: editReporter, beneficiaryEmployeeId: editBeneficiaryEmployeeId, beneficiaryExternalName: editBeneficiaryExternalName, transactionDate: editTransactionDate, description: editDescription, projectId: editProjectId, isPaid: editIsPaid, expenseSource: editExpenseSource });
+    if (!input) return;
+    submitLock.current = true;
     setIsSubmitting(true);
+    showGlobalLoading('Đang lưu thay đổi...');
     setEditError(null);
     const correlationId = crypto.randomUUID();
     try {
-      const { data: oldLink, error: oldLinkError } = await supabase.from('financial_ledger').select('id, type, sub_type, category, amount, requested_by, month_period, is_paid').eq('type', 'VON_GOP').eq('category', originalLinkedCategory).eq('requested_by', originalItem.requested_by).maybeSingle();
-      if (oldLinkError) throw oldLinkError;
-
-      const { error: primaryError } = await supabase.from('financial_ledger').update({
-        type: editType, sub_type: editType === 'VON_GOP' ? editSubType : null, category: editCategory.trim(), amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod, is_paid: isSelfPaidExpense ? true : editIsPaid
-      }).eq('id', editingId);
-      if (primaryError) throw primaryError;
-
-      let linkedError: unknown = null;
-      if (isSelfPaidExpense && !oldLink) {
-        const { error } = await supabase.from('financial_ledger').insert([{ type: 'VON_GOP', sub_type: 'HIEN_VAT', category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod, is_paid: true }]);
-        linkedError = error;
-      } else if (!isSelfPaidExpense && oldLink) {
-        const { error } = await supabase.from('financial_ledger').update({ category: `[Hủy đối ứng] ${originalLinkedCategory}` }).eq('id', oldLink.id);
-        linkedError = error;
-      } else if (isSelfPaidExpense && oldLink) {
-        const { error } = await supabase.from('financial_ledger').update({ category: newLinkedCategory, amount: numericAmount, requested_by: editReporterName, month_period: targetPeriod }).eq('id', oldLink.id);
-        linkedError = error;
+      await updateAdminFinancialLedger(editingId, input);
+      for (let index = 0; index < editPendingFiles.length; index += 1) {
+        await uploadAdminLedgerAttachment(editingId, editPendingFiles[index]);
+        setEditPendingFiles(editPendingFiles.slice(index + 1));
       }
-
-      if (linkedError) {
-        const { error: rollbackError } = await supabase.from('financial_ledger').update({
-          type: originalItem.type,
-          sub_type: originalItem.sub_type,
-          category: originalItem.category,
-          amount: originalItem.amount,
-          requested_by: originalItem.requested_by,
-          month_period: originalItem.month_period,
-          is_paid: originalItem.is_paid,
-        }).eq('id', editingId);
-        if (rollbackError) console.error('[finance-ledger-edit-rollback]', { correlationId });
-        throw linkedError;
-      }
-
       setShowEditModal(false); setEditingId(null);
-      if (targetPeriod === selectedMonth) loadData();
+      if (input.monthPeriod === selectedMonth) await loadData();
       else setMonthInput(editMonthInput);
-      showToast('Thành công', 'Đã cập nhật sửa đổi dữ liệu hạch toán đồng bộ.', 'success');
-    } catch {
-      const message = 'Không thể lưu thay đổi. Dữ liệu ổn định trước đó được giữ nguyên.';
+      showToast('Đã cập nhật', 'Giao dịch và chứng từ đã được lưu.', 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể lưu thay đổi. Dữ liệu biểu mẫu được giữ nguyên.';
       setEditError({ message, correlationId });
       showToast('Không thể cập nhật giao dịch', message, 'error');
+    } finally {
+      submitLock.current = false;
+      setIsSubmitting(false);
+      hideGlobalLoading();
     }
-    finally { setIsSubmitting(false); }
   };
 
   const handleTogglePaid = async (id: number | string, currentStatus: boolean) => {
-    const { error } = await supabase.from('financial_ledger').update({ is_paid: !currentStatus }).eq('id', id);
-    if (error) {
+    if (paymentActionLock.current) return;
+    paymentActionLock.current = true;
+    showGlobalLoading('Đang lưu thay đổi...');
+    try {
+      await setAdminFinancialLedgerPaid(id, !currentStatus);
+      setLedger(prev => prev.map(l => l.id === id ? { ...l, is_paid: !currentStatus } : l));
+      showToast('Đổi trạng thái', 'Đã cập nhật trạng thái tất toán.', 'info');
+    } catch (error) {
       showToast('Không thể đổi trạng thái', 'Dữ liệu chưa được cập nhật. Vui lòng thử lại.', 'error');
-      return;
+    } finally {
+      paymentActionLock.current = false;
+      hideGlobalLoading();
     }
-    setLedger(prev => prev.map(l => l.id === id ? { ...l, is_paid: !currentStatus } : l));
-    showToast('Đổi trạng thái', 'Đã cập nhật trạng thái tất toán.', 'info');
   };
 
   const handleInstantPaymentSuccess = async () => {
-    if (!activeQrTarget?.id) return;
+    if (!activeQrTarget?.id || paymentActionLock.current) return;
     const targetId = activeQrTarget.id;
-    const { error } = await supabase.from('financial_ledger').update({ is_paid: true }).eq('id', targetId);
-    if (error) {
+    paymentActionLock.current = true;
+    showGlobalLoading('Đang lưu thay đổi...');
+    try {
+      await setAdminFinancialLedgerPaid(targetId, true);
+      setLedger(prev => prev.map(l => l.id === targetId ? { ...l, is_paid: true } : l));
+      setShowQrModal(false); setActiveQrUrl('');
+      showToast('Thanh toán xong', 'Đã chuyển khoản thành công!', 'success');
+    } catch (error) {
       showToast('Không thể xác nhận thanh toán', 'Dữ liệu chưa được cập nhật. Vui lòng thử lại.', 'error');
-      return;
+    } finally {
+      paymentActionLock.current = false;
+      hideGlobalLoading();
     }
-    setLedger(prev => prev.map(l => l.id === targetId ? { ...l, is_paid: true } : l));
-    setShowQrModal(false); setActiveQrUrl('');
-    showToast('Thanh toán xong', 'Đã chuyển khoản thành công!', 'success');
   };
 
   const handleGenerateVietQR = (item: FinancialLedgerEntry) => {
     if (item.type === 'CHI_PHI' || item.type === 'CHI_TIEU' || item.type === 'HOAN_UNG') {
-      const matchedBeneficiary = employees.find(e => e.full_name === item.requested_by);
+      const matchedBeneficiary = employees.find(e => String(e.id) === String(item.beneficiary_employee_id));
       const qrResult = buildBeneficiaryVietQrUrl({
         beneficiary: matchedBeneficiary
           ? {
@@ -518,6 +588,48 @@ export default function AdminFinancialLedger() {
     }
   };
 
+  const handleRemoveAttachment = async (attachment: FinanceAttachment) => {
+    if (!editingId || String(attachment.id).startsWith('legacy:') || attachmentActionLock.current) return;
+    attachmentActionLock.current = true;
+    setAttachmentActionId(attachment.id);
+    showGlobalLoading('Đang lưu thay đổi...');
+    try {
+      const result = await removeAdminLedgerAttachment(editingId, attachment.id);
+      setEditAttachments((current) => current.filter((item) => item.id !== attachment.id));
+      showToast('Đã gỡ chứng từ', result.cleanupPending ? 'Chứng từ đã được gỡ; tệp cũ đang chờ dọn nền.' : 'Chứng từ không còn hiển thị trong giao dịch.', result.cleanupPending ? 'info' : 'success');
+    } catch (error) {
+      showToast('Không thể gỡ chứng từ', error instanceof Error ? error.message : 'Vui lòng thử lại.', 'error');
+    } finally {
+      attachmentActionLock.current = false;
+      setAttachmentActionId(null);
+      hideGlobalLoading();
+    }
+  };
+
+  const handleReplaceAttachment = async (attachment: FinanceAttachment, file: File) => {
+    if (!editingId || String(attachment.id).startsWith('legacy:') || attachmentActionLock.current) return;
+    const validation = validateFinanceAttachment(file);
+    if (validation) return showToast('Chứng từ chưa hợp lệ', validation, 'error');
+    attachmentActionLock.current = true;
+    setAttachmentActionId(attachment.id);
+    showGlobalLoading('Đang lưu thay đổi...');
+    try {
+      const replaceResult = await replaceAdminLedgerAttachment(editingId, attachment.id, file);
+      const result = await loadAdminFinancialLedger(selectedMonth);
+      setLedger(result.ledger);
+      setAttachmentsEnabled(result.attachmentsEnabled);
+      const refreshed = result.ledger.find((entry) => String(entry.id) === String(editingId));
+      setEditAttachments(refreshed?.attachments || []);
+      showToast('Đã thay chứng từ', replaceResult.cleanupPending ? 'Chứng từ mới đã lưu; tệp cũ đang chờ dọn nền.' : 'Chứng từ mới đã được lưu trước khi dọn tệp cũ.', replaceResult.cleanupPending ? 'info' : 'success');
+    } catch (error) {
+      showToast('Không thể thay chứng từ', error instanceof Error ? error.message : 'Vui lòng thử lại.', 'error');
+    } finally {
+      attachmentActionLock.current = false;
+      setAttachmentActionId(null);
+      hideGlobalLoading();
+    }
+  };
+
   // --- CÔNG THỨC HẠCH TOÁN DOANH NGHIỆP ---
   const ledgerSummary = summarizeFinancialLedger(ledger);
   const totalGop = ledgerSummary.capital;
@@ -535,7 +647,7 @@ export default function AdminFinancialLedger() {
           <p className="text-[11px] text-slate-400 mt-0.5">Quản lý tài chính đa kỳ tích hợp các component độc lập hiệu năng cao</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          <button onClick={() => { setShowAddModal(true); setType('CHI_PHI'); setExpenseSource(COMMON_FUND_SOURCE_ID); setSubType('TIEN_MAT'); }} className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shadow-lg">
+          <button type="button" onClick={() => { const defaultPayer = employees.find((employee) => employee.full_name.trim() === DEFAULT_COMPANY_PAYER_NAME) || employees[0]; pendingCreatedLedgerId.current = null; createIdempotencyKey.current = crypto.randomUUID(); setType('CHI_PHI'); setExpenseSource(COMMON_FUND_SOURCE_ID); setSubType('TIEN_MAT'); setCategory(''); setAmount(''); setReporter(defaultPayer ? String(defaultPayer.id) : ''); setBeneficiaryEmployeeId(''); setBeneficiaryExternalName(''); setTransactionDate(new Date().toISOString().slice(0, 10)); setDescription(''); setProjectId(''); setPendingFiles([]); setIsPaid(true); setFormMonthInput(monthInput); setShowAddModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shadow-lg">
             <Plus className="w-4 h-4" /> Thêm Giao Dịch
           </button>
           <div className="flex items-center gap-2 z-10">
@@ -603,11 +715,11 @@ export default function AdminFinancialLedger() {
       {/* ================= MODAL THÊM MỚI ================= */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-4 text-xs text-slate-200 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5"><h3 className="font-bold uppercase tracking-wider text-[11px]">Ghi Hạch Toán Sổ Cái Mới</h3><button onClick={() => setShowAddModal(false)}><X className="w-5 h-5"/></button></div>
+          <div role="dialog" aria-modal="true" aria-labelledby="create-ledger-title" className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-4 text-xs text-slate-200 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5"><h3 id="create-ledger-title" className="font-bold uppercase tracking-wider text-[11px]">Ghi hạch toán sổ cái mới</h3><button type="button" aria-label="Đóng biểu mẫu" disabled={isSubmitting} onClick={() => setShowAddModal(false)}><X className="w-5 h-5"/></button></div>
             <div className="grid gap-4 lg:grid-cols-2">
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-                <h4 className="font-bold text-blue-300">Thông tin khoản chi</h4>
+                <h4 className="font-bold text-blue-300">Thông tin giao dịch</h4>
               <div>
                 <label className="text-slate-400">Kỳ hạch toán:</label>
                 <div className="mt-1"><MonthPicker value={formMonthInput} onChange={setFormMonthInput} /></div>
@@ -672,19 +784,25 @@ export default function AdminFinancialLedger() {
                 </div>
               )}
 
-              <div><label className="text-slate-400">Nội dung chi:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={category} onChange={e => setCategory(e.target.value)} /></div>
+              <div><label className="text-slate-400">Khoản mục:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={category} onChange={e => setCategory(e.target.value)} /></div>
               <div><label className="text-slate-400">Số tiền:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 font-mono text-amber-400 font-bold focus:outline-none" value={amount} onChange={e => setAmount(formatCurrency(e.target.value))} /></div>
+              <div><label className="text-slate-400">Ngày giao dịch:</label><input disabled={!extendedSchemaEnabled} type="date" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200 disabled:opacity-60" value={transactionDate} onChange={e => setTransactionDate(e.target.value)} /></div>
+              <div><label className="text-slate-400">Mô tả:</label><textarea disabled={!extendedSchemaEnabled} className="min-h-[76px] w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200 disabled:opacity-60" value={description} onChange={e => setDescription(e.target.value)} /></div>
+              <div><label className="text-slate-400">Dự án liên quan:</label><select disabled={!extendedSchemaEnabled} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={projectId} onChange={e => setProjectId(e.target.value)}><option value="">Không liên kết</option>{projects.map(project => <option key={project.id} value={String(project.id)}>{project.name}</option>)}</select></div>
               <div>
-                <label className="text-slate-400">Người thực hiện chi:</label>
+                <label className="text-slate-400">Người thực hiện giao dịch:</label>
                 <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200" value={reporter} onChange={e => setReporter(e.target.value)}>
-                  <option value="Admin (Hệ thống)">Admin (Hệ thống)</option>
-                  {employees.map(e => <option key={e.id} value={e.full_name}>{e.full_name}</option>)}
+                  <option value="">Chưa xác định</option>
+                  {employees.map(e => <option key={e.id} value={String(e.id)}>{e.full_name}</option>)}
                 </select>
               </div>
               </section>
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
                 <h4 className="font-bold text-emerald-300">Người liên quan</h4>
                 <p className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-[11px] text-amber-200">Người hưởng lợi, Người thực hiện chi và Người tạo phiếu là các vai trò riêng. Với lương/hoàn trả, QR phải dùng Thông tin nhận tiền của Người hưởng lợi.</p>
+                <div><label className="text-slate-400">Người hưởng lợi:</label><select disabled={!extendedSchemaEnabled} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={beneficiaryEmployeeId} onChange={e => { setBeneficiaryEmployeeId(e.target.value); if (e.target.value) setBeneficiaryExternalName(''); }}><option value="">Chưa xác định / bên ngoài</option>{employees.map(employee => <option key={employee.id} value={String(employee.id)}>{employee.full_name}</option>)}</select></div>
+                <div><label className="text-slate-400">Người hưởng lợi bên ngoài:</label><input disabled={!extendedSchemaEnabled || Boolean(beneficiaryEmployeeId)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={beneficiaryExternalName} onChange={e => setBeneficiaryExternalName(e.target.value)} placeholder="Nhà cung cấp hoặc người nhận khác" /></div>
+                {!extendedSchemaEnabled && <p className="text-[10px] text-amber-300">Trường Người hưởng lợi sẽ khả dụng sau khi gói Ledger/Reimbursement được operator xác minh và kích hoạt.</p>}
                 <div className="text-[11px] text-slate-400">Người tạo phiếu: hệ thống xác thực máy chủ (không nhận từ biểu mẫu).</div>
               </section>
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
@@ -697,13 +815,16 @@ export default function AdminFinancialLedger() {
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
                 <h4 className="font-bold text-purple-300">Chứng từ</h4>
                 <p className="text-[11px] text-slate-400">Hỗ trợ ảnh hóa đơn, PDF, bằng chứng chuyển khoản và chứng từ nhân sự gửi. Tệp được kiểm tra loại, dung lượng, tên tệp và quyền truy cập trước khi lưu.</p>
+                <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" disabled={!attachmentsEnabled || isSubmitting} onChange={e => setPendingFiles(Array.from(e.target.files || []))} className="w-full rounded-xl border border-dashed border-slate-700 p-3 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-xs file:font-bold file:text-white disabled:opacity-60" />
+                {!attachmentsEnabled && <p className="text-[11px] text-amber-300">Kho chứng từ riêng chưa được kiểm tra và kích hoạt.</p>}
+                {pendingFiles.length > 0 && <ul className="space-y-1 text-[11px] text-slate-300">{pendingFiles.map(file => <li key={`${file.name}:${file.lastModified}`}>{file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB</li>)}</ul>}
               </section>
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
                 <h4 className="font-bold text-amber-300">Phê duyệt và lịch sử</h4>
                 <p className="text-[11px] text-slate-400">Chờ duyệt, Từ chối, Đã thanh toán và lịch sử kiểm toán sẽ được ghi qua biên máy chủ sau khi gói schema/RLS được duyệt.</p>
               </section>
             </div>
-            <div className="pt-2 border-t border-slate-800 flex gap-2"><button onClick={() => setShowAddModal(false)} disabled={isSubmitting} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition disabled:opacity-60">Hủy</button><button onClick={handleInsertLedger} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg disabled:opacity-60">{isSubmitting ? 'Đang ghi...' : 'Ghi Sổ'}</button></div>
+            <div className="pt-2 border-t border-slate-800 flex gap-2"><button type="button" onClick={() => setShowAddModal(false)} disabled={isSubmitting} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition disabled:opacity-60">Hủy</button><button type="button" onClick={handleInsertLedger} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg disabled:opacity-60">{isSubmitting ? 'Đang ghi...' : 'Ghi sổ'}</button></div>
           </div>
         </div>
       )}
@@ -711,11 +832,11 @@ export default function AdminFinancialLedger() {
       {/* ================= MODAL CHỈNH SỬA ================= */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-4 text-xs text-slate-200 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5"><h3 className="font-bold uppercase tracking-wider text-[11px]">Sửa thông tin hạch toán</h3><button onClick={() => { setShowEditModal(false); setEditingId(null); }}><X className="w-5 h-5"/></button></div>
+          <div role="dialog" aria-modal="true" aria-labelledby="edit-ledger-title" className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-4 text-xs text-slate-200 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5"><h3 id="edit-ledger-title" className="font-bold uppercase tracking-wider text-[11px]">Sửa thông tin hạch toán</h3><button type="button" aria-label="Đóng biểu mẫu" disabled={isSubmitting || attachmentActionId != null} onClick={() => { setShowEditModal(false); setEditingId(null); }}><X className="w-5 h-5"/></button></div>
             <div className="grid gap-4 lg:grid-cols-2">
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-                <h4 className="font-bold text-blue-300">Thông tin khoản chi</h4>
+                <h4 className="font-bold text-blue-300">Thông tin giao dịch</h4>
               <div>
                 <label className="text-slate-400">Kỳ hạch toán:</label>
                 <div className="mt-1"><MonthPicker value={editMonthInput} onChange={setEditMonthInput} /></div>
@@ -777,21 +898,29 @@ export default function AdminFinancialLedger() {
                 </div>
               )}
 
-              <div><label className="text-slate-400">Nội dung chi:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={editCategory} onChange={e => setEditCategory(e.target.value)} /></div>
+              <div><label className="text-slate-400">Khoản mục:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none text-slate-200" value={editCategory} onChange={e => setEditCategory(e.target.value)} /></div>
               <div><label className="text-slate-400">Số tiền:</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 font-mono text-amber-400 font-bold focus:outline-none" value={editAmount} onChange={e => setEditAmount(formatCurrency(e.target.value))} /></div>
+              <div><label className="text-slate-400">Ngày giao dịch:</label><input disabled={!extendedSchemaEnabled} type="date" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={editTransactionDate} onChange={e => setEditTransactionDate(e.target.value)} /></div>
+              <div><label className="text-slate-400">Mô tả:</label><textarea disabled={!extendedSchemaEnabled} className="min-h-[76px] w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={editDescription} onChange={e => setEditDescription(e.target.value)} /></div>
+              <div><label className="text-slate-400">Dự án liên quan:</label><select disabled={!extendedSchemaEnabled} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={editProjectId} onChange={e => setEditProjectId(e.target.value)}><option value="">Không liên kết</option>{projects.map(project => <option key={project.id} value={String(project.id)}>{project.name}</option>)}</select></div>
               <div className="animate-fadeIn">
-                <label className="text-slate-400">Người thực hiện chi:</label>
+                <label className="text-slate-400">Người thực hiện giao dịch:</label>
                 <select
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200"
                   value={editReporter}
                   onChange={e => setEditReporter(e.target.value)}
                 >
-                  <option value="Admin (Hệ thống)">Admin (Hệ thống)</option>
+                  <option value="">Chưa xác định</option>
                   {employees.map(e => (
-                    <option key={e.id} value={e.full_name}>{e.full_name}</option>
+                    <option key={e.id} value={String(e.id)}>{e.full_name}</option>
                   ))}
                 </select>
               </div>
+              </section>
+              <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                <h4 className="font-bold text-emerald-300">Người liên quan</h4>
+                <div><label className="text-slate-400">Người hưởng lợi:</label><select disabled={!extendedSchemaEnabled} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={editBeneficiaryEmployeeId} onChange={e => { setEditBeneficiaryEmployeeId(e.target.value); if (e.target.value) setEditBeneficiaryExternalName(''); }}><option value="">Chưa xác định / bên ngoài</option>{employees.map(employee => <option key={employee.id} value={String(employee.id)}>{employee.full_name}</option>)}</select></div>
+                <div><label className="text-slate-400">Người hưởng lợi bên ngoài:</label><input disabled={!extendedSchemaEnabled || Boolean(editBeneficiaryEmployeeId)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={editBeneficiaryExternalName} onChange={e => setEditBeneficiaryExternalName(e.target.value)} /></div>
               </section>
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
                 <h4 className="font-bold text-cyan-300">Thanh toán</h4>
@@ -800,6 +929,36 @@ export default function AdminFinancialLedger() {
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
                 <h4 className="font-bold text-purple-300">Chứng từ</h4>
                 <p className="text-[11px] text-slate-400">Hỗ trợ ảnh hóa đơn, PDF, bằng chứng chuyển khoản và chứng từ nhân sự gửi. Tệp được kiểm tra loại, dung lượng, tên tệp và quyền truy cập trước khi lưu.</p>
+                {editAttachments.length > 0 && (
+                  <ul className="space-y-2">
+                    {editAttachments.map((attachment) => {
+                      const attachmentUrl = attachment.signedUrl || attachment.legacyUrl;
+                      const isLegacyAttachment = String(attachment.id).startsWith('legacy:');
+                      const isAttachmentBusy = attachmentActionId === attachment.id;
+                      return (
+                        <li key={attachment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 p-3">
+                          {attachmentUrl ? (
+                            <a href={attachmentUrl} target="_blank" rel="noreferrer" className="max-w-full break-all font-bold text-blue-300 hover:underline">{attachment.originalFilename}</a>
+                          ) : (
+                            <span className="max-w-full break-all font-bold text-slate-400">{attachment.originalFilename} · Chưa tạo được liên kết xem</span>
+                          )}
+                          {!isLegacyAttachment && (
+                            <div className="flex gap-2">
+                              <label className={`rounded-lg border border-slate-700 px-2 py-1 ${isAttachmentBusy ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-slate-800'}`}>
+                                {isAttachmentBusy ? 'Đang xử lý...' : 'Thay'}
+                                <input disabled={isAttachmentBusy || !attachmentsEnabled} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={e => { const file = e.target.files?.[0]; e.currentTarget.value = ''; if (file) void handleReplaceAttachment(attachment, file); }} />
+                              </label>
+                              <button disabled={isAttachmentBusy || !attachmentsEnabled} type="button" onClick={() => void handleRemoveAttachment(attachment)} className="rounded-lg border border-red-500/30 px-2 py-1 text-red-300 hover:bg-red-950/30 disabled:cursor-not-allowed disabled:opacity-60">Gỡ</button>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" disabled={!attachmentsEnabled || isSubmitting || attachmentActionId != null} onChange={e => setEditPendingFiles(Array.from(e.target.files || []))} className="w-full rounded-xl border border-dashed border-slate-700 p-3 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-xs file:font-bold file:text-white disabled:opacity-60" />
+                {!attachmentsEnabled && <p className="text-[11px] text-amber-300">Kho chứng từ riêng chưa được kiểm tra và kích hoạt.</p>}
+                {editPendingFiles.length > 0 && <p className="text-[11px] text-slate-300">Sẽ thêm {editPendingFiles.length} chứng từ khi lưu.</p>}
               </section>
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
                 <h4 className="font-bold text-amber-300">Phê duyệt và lịch sử</h4>
@@ -812,7 +971,7 @@ export default function AdminFinancialLedger() {
                 <p className="mt-1 text-[10px] text-slate-400">Mã hỗ trợ: {editError.correlationId}</p>
               </div>
             )}
-            <div className="pt-2 border-t border-slate-800 flex gap-2"><button onClick={() => { setShowEditModal(false); setEditingId(null); }} disabled={isSubmitting} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition disabled:opacity-60">Hủy</button><button onClick={handleSaveEdit} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg disabled:opacity-60">{isSubmitting ? 'Đang lưu...' : 'Cập Nhật'}</button></div>
+            <div className="pt-2 border-t border-slate-800 flex gap-2"><button type="button" onClick={() => { setShowEditModal(false); setEditingId(null); }} disabled={isSubmitting || attachmentActionId != null} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition disabled:opacity-60">Hủy</button><button type="button" onClick={handleSaveEdit} disabled={isSubmitting || attachmentActionId != null} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg disabled:opacity-60">{isSubmitting ? 'Đang lưu...' : 'Cập nhật'}</button></div>
           </div>
         </div>
       )}

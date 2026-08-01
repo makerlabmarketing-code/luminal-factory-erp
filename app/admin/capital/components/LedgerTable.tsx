@@ -1,12 +1,15 @@
 'use client';
 import { Fragment, useState } from 'react';
 import { Edit2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon } from 'lucide-react';
+import type { FinancialLedgerEntry } from '@/lib/types/finance';
+
+type LedgerRow = FinancialLedgerEntry & { linkedChild?: FinancialLedgerEntry | null };
 
 interface LedgerTableProps {
-  data: any[]; // Data nhận vào lúc này đã kèm theo thuộc tính l.linkedChild
-  onTogglePaid: (id: number, currentStatus: boolean) => void;
-  onOpenEdit: (item: any) => void;
-  onGenerateQr: (item: any) => void;
+  data: LedgerRow[];
+  onTogglePaid: (id: number | string, currentStatus: boolean) => void;
+  onOpenEdit: (item: LedgerRow) => void;
+  onGenerateQr: (item: LedgerRow) => void;
 }
 
 export default function LedgerTable({
@@ -15,9 +18,9 @@ export default function LedgerTable({
   onOpenEdit,
   onGenerateQr
 }: LedgerTableProps) {
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [expandedRows, setExpandedRows] = useState<Set<number | string>>(new Set());
 
-  const toggleRow = (id: number) => {
+  const toggleRow = (id: number | string) => {
     setExpandedRows(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -26,7 +29,7 @@ export default function LedgerTable({
     });
   };
 
-  const getTypeLabel = (item: any) => {
+  const getTypeLabel = (item: FinancialLedgerEntry) => {
     if (item.type === 'HOAN_UNG') {
       return item.is_paid ? (
         <><span className="text-red-400">❌</span> <span className="text-slate-400 font-normal line-through text-[10px] mr-1">Hoàn ứng</span> {item.category}</>
@@ -44,12 +47,14 @@ export default function LedgerTable({
   };
 
   return (
-    <table className="w-full text-left text-xs text-slate-300">
+    <div className="overflow-x-auto">
+    <table className="min-w-[960px] w-full text-left text-xs text-slate-300">
       <thead className="bg-slate-950 text-slate-400 uppercase text-[9px]">
         <tr>
-          <th className="p-4 w-[45%]">Khoản Mục</th>
-          <th className="p-4 w-[20%]">Nhân sự thực hiện</th>
-          <th className="p-4 w-[15%]">Trạng thái quỹ</th>
+          <th className="p-4 w-[32%]">Khoản mục</th>
+          <th className="p-4 w-[16%]">Người thực hiện</th>
+          <th className="p-4 w-[16%]">Người hưởng lợi</th>
+          <th className="p-4 w-[14%]">Trạng thái quỹ</th>
           <th className="p-4 w-[10%] text-right">Số tiền</th>
           <th className="p-4 w-[10%] text-center">Hành động</th>
         </tr>
@@ -60,8 +65,8 @@ export default function LedgerTable({
           const child = l.linkedChild;
           const hasChild = !!child;
           const isExpanded = expandedRows.has(l.id);
-          
-          const isOrphanedCounterEntry = l.type === 'VON_GOP' && l.category?.startsWith('[Đối ứng]');
+
+          const isOrphanedCounterEntry = l.type === 'VON_GOP' && /^\[(Đối ứng|Hủy đối ứng)\]/.test(l.category || '');
 
           return (
             <Fragment key={l.id}>
@@ -74,20 +79,22 @@ export default function LedgerTable({
                     </button>
                   )}
                   {!hasChild && <span className="w-6 mr-1 inline-block"></span>}
-                  
+
                   {getTypeLabel(l)}
-                  
+                  {Boolean(l.attachments?.length) && <span className="ml-2 rounded bg-purple-500/10 px-1.5 py-0.5 text-[9px] text-purple-300">{l.attachments?.length} chứng từ</span>}
+
                   {hasChild && (
                     <span onClick={() => toggleRow(l.id)} className="ml-2 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] flex items-center gap-1 cursor-pointer hover:bg-blue-500/20 transition">
                       <LinkIcon className="w-2.5 h-2.5" /> Có đối ứng
                     </span>
                   )}
                 </td>
-                <td className="p-4 text-slate-400">{l.requested_by}</td>
+                <td className="max-w-[180px] break-words p-4 text-slate-400">{l.payer_name || l.requested_by || 'Chưa xác định'}</td>
+                <td className="max-w-[180px] break-words p-4 text-slate-300">{l.beneficiary_name || 'Chưa xác định'}</td>
                 <td className="p-4">
-                  <button 
+                  <button
                     disabled={isOrphanedCounterEntry}
-                    onClick={() => onTogglePaid(l.id, l.is_paid)} 
+                    onClick={() => onTogglePaid(l.id, Boolean(l.is_paid))}
                     className={`px-2 py-1 rounded text-[9px] border font-black ${isOrphanedCounterEntry ? 'opacity-60 cursor-not-allowed' : ''} ${l.is_paid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}
                   >
                     {l.is_paid ? 'Đã Trả' : 'Treo nợ'}
@@ -102,9 +109,9 @@ export default function LedgerTable({
                   ) : (
                     <>
                       {!l.is_paid && (
-                        <button onClick={() => onGenerateQr(l)} className="p-1.5 bg-cyan-950 border border-cyan-800 rounded-lg text-cyan-400 hover:bg-cyan-900 transition"><QrCode className="w-3.5 h-3.5"/></button>
+                        <button aria-label="Tạo mã QR thanh toán" onClick={() => onGenerateQr(l)} className="p-1.5 bg-cyan-950 border border-cyan-800 rounded-lg text-cyan-400 hover:bg-cyan-900 transition"><QrCode className="w-3.5 h-3.5"/></button>
                       )}
-                      <button onClick={() => onOpenEdit(l)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-900 transition"><Edit2 className="w-3.5 h-3.5"/></button>
+                      <button aria-label="Chỉnh sửa giao dịch" onClick={() => onOpenEdit(l)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-900 transition"><Edit2 className="w-3.5 h-3.5"/></button>
                     </>
                   )}
                 </td>
@@ -119,6 +126,7 @@ export default function LedgerTable({
                     {getTypeLabel(child)}
                   </td>
                   <td className="p-4 text-slate-500">{child.requested_by}</td>
+                  <td className="p-4 text-slate-600">Không áp dụng</td>
                   <td className="p-4 opacity-50 pointer-events-none">
                     <button className="px-2 py-1 rounded text-[9px] border font-black bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Đã Trả</button>
                   </td>
@@ -133,5 +141,6 @@ export default function LedgerTable({
         })}
       </tbody>
     </table>
+    </div>
   );
 }

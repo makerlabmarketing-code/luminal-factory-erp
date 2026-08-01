@@ -9,6 +9,15 @@
 
 ## Storage RLS template (operator review required)
 
+The exact draft package is now:
+
+- forward: `supabase/drafts/20260801_finance_evidence_storage_forward.sql`
+- rollback: `supabase/drafts/20260801_finance_evidence_storage_rollback.sql`
+- read-only validation: `supabase/validation/20260801_finance_evidence_storage_validation.sql`
+
+It remains draft-only and must not be executed or promoted without the existing
+Ledger/Reimbursement operator preflight and explicit live approval.
+
 ```sql
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values ('finance-evidence','finance-evidence',false,10485760,array['image/jpeg','image/png','image/webp','application/pdf'])
