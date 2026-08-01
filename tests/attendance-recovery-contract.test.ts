@@ -49,7 +49,7 @@ describe('attendance recovery contract', () => {
     const routeSource = source('app/api/admin/attendance/route.ts');
     const clientSource = source('app/admin/attendance/page.tsx');
 
-    expect(routeSource).toMatch(/process\.env\.ATTENDANCE_RECOVERY_ENABLED === 'true'/);
+    expect(routeSource).toMatch(/isRecoveryEnabled\(process\.env\.ATTENDANCE_RECOVERY_ENABLED\)/);
     expect(routeSource).toMatch(/attendance_recovery_disabled/);
     expect(routeSource).toMatch(/canManage && isAttendanceRecoveryEnabled\(\)/);
     expect(clientSource).toMatch(/Điều chỉnh chấm công đang chờ xác nhận/);

@@ -1,7 +1,69 @@
 # Production Runtime Gate Operator Runbook
 
-**Prepared:** 2026-07-28
+**Prepared:** 2026-08-01
 **Boundary:** commands below are operator instructions. They were not executed while preparing this runbook. Never enable a flag before its package and smoke tests pass. Disable the flag before any rollback.
+
+## 0. Read-only deployment and runtime evidence
+
+These checks are evidence collection only. They do not execute SQL, change a
+runtime variable, mutate Supabase, or trigger a deployment. Record timestamps in
+Asia/Bangkok with an explicit `+07:00` offset and retain the redacted response.
+
+### 0.1 Production commit identity
+
+Request `GET /api/system/version` from the approved production alias. The route
+is public because it returns only immutable deployment identity and uses
+`Cache-Control: no-store, max-age=0`; it does not read a database or expose
+environment contents.
+
+Expected available response:
+
+```json
+{
+  "success": true,
+  "status": "available",
+  "commitSha": "<40 lowercase hexadecimal characters>",
+  "deploymentEnvironment": "production"
+}
+```
+
+`status=available`, `deploymentEnvironment=production`, and a SHA equal to the
+approved `main` commit (or a later approved `main` commit containing the same
+Attendance implementation) is **PASS**. A `status=unavailable` response, a
+missing/non-production environment label, an unreachable alias, or a malformed
+response is **UNKNOWN**. A valid older or non-approved SHA is
+`PRODUCTION_DEPLOYMENT_REQUIRED`; do not trigger deployment. Retain the route,
+HTTP status, redacted JSON, alias, and `YYYY-MM-DD HH:mm:ss+07:00` timestamp.
+
+The endpoint reads only server/build-provided `VERCEL_GIT_COMMIT_SHA` and
+`VERCEL_ENV`. It never accepts a commit or environment name from the request.
+
+### 0.2 Attendance recovery status
+
+Using an authenticated Admin session with `ADMIN_WORKSPACE` and
+`ATTENDANCE_VIEW`, request `GET /api/admin/runtime/attendance-recovery` through
+the normal application session or another approved authenticated read-only
+method. The endpoint has no write method, uses `Cache-Control: no-store,
+max-age=0`, and returns only normalized status.
+
+Expected response:
+
+```json
+{
+  "success": true,
+  "gate": "ATTENDANCE_RECOVERY_ENABLED",
+  "status": "disabled",
+  "correlationId": "<safe request identifier>"
+}
+```
+
+`status=disabled` is **PASS**. The exact server value `true` alone maps to
+`status=enabled`; stop immediately and retain evidence if that occurs. Unset,
+`false`, differently cased, or malformed values map to `disabled` according to
+the same normalizer used by Admin Attendance recovery. A `401`, `403`, `5xx`,
+missing response, or unexpected payload is **UNKNOWN** and blocks the smoke
+boundary until resolved. Never capture or print cookies, tokens, raw
+environment values, or unrelated configuration.
 
 ## 1. Choose exactly one delivery workflow
 

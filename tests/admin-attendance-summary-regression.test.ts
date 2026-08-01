@@ -37,7 +37,7 @@ describe('Admin attendance summary regression', () => {
   });
 
   it('keeps stale recovery disabled and staff stale state controlled', () => {
-    expect(route).toMatch(/process\.env\.ATTENDANCE_RECOVERY_ENABLED === 'true'/);
+    expect(route).toMatch(/isRecoveryEnabled\(process\.env\.ATTENDANCE_RECOVERY_ENABLED\)/);
     expect(staffClient).toContain('Có ca làm trước đó chưa được kết thúc.');
     expect(staffClient).toContain("'Bắt đầu ca'");
   });
