@@ -8,6 +8,7 @@ export class AuthFlowError extends Error {
   failureStage: AuthFailureStage;
   safeDetails?: Record<string, boolean | number | string | null>;
   fieldErrors?: Record<string, string>;
+  diagnosticAvailable?: boolean;
 
   constructor({
     status,
@@ -16,6 +17,7 @@ export class AuthFlowError extends Error {
     failureStage,
     safeDetails,
     fieldErrors,
+    diagnosticAvailable,
   }: {
     status: number;
     code: AuthFlowErrorCode;
@@ -23,6 +25,7 @@ export class AuthFlowError extends Error {
     failureStage: AuthFailureStage;
     safeDetails?: Record<string, boolean | number | string | null>;
     fieldErrors?: Record<string, string>;
+    diagnosticAvailable?: boolean;
   }) {
     super(message);
     this.name = 'AuthFlowError';
@@ -31,6 +34,7 @@ export class AuthFlowError extends Error {
     this.failureStage = failureStage;
     this.safeDetails = safeDetails;
     this.fieldErrors = fieldErrors;
+    this.diagnosticAvailable = diagnosticAvailable;
   }
 }
 
@@ -65,6 +69,8 @@ export type AuthFlowErrorCode =
   | 'employee_email_soft_deleted_duplicate'
   | 'employee_lookup_failed'
   | 'employee_persistence_failed'
+  | 'employee_insert_constraint_failed'
+  | 'employee_insert_readback_failed'
   | 'employee_update_failed'
   | 'admin_client_configuration_failed'
   | 'employee_invitation_failed'

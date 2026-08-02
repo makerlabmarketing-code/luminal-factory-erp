@@ -366,3 +366,21 @@ Supabase/RLS/Storage setting, runtime flag, or deployment was changed. The
 Attendance smoke test has not occurred and no fixture has been provisioned.
 The exact next boundary is
 `READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`.
+
+## 2026-08-02 — Employee create core-mutation diagnostic surface
+
+Two repeated production Employee create attempts passed the shared payload
+contract but returned a generic `core_mutation` failure. No approved production
+log query or retry was available, so the exact database constraint remains
+unproven. The application now records a bounded, sanitized, deployment-local
+diagnostic keyed by the request correlation ID and exposes it only to
+`ADMIN_WORKSPACE` + `EMPLOYEE_MANAGE` through
+`/api/admin/employees/diagnostics/<correlationId>`. Known insert constraint and
+readback failures use stage-appropriate public codes; raw database details and
+payload values remain server-only. The cache is not durable and does not enable
+or perform a retry. No production employee, facility, Auth, SQL, migration,
+RLS, or environment mutation occurred.
+
+The next boundary is
+`READY_FOR_ONE_OPERATOR_DIAGNOSTIC_RETRY`; any retry remains a separate,
+explicitly approved operator action.
