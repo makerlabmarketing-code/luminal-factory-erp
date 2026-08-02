@@ -33,6 +33,21 @@ describe('corrective slice 2 employee profile and account lifecycle', () => {
     expect(actions).toMatch(/'persistence'/);
   });
 
+  it('returns field-level validation data before any employee insert', () => {
+    const actions = source('services/server/adminEmployeeActions.ts');
+    const route = source('app/api/admin/employees/route.ts');
+    const createStart = actions.indexOf('export async function createEmployee');
+    const insertIndex = actions.indexOf("from('employees').insert([payload])", createStart);
+    const validationIndex = actions.indexOf('validateEmployeeCreateShape(input)', createStart);
+
+    expect(validationIndex).toBeGreaterThan(createStart);
+    expect(validationIndex).toBeLessThan(insertIndex);
+    expect(actions).toMatch(/fieldErrors: databaseFieldErrors/);
+    expect(actions).toMatch(/supabaseColumn/);
+    expect(actions).toMatch(/inferEmployeeFieldErrors/);
+    expect(route).toMatch(/fieldErrors: error\.fieldErrors/);
+  });
+
   it('keeps job title optional and keeps quick edit away from salary, bank and permissions', () => {
     const actions = source('services/server/adminEmployeeActions.ts');
     const buildStart = actions.indexOf('function buildEmployeePayload');

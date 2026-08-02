@@ -36,6 +36,9 @@ describe('admin employee production mutation diagnostics', () => {
     expect(sanitizeAdminMutationFailure({ code: '42703', status: 400, message: 'column missing' })).toMatchObject({
       supabaseErrorCode: '42703', httpStatus: 400, errorCategory: 'schema_contract',
     });
+    expect(sanitizeAdminMutationFailure({ code: '23502', message: 'null value in column "phone" violates not-null constraint' })).toMatchObject({
+      supabaseErrorCode: '23502', supabaseColumn: 'phone',
+    });
     expect(sanitizeAdminMutationFailure(new TypeError('fetch failed https://secret.example/token'))).toMatchObject({
       exceptionName: 'TypeError', errorCategory: 'network',
     });

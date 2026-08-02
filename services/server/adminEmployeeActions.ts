@@ -60,9 +60,16 @@ function normalizeEmail(value?: string | null): string {
 const VALID_EMPLOYMENT_STATUSES = new Set(['ACTIVE', 'INACTIVE']);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?\d{8,15}$/;
+const EMPLOYEE_CREATE_FIELDS = new Set(['fullName', 'email', 'title', 'department', 'phone', 'employmentStatus']);
 
-function safeFailure(status: number, code: AuthFlowErrorCode, message: string, failureStage: AuthFailureStage): never {
-  throw new AuthFlowError({ status, code, message, failureStage });
+function safeFailure(
+  status: number,
+  code: AuthFlowErrorCode,
+  message: string,
+  failureStage: AuthFailureStage,
+  fieldErrors?: Record<string, string>
+): never {
+  throw new AuthFlowError({ status, code, message, failureStage, fieldErrors });
 }
 
 const CREATE_EMPLOYEE_SELECT = 'id, full_name, email, title, phone, status, is_active, auth_user_id, branch_code';
@@ -89,6 +96,7 @@ function throwCreatePersistenceFailure(
   });
 
   const supabaseCode = safeDetails.supabaseErrorCode;
+  const databaseFieldErrors = inferEmployeeFieldErrors(safeDetails);
   if (supabaseCode === '23505') {
     throw new AuthFlowError({
       status: 409,
@@ -96,6 +104,7 @@ function throwCreatePersistenceFailure(
       message: 'Email này đang được dùng bởi hồ sơ nhân sự khác.',
       failureStage: 'duplicate_check',
       safeDetails,
+      fieldErrors: databaseFieldErrors,
     });
   }
   if (supabaseCode === '23502' || supabaseCode === '23514') {
@@ -105,6 +114,7 @@ function throwCreatePersistenceFailure(
       message: 'Thông tin hồ sơ nhân sự chưa hợp lệ. Vui lòng kiểm tra các trường bắt buộc.',
       failureStage: 'validation',
       safeDetails,
+      fieldErrors: databaseFieldErrors,
     });
   }
   if (supabaseCode === '23503') {
@@ -114,6 +124,7 @@ function throwCreatePersistenceFailure(
       message: 'Thông tin liên kết hồ sơ nhân sự chưa hợp lệ.',
       failureStage: 'validation',
       safeDetails,
+      fieldErrors: databaseFieldErrors,
     });
   }
   if (supabaseCode === '42501' || safeDetails.errorCategory === 'permission_or_credential') {
@@ -141,6 +152,34 @@ function throwCreatePersistenceFailure(
     failureStage,
     safeDetails,
   });
+}
+
+function inferEmployeeFieldErrors(safeDetails: ReturnType<typeof sanitizeAdminMutationFailure>): Record<string, string> | undefined {
+  const source = `${safeDetails.supabaseConstraint || ''} ${safeDetails.supabaseColumn || ''}`.toLowerCase();
+  const field = source.includes('full_name') || source.includes('name')
+    ? 'fullName'
+    : source.includes('email')
+      ? 'email'
+      : source.includes('branch') || source.includes('facility') || source.includes('department')
+        ? 'department'
+        : source.includes('status')
+          ? 'employmentStatus'
+          : source.includes('phone')
+            ? 'phone'
+            : source.includes('title') || source.includes('job')
+              ? 'title'
+              : null;
+
+  if (!field) return undefined;
+  const messages: Record<string, string> = {
+    fullName: 'Vui lòng nhập họ tên nhân sự.',
+    email: 'Vui lòng kiểm tra email nhân sự.',
+    department: 'Vui lòng chọn cơ sở làm việc hợp lệ.',
+    employmentStatus: 'Vui lòng chọn trạng thái làm việc hợp lệ.',
+    phone: 'Số điện thoại không hợp lệ.',
+    title: 'Chức vụ không hợp lệ.',
+  };
+  return { [field]: messages[field] };
 }
 
 async function readEmployeeByEmail(supabaseAdmin: ReturnType<typeof createSupabaseAdminClient>, email: string): Promise<EmployeeAccountRow[]> {
@@ -184,21 +223,30 @@ async function recoverUncertainEmployeeCreate(
 function validateEmail(value: unknown): string {
   const email = cleanText(value, 254);
   if (!email) {
-    safeFailure(400, 'employee_email_required', 'Vui lòng nhập email nhân sự.', 'validation');
+    safeFailure(400, 'employee_email_required', 'Vui lòng nhập email nhân sự.', 'validation', { email: 'Vui lòng nhập email nhân sự.' });
   }
   if (!EMAIL_PATTERN.test(email)) {
-    safeFailure(400, 'employee_email_invalid', 'Email nhân sự không đúng định dạng.', 'validation');
+    safeFailure(400, 'employee_email_invalid', 'Email nhân sự không đúng định dạng.', 'validation', { email: 'Email nhân sự không đúng định dạng.' });
   }
-  return email;
+  return email.toLowerCase();
+}
+
+function validateEmployeeCreateShape(input: EmployeeMutationInput): void {
+  const unknownFields = Object.keys(input as Record<string, unknown>).filter((field) => !EMPLOYEE_CREATE_FIELDS.has(field));
+  if (unknownFields.length > 0) {
+    safeFailure(400, 'payload_validation_failed', 'Dữ liệu hồ sơ nhân sự chứa trường không được hỗ trợ.', 'payload_validation', {
+      form: 'Vui lòng tải lại biểu mẫu và thử lại.',
+    });
+  }
 }
 
 function validateEmploymentStatus(value: unknown): string {
   const status = (cleanText(value, 32) || '').toUpperCase();
   if (!status) {
-    safeFailure(400, 'employee_status_required', 'Vui lòng chọn trạng thái làm việc.', 'validation');
+    safeFailure(400, 'employee_status_required', 'Vui lòng chọn trạng thái làm việc.', 'validation', { employmentStatus: 'Vui lòng chọn trạng thái làm việc.' });
   }
   if (!VALID_EMPLOYMENT_STATUSES.has(status)) {
-    safeFailure(400, 'employee_status_invalid', 'Trạng thái làm việc không hợp lệ.', 'validation');
+    safeFailure(400, 'employee_status_invalid', 'Trạng thái làm việc không hợp lệ.', 'validation', { employmentStatus: 'Trạng thái làm việc không hợp lệ.' });
   }
   return status;
 }
@@ -209,7 +257,7 @@ export function normalizeEmployeePhone(value: unknown): string | null {
 
   const normalizedPhone = phone.replace(/[\s.()-]/g, '');
   if (!PHONE_PATTERN.test(normalizedPhone)) {
-    safeFailure(400, 'employee_phone_invalid', 'Số điện thoại không đúng định dạng.', 'validation');
+    safeFailure(400, 'employee_phone_invalid', 'Số điện thoại không đúng định dạng.', 'validation', { phone: 'Số điện thoại không đúng định dạng.' });
   }
 
   return normalizedPhone;
@@ -248,7 +296,7 @@ async function ensureEmployeeEmailAvailable(emailValue: string, currentEmployeeI
 function buildEmployeePayload(input: EmployeeMutationInput) {
   const fullName = cleanText(input.fullName);
   if (!fullName) {
-    safeFailure(400, 'employee_full_name_required', 'Vui lòng nhập họ tên nhân sự.', 'validation');
+    safeFailure(400, 'employee_full_name_required', 'Vui lòng nhập họ tên nhân sự.', 'validation', { fullName: 'Vui lòng nhập họ tên nhân sự.' });
   }
 
   const email = validateEmail(input.email);
@@ -272,7 +320,7 @@ async function buildEmployeeUpdatePayload(
 
   if (Object.prototype.hasOwnProperty.call(input, 'fullName')) {
     const fullName = cleanText(input.fullName);
-    if (!fullName) safeFailure(400, 'employee_full_name_required', 'Vui lòng nhập họ tên nhân sự.', 'validation');
+    if (!fullName) safeFailure(400, 'employee_full_name_required', 'Vui lòng nhập họ tên nhân sự.', 'validation', { fullName: 'Vui lòng nhập họ tên nhân sự.' });
     payload.full_name = fullName;
   }
   if (Object.prototype.hasOwnProperty.call(input, 'email')) payload.email = validateEmail(input.email);
@@ -306,10 +354,10 @@ async function validateFacilityAssignment(value: unknown, currentValue?: string 
   const unchangedInactive = facility && !facility.isActive && facility.code === currentValue;
 
   if (!facility) {
-    safeFailure(404, 'employee_facility_invalid', 'Không tìm thấy cơ sở làm việc đã chọn.', 'validation');
+    safeFailure(404, 'employee_facility_invalid', 'Không tìm thấy cơ sở làm việc đã chọn.', 'validation', { department: 'Không tìm thấy cơ sở làm việc đã chọn.' });
   }
   if (!facility.isActive && !unchangedInactive) {
-    safeFailure(400, 'employee_facility_invalid', 'Cơ sở làm việc không còn hoạt động. Vui lòng chọn cơ sở khác.', 'validation');
+    safeFailure(400, 'employee_facility_invalid', 'Cơ sở làm việc không còn hoạt động. Vui lòng chọn cơ sở khác.', 'validation', { department: 'Cơ sở làm việc không còn hoạt động. Vui lòng chọn cơ sở khác.' });
   }
 
   return facility.code;
@@ -661,6 +709,7 @@ export async function restoreEmployeeAccess(employeeId: string): Promise<AdminAc
 
 export async function createEmployee(input: EmployeeMutationInput, correlationId?: string): Promise<AdminActionResult> {
   const actor = await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
+  validateEmployeeCreateShape(input);
 
   const payload = {
     ...buildEmployeePayload(input),

@@ -7,6 +7,7 @@ export class AuthFlowError extends Error {
   code: AuthFlowErrorCode;
   failureStage: AuthFailureStage;
   safeDetails?: Record<string, boolean | number | string | null>;
+  fieldErrors?: Record<string, string>;
 
   constructor({
     status,
@@ -14,12 +15,14 @@ export class AuthFlowError extends Error {
     message,
     failureStage,
     safeDetails,
+    fieldErrors,
   }: {
     status: number;
     code: AuthFlowErrorCode;
     message: string;
     failureStage: AuthFailureStage;
     safeDetails?: Record<string, boolean | number | string | null>;
+    fieldErrors?: Record<string, string>;
   }) {
     super(message);
     this.name = 'AuthFlowError';
@@ -27,6 +30,7 @@ export class AuthFlowError extends Error {
     this.code = code;
     this.failureStage = failureStage;
     this.safeDetails = safeDetails;
+    this.fieldErrors = fieldErrors;
   }
 }
 
