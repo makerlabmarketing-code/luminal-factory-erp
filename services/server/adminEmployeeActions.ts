@@ -14,6 +14,7 @@ import {
 import { findFacility, getFacilityDirectory } from '@/services/server/facilityDirectory';
 import { validateEmployeeHourlyRate } from '@/lib/employeeHourlyRate';
 import { parseEmployeeCreateRequest, type EmployeeCreateRequest } from '@/lib/employeeCreateContract';
+import { buildEmployeeCreatePersistenceDiagnostics, inferEmployeeFieldErrors } from '@/lib/employeePersistenceDiagnostics';
 
 interface EmployeeAccountRow {
   id: number | string;
@@ -82,16 +83,18 @@ function throwCreatePersistenceFailure(
 ): never {
   const safeDetails = sanitizeAdminMutationFailure(error);
   console.error('[employee-persistence]', {
-    correlationId: correlationId || null,
-    route: '/api/admin/employees',
+    ...buildEmployeeCreatePersistenceDiagnostics({
+      correlationId,
+      failureStage,
+      requestReachedSupabase,
+      readbackAttempted: failureStage === 'core_readback',
+      rowCreated: false,
+      details: safeDetails,
+    }),
     method: 'POST',
     actorEmployeeId,
     authorizationResult: 'allowed',
-    failureStage,
     mutationKeys: ['auth_user_id', 'branch_code', 'email', 'full_name', 'is_active', 'role', 'status', 'phone', 'title'],
-    requestReachedSupabase,
-    rowCreated: false,
-    ...safeDetails,
   });
 
   const supabaseCode = safeDetails.supabaseErrorCode;
@@ -155,34 +158,6 @@ function throwCreatePersistenceFailure(
     failureStage,
     safeDetails,
   });
-}
-
-function inferEmployeeFieldErrors(safeDetails: ReturnType<typeof sanitizeAdminMutationFailure>): Record<string, string> | undefined {
-  const source = `${safeDetails.supabaseConstraint || ''} ${safeDetails.supabaseColumn || ''}`.toLowerCase();
-  const field = source.includes('full_name') || source.includes('name')
-    ? 'fullName'
-    : source.includes('email')
-      ? 'email'
-      : source.includes('branch') || source.includes('facility') || source.includes('department')
-        ? 'department'
-        : source.includes('status')
-          ? 'employmentStatus'
-          : source.includes('phone')
-            ? 'phone'
-            : source.includes('title') || source.includes('job')
-              ? 'title'
-              : null;
-
-  if (!field) return undefined;
-  const messages: Record<string, string> = {
-    fullName: 'Vui lòng nhập họ tên nhân sự.',
-    email: 'Vui lòng kiểm tra email nhân sự.',
-    department: 'Vui lòng chọn cơ sở làm việc hợp lệ.',
-    employmentStatus: 'Vui lòng chọn trạng thái làm việc hợp lệ.',
-    phone: 'Số điện thoại không hợp lệ.',
-    title: 'Chức vụ không hợp lệ.',
-  };
-  return { [field]: messages[field] };
 }
 
 async function readEmployeeByEmail(supabaseAdmin: ReturnType<typeof createSupabaseAdminClient>, email: string): Promise<EmployeeAccountRow[]> {
