@@ -28,15 +28,7 @@ import type {
 import { AdminListRequestError, useAdminListData, type AdminListErrorCode } from '@/hooks/useAdminListData';
 import { accountConnectionExplanations, accountConnectionLabels } from '@/lib/accountConnection';
 import { AdminPage } from '@/component/AdminUI';
-
-interface EmployeeFormState {
-  fullName: string;
-  email: string;
-  title: string;
-  department: string;
-  phone: string;
-  employmentStatus: string;
-}
+import type { EmployeeCreateRequest as EmployeeFormState } from '@/lib/employeeCreateContract';
 
 interface ApiActionResponse {
   success?: boolean;
@@ -565,7 +557,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
             </label>
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Trạng thái <span className="text-red-300">*</span></span>
-              <select id="employee-employmentStatus" name="employmentStatus" aria-invalid={Boolean(formFieldErrors.employmentStatus)} aria-describedby={formFieldErrors.employmentStatus ? 'employee-employmentStatus-error' : undefined} className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.employmentStatus} onChange={(event) => updateFormField('employmentStatus', event.target.value)} required>
+              <select id="employee-employmentStatus" name="employmentStatus" aria-invalid={Boolean(formFieldErrors.employmentStatus)} aria-describedby={formFieldErrors.employmentStatus ? 'employee-employmentStatus-error' : undefined} className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.employmentStatus} onChange={(event) => updateFormField('employmentStatus', event.target.value as EmployeeFormState['employmentStatus'])} required>
                 <option value="ACTIVE">Đang làm</option>
                 <option value="INACTIVE">Ngừng hoạt động</option>
               </select>

@@ -60,6 +60,26 @@ values, focuses the first reported field, rejects unknown create keys, and
 retains the correlation ID in the summary. Raw database messages remain
 server-only and are never returned to the browser.
 
+## 2026-08-02 — Shared Employee create payload contract
+
+The Admin create form and server action now use the same six-key request
+contract: `fullName`, `email`, `title`, `department`, `phone`, and
+`employmentStatus`. The exact LuminalQA reproduction payload (`ACTIVE`, blank
+optional phone/title, and the selected facility's canonical code) passes the
+shared payload parser before any persistence call. `department` remains a
+stable facility code in browser requests; facility lookup and active-state
+checks stay server-owned.
+
+The reported response with `failureStage: validation` and no `fieldErrors`
+cannot be reproduced from that exact payload in source. Before this slice,
+database validation failures with an unmapped safe column/constraint reused the
+same response code, omitted field details, and were mislabeled as validation
+even after the database boundary. Those responses now use `core_mutation` when
+the request reached Supabase and return a safe form-level error when a field
+cannot be identified; known safe column names still map to field-level
+Vietnamese errors. No production retry or readback was performed for the
+reported correlation ID.
+
 ## Authoritative employee source
 
 `public.employees` is the sole profile source of truth for both Admin and Staff.

@@ -45,6 +45,7 @@ describe('corrective slice 2 employee profile and account lifecycle', () => {
     expect(actions).toMatch(/fieldErrors: databaseFieldErrors/);
     expect(actions).toMatch(/supabaseColumn/);
     expect(actions).toMatch(/inferEmployeeFieldErrors/);
+    expect(actions).toMatch(/databaseValidationStage/);
     expect(route).toMatch(/fieldErrors: error\.fieldErrors/);
   });
 
