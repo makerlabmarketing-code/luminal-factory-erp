@@ -42,6 +42,24 @@ input remains canonicalized to a stable facility code. No production employee,
 Auth identity, SQL, migration, or data repair was performed during this
 investigation.
 
+## 2026-08-02 — Employee create validation response boundary
+
+Production returned the controlled `payload_validation_failed` response for the
+LuminalQA fixture attempt (correlation ID retained by the operator). The
+approved production log/readback path was unavailable, so the exact live
+database column is not asserted and no production retry was performed. Source
+inspection confirms the visible dialog payload is `fullName`, `email`, `title`,
+`department` (canonical facility code), `phone`, and `employmentStatus`; empty
+phone/title normalize to `null`, `ACTIVE` is the accepted status, and email is
+stored normalized to lowercase.
+
+The application now returns safe `fieldErrors` for server validation and maps
+only sanitized constraint/column names to Vietnamese field messages. The dialog
+marks true required fields, renders field-level errors, preserves entered
+values, focuses the first reported field, rejects unknown create keys, and
+retains the correlation ID in the summary. Raw database messages remain
+server-only and are never returned to the browser.
+
 ## Authoritative employee source
 
 `public.employees` is the sole profile source of truth for both Admin and Staff.

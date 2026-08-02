@@ -24,6 +24,22 @@ const asRecord = (value: unknown): ErrorRecord | null => typeof value === 'objec
 const safeToken = (value: unknown, fallback: string | null = null) =>
   typeof value === 'string' && /^[A-Za-z0-9_.-]{1,80}$/.test(value) ? value : fallback;
 
+function safeColumnFromError(error: unknown, record: ErrorRecord | null): string | null {
+  const explicit = safeToken(record?.column);
+  if (explicit) return explicit;
+  const message = error instanceof Error ? error.message : typeof record?.message === 'string' ? record.message : '';
+  const match = message.match(/column\s+"([A-Za-z_][A-Za-z0-9_]*)"/i);
+  return safeToken(match?.[1]);
+}
+
+function safeConstraintFromError(error: unknown, record: ErrorRecord | null): string | null {
+  const explicit = safeToken(record?.constraint);
+  if (explicit) return explicit;
+  const message = error instanceof Error ? error.message : typeof record?.message === 'string' ? record.message : '';
+  const match = message.match(/constraint\s+"([A-Za-z_][A-Za-z0-9_]*)"/i);
+  return safeToken(match?.[1]);
+}
+
 function category(error: unknown): string {
   const record = asRecord(error);
   const message = (error instanceof Error ? error.message : typeof error === 'string' ? error : String(record?.message || '')).toLowerCase();
@@ -43,6 +59,8 @@ export function sanitizeAdminMutationFailure(error: unknown) {
     exceptionName: error instanceof Error ? error.name : safeToken(record?.name, typeof error === 'string' ? 'StringException' : 'PlainObjectException'),
     errorCategory: category(error),
     supabaseErrorCode: safeToken(record?.code),
+    supabaseConstraint: safeConstraintFromError(error, record),
+    supabaseColumn: safeColumnFromError(error, record),
     httpStatus: status,
   };
 }

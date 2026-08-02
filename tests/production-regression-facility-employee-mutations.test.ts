@@ -116,6 +116,27 @@ describe('production regression facility and employee mutations', () => {
     expect(client).toMatch(/savingEmployeeRef\.current = false/);
   });
 
+  it('keeps the exact create payload contract aligned with the LuminalQA reproduction shape', () => {
+    const client = source('app/admin/employees/AdminEmployeesClient.tsx');
+    const actions = source('services/server/adminEmployeeActions.ts');
+    const route = source('app/api/admin/employees/route.ts');
+
+    expect(client).toMatch(/fullName: ''/);
+    expect(client).toMatch(/email: ''/);
+    expect(client).toMatch(/title: ''/);
+    expect(client).toMatch(/department: ''/);
+    expect(client).toMatch(/phone: ''/);
+    expect(client).toMatch(/employmentStatus: 'ACTIVE'/);
+    expect(client).toMatch(/body: JSON\.stringify\(formState\)/);
+    expect(client).toMatch(/value=\{facility\.code\}/);
+    expect(actions).toMatch(/validateEmployeeCreateShape\(input\)/);
+    expect(actions).toMatch(/return email\.toLowerCase\(\)/);
+    expect(route).toMatch(/fieldErrors: error\.fieldErrors/);
+    expect(client).toMatch(/formFieldErrors/);
+    expect(client).toMatch(/aria-invalid=\{Boolean\(formFieldErrors\./);
+    expect(client).toMatch(/requestAnimationFrame/);
+  });
+
   it('keeps failed saves open with toast, inline error and double-submit protection', () => {
     const facilitiesClient = source('app/admin/facilities/page.tsx');
     const listClient = source('app/admin/employees/AdminEmployeesClient.tsx');

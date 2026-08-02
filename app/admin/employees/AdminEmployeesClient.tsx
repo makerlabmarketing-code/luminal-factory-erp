@@ -43,6 +43,7 @@ interface ApiActionResponse {
   message?: string;
   code?: string;
   failureStage?: string;
+  fieldErrors?: Record<string, string>;
   correlationId?: string;
 }
 
@@ -117,6 +118,7 @@ async function parseActionResponse(response: Response): Promise<ApiActionRespons
       message: payload.message || 'Không thể thực hiện thao tác.',
       code: payload.code,
       failureStage: payload.failureStage,
+      fieldErrors: payload.fieldErrors,
       correlationId: payload.correlationId,
     };
   }
@@ -148,6 +150,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
   const [currentPage, setCurrentPage] = useState(1);
   const [formState, setFormState] = useState<EmployeeFormState | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [formFieldErrors, setFormFieldErrors] = useState<Record<string, string>>({});
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [savingEmployee, setSavingEmployee] = useState(false);
@@ -219,6 +222,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
 
   const openCreateForm = () => {
     setFormError(null);
+    setFormFieldErrors({});
     setFormState(emptyForm);
   };
 
@@ -229,6 +233,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
     savingEmployeeRef.current = true;
     setSavingEmployee(true);
     setFormError(null);
+    setFormFieldErrors({});
     showGlobalLoading('Đang lưu thay đổi...');
 
     try {
@@ -250,8 +255,14 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
       if (!result.success) {
         const reference = result.correlationId ? ` Mã tra cứu: ${result.correlationId}.` : '';
         const message = `${result.message || 'Không thể lưu hồ sơ nhân sự. Vui lòng thử lại.'}${reference}`;
+        const fieldErrors = result.fieldErrors || {};
+        setFormFieldErrors(fieldErrors);
         setFormError(message);
-        showToast('Không thể cập nhật', message, 'error');
+        showToast('Không thể lưu', message, 'error');
+        const firstInvalidField = Object.keys(fieldErrors)[0];
+        if (firstInvalidField) {
+          window.requestAnimationFrame(() => document.getElementById(`employee-${firstInvalidField}`)?.focus());
+        }
         return;
       }
 
@@ -261,6 +272,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
     } catch {
       const message = 'Không thể kết nối để lưu hồ sơ nhân sự. Vui lòng thử lại.';
       setFormError(message);
+      setFormFieldErrors({});
       showToast('Không thể lưu', message, 'error');
     } finally {
       savingEmployeeRef.current = false;
@@ -277,6 +289,16 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
         await runAction(employee, 'deactivate', 'Đã vô hiệu hóa');
       }
     );
+  };
+
+  const updateFormField = <K extends keyof EmployeeFormState>(field: K, value: EmployeeFormState[K]) => {
+    setFormState((current) => current ? { ...current, [field]: value } : current);
+    setFormFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
   };
 
   return (
@@ -500,28 +522,31 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
 
       {formState && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/80 p-4">
-          <form onSubmit={submitEmployeeForm} className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-200 shadow-2xl">
+          <form noValidate onSubmit={submitEmployeeForm} className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 p-5 pb-3">
               <h2 className="font-bold text-blue-300">Tạo hồ sơ nhân sự</h2>
               <button type="button" disabled={savingEmployee} onClick={() => setFormState(null)} className="text-slate-500 hover:text-white disabled:opacity-60"><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-4 overflow-y-auto p-5">
             <label className="block space-y-1">
-              <span className="font-bold text-slate-400">Họ tên</span>
-              <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.fullName} onChange={(event) => setFormState({ ...formState, fullName: event.target.value })} required />
+              <span className="font-bold text-slate-400">Họ tên <span className="text-red-300">*</span></span>
+              <input id="employee-fullName" name="fullName" aria-invalid={Boolean(formFieldErrors.fullName)} aria-describedby={formFieldErrors.fullName ? 'employee-fullName-error' : undefined} className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.fullName} onChange={(event) => updateFormField('fullName', event.target.value)} required />
+              {formFieldErrors.fullName && <span id="employee-fullName-error" className="block text-[11px] text-red-300">{formFieldErrors.fullName}</span>}
             </label>
             <label className="block space-y-1">
-              <span className="font-bold text-slate-400">Email liên hệ</span>
-              <input type="email" className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.email} onChange={(event) => setFormState({ ...formState, email: event.target.value })} required />
+              <span className="font-bold text-slate-400">Email liên hệ <span className="text-red-300">*</span></span>
+              <input id="employee-email" name="email" type="email" aria-invalid={Boolean(formFieldErrors.email)} aria-describedby={formFieldErrors.email ? 'employee-email-error' : undefined} className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.email} onChange={(event) => updateFormField('email', event.target.value)} required />
+              {formFieldErrors.email && <span id="employee-email-error" className="block text-[11px] text-red-300">{formFieldErrors.email}</span>}
             </label>
 
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Điện thoại</span>
-              <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.phone} onChange={(event) => setFormState({ ...formState, phone: event.target.value })} />
+              <input id="employee-phone" name="phone" aria-invalid={Boolean(formFieldErrors.phone)} aria-describedby={formFieldErrors.phone ? 'employee-phone-error' : undefined} className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.phone} onChange={(event) => updateFormField('phone', event.target.value)} />
+              {formFieldErrors.phone && <span id="employee-phone-error" className="block text-[11px] text-red-300">{formFieldErrors.phone}</span>}
             </label>
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Cơ sở làm việc</span>
-              <select className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.department} onChange={(event) => setFormState({ ...formState, department: event.target.value })}>
+              <select id="employee-department" name="department" aria-invalid={Boolean(formFieldErrors.department)} aria-describedby={formFieldErrors.department ? 'employee-department-error' : undefined} className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.department} onChange={(event) => updateFormField('department', event.target.value)}>
                 <option value="">Chưa gán cơ sở</option>
                 {selectableFacilities.length === 0 ? (
                   <option disabled>Chưa có cơ sở đang hoạt động</option>
@@ -531,17 +556,20 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                   </option>
                 ))}
               </select>
+              {formFieldErrors.department && <span id="employee-department-error" className="block text-[11px] text-red-300">{formFieldErrors.department}</span>}
             </label>
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Chức vụ</span>
-              <input className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.title} onChange={(event) => setFormState({ ...formState, title: event.target.value })} />
+              <input id="employee-title" name="title" aria-invalid={Boolean(formFieldErrors.title)} aria-describedby={formFieldErrors.title ? 'employee-title-error' : undefined} className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.title} onChange={(event) => updateFormField('title', event.target.value)} />
+              {formFieldErrors.title && <span id="employee-title-error" className="block text-[11px] text-red-300">{formFieldErrors.title}</span>}
             </label>
             <label className="block space-y-1">
-              <span className="font-bold text-slate-400">Trạng thái</span>
-              <select className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.employmentStatus} onChange={(event) => setFormState({ ...formState, employmentStatus: event.target.value })}>
+              <span className="font-bold text-slate-400">Trạng thái <span className="text-red-300">*</span></span>
+              <select id="employee-employmentStatus" name="employmentStatus" aria-invalid={Boolean(formFieldErrors.employmentStatus)} aria-describedby={formFieldErrors.employmentStatus ? 'employee-employmentStatus-error' : undefined} className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.employmentStatus} onChange={(event) => updateFormField('employmentStatus', event.target.value)} required>
                 <option value="ACTIVE">Đang làm</option>
                 <option value="INACTIVE">Ngừng hoạt động</option>
               </select>
+              {formFieldErrors.employmentStatus && <span id="employee-employmentStatus-error" className="block text-[11px] text-red-300">{formFieldErrors.employmentStatus}</span>}
             </label>
             </div>
             <div className="border-t border-slate-800 p-5 pt-3">
