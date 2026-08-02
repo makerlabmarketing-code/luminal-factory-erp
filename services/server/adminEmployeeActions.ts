@@ -13,6 +13,7 @@ import {
 } from '@/utils/auth/flow';
 import { findFacility, getFacilityDirectory } from '@/services/server/facilityDirectory';
 import { validateEmployeeHourlyRate } from '@/lib/employeeHourlyRate';
+import { parseEmployeeCreateRequest, type EmployeeCreateRequest } from '@/lib/employeeCreateContract';
 
 interface EmployeeAccountRow {
   id: number | string;
@@ -60,8 +61,6 @@ function normalizeEmail(value?: string | null): string {
 const VALID_EMPLOYMENT_STATUSES = new Set(['ACTIVE', 'INACTIVE']);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?\d{8,15}$/;
-const EMPLOYEE_CREATE_FIELDS = new Set(['fullName', 'email', 'title', 'department', 'phone', 'employmentStatus']);
-
 function safeFailure(
   status: number,
   code: AuthFlowErrorCode,
@@ -97,6 +96,10 @@ function throwCreatePersistenceFailure(
 
   const supabaseCode = safeDetails.supabaseErrorCode;
   const databaseFieldErrors = inferEmployeeFieldErrors(safeDetails);
+  const safeValidationFieldErrors = databaseFieldErrors || {
+    form: 'Hệ thống không xác định được trường hồ sơ bị từ chối. Vui lòng kiểm tra dữ liệu và mã tra cứu.',
+  };
+  const databaseValidationStage: AuthFailureStage = requestReachedSupabase ? 'core_mutation' : failureStage;
   if (supabaseCode === '23505') {
     throw new AuthFlowError({
       status: 409,
@@ -111,10 +114,10 @@ function throwCreatePersistenceFailure(
     throw new AuthFlowError({
       status: 400,
       code: 'payload_validation_failed',
-      message: 'Thông tin hồ sơ nhân sự chưa hợp lệ. Vui lòng kiểm tra các trường bắt buộc.',
-      failureStage: 'validation',
+      message: 'Thông tin hồ sơ nhân sự chưa hợp lệ.',
+      failureStage: databaseValidationStage,
       safeDetails,
-      fieldErrors: databaseFieldErrors,
+      fieldErrors: safeValidationFieldErrors,
     });
   }
   if (supabaseCode === '23503') {
@@ -122,9 +125,9 @@ function throwCreatePersistenceFailure(
       status: 400,
       code: 'payload_validation_failed',
       message: 'Thông tin liên kết hồ sơ nhân sự chưa hợp lệ.',
-      failureStage: 'validation',
+      failureStage: databaseValidationStage,
       safeDetails,
-      fieldErrors: databaseFieldErrors,
+      fieldErrors: safeValidationFieldErrors,
     });
   }
   if (supabaseCode === '42501' || safeDetails.errorCategory === 'permission_or_credential') {
@@ -231,13 +234,12 @@ function validateEmail(value: unknown): string {
   return email.toLowerCase();
 }
 
-function validateEmployeeCreateShape(input: EmployeeMutationInput): void {
-  const unknownFields = Object.keys(input as Record<string, unknown>).filter((field) => !EMPLOYEE_CREATE_FIELDS.has(field));
-  if (unknownFields.length > 0) {
-    safeFailure(400, 'payload_validation_failed', 'Dữ liệu hồ sơ nhân sự chứa trường không được hỗ trợ.', 'payload_validation', {
-      form: 'Vui lòng tải lại biểu mẫu và thử lại.',
-    });
+function validateEmployeeCreateShape(input: EmployeeMutationInput): EmployeeCreateRequest {
+  const parsed = parseEmployeeCreateRequest(input);
+  if (!parsed.success) {
+    safeFailure(400, 'payload_validation_failed', 'Thông tin hồ sơ nhân sự chưa hợp lệ.', 'payload_validation', parsed.fieldErrors);
   }
+  return parsed.data;
 }
 
 function validateEmploymentStatus(value: unknown): string {
@@ -709,11 +711,11 @@ export async function restoreEmployeeAccess(employeeId: string): Promise<AdminAc
 
 export async function createEmployee(input: EmployeeMutationInput, correlationId?: string): Promise<AdminActionResult> {
   const actor = await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
-  validateEmployeeCreateShape(input);
+  const normalizedInput = validateEmployeeCreateShape(input);
 
   const payload = {
-    ...buildEmployeePayload(input),
-    branch_code: await validateFacilityAssignment(input.department),
+    ...buildEmployeePayload(normalizedInput),
+    branch_code: await validateFacilityAssignment(normalizedInput.department),
     role: 'STAFF',
     is_active: true,
     auth_user_id: null,

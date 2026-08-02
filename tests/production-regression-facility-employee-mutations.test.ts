@@ -109,7 +109,7 @@ describe('production regression facility and employee mutations', () => {
 
     expect(actions).toMatch(/phone: normalizeEmployeePhone\(input\.phone\)/);
     expect(actions).toMatch(/title: cleanText\(input\.title\)/);
-    expect(actions).toMatch(/branch_code: await validateFacilityAssignment\(input\.department\)/);
+    expect(actions).toMatch(/branch_code: await validateFacilityAssignment\(normalizedInput\.department\)/);
     expect(client).toMatch(/const savingEmployeeRef = useRef\(false\)/);
     expect(client).toMatch(/savingEmployeeRef\.current\) return/);
     expect(client).toMatch(/savingEmployeeRef\.current = true/);
