@@ -80,6 +80,23 @@ cannot be identified; known safe column names still map to field-level
 Vietnamese errors. No production retry or readback was performed for the
 reported correlation ID.
 
+## 2026-08-02 — Employee create core-mutation diagnostic boundary
+
+The `80aba6db-437f-4d03-afa2-74d6f379cb24` attempt passed the shared payload
+contract and reached the `employees` insert. The browser payload keys and
+values were valid by the tracked application contract; the server derived
+`full_name`, normalized email, nullable `title`/`phone`, canonical
+`branch_code`, `status`, `role=STAFF`, `is_active=true`, and
+`auth_user_id=null` before persistence.
+
+The repository does not register an approved Vercel production-log query
+procedure, so the exact PostgreSQL code/constraint/column remains
+`PRODUCTION_LOG_EVIDENCE_UNAVAILABLE`. No production retry or data readback was
+performed. Employee create diagnostics now retain only an allowlisted table,
+column, known constraint, machine error code, operation, stage, row count, and
+readback-attempted flag; payload values and raw database details remain
+excluded. Unknown constraint names do not drive public field mapping.
+
 ## Authoritative employee source
 
 `public.employees` is the sole profile source of truth for both Admin and Staff.
