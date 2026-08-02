@@ -5,6 +5,74 @@ export interface SanitizedEmployeeFailure {
   supabaseColumn?: string | null;
 }
 
+export interface EmployeeCreatePersistenceDiagnostic {
+  correlationId: string | null;
+  timestamp: string;
+  route: '/api/admin/employees';
+  operation: 'employee_create';
+  table: 'employees';
+  failureStage: string;
+  requestReachedSupabase: boolean;
+  insertReturnedRowCount: number;
+  rowReturned: boolean;
+  readbackAttempted: boolean;
+  rowCreated: boolean;
+  errorCategory: string | null;
+  supabaseErrorCode: string | null;
+  supabaseColumn: string | null;
+  supabaseConstraint: string | null;
+}
+
+const EMPLOYEE_DIAGNOSTIC_TTL_MS = 15 * 60 * 1000;
+const EMPLOYEE_DIAGNOSTIC_MAX_ENTRIES = 100;
+const employeeDiagnosticStoreKey = Symbol.for('luminal.employee-create-diagnostics');
+
+type DiagnosticStore = Map<string, EmployeeCreatePersistenceDiagnostic>;
+
+function getDiagnosticStore(): DiagnosticStore {
+  const runtime = globalThis as typeof globalThis & { [employeeDiagnosticStoreKey]?: DiagnosticStore };
+  if (!runtime[employeeDiagnosticStoreKey]) runtime[employeeDiagnosticStoreKey] = new Map();
+  return runtime[employeeDiagnosticStoreKey]!;
+}
+
+function pruneDiagnosticStore(now = Date.now()) {
+  const store = getDiagnosticStore();
+  for (const [correlationId, entry] of Array.from(store.entries())) {
+    if (Date.parse(entry.timestamp) + EMPLOYEE_DIAGNOSTIC_TTL_MS <= now) store.delete(correlationId);
+  }
+  while (store.size > EMPLOYEE_DIAGNOSTIC_MAX_ENTRIES) {
+    const oldest = store.keys().next().value;
+    if (!oldest) break;
+    store.delete(oldest);
+  }
+}
+
+export function recordEmployeeCreatePersistenceDiagnostic(
+  diagnostic: Omit<EmployeeCreatePersistenceDiagnostic, 'timestamp'>,
+  now = new Date()
+): boolean {
+  if (!diagnostic.correlationId) return false;
+  const store = getDiagnosticStore();
+  pruneDiagnosticStore(now.getTime());
+  store.delete(diagnostic.correlationId);
+  store.set(diagnostic.correlationId, { ...diagnostic, timestamp: now.toISOString() });
+  pruneDiagnosticStore(now.getTime());
+  return true;
+}
+
+export function readEmployeeCreatePersistenceDiagnostic(
+  correlationId: string,
+  now = new Date()
+): EmployeeCreatePersistenceDiagnostic | null {
+  const store = getDiagnosticStore();
+  pruneDiagnosticStore(now.getTime());
+  return store.get(correlationId) || null;
+}
+
+export function isEmployeeDiagnosticCorrelationId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 const EMPLOYEE_SAFE_COLUMNS = new Set([
   'id',
   'full_name',
@@ -79,7 +147,7 @@ export function allowlistedEmployeeConstraint(value?: string | null): string | n
 }
 
 export function normalizeEmployeePostgresCode(value?: string | null): string | null {
-  return value && /^\d{5}$/.test(value) ? value : null;
+  return value && (/^\d{5}$/.test(value) || /^PGRST\d{3}$/.test(value)) ? value : null;
 }
 
 export function inferEmployeeFieldErrors(details: SanitizedEmployeeFailure): Record<string, string> | undefined {
@@ -107,15 +175,16 @@ export function buildEmployeeCreatePersistenceDiagnostics(params: {
   readbackAttempted: boolean;
   rowCreated: boolean;
   details: SanitizedEmployeeFailure;
-}) {
+}): Omit<EmployeeCreatePersistenceDiagnostic, 'timestamp'> {
   return {
     correlationId: params.correlationId || null,
-    route: '/api/admin/employees',
-    operation: 'employee_create',
-    table: 'employees',
+    route: '/api/admin/employees' as const,
+    operation: 'employee_create' as const,
+    table: 'employees' as const,
     failureStage: params.failureStage,
     requestReachedSupabase: params.requestReachedSupabase,
     insertReturnedRowCount: params.rowCreated ? 1 : 0,
+    rowReturned: params.rowCreated,
     readbackAttempted: params.readbackAttempted,
     rowCreated: params.rowCreated,
     errorCategory: params.details.errorCategory || null,

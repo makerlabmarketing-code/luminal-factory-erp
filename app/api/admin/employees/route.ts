@@ -22,7 +22,15 @@ function toErrorResponse(error: unknown, correlationId: string, operation: 'crea
   logEmployeeRouteError(correlationId, error);
   if (error instanceof AuthFlowError) {
     return toJsonResponse(
-      { success: false, message: error.message, code: error.code, failureStage: error.failureStage, fieldErrors: error.fieldErrors, correlationId },
+      {
+        success: false,
+        message: error.message,
+        code: error.code,
+        failureStage: error.failureStage,
+        fieldErrors: error.fieldErrors,
+        diagnosticAvailable: Boolean(error.diagnosticAvailable),
+        correlationId,
+      },
       { status: error.status }
     );
   }

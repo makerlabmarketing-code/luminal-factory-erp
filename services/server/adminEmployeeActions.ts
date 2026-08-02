@@ -14,7 +14,11 @@ import {
 import { findFacility, getFacilityDirectory } from '@/services/server/facilityDirectory';
 import { validateEmployeeHourlyRate } from '@/lib/employeeHourlyRate';
 import { parseEmployeeCreateRequest, type EmployeeCreateRequest } from '@/lib/employeeCreateContract';
-import { buildEmployeeCreatePersistenceDiagnostics, inferEmployeeFieldErrors } from '@/lib/employeePersistenceDiagnostics';
+import {
+  buildEmployeeCreatePersistenceDiagnostics,
+  inferEmployeeFieldErrors,
+  recordEmployeeCreatePersistenceDiagnostic,
+} from '@/lib/employeePersistenceDiagnostics';
 
 interface EmployeeAccountRow {
   id: number | string;
@@ -82,15 +86,17 @@ function throwCreatePersistenceFailure(
   requestReachedSupabase: boolean
 ): never {
   const safeDetails = sanitizeAdminMutationFailure(error);
+  const diagnostic = buildEmployeeCreatePersistenceDiagnostics({
+    correlationId,
+    failureStage,
+    requestReachedSupabase,
+    readbackAttempted: failureStage === 'core_readback',
+    rowCreated: false,
+    details: safeDetails,
+  });
+  const diagnosticAvailable = recordEmployeeCreatePersistenceDiagnostic(diagnostic);
   console.error('[employee-persistence]', {
-    ...buildEmployeeCreatePersistenceDiagnostics({
-      correlationId,
-      failureStage,
-      requestReachedSupabase,
-      readbackAttempted: failureStage === 'core_readback',
-      rowCreated: false,
-      details: safeDetails,
-    }),
+    ...diagnostic,
     method: 'POST',
     actorEmployeeId,
     authorizationResult: 'allowed',
@@ -108,29 +114,32 @@ function throwCreatePersistenceFailure(
       status: 409,
       code: 'employee_email_duplicate_active',
       message: 'Email này đang được dùng bởi hồ sơ nhân sự khác.',
-      failureStage: 'duplicate_check',
+      failureStage: requestReachedSupabase ? 'core_mutation' : 'duplicate_check',
       safeDetails,
       fieldErrors: databaseFieldErrors,
+      diagnosticAvailable,
     });
   }
   if (supabaseCode === '23502' || supabaseCode === '23514') {
     throw new AuthFlowError({
       status: 400,
-      code: 'payload_validation_failed',
+      code: requestReachedSupabase ? 'employee_insert_constraint_failed' : 'payload_validation_failed',
       message: 'Thông tin hồ sơ nhân sự chưa hợp lệ.',
       failureStage: databaseValidationStage,
       safeDetails,
       fieldErrors: safeValidationFieldErrors,
+      diagnosticAvailable,
     });
   }
   if (supabaseCode === '23503') {
     throw new AuthFlowError({
       status: 400,
-      code: 'payload_validation_failed',
+      code: requestReachedSupabase ? 'employee_insert_constraint_failed' : 'payload_validation_failed',
       message: 'Thông tin liên kết hồ sơ nhân sự chưa hợp lệ.',
       failureStage: databaseValidationStage,
       safeDetails,
       fieldErrors: safeValidationFieldErrors,
+      diagnosticAvailable,
     });
   }
   if (supabaseCode === '42501' || safeDetails.errorCategory === 'permission_or_credential') {
@@ -138,8 +147,9 @@ function throwCreatePersistenceFailure(
       status: 403,
       code: 'permission_forbidden',
       message: 'Bạn không có quyền lưu hồ sơ nhân sự.',
-      failureStage: 'permission_check',
+      failureStage: requestReachedSupabase ? 'core_mutation' : 'permission_check',
       safeDetails,
+      diagnosticAvailable,
     });
   }
   if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'schema_contract' || safeDetails.errorCategory === 'unavailable') {
@@ -147,16 +157,18 @@ function throwCreatePersistenceFailure(
       status: 503,
       code: 'service_unavailable',
       message: 'Hệ thống chưa xác định được kết quả lưu hồ sơ. Vui lòng tra cứu theo email trước khi thử lại.',
-      failureStage: failureStage === 'core_readback' ? 'core_readback' : 'persistence',
+      failureStage: failureStage === 'core_readback' ? 'core_readback' : requestReachedSupabase ? 'core_mutation' : failureStage,
       safeDetails,
+      diagnosticAvailable,
     });
   }
   throw new AuthFlowError({
     status: 500,
-    code: 'employee_persistence_failed',
+    code: failureStage === 'core_readback' ? 'employee_insert_readback_failed' : 'employee_persistence_failed',
     message: 'Không thể lưu hồ sơ nhân sự. Vui lòng thử lại.',
     failureStage,
     safeDetails,
+    diagnosticAvailable,
   });
 }
 
@@ -347,6 +359,10 @@ function isActiveEmployee(row: EmployeeAccountRow): boolean {
 
 function isMissingTarget(error?: { code?: string } | null): boolean {
   return error?.code === 'PGRST116';
+}
+
+function isEmployeeInsertReadbackError(details: ReturnType<typeof sanitizeAdminMutationFailure>): boolean {
+  return details.supabaseErrorCode === 'PGRST116';
 }
 
 function toSafeAuthErrorMessage(message?: string): string {
@@ -722,6 +738,15 @@ export async function createEmployee(input: EmployeeMutationInput, correlationId
 
   if (result.error) {
     const safeDetails = sanitizeAdminMutationFailure(result.error);
+    if (isEmployeeInsertReadbackError(safeDetails)) {
+      try {
+        const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));
+        if (recovered) return recovered;
+      } catch (readbackError) {
+        throwCreatePersistenceFailure(readbackError, correlationId, String(actor.employee.id), 'core_readback', true);
+      }
+      throwCreatePersistenceFailure(result.error, correlationId, String(actor.employee.id), 'core_readback', true);
+    }
     if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'schema_contract' || safeDetails.errorCategory === 'unavailable') {
       try {
         const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));

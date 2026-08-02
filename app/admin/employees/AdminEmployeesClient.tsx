@@ -37,6 +37,7 @@ interface ApiActionResponse {
   failureStage?: string;
   fieldErrors?: Record<string, string>;
   correlationId?: string;
+  diagnosticAvailable?: boolean;
 }
 
 const legacyInviteCopyForRegression = 'Gửi lời mời';
@@ -112,6 +113,7 @@ async function parseActionResponse(response: Response): Promise<ApiActionRespons
       failureStage: payload.failureStage,
       fieldErrors: payload.fieldErrors,
       correlationId: payload.correlationId,
+      diagnosticAvailable: payload.diagnosticAvailable,
     };
   }
 

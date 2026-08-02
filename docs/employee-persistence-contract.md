@@ -97,6 +97,50 @@ column, known constraint, machine error code, operation, stage, row count, and
 readback-attempted flag; payload values and raw database details remain
 excluded. Unknown constraint names do not drive public field mapping.
 
+### Current Employee create insert matrix
+
+| Insert column | Request/derived source | Incident value | Application normalization | Tracked contract evidence |
+| --- | --- | --- | --- | --- |
+| `full_name` | `fullName` | `Maker Lab` | trim; non-empty | required employee identity |
+| `email` | `email` | `makerlab.marketing@gmail.com` | trim, lowercase, format check, duplicate precheck | required identity; uniqueness is checked before insert |
+| `title` | `title` | `Tester` | trim; empty becomes `NULL` | nullable operational field |
+| `phone` | `phone` | `NULL` | blank becomes `NULL`; non-blank format checked | nullable personal field |
+| `branch_code` | `department` then facility directory | `X_NG_CH_NH_LUMINAL` | exact ID/code/name lookup; persists returned stable code | nullable employee assignment; no repository FK to `facilities` is established |
+| `status` | `employmentStatus` | `ACTIVE` | uppercase allowlist `ACTIVE`/`INACTIVE` | active employee compatibility contract |
+| `role` | server-derived | `STAFF` | never client-controlled | legacy role compatibility; exact database check remains unverified |
+| `is_active` | server-derived | `true` | always true on create | active-state compatibility; exact database constraint remains unverified |
+| `auth_user_id` | server-derived | `NULL` | invitation/linking is a separate action | nullable Auth link, evidenced by migration `20260712181332` |
+
+The repository does not contain the original base `public.employees` table DDL;
+tracked migrations add compatibility columns, policies, and constraints around
+that pre-existing table. Therefore no production schema drift or rejecting
+constraint is claimed without an approved log or metadata read.
+
+## 2026-08-02 — Operator diagnostic evidence surface
+
+Employee create persistence failures now retain a short-lived, deployment-local
+diagnostic record keyed by the create correlation ID. An authenticated Admin with
+`ADMIN_WORKSPACE` and `EMPLOYEE_MANAGE` may read one record through:
+
+`GET /api/admin/employees/diagnostics/<correlationId>`
+
+The response is `status=available` only when the record is present and returns
+the timestamp, operation stage, normalized Postgres code, allowlisted table,
+column, constraint, row-returned state, readback-attempted state, and safe error
+category. Missing or expired records return `status=unavailable`; invalid IDs
+are rejected. Responses are `Cache-Control: no-store` and never include the
+employee payload, email, phone, title, raw database text, SQL, headers,
+credentials, or environment values.
+
+The cache is intentionally bounded to 100 records and 15 minutes and is local
+to the serving deployment instance. It is an evidence aid, not durable audit
+storage: a request routed to another serverless instance may correctly return
+`unavailable`. Operators must retain only the correlation ID, timestamp, safe
+response, and HTTP status. No production retry is implied by a diagnostic
+record. Correlation IDs from failures that occurred before this endpoint was
+deployed cannot be reconstructed or populated retroactively; they correctly
+remain `unavailable`.
+
 ## Authoritative employee source
 
 `public.employees` is the sole profile source of truth for both Admin and Staff.
