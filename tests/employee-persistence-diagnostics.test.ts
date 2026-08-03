@@ -73,6 +73,27 @@ describe('employee same-response persistence diagnostics', () => {
       email: 'Vui lòng kiểm tra email nhân sự.',
     });
     expect(inferEmployeeFieldErrors({ supabaseColumn: 'status_private' })).toBeUndefined();
+    expect(inferEmployeeFieldErrors({ supabaseColumn: 'qr_token' })).toEqual({
+      form: 'Mã QR nhân sự do hệ thống tạo không hợp lệ. Vui lòng thử lại.',
+    });
+    expect(inferEmployeeFieldErrors({ supabaseConstraint: 'employees_qr_token_key' })).toEqual({
+      form: 'Mã QR nhân sự do hệ thống tạo không hợp lệ. Vui lòng thử lại.',
+    });
+  });
+
+  it.each(['23502', '23505'])('allowlists qr_token diagnostics without retaining a value for %s', (databaseCode) => {
+    const diagnostic = buildEmployeeCreateSafeDiagnostic({
+      operationStage: 'employee_insert', readbackAttempted: false, rowReturned: false,
+      details: {
+        errorCategory: 'database_constraint',
+        supabaseErrorCode: databaseCode, supabaseColumn: 'qr_token',
+        supabaseConstraint: 'employees_qr_token_key',
+      },
+    });
+    expect(diagnostic).toMatchObject({
+      databaseCode, column: 'qr_token', constraint: 'employees_qr_token_key',
+    });
+    expect(JSON.stringify(diagnostic)).not.toContain('browser-controlled-token');
   });
 
   it('has no place to retain raw database text or payload values', () => {

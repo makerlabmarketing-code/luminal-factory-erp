@@ -12,6 +12,21 @@ controlled.
 
 ## Employee create diagnostic retry boundary (2026-08-03)
 
+The read-only production metadata inspection is now complete. It proved the
+root cause: `employees.qr_token` is `NOT NULL`, has no default, was absent from
+the application insert, and caused PostgreSQL `23502` at `employee_insert`.
+Tracked/live schema evidence identifies `employees_qr_token_key` as unique, and
+no trigger was found that supplies the value before constraint enforcement.
+
+The application-only repair generates a UUID v4 server-side after Admin
+authentication/authorization, includes it in the insert, never accepts or
+returns it through the create API, and bounds a proven QR-token uniqueness
+collision to three server insert attempts. No schema change is required. Do not
+retry production Employee creation until the repaired commit is deployed and
+verified through `/api/system/version`. After deployment, perform exactly one
+manual Admin retry; do not automate it. Attendance fixture provisioning remains
+incomplete until that retry proves success and returns the created Employee ID.
+
 PR #117's 15-minute, 100-entry lookup was deployment-local and therefore could
 not be authoritative across Vercel instances. The application-only repair
 removes both that map and `GET /api/admin/employees/diagnostics/<correlationId>`.
@@ -20,9 +35,8 @@ authorization confirms `ADMIN_WORKSPACE` and `EMPLOYEE_MANAGE`. There is no
 shared diagnostic persistence and no production mutation is needed to make the
 diagnostic available.
 
-The production-schema preflight section at the end of this handoff supersedes the
-former immediate-retry instruction. Do not retry automatically or manually before
-that read-only metadata evidence is reviewed. Any later separately approved Admin
+The reviewed metadata evidence supersedes the former preflight gate. Do not retry
+before the application repair is deployed. The later separately approved Admin
 retry must use one known test-only payload, submit exactly once, preserve the dialog
 state, and capture only: timestamp/timezone, HTTP status, `success`, `code`, `failureStage`, safe
 Vietnamese `message`, `fieldErrors`, `diagnostic.available`,

@@ -61,7 +61,7 @@ describe('production regression facility and employee mutations', () => {
     const validateBody = actions.slice(buildEnd, validateEnd);
 
     expect(buildBody).toMatch(/phone: normalizeEmployeePhone\(input\.phone\)/);
-    expect(buildBody).toMatch(/title: cleanText\(input\.title\)/);
+    expect(buildBody).toMatch(/const title = cleanText\(input\.title\)/);
     expect(buildBody).toMatch(/branch_code: cleanText\(input\.department, 80\)/);
     expect(validateBody).toMatch(/if \(currentValue && requestedCode === currentValue\) return currentValue/);
     expect(validateBody).toMatch(/return facility\.code/);
@@ -103,12 +103,12 @@ describe('production regression facility and employee mutations', () => {
     expect(createBody).toMatch(/employee: result\.data/);
   });
 
-  it('normalizes optional create fields and prevents repeated submissions synchronously', () => {
+  it('normalizes optional phone, requires title, and prevents repeated submissions synchronously', () => {
     const actions = source('services/server/adminEmployeeActions.ts');
     const client = source('app/admin/employees/AdminEmployeesClient.tsx');
 
     expect(actions).toMatch(/phone: normalizeEmployeePhone\(input\.phone\)/);
-    expect(actions).toMatch(/title: cleanText\(input\.title\)/);
+    expect(actions).toMatch(/const title = cleanText\(input\.title\)/);
     expect(actions).toMatch(/branch_code: await validateFacilityAssignment\(normalizedInput\.department\)/);
     expect(client).toMatch(/const savingEmployeeRef = useRef\(false\)/);
     expect(client).toMatch(/savingEmployeeRef\.current\) return/);

@@ -398,3 +398,28 @@ its validation file. Do not retry Employee create before the retained metadata
 output is reviewed. No forward migration, rollback DDL, production SQL execution,
 Employee/Auth/Facility mutation, environment change, or deployment mutation is
 part of this slice.
+
+## 2026-08-03 — Employee create QR-token persistence repair
+
+Status: `READY_FOR_PROTECTED_REVIEW`. Approved read-only production metadata
+proved `employees.qr_token` is an unsupplied `NOT NULL`/no-default column and the
+cause of the `23502` Employee insert rejection. Repository and retained metadata
+evidence identify it as the long-lived Attendance check-in credential and prove
+the unique constraint `employees_qr_token_key`; no existing generator or tracked
+value format was found.
+
+The bounded application slice now generates a cryptographically secure UUID v4
+only after Admin authentication and `EMPLOYEE_MANAGE` authorization, adds it to
+the Employee insert, excludes it from the public request, normal response,
+diagnostics, and values logged by the flow, and retries only a proven QR-token
+`23505` collision with a maximum of three server attempts. `23502` maps to
+`employee_insert_constraint_failed`; an exhausted QR collision maps to
+`employee_qr_token_conflict`; both use a safe form message with `Mã QR nhân sự`
+context without revealing the token or database text.
+
+No migration, SQL execution, schema/RLS/Auth/Facility/data mutation, or automatic
+production retry belongs to this slice. After protected-main deployment is
+verified through `/api/system/version`, the exact next boundary is
+`READY_FOR_EMPLOYEE_CREATE_RETRY`: submit the known fixture once manually and
+retain the approved safe success/failure fields. Do not mark the Attendance
+fixture complete until a created Employee ID and its later fixture gates pass.
