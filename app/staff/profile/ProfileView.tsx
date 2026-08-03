@@ -6,7 +6,7 @@ import { Briefcase, RefreshCcw, ShieldCheck } from 'lucide-react';
 import type { Facility } from '@/lib/types/facility';
 import type { Employee } from '@/lib/types/employee';
 import { getShiftWageByTitle, updateStaffProfile } from '@/services/staffProfileService';
-import { StaffLogoutButton } from './StaffLogoutButton';
+import StaffLogoutButton from './StaffLogoutButton';
 
 interface StaffProfileContentProps {
   workerData?: Employee | null;
@@ -176,7 +176,13 @@ export function StaffProfileContent({
         <ShieldCheck className="w-4 h-4" /> {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
       </button>}
 
-      <section aria-label="Phiên đăng nhập" className="border-t border-slate-800 pt-5">
+      <section className="space-y-3 border-t border-slate-800 pt-5" aria-labelledby="staff-account-heading">
+        <div>
+          <h3 id="staff-account-heading" className="font-bold text-slate-200">Tài khoản nhân viên</h3>
+          <p className="mt-1 text-[11px] text-slate-400">
+            {worker.full_name} · {worker.title || 'Nhân viên'} · {assignedBranchName}
+          </p>
+        </div>
         <StaffLogoutButton />
       </section>
     </div>

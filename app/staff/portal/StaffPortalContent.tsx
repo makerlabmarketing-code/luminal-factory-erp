@@ -72,7 +72,7 @@ export default function StaffPortalContent({
   }
 
   return (
-    <div className="p-4 max-w-6xl mx-auto space-y-5 text-slate-100 bg-slate-950 min-h-screen pb-24 font-sans select-none">
+    <div className="p-4 max-w-6xl mx-auto space-y-5 text-slate-100 bg-slate-950 min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] font-sans select-none">
       <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center justify-between shadow-xl">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-purple-600/10 border border-purple-500/20 text-purple-400 rounded-xl">
@@ -127,7 +127,7 @@ export default function StaffPortalContent({
         {visitedTabs.profile && <StaffProfileContent workerData={worker} assignedBranchData={assignedBranch} />}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-slate-800 bg-slate-900/95 px-2 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-3.5 text-[10px] font-bold shadow-2xl backdrop-blur-md">
+      <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-2 pt-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] z-50 flex justify-around items-center shadow-2xl text-[10px] font-bold">
         <button onClick={() => setActiveTab('attendance')} className={`flex flex-col items-center gap-1 transition-all duration-200 focus:outline-none cursor-pointer ${activeTab === 'attendance' ? 'text-blue-400 font-black' : 'text-slate-500'}`}>
           <Clock className="w-4 h-4" /><span>Ca Làm Việc</span>
         </button>
