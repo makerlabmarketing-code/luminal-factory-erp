@@ -4,7 +4,7 @@ import { parseEmployeeCreateRequest } from '../lib/employeeCreateContract';
 const luminalQaPayload = {
   fullName: 'LuminalQA',
   email: 'makerlab.marketing@gmail.com',
-  title: '',
+  title: 'Nhân viên',
   department: 'CN1',
   phone: '',
   employmentStatus: 'ACTIVE',
@@ -18,11 +18,16 @@ describe('employee create request contract', () => {
     });
   });
 
-  it('accepts nullable optional fields from compatible clients', () => {
-    expect(parseEmployeeCreateRequest({ ...luminalQaPayload, phone: null, title: null })).toEqual({
+  it('accepts a nullable optional phone from compatible clients', () => {
+    expect(parseEmployeeCreateRequest({ ...luminalQaPayload, phone: null })).toEqual({
       success: true,
       data: luminalQaPayload,
     });
+  });
+
+  it('requires the production NOT NULL title field', () => {
+    const result = parseEmployeeCreateRequest({ ...luminalQaPayload, title: null });
+    expect(result).toEqual({ success: false, fieldErrors: { title: 'Vui lòng nhập chức vụ nhân sự.' } });
   });
 
   it('returns all safe field errors before persistence for invalid payloads', () => {

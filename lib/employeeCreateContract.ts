@@ -71,6 +71,7 @@ export function parseEmployeeCreateRequest(input: unknown): EmployeeCreateParseR
   }
 
   const title = readOptionalText(input.title, 'title', fieldErrors);
+  if (!title && !fieldErrors.title) fieldErrors.title = 'Vui lòng nhập chức vụ nhân sự.';
   const phone = readOptionalText(input.phone, 'phone', fieldErrors);
   let department = '';
   if (input.department !== undefined && input.department !== null) {

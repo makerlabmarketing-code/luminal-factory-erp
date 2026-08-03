@@ -69,6 +69,7 @@ export type AuthFlowErrorCode =
   | 'employee_status_invalid'
   | 'employee_email_duplicate_active'
   | 'employee_duplicate_conflict'
+  | 'employee_qr_token_conflict'
   | 'employee_email_soft_deleted_duplicate'
   | 'employee_lookup_failed'
   | 'employee_persistence_failed'

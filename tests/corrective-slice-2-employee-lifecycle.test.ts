@@ -48,7 +48,7 @@ describe('corrective slice 2 employee profile and account lifecycle', () => {
     expect(route).toMatch(/fieldErrors: error\.fieldErrors/);
   });
 
-  it('keeps job title optional and keeps quick edit away from salary, bank and permissions', () => {
+  it('requires the production NOT NULL job title and keeps quick edit away from salary, bank and permissions', () => {
     const actions = source('services/server/adminEmployeeActions.ts');
     const buildStart = actions.indexOf('function buildEmployeePayload');
     const buildEnd = actions.indexOf('function isActiveEmployee', buildStart);
@@ -56,7 +56,8 @@ describe('corrective slice 2 employee profile and account lifecycle', () => {
     const listClient = source('app/admin/employees/AdminEmployeesClient.tsx');
     const detailClient = source('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
 
-    expect(buildBody).toMatch(/title: cleanText\(input\.title\)/);
+    expect(buildBody).toMatch(/const title = cleanText\(input\.title\)/);
+    expect(buildBody).toMatch(/if \(!title\)/);
     expect(buildBody).not.toMatch(/title: cleanText\(input\.title\) \|\| 'Nhân sự'/);
     expect(listClient).not.toMatch(/Sửa nhanh/);
     expect(detailClient).toMatch(/Lưu thay đổi/);

@@ -97,7 +97,10 @@ column, known constraint, machine error code, operation, stage, row count, and
 readback-attempted flag; payload values and raw database details remain
 excluded. Unknown constraint names do not drive public field mapping.
 
-### Current Employee create insert matrix
+### Historical preflight Employee create insert matrix
+
+This matrix records the pre-root-cause contract. The QR-token repair section
+below supersedes its title nullability and missing `qr_token` assumptions.
 
 | Insert column | Request/derived source | Incident value | Application normalization | Tracked contract evidence |
 | --- | --- | --- | --- | --- |
@@ -157,6 +160,35 @@ supersedes the former immediate-retry instruction. Employee creation is **not**
 marked fixed. Do not retry until the read-only metadata gate is approved and its
 evidence is reviewed.
 
+## 2026-08-03 — Proven Employee QR-token insert root cause and application repair
+
+The approved read-only production metadata evidence proved that `qr_token` is
+`NOT NULL` with no default and that the failing Employee insert did not supply
+it. PostgreSQL `23502` at `employee_insert` therefore identifies the unsupplied
+column as the production rejection cause; no trigger evidence superseded that
+finding. The retained schema evidence also identifies
+`employees_qr_token_key` as the unique constraint.
+
+`qr_token` is the long-lived Employee credential read by `/api/check-in` to
+resolve the Employee before recording Attendance. It is sensitive identity
+bootstrap material: it is not a browser-controlled create field, is never put
+in URLs or logs by this flow, and is excluded from ordinary create responses and
+same-response diagnostics except for safe column/constraint names. No repository
+generator or value format existed, so Employee creation now generates a UUID v4
+with Node's cryptographically secure `randomUUID()` after Admin authentication
+and `EMPLOYEE_MANAGE` authorization. The server retries only a proven `23505`
+collision on `qr_token`/`employees_qr_token_key`, at most three insert attempts
+with a fresh token; it never retries another failure or the complete browser
+request.
+
+The insert contract is now `full_name`, normalized `email`, required `title`,
+nullable `phone`, canonical `branch_code`, `status`, `role=STAFF`,
+`is_active=true`, `auth_user_id=NULL`, and server-generated `qr_token`. No schema,
+RLS, Auth, Facility, or data change is required. Employee creation still needs
+one deliberate production retry after the repaired commit is deployed; the
+Attendance fixture remains incomplete until that separate operator action
+returns a created Employee ID and passes its remaining gates.
+
 ## Authoritative employee source
 
 `public.employees` is the sole profile source of truth for both Admin and Staff.
@@ -172,6 +204,7 @@ evidence is reviewed.
 | Employment status | `status` | Admin |
 | Active compatibility state | `is_active` | Admin lifecycle |
 | Canonical facility assignment | `branch_code` | Admin |
+| Attendance QR credential | `qr_token` | Server-only Employee creation |
 | Bank name | `bank_name` | The same authenticated employee |
 | Bank account number | `bank_account_number` | The same authenticated employee |
 
@@ -228,9 +261,10 @@ The same authorized POST response now uses these public codes:
 `resultUncertain`; PostgreSQL/PostgREST codes map to an allowlisted category and
 unknown values normalize to `unavailable`.
 
-### Complete insert schema expectation matrix
+### Historical preflight insert schema expectation matrix
 
-The original `public.employees` DDL is not tracked. “Inferred” below means the
+The original `public.employees` DDL is not tracked. This historical table is
+superseded by the approved metadata findings and repair above. “Inferred” below means the
 application reads or writes the shape, not that production metadata proves it.
 
 | Insert column | Source / normalized value | JavaScript type | Expected database type | Required / default | Tracked constraints / references | Trigger dependency | DDL evidence | Confidence |

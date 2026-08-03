@@ -35,6 +35,7 @@ const EMPLOYEE_SAFE_COLUMNS = new Set([
   'is_active', 'auth_user_id', 'hourly_rate', 'bank_name',
   'bank_account_number', 'employee_code', 'created_by_employee_id', 'tenant_id',
   'workspace_id',
+  'qr_token',
 ]);
 
 // Only constraints evidenced by tracked migrations or the established contract
@@ -54,6 +55,7 @@ const EMPLOYEE_SAFE_CONSTRAINTS = new Set([
   'employees_created_by_employee_id_fkey',
   'employees_tenant_id_fkey',
   'employees_workspace_id_fkey',
+  'employees_qr_token_key',
 ]);
 
 const POSTGRES_CODE_CATEGORIES: Record<string, string> = {
@@ -74,6 +76,7 @@ const SAFE_FALLBACK_CATEGORIES = new Set([
 const DATABASE_COLUMN_FIELD_MAP: Record<string, string> = {
   full_name: 'fullName', email: 'email', title: 'title', phone: 'phone',
   branch_code: 'department', status: 'employmentStatus',
+  qr_token: 'form',
 };
 
 const DATABASE_CONSTRAINT_FIELD_MAP: Record<string, string> = {
@@ -85,6 +88,7 @@ const DATABASE_CONSTRAINT_FIELD_MAP: Record<string, string> = {
   employees_auth_user_id_unique_not_null: 'form',
   employees_created_by_employee_id_fkey: 'form', employees_tenant_id_fkey: 'form',
   employees_workspace_id_fkey: 'form',
+  employees_qr_token_key: 'form',
 };
 
 export function allowlistedEmployeeColumn(value?: string | null): string | null {
@@ -110,7 +114,9 @@ export function inferEmployeeFieldErrors(details: SanitizedEmployeeFailure): Rec
     department: 'Vui lòng chọn cơ sở làm việc hợp lệ.',
     employmentStatus: 'Vui lòng chọn trạng thái làm việc hợp lệ.',
     phone: 'Số điện thoại không hợp lệ.', title: 'Chức vụ không hợp lệ.',
-    form: 'Thông tin liên kết hoặc cấu hình hồ sơ chưa hợp lệ.',
+    form: column === 'qr_token' || constraint === 'employees_qr_token_key'
+      ? 'Mã QR nhân sự do hệ thống tạo không hợp lệ. Vui lòng thử lại.'
+      : 'Thông tin liên kết hoặc cấu hình hồ sơ chưa hợp lệ.',
   };
   return { [field]: messages[field] };
 }

@@ -27,7 +27,7 @@ where table_schema = 'public' and table_name = 'employees'
   and is_generated = 'NEVER'
   and column_name not in (
     'full_name', 'email', 'title', 'phone', 'branch_code', 'status',
-    'role', 'is_active', 'auth_user_id'
+    'role', 'is_active', 'auth_user_id', 'qr_token'
   );
 
 select 'fixture_state' as check_name,

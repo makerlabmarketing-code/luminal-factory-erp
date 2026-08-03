@@ -19,6 +19,7 @@ import {
   inferEmployeeFieldErrors,
   type EmployeeCreateOperationStage,
 } from '@/lib/employeePersistenceDiagnostics';
+import { EMPLOYEE_QR_TOKEN_INSERT_ATTEMPTS, generateEmployeeQrToken } from '@/services/server/employeeQrToken';
 
 interface EmployeeAccountRow {
   id: number | string;
@@ -109,7 +110,7 @@ function throwCreatePersistenceFailure(
     method: 'POST',
     actorEmployeeId,
     authorizationResult: 'allowed',
-    mutationKeys: ['auth_user_id', 'branch_code', 'email', 'full_name', 'is_active', 'role', 'status', 'phone', 'title'],
+    mutationKeys: ['auth_user_id', 'branch_code', 'email', 'full_name', 'is_active', 'qr_token', 'role', 'status', 'phone', 'title'],
   });
 
   const supabaseCode = safeDetails.supabaseErrorCode;
@@ -118,6 +119,19 @@ function throwCreatePersistenceFailure(
     form: 'Hệ thống không xác định được trường hồ sơ bị từ chối. Vui lòng kiểm tra dữ liệu và mã tra cứu.',
   };
   const databaseValidationStage: AuthFailureStage = requestReachedSupabase ? 'employee_insert' : failureStage;
+  const isQrTokenConflict = supabaseCode === '23505'
+    && (safeDetails.supabaseColumn === 'qr_token' || safeDetails.supabaseConstraint === 'employees_qr_token_key');
+  if (isQrTokenConflict) {
+    throw new AuthFlowError({
+      status: 409,
+      code: 'employee_qr_token_conflict',
+      message: 'Không thể tạo mã QR nhân sự duy nhất. Vui lòng thử lại.',
+      failureStage: 'employee_insert',
+      safeDetails,
+      fieldErrors: { form: 'Mã QR nhân sự do hệ thống tạo bị xung đột. Vui lòng thử lại.' },
+      diagnostic,
+    });
+  }
   if (supabaseCode === '23505') {
     throw new AuthFlowError({
       status: 409,
@@ -307,11 +321,15 @@ function buildEmployeePayload(input: EmployeeMutationInput) {
 
   const email = validateEmail(input.email);
   const status = validateEmploymentStatus(input.employmentStatus);
+  const title = cleanText(input.title);
+  if (!title) {
+    safeFailure(400, 'employee_payload_validation_failed', 'Vui lòng nhập chức vụ nhân sự.', 'validation', { title: 'Vui lòng nhập chức vụ nhân sự.' });
+  }
 
   return {
     full_name: fullName,
     email,
-    title: cleanText(input.title),
+    title,
     phone: normalizeEmployeePhone(input.phone),
     branch_code: cleanText(input.department, 80),
     status,
@@ -721,14 +739,14 @@ export async function createEmployee(input: EmployeeMutationInput, correlationId
   const actor = await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
   const normalizedInput = validateEmployeeCreateShape(input);
 
-  const payload = {
+  const payloadWithoutQrToken = {
     ...buildEmployeePayload(normalizedInput),
     branch_code: await validateFacilityAssignment(normalizedInput.department),
     role: 'STAFF',
     is_active: true,
     auth_user_id: null,
   };
-  await ensureEmployeeEmailAvailable(payload.email, undefined, true);
+  await ensureEmployeeEmailAvailable(payloadWithoutQrToken.email, undefined, true);
 
   let supabaseAdmin: ReturnType<typeof createSupabaseAdminClient>;
   try {
@@ -737,14 +755,21 @@ export async function createEmployee(input: EmployeeMutationInput, correlationId
     throwCreatePersistenceFailure(error, correlationId, String(actor.employee.id), 'admin_client_creation', false);
   }
 
-  let result: { data: EmployeeAccountRow | null; error: unknown };
+  let result: { data: EmployeeAccountRow | null; error: unknown } | null = null;
   try {
-    result = await supabaseAdmin.from('employees').insert([payload]).select(CREATE_EMPLOYEE_SELECT).single();
+    for (let attempt = 0; attempt < EMPLOYEE_QR_TOKEN_INSERT_ATTEMPTS; attempt += 1) {
+      const payload = { ...payloadWithoutQrToken, qr_token: generateEmployeeQrToken() };
+      result = await supabaseAdmin.from('employees').insert([payload]).select(CREATE_EMPLOYEE_SELECT).single();
+      const details = result.error ? sanitizeAdminMutationFailure(result.error) : null;
+      const isQrTokenCollision = details?.supabaseErrorCode === '23505'
+        && (details.supabaseColumn === 'qr_token' || details.supabaseConstraint === 'employees_qr_token_key');
+      if (!isQrTokenCollision || attempt === EMPLOYEE_QR_TOKEN_INSERT_ATTEMPTS - 1) break;
+    }
   } catch (error) {
     const safeDetails = sanitizeAdminMutationFailure(error);
     if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'unavailable') {
       try {
-        const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));
+        const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payloadWithoutQrToken.email, correlationId, String(actor.employee.id));
         if (recovered) return recovered;
       } catch (readbackError) {
         throwCreatePersistenceFailure(readbackError, correlationId, String(actor.employee.id), 'core_readback', true);
@@ -754,11 +779,15 @@ export async function createEmployee(input: EmployeeMutationInput, correlationId
     throwCreatePersistenceFailure(error, correlationId, String(actor.employee.id), 'core_mutation', true);
   }
 
+  if (!result) {
+    throwCreatePersistenceFailure({ code: 'employee_create_result_missing' }, correlationId, String(actor.employee.id), 'core_mutation', false);
+  }
+
   if (result.error) {
     const safeDetails = sanitizeAdminMutationFailure(result.error);
     if (isEmployeeInsertReadbackError(safeDetails)) {
       try {
-        const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));
+        const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payloadWithoutQrToken.email, correlationId, String(actor.employee.id));
         if (recovered) return recovered;
       } catch (readbackError) {
         throwCreatePersistenceFailure(readbackError, correlationId, String(actor.employee.id), 'core_readback', true);
@@ -767,7 +796,7 @@ export async function createEmployee(input: EmployeeMutationInput, correlationId
     }
     if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'unavailable') {
       try {
-        const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));
+        const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payloadWithoutQrToken.email, correlationId, String(actor.employee.id));
         if (recovered) return recovered;
       } catch (readbackError) {
         throwCreatePersistenceFailure(readbackError, correlationId, String(actor.employee.id), 'core_readback', true);
@@ -779,7 +808,7 @@ export async function createEmployee(input: EmployeeMutationInput, correlationId
 
   if (!result.data) {
     try {
-      const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));
+      const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payloadWithoutQrToken.email, correlationId, String(actor.employee.id));
       if (recovered) return recovered;
     } catch (readbackError) {
       throwCreatePersistenceFailure(readbackError, correlationId, String(actor.employee.id), 'core_readback', true);
