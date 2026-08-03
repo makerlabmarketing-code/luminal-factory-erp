@@ -1,5 +1,23 @@
 # Current Operator Handoff
 
+## Employee Auth lifecycle delivery reconciliation (2026-08-03)
+
+The previously prepared Employee Auth lifecycle change is already published on
+protected `main` as merged PR #121, commit
+`1da42638e765e14f84664d69b18cfb811c43f6c3` (`fix(employees): separate Auth
+email account flows (#121)`). The original task commit `938bdfa` is not present
+in this workspace, but the merged commit contains the complete bounded 14-file
+Employee/Auth diff and is the current repository tip.
+
+Production deployment could not be verified from this Codex Cloud environment:
+the read-only `GET https://erp.luminalfactory.com/api/system/version` request was
+blocked by the environment's outbound proxy with HTTP `403` before an
+application response was returned. This is not production `PASS` evidence. An
+operator must verify that `/api/system/version` reports the merged commit before
+performing any separately approved manual Auth action. No invitation, password
+reset, account linkage, permission assignment, Employee mutation, SQL, migration,
+Supabase configuration change, or live-data mutation was performed.
+
 ## Employee Auth invitation diagnostic boundary (2026-08-03)
 
 The `Maker Lab` Employee fixture already exists and must not be recreated. The
