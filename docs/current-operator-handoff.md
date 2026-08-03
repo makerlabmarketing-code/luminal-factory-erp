@@ -377,3 +377,27 @@ After protected-main deployment is confirmed through `/api/system/version`, the
 next boundary is `READY_FOR_STAFF_LOGOUT_LOGIN_RETEST`. The operator must perform
 the documented manual logout/login and retained Attendance display check. Do not
 automate authentication or create another Attendance row.
+
+## 2026-08-04 Attendance multi-check and Admin mutation boundary
+
+The next application slice preserves one aggregate Attendance row per active
+Employee/date/shift. Repeated same-shift operations use the earliest check-in
+and latest check-out, so breaks remain inside elapsed duration; conversion keeps
+the approved 180/360-minute boundaries and one-shift minimum. Staff mutation
+responses reconcile the returned row locally without a second full-page fetch.
+
+Admin create/update/delete is separated from `ATTENDANCE_RECOVERY_ENABLED` and
+requires `ADMIN_WORKSPACE`, `ATTENDANCE_VIEW`, `ATTENDANCE_MANAGE`, an explicit
+reason, and an audited atomic RPC. Delete is a reasoned cancellation, not a
+silent hard delete. Both capabilities remain fail-closed behind server-only
+gates until the reviewed RPC, active-row unique index, and operation-audit
+table are verified in production.
+
+Status: `LIVE_APPROVAL_REQUIRED`. Draft-only preflight, forward, validation, and
+rollback SQL are in `supabase/drafts/20260804_attendance_multi_check_admin_mutations_*`.
+Do not execute them, enable `ATTENDANCE_MULTI_CHECK_ENABLED` or
+`ATTENDANCE_MANUAL_MUTATIONS_ENABLED`, repair existing rows, or run Attendance
+smoke writes until duplicate-active-row preflight and migration/RPC approval
+pass. Expected schema impact is one partial unique index, one RLS-protected
+operation-audit table, and two server-authorized RPCs; no existing rows are
+backfilled by the package.

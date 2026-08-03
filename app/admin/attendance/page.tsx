@@ -32,6 +32,19 @@ interface PayrollSummary {
   totalHours: number;
 }
 
+interface AttendanceAuditEvent {
+  id: number | string;
+  attendance_id?: number | string | null;
+  employee_id: number | string;
+  actor_employee_id: number | string;
+  operation: string;
+  reason: string;
+  before_state: Record<string, unknown>;
+  after_state: Record<string, unknown>;
+  correlation_id: string;
+  occurred_at: string;
+}
+
 interface AdminAttendancePayload {
   employees: Employee[];
   shifts: Shift[];
@@ -41,6 +54,7 @@ interface AdminAttendancePayload {
     attendanceLogs: number;
   };
   diagnostics?: AttendanceScopeSummary | null;
+  auditEvents?: AttendanceAuditEvent[];
   permissions?: {
     canAdjustAttendance: boolean;
   };
@@ -76,6 +90,7 @@ export default function AdminAttendanceManagement() {
   const [canAdjustAttendance, setCanAdjustAttendance] = useState(false);
   const [sourceCounts, setSourceCounts] = useState({ attendance: 0, attendanceLogs: 0 });
   const [diagnostics, setDiagnostics] = useState<AttendanceScopeSummary | null>(null);
+  const [auditEvents, setAuditEvents] = useState<AttendanceAuditEvent[]>([]);
   const loadRequestIdRef = useRef(0);
 
   // Bộ lọc chính cho toàn trang
@@ -118,6 +133,7 @@ export default function AdminAttendanceManagement() {
       setCanAdjustAttendance(Boolean(payload.permissions?.canAdjustAttendance));
       setSourceCounts(payload.sourceCounts || { attendance: 0, attendanceLogs: 0 });
       setDiagnostics(payload.diagnostics || null);
+      setAuditEvents(payload.auditEvents || []);
     } catch (error) {
       if (requestId !== loadRequestIdRef.current) return;
       const message = error instanceof Error ? error.message : 'Không thể tải dữ liệu chấm công.';
@@ -410,6 +426,7 @@ export default function AdminAttendanceManagement() {
         showToast={showToast}
         showConfirm={showConfirm}
         canAdjust={canAdjustAttendance}
+        auditEvents={auditEvents}
       />
     </div>
   );

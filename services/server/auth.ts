@@ -47,6 +47,8 @@ export type AuthFlowErrorCode =
   | 'workspace_forbidden'
   | 'permission_forbidden'
   | 'attendance_recovery_disabled'
+  | 'attendance_manual_mutation_disabled'
+  | 'attendance_reason_required'
   | 'admin_verification_failed'
   | 'employee_list_load_failed'
   | 'employee_detail_load_failed'

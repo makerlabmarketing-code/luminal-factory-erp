@@ -48,8 +48,8 @@ describe('runtime gate server authority', () => {
     expect(tasks).toMatch(/process\.env\.TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED !== "true"[\s\S]*Chức năng thêm công việc đang chờ kích hoạt\./);
     expect(timeline).toMatch(/process\.env\.TASK_COMMENTS_ACTIVITY_ENABLED === 'true'/);
     expect(timeline).toMatch(/capabilityEnabled:\s*false,\s*canComment:\s*false/);
-    expect(attendance).toMatch(/isRecoveryEnabled\(process\.env\.ATTENDANCE_RECOVERY_ENABLED\)/);
-    expect(attendance).toMatch(/attendance_recovery_disabled[\s\S]*Điều chỉnh chấm công đang chờ kích hoạt\./);
+    expect(attendance).toMatch(/isAttendanceManualMutationEnabled\(\)/);
+    expect(attendance).toMatch(/attendance_manual_mutation_disabled[\s\S]*Điều chỉnh chấm công đang chờ kích hoạt\./);
   });
 
   it('keeps disabled states honest and readable without hidden writes', () => {

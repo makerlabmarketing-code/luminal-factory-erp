@@ -52,30 +52,28 @@ describe('Attendance current-shift state regression', () => {
     expect(route).toMatch(/existingShiftAfterLocation/);
   });
 
-  it('applies a successful mutation response before background refresh', () => {
-    const applyIndex = client.indexOf('applyAttendancePayload(result.attendance)');
-    const refreshIndex = client.indexOf('void loadAttendanceData(historyMonthInput', applyIndex);
-    expect(applyIndex).toBeGreaterThan(-1);
-    expect(refreshIndex).toBeGreaterThan(applyIndex);
+  it('applies the returned aggregate row without a second full loading cycle', () => {
+    expect(client).toContain('applyMutationRecord(result.record)');
+    expect(client).toMatch(/applyMutationRecord\(result\.record\);\s*showToast/);
   });
 
-  it('returns the completed record and refreshed attendance payload after checkout', () => {
-    expect(route).toMatch(/code: 'attendance_checked_out'[\s\S]*record: data,[\s\S]*attendance/);
+  it('returns the completed aggregate record after checkout', () => {
+    expect(route).toMatch(/code: 'attendance_checked_out'[\s\S]*record: data,[\s\S]*capabilities/);
     expect(route).toMatch(/\.is\('check_out', null\)\s*\.select\(ATTENDANCE_SELECT\)\s*\.maybeSingle\(\)/);
   });
 
-  it('refreshes selected-month history after a mutation', () => {
-    expect(route).toMatch(/loadAttendancePayload\(authContext\.employee, monthInput, now\)/);
+  it('loads the selected month initially and reconciles mutation rows locally', () => {
     expect(route).toMatch(/getAttendanceRecordByShift\(employee\.id, todayStr, currentShiftName\)/);
     expect(client).toMatch(/month: historyMonthInput/);
     expect(client).toMatch(/setAttendanceHistory\(payload\.attendanceHistory\)/);
+    expect(client).toMatch(/setAttendanceHistory\(\(previous\) =>/);
   });
 
   it('keeps a completed current shift out of the start state', () => {
     expect(route).toMatch(/shiftState,\s*currentShift:/);
     expect(client).toMatch(/setShiftState\(payload\.shiftState\)/);
-    expect(client).toMatch(/todayRecord\?\.check_out\) return/);
-    expect(client).toMatch(/!\(shiftState === 'NO_OPEN_SHIFT' && todayRecord\?\.check_out\)/);
+    expect(client).toMatch(/canContinueAttendanceShift/);
+    expect(client).toMatch(/todayRecord\?\.check_out && !canContinueCurrentShift/);
   });
 
   it('shows the completed shift facts and does not invite a retry', () => {

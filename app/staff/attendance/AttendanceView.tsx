@@ -17,6 +17,7 @@ import {
   type AttendanceShiftState,
   formatWorkedDuration,
   getAttendanceShiftName,
+  canContinueAttendanceShift,
   getFinalizedShiftUnitsForRecord,
   getWorkedMinutesForRecord,
 } from '@/services/attendanceService';
@@ -37,6 +38,9 @@ interface StaffAttendancePayload {
   todayRecord: AttendanceRecord | null;
   isInShift: boolean;
   attendanceHistory: AttendanceRecord[];
+  capabilities?: {
+    multiCheckEnabled: boolean;
+  };
 }
 
 interface StaffAttendanceErrorPayload {
@@ -126,6 +130,7 @@ export function StaffAttendanceContent({
   const [staleOpenShift, setStaleOpenShift] = useState<AttendanceRecord | null>(null);
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
+  const [multiCheckEnabled, setMultiCheckEnabled] = useState(false);
   const [liveTime, setLiveTime] = useState(new Date());
   const initialHistoryMonth = useRef(
     formatBusinessMonthInput(businessMonthFromInstant(new Date()))
@@ -149,7 +154,19 @@ export function StaffAttendanceContent({
     setStaleOpenShift(payload.staleOpenShift);
     setTodayRecord(payload.todayRecord);
     setAttendanceHistory(payload.attendanceHistory);
+    setMultiCheckEnabled(Boolean(payload.capabilities?.multiCheckEnabled));
     if (options.resetHistoryPage) setHistoryPage(1);
+  }, []);
+
+  const applyMutationRecord = useCallback((record: AttendanceRecord) => {
+    const isOpen = Boolean(record.check_in && !record.check_out);
+    setCurrentShift(isOpen ? record : null);
+    setShiftState(isOpen ? 'ACTIVE_SHIFT_TODAY' : 'NO_OPEN_SHIFT');
+    setTodayRecord(record);
+    setAttendanceHistory((previous) => {
+      const withoutRecord = previous.filter((item) => String(item.id) !== String(record.id));
+      return [record, ...withoutRecord];
+    });
   }, []);
 
   const loadAttendanceData = useCallback(async (
@@ -201,7 +218,12 @@ export function StaffAttendanceContent({
   const handleToggleShift = async () => {
     if (submitLockRef.current) return;
     if (shiftState === 'STALE_OPEN_SHIFT') return;
-    if (shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out) return;
+    const canContinueCurrentShift = canContinueAttendanceShift({
+      record: todayRecord,
+      currentShiftName: getAttendanceShiftName(liveTime),
+      multiCheckEnabled,
+    });
+    if (shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out && !canContinueCurrentShift) return;
 
     if (!worker) {
       showToast('Lỗi', 'Không tìm thấy hồ sơ nhân sự!', 'error');
@@ -255,16 +277,12 @@ export function StaffAttendanceContent({
         return;
       }
 
-      if (!result?.attendance || !result.record) {
+      if (!result?.record) {
         throw new Error('Phản hồi chấm công không đầy đủ. Vui lòng thử lại.');
       }
 
-      applyAttendancePayload(result.attendance);
+      applyMutationRecord(result.record);
       showToast('Cập nhật ca làm', result?.message || 'Đã ghi nhận chấm công.', 'success');
-      void loadAttendanceData(historyMonthInput, {
-        showLoading: false,
-        preserveVisibleDataOnError: true,
-      });
     } catch (error) {
       const message = isGeolocationError(error)
         ? 'Vui lòng mở quyền truy cập vị trí GPS mức chính xác cao!'
@@ -336,6 +354,11 @@ export function StaffAttendanceContent({
       : 0;
   const finalizedTodayShiftUnits =
     todayRecord ? getFinalizedShiftUnitsForRecord(todayRecord) : 0;
+  const canContinueCurrentShift = canContinueAttendanceShift({
+    record: todayRecord,
+    currentShiftName: getAttendanceShiftName(liveTime),
+    multiCheckEnabled,
+  });
   const historyTotalPages = Math.max(1, Math.ceil(attendanceHistory.length / HISTORY_ITEMS_PER_PAGE));
   const safeHistoryPage = Math.min(historyPage, historyTotalPages);
   const paginatedAttendanceHistory = attendanceHistory.slice(
@@ -408,7 +431,9 @@ export function StaffAttendanceContent({
           <CheckCircle2 className="w-6 h-6 text-emerald-400" />
           <p className="text-xs font-bold text-emerald-400">Ca làm việc đã hoàn thành!</p>
           <p className="text-center text-[11px] text-emerald-100/80">
-            Ca hiện tại đã được ghi nhận. Bạn không cần chấm công lại.
+            {canContinueCurrentShift
+              ? 'Bạn có thể tiếp tục làm việc trong cùng ca này.'
+              : 'Ca hiện tại đã được ghi nhận. Bạn không cần chấm công lại.'}
           </p>
           <div className="grid w-full grid-cols-2 gap-2 border-t border-emerald-900/30 pt-2 text-[11px] font-mono">
             <span className="text-slate-400">Ca: {todayRecord.shift_name}</span>
@@ -423,7 +448,8 @@ export function StaffAttendanceContent({
         </div>
       )}
 
-      {shiftState !== 'STALE_OPEN_SHIFT' && !(shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out) && (
+      {shiftState !== 'STALE_OPEN_SHIFT' &&
+        (!(shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out) || canContinueCurrentShift) && (
         <button
           type="button"
           onClick={handleToggleShift}
@@ -447,6 +473,8 @@ export function StaffAttendanceContent({
                 : 'Đang bắt đầu ca...'
               : shiftState === 'ACTIVE_SHIFT_TODAY'
                 ? 'Kết thúc ca'
+              : canContinueCurrentShift
+                ? 'Tiếp tục làm việc'
                 : 'Bắt đầu ca'}
           </span>
         </button>
