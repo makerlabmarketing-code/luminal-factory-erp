@@ -96,7 +96,7 @@ describe('production regression facility and employee mutations', () => {
     expect(route).toMatch(/sanitizeAdminMutationFailure/);
     expect(route).not.toMatch(/error\.message\.slice|String\(error\)/);
     expect(actions).toMatch(/employee_email_duplicate_active/);
-    expect(actions).toMatch(/employee_persistence_unavailable/);
+    expect(actions).toMatch(/employee_schema_unavailable/);
     expect(actions).toMatch(/employee_created_after_uncertain_result/);
     expect(actions).toMatch(/readEmployeeByEmail/);
     expect(actions).toMatch(/employee_create_response_uncertain/);

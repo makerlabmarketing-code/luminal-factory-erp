@@ -24,6 +24,7 @@ export interface EmployeeCreateSafeDiagnostic {
   constraint: string;
   rowReturned: boolean;
   readbackAttempted: boolean;
+  resultUncertain: boolean;
   category: string;
 }
 
@@ -55,9 +56,19 @@ const EMPLOYEE_SAFE_CONSTRAINTS = new Set([
   'employees_workspace_id_fkey',
 ]);
 
-const SAFE_CATEGORIES = new Set([
-  'database_constraint', 'permission_or_credential', 'schema_contract',
-  'network', 'unavailable', 'unexpected',
+const POSTGRES_CODE_CATEGORIES: Record<string, string> = {
+  '23502': 'not_null_violation',
+  '23503': 'foreign_key_violation',
+  '23505': 'unique_violation',
+  '23514': 'check_violation',
+  '42501': 'insufficient_privilege',
+  PGRST116: 'readback_cardinality',
+  PGRST204: 'schema_column_unavailable',
+};
+
+const SAFE_FALLBACK_CATEGORIES = new Set([
+  'permission_or_credential', 'schema_contract', 'network', 'unavailable',
+  'unexpected',
 ]);
 
 const DATABASE_COLUMN_FIELD_MAP: Record<string, string> = {
@@ -108,19 +119,23 @@ export function buildEmployeeCreateSafeDiagnostic(params: {
   operationStage: EmployeeCreateOperationStage;
   readbackAttempted: boolean;
   rowReturned: boolean;
+  resultUncertain?: boolean;
   details: SanitizedEmployeeFailure;
 }): EmployeeCreateSafeDiagnostic {
+  const databaseCode = normalizeEmployeePostgresCode(params.details.supabaseErrorCode);
   return {
     available: true,
     operationStage: params.operationStage,
-    databaseCode: normalizeEmployeePostgresCode(params.details.supabaseErrorCode) || UNAVAILABLE,
+    databaseCode: databaseCode || UNAVAILABLE,
     table: 'employees',
     column: allowlistedEmployeeColumn(params.details.supabaseColumn) || UNAVAILABLE,
     constraint: allowlistedEmployeeConstraint(params.details.supabaseConstraint) || UNAVAILABLE,
     rowReturned: params.rowReturned,
     readbackAttempted: params.readbackAttempted,
-    category: params.details.errorCategory && SAFE_CATEGORIES.has(params.details.errorCategory)
-      ? params.details.errorCategory
-      : UNAVAILABLE,
+    resultUncertain: params.resultUncertain ?? params.operationStage === 'employee_insert_readback',
+    category: (databaseCode && POSTGRES_CODE_CATEGORIES[databaseCode])
+      || (params.details.errorCategory && SAFE_FALLBACK_CATEGORIES.has(params.details.errorCategory)
+        ? params.details.errorCategory
+        : UNAVAILABLE),
   };
 }

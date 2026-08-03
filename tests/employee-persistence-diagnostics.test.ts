@@ -27,7 +27,8 @@ describe('employee same-response persistence diagnostics', () => {
       constraint: 'employees_branch_code_fkey',
       rowReturned: false,
       readbackAttempted: false,
-      category: 'database_constraint',
+      resultUncertain: false,
+      category: 'check_violation',
     });
   });
 
@@ -46,6 +47,22 @@ describe('employee same-response persistence diagnostics', () => {
       databaseCode: 'unavailable', column: 'unavailable',
       constraint: 'unavailable', category: 'unavailable',
     });
+  });
+
+  it.each([
+    ['23502', 'not_null_violation'],
+    ['23503', 'foreign_key_violation'],
+    ['23505', 'unique_violation'],
+    ['23514', 'check_violation'],
+    ['42501', 'insufficient_privilege'],
+    ['PGRST116', 'readback_cardinality'],
+  ])('maps known database code %s without database text', (databaseCode, category) => {
+    expect(buildEmployeeCreateSafeDiagnostic({
+      operationStage: 'employee_insert_readback',
+      readbackAttempted: true,
+      rowReturned: false,
+      details: { supabaseErrorCode: databaseCode },
+    })).toMatchObject({ databaseCode, category, resultUncertain: true });
   });
 
   it('maps only exact allowlisted columns and constraints to fields', () => {

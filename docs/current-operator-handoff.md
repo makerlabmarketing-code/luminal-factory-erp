@@ -20,15 +20,16 @@ authorization confirms `ADMIN_WORKSPACE` and `EMPLOYEE_MANAGE`. There is no
 shared diagnostic persistence and no production mutation is needed to make the
 diagnostic available.
 
-After the repaired commit is merged and read-only `/api/system/version` reports
-that exact merged commit, stop at `READY_FOR_ONE_SAME_RESPONSE_DIAGNOSTIC_RETRY`.
-Do not retry automatically. A separately approved Admin retry must use one known
-test-only payload, submit exactly once, preserve the dialog state, and capture
-only: timestamp/timezone, HTTP status, `success`, `code`, `failureStage`, safe
+The production-schema preflight section at the end of this handoff supersedes the
+former immediate-retry instruction. Do not retry automatically or manually before
+that read-only metadata evidence is reviewed. Any later separately approved Admin
+retry must use one known test-only payload, submit exactly once, preserve the dialog
+state, and capture only: timestamp/timezone, HTTP status, `success`, `code`, `failureStage`, safe
 Vietnamese `message`, `fieldErrors`, `diagnostic.available`,
 `diagnostic.operationStage`, `diagnostic.databaseCode`, `diagnostic.table`,
 `diagnostic.column`, `diagnostic.constraint`, `diagnostic.rowReturned`,
-`diagnostic.readbackAttempted`, `diagnostic.category`, and `correlationId`. Never
+`diagnostic.readbackAttempted`, `diagnostic.resultUncertain`,
+`diagnostic.category`, and `correlationId`. Never
 capture the request body, cookies, headers, tokens, raw errors, or environment.
 If the result is uncertain, search by the exact normalized email before requesting
 approval for any further attempt. Do not mark Employee creation fixed until a
@@ -260,3 +261,29 @@ by the two read-only verification requests in section 0. Fixture creation,
 invitation, workspace/facility assignment, and hourly-rate persistence remain
 separately approved application mutations. Attendance check-in/check-out remains
 a later approval boundary.
+
+## Employee create production-schema preflight boundary (2026-08-03)
+
+Status: `LIVE_APPROVAL_REQUIRED`. The original Employee base-table DDL is not
+tracked, so do not perform another Employee create yet. Approve and run only the
+read-only metadata package:
+
+```bash
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 \
+  -f supabase/drafts/20260803_employee_create_schema_preflight.sql \
+  | tee /tmp/employee-create-schema-preflight.txt
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 \
+  -f supabase/validation/20260803_employee_create_schema_preflight_validation.sql \
+  | tee /tmp/employee-create-schema-preflight-validation.txt
+```
+
+Supabase SQL Editor may run each file verbatim instead. Expected row and schema
+impact are both zero. Verify the transaction reports read-only, both files end in
+`ROLLBACK`, all nine insert columns exist, no unsupplied non-null/no-default column
+is present, the fixture branch code exists, the fixture email is not duplicated,
+and constraints/triggers/RLS/policies/grants match the intended Admin insert and
+select boundary. Redact employee/Auth rows, identifiers, and policy expressions
+that reveal sensitive internal structure before sharing evidence. Stop on any
+`FAIL`, `REVIEW_REQUIRED`, duplicate, missing relation/column, denied metadata, or
+unexpected output. There is no forward or rollback schema script until the exact
+defect is proven from this evidence.

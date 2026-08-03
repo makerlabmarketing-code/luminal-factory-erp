@@ -152,11 +152,10 @@ exact normalized email before any separately approved retry. The service still
 performs only read-only email recovery after ambiguity, returns the created ID
 when one exact row proves success, and never retries the insert automatically.
 
-A single separately approved production Employee create remains required to
-capture the real safe failure. Employee creation is **not** marked fixed until
-that retry succeeds. For that retry retain the HTTP status, `success`, `code`,
-`failureStage`, Vietnamese `message`, `fieldErrors`, the complete safe
-`diagnostic` object, and `correlationId`; do not retain the request payload.
+This same-response contract is complete, but the later schema-preflight section
+supersedes the former immediate-retry instruction. Employee creation is **not**
+marked fixed. Do not retry until the read-only metadata gate is approved and its
+evidence is reviewed.
 
 ## Authoritative employee source
 
@@ -199,9 +198,71 @@ Legacy facility values remain readable; new assignments use canonical codes.
 
 Mutation success is separate from optional enrichment and readback warnings. A successful core `public.employees` update remains successful if later optional facility/Auth enrichment or readback fails; the response returns the known core row and validated patch and reports the optional warning without replacing success.
 
-## Database decision
+## Historical Employee profile database decision
 
-No SQL is included or executed. Repository evidence already establishes all required
-employee columns, and this incident was handled as an application privileged-client,
-mutation/readback, cache, and diagnostic-boundary repair. Authenticated production
-smoke has passed, so the Employee Profile persistence incident is closed.
+No SQL was included or executed for the earlier Employee **profile update** incident.
+Authenticated update smoke passed, so that update incident remains closed. This does
+not establish the base-table contract for Employee **creation**; the following
+read-only preflight boundary owns the still-open create incident.
+
+## 2026-08-03 — Employee create schema preflight and stage reconciliation
+
+**Next boundary:** `LIVE_APPROVAL_REQUIRED` for read-only production metadata inspection.
+
+The create call still uses one PostgREST request, `insert(...).select(...).single()`.
+PostgreSQL constraint codes (`23502`, `23503`, `23505`, `23514`) prove that the
+statement was rejected and are classified as `employee_insert`. `PGRST116`, a
+missing returned representation, a transport failure, or a failed exact-email
+recovery cannot prove whether the row committed; these paths are classified as
+`employee_insert_readback` with `resultUncertain=true`. A schema-cache error is
+an insert-boundary schema failure, not a payload failure. There is currently no
+post-insert processing or Employee audit write in this create path, so the
+`employee_post_insert_processing` and `employee_audit_write` stages are reserved
+but are not emitted. The insert is never retried automatically.
+
+The same authorized POST response now uses these public codes:
+`employee_payload_validation_failed`, `employee_duplicate_conflict`,
+`employee_insert_constraint_failed`, `employee_insert_failed`,
+`employee_insert_readback_failed`, `employee_result_uncertain`, and
+`employee_schema_unavailable`. Safe diagnostics additionally expose
+`resultUncertain`; PostgreSQL/PostgREST codes map to an allowlisted category and
+unknown values normalize to `unavailable`.
+
+### Complete insert schema expectation matrix
+
+The original `public.employees` DDL is not tracked. “Inferred” below means the
+application reads or writes the shape, not that production metadata proves it.
+
+| Insert column | Source / normalized value | JavaScript type | Expected database type | Required / default | Tracked constraints / references | Trigger dependency | DDL evidence | Confidence |
+|---|---|---|---|---|---|---|---|---|
+| `full_name` | `fullName`; trimmed, non-empty, max 160 | `string` | text-like | application-required; DB nullability/default unknown | no tracked base check/unique/FK | none tracked | original DDL absent | inferred |
+| `email` | `email`; trimmed, lowercase, format-checked | `string` | text-like | application-required; DB nullability/default unknown | application exact-email duplicate check; DB unique name unknown | none tracked | original DDL absent | inferred |
+| `title` | `title`; trimmed or `null` | `string \| null` | text-like | nullable assumed; default unknown | none tracked | none tracked | original DDL absent | inferred |
+| `phone` | `phone`; punctuation removed, validated, or `null` | `string \| null` | text-like | nullable assumed; default unknown | application format check only | none tracked | original DDL absent | inferred |
+| `branch_code` | `department`; facility lookup returns canonical code, or `null` | `string \| null` | text-like | nullable assumed; default unknown | no tracked Employee-to-Facility FK; reference behavior is application-owned | none tracked | original DDL absent | inferred |
+| `status` | `employmentStatus`; uppercase `ACTIVE`/`INACTIVE` | `string` | text/enum-like | application-required; DB default unknown | application allowlist; live check unknown | none tracked | original DDL absent | inferred |
+| `role` | server constant `STAFF` | `string` | text/enum-like | supplied; DB default unknown | live check/enum unknown | none tracked | original DDL absent | inferred |
+| `is_active` | server constant `true` | `boolean` | boolean | supplied; DB default unknown | no tracked check | none tracked | original DDL absent | inferred |
+| `auth_user_id` | server constant `null`; account linking is separate | `null` | UUID | nullable is proven by the tracked add-column migration | tracked FK to `auth.users(id)` and partial unique constraint | none tracked | `20260712181332_add_employee_auth_user_id.sql` | proven for this column only |
+
+Potential unsupplied requirements (`employee_code`, `created_by`/`updated_by`,
+workspace/tenant ownership, audit provenance, `created_at` without a default,
+branch ID, mandatory Auth linkage, and trigger-populated values) are **not claimed
+to exist**. The read-only preflight enumerates every live non-null/no-default
+column, constraint, foreign key, trigger, policy, grant, and relevant fixture
+predicate so the operator can prove or reject those possibilities.
+
+### Read-only preflight package
+
+- Preflight: `supabase/drafts/20260803_employee_create_schema_preflight.sql`
+- Interpretation checks: `supabase/validation/20260803_employee_create_schema_preflight_validation.sql`
+- Expected row impact: `0`; both scripts begin a read-only transaction and roll back.
+- Expected schema impact: none.
+- Prerequisites: an approved Supabase SQL Editor session or read-only/metadata-capable
+  `psql` session; do not use an application service key in a browser or retain row data.
+- Execution order: preflight, retain redacted output, validation, retain redacted output,
+  then stop for technical review. No forward or rollback correction exists because the
+  exact defect is not yet proven.
+- Rollback condition: not applicable; stop immediately if either script attempts a
+  mutation, metadata access is denied, a referenced relation is absent, or output
+  contains unexpected sensitive data.

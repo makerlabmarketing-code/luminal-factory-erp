@@ -29,7 +29,7 @@ describe('employee create same-response diagnostic boundary', () => {
     expect(actions).toContain("'employee_insert_failed'");
     expect(actions).toContain("'employee_result_uncertain'");
     expect(actions).toContain("'employee_insert_readback'");
-    expect(actions).toContain('Hãy tìm theo đúng email đã nhập trước khi thử lại.');
+    expect(actions).toContain('Hãy tìm theo đúng email đã chuẩn hóa. Không gửi lại cho đến khi đọc lại hoàn tất.');
     expect(actions).toMatch(/if \(recovered\) return recovered;[\s\S]{0,220}throwCreatePersistenceFailure\([^;]+, 'core_readback', true\)/);
     expect(actions).toContain("throwCreatePersistenceFailure({ code: 'employee_create_result_missing' }, correlationId, String(actor.employee.id), 'core_readback', true)");
   });
@@ -38,10 +38,21 @@ describe('employee create same-response diagnostic boundary', () => {
     expect(client).toContain('Chi tiết kỹ thuật an toàn');
     expect(client).toContain('formDiagnostic.diagnostic.operationStage');
     expect(client).toContain('formDiagnostic.diagnostic.readbackAttempted');
+    expect(client).toContain('formDiagnostic.diagnostic.resultUncertain');
+    expect(client).toContain('Tìm theo đúng email đã chuẩn hóa. Không gửi lại cho đến khi đọc lại hoàn tất.');
     expect(client).toContain('if (!formState || savingEmployee || savingEmployeeRef.current) return');
     expect(client).toContain('setFormFieldErrors(fieldErrors)');
     expect(client).toContain('result.correlationId ? ` Mã tra cứu: ${result.correlationId}.`');
     expect(client).not.toContain('Thử tạo lại');
+  });
+
+  it('uses Employee-specific create codes after request parsing', () => {
+    expect(actions).toContain("'employee_payload_validation_failed'");
+    expect(actions).toContain("'employee_duplicate_conflict'");
+    expect(actions).toContain("'employee_schema_unavailable'");
+    const createStart = actions.indexOf('export async function createEmployee');
+    const createSource = actions.slice(createStart, actions.indexOf('export async function updateEmployee'));
+    expect(createSource).not.toContain("'payload_validation_failed'");
   });
 
   it('returns correlation IDs but no diagnostic for authorization failures', () => {
