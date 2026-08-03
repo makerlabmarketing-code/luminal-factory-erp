@@ -93,6 +93,7 @@ function throwCreatePersistenceFailure(
     operationStage,
     readbackAttempted: failureStage === 'core_readback',
     rowReturned: false,
+    resultUncertain: failureStage === 'core_readback',
     details: safeDetails,
   });
   console.error('[employee-persistence]', {
@@ -120,7 +121,7 @@ function throwCreatePersistenceFailure(
   if (supabaseCode === '23505') {
     throw new AuthFlowError({
       status: 409,
-      code: 'employee_email_duplicate_active',
+      code: 'employee_duplicate_conflict',
       message: 'Email này đang được dùng bởi hồ sơ nhân sự khác.',
       failureStage: requestReachedSupabase ? 'employee_insert' : 'duplicate_check',
       safeDetails,
@@ -131,7 +132,7 @@ function throwCreatePersistenceFailure(
   if (supabaseCode === '23502' || supabaseCode === '23514') {
     throw new AuthFlowError({
       status: 400,
-      code: requestReachedSupabase ? 'employee_insert_constraint_failed' : 'payload_validation_failed',
+      code: 'employee_insert_constraint_failed',
       message: 'Thông tin hồ sơ nhân sự chưa hợp lệ.',
       failureStage: databaseValidationStage,
       safeDetails,
@@ -142,7 +143,7 @@ function throwCreatePersistenceFailure(
   if (supabaseCode === '23503') {
     throw new AuthFlowError({
       status: 400,
-      code: requestReachedSupabase ? 'employee_insert_constraint_failed' : 'payload_validation_failed',
+      code: 'employee_insert_constraint_failed',
       message: 'Thông tin liên kết hồ sơ nhân sự chưa hợp lệ.',
       failureStage: databaseValidationStage,
       safeDetails,
@@ -163,9 +164,13 @@ function throwCreatePersistenceFailure(
   if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'schema_contract' || safeDetails.errorCategory === 'unavailable') {
     throw new AuthFlowError({
       status: 503,
-      code: failureStage === 'core_readback' ? 'employee_result_uncertain' : 'employee_persistence_unavailable',
+      code: failureStage === 'core_readback'
+        ? 'employee_result_uncertain'
+        : safeDetails.errorCategory === 'schema_contract'
+          ? 'employee_schema_unavailable'
+          : 'employee_insert_failed',
       message: failureStage === 'core_readback'
-        ? 'Kết quả tạo hồ sơ chưa xác định. Hãy tìm theo đúng email đã nhập trước khi thử lại.'
+        ? 'Kết quả tạo hồ sơ chưa xác định. Hãy tìm theo đúng email đã chuẩn hóa. Không gửi lại cho đến khi đọc lại hoàn tất.'
         : 'Dịch vụ lưu hồ sơ nhân sự hiện không khả dụng.',
       failureStage: operationStage,
       safeDetails,
@@ -176,7 +181,7 @@ function throwCreatePersistenceFailure(
     status: 500,
     code: failureStage === 'core_readback' ? 'employee_insert_readback_failed' : 'employee_insert_failed',
     message: failureStage === 'core_readback'
-      ? 'Kết quả tạo hồ sơ chưa xác định. Hãy tìm theo đúng email đã nhập trước khi thử lại.'
+      ? 'Kết quả tạo hồ sơ chưa xác định. Hãy tìm theo đúng email đã chuẩn hóa. Không gửi lại cho đến khi đọc lại hoàn tất.'
       : 'Không thể tạo hồ sơ nhân sự.',
     failureStage: operationStage,
     safeDetails,
@@ -236,7 +241,7 @@ function validateEmail(value: unknown): string {
 function validateEmployeeCreateShape(input: EmployeeMutationInput): EmployeeCreateRequest {
   const parsed = parseEmployeeCreateRequest(input);
   if (!parsed.success) {
-    safeFailure(400, 'payload_validation_failed', 'Thông tin hồ sơ nhân sự chưa hợp lệ.', 'payload_validation', parsed.fieldErrors);
+    safeFailure(400, 'employee_payload_validation_failed', 'Thông tin hồ sơ nhân sự chưa hợp lệ.', 'payload_validation', parsed.fieldErrors);
   }
   return parsed.data;
 }
@@ -269,7 +274,7 @@ function isSoftDeletedEmployee(row: EmployeeAccountRow): boolean {
   return row.is_active === false || status === 'DELETED' || status === 'ARCHIVED';
 }
 
-async function ensureEmployeeEmailAvailable(emailValue: string, currentEmployeeId?: string): Promise<void> {
+async function ensureEmployeeEmailAvailable(emailValue: string, currentEmployeeId?: string, createRequest = false): Promise<void> {
   const email = normalizeEmail(emailValue);
   const supabaseAdmin = createSupabaseAdminClient();
   const { data, error } = await supabaseAdmin
@@ -290,7 +295,7 @@ async function ensureEmployeeEmailAvailable(emailValue: string, currentEmployeeI
   }
 
   if (duplicates.length > 0) {
-    safeFailure(409, 'employee_email_duplicate_active', 'Email này đang được dùng bởi hồ sơ nhân sự khác.', 'validation');
+    safeFailure(409, createRequest ? 'employee_duplicate_conflict' : 'employee_email_duplicate_active', 'Email này đang được dùng bởi hồ sơ nhân sự khác.', 'validation');
   }
 }
 
@@ -723,7 +728,7 @@ export async function createEmployee(input: EmployeeMutationInput, correlationId
     is_active: true,
     auth_user_id: null,
   };
-  await ensureEmployeeEmailAvailable(payload.email);
+  await ensureEmployeeEmailAvailable(payload.email, undefined, true);
 
   let supabaseAdmin: ReturnType<typeof createSupabaseAdminClient>;
   try {
@@ -737,7 +742,7 @@ export async function createEmployee(input: EmployeeMutationInput, correlationId
     result = await supabaseAdmin.from('employees').insert([payload]).select(CREATE_EMPLOYEE_SELECT).single();
   } catch (error) {
     const safeDetails = sanitizeAdminMutationFailure(error);
-    if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'schema_contract' || safeDetails.errorCategory === 'unavailable') {
+    if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'unavailable') {
       try {
         const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));
         if (recovered) return recovered;
@@ -760,7 +765,7 @@ export async function createEmployee(input: EmployeeMutationInput, correlationId
       }
       throwCreatePersistenceFailure(result.error, correlationId, String(actor.employee.id), 'core_readback', true);
     }
-    if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'schema_contract' || safeDetails.errorCategory === 'unavailable') {
+    if (safeDetails.errorCategory === 'network' || safeDetails.errorCategory === 'unavailable') {
       try {
         const recovered = await recoverUncertainEmployeeCreate(supabaseAdmin, payload.email, correlationId, String(actor.employee.id));
         if (recovered) return recovered;

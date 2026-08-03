@@ -595,8 +595,14 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                         <dt>Phân loại</dt><dd className="break-words">{formDiagnostic.diagnostic.category}</dd>
                         <dt>Đã đọc lại</dt><dd>{formDiagnostic.diagnostic.readbackAttempted ? 'Có' : 'Không'}</dd>
                         <dt>Có hàng trả về</dt><dd>{formDiagnostic.diagnostic.rowReturned ? 'Có' : 'Không'}</dd>
+                        <dt>Kết quả chưa xác định</dt><dd>{formDiagnostic.diagnostic.resultUncertain ? 'Có' : 'Không'}</dd>
                         {formDiagnostic.correlationId && <><dt>Mã tra cứu</dt><dd className="break-all">{formDiagnostic.correlationId}</dd></>}
                       </dl>
+                      {formDiagnostic.diagnostic.resultUncertain && (
+                        <p className="mt-2 font-semibold text-red-100">
+                          Tìm theo đúng email đã chuẩn hóa. Không gửi lại cho đến khi đọc lại hoàn tất.
+                        </p>
+                      )}
                     </details>
                   )}
                 </div>

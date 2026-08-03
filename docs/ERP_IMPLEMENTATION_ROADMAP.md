@@ -380,7 +380,21 @@ results instruct exact normalized-email search without automatically retrying.
 
 No shared persistence, dependency, SQL, migration, RLS, environment, deployment,
 or production mutation is required. Employee create remains unverified in
-production. The next boundary is
-`READY_FOR_ONE_SAME_RESPONSE_DIAGNOSTIC_RETRY`: after protected-main deployment
-is verified through `/api/system/version`, one retry requires separate operator
-approval and must capture only the safe response contract.
+production. The metadata-gate section below supersedes the former immediate-retry
+boundary: do not retry before the read-only preflight evidence is reviewed.
+
+## 2026-08-03 — Employee create application diagnostic completion and metadata gate
+
+Status: `LIVE_APPROVAL_REQUIRED`. The bounded application slice now returns the
+allowlisted Supabase/PostgREST diagnostic in the same authorized POST response,
+marks ambiguous readback outcomes explicitly, uses Employee-specific public error
+codes, and presents expandable Vietnamese Admin-only technical detail. The removed
+instance-local GET lookup remains deprecated and non-authoritative.
+
+Repository inspection cannot prove production compatibility because the original
+`public.employees` DDL is absent. The next gate is the zero-mutation read-only
+preflight in `supabase/drafts/20260803_employee_create_schema_preflight.sql`, then
+its validation file. Do not retry Employee create before the retained metadata
+output is reviewed. No forward migration, rollback DDL, production SQL execution,
+Employee/Auth/Facility mutation, environment change, or deployment mutation is
+part of this slice.
