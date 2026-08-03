@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import {
   Edit3,
@@ -144,6 +144,7 @@ export default function AdminAccountsClient({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
+  const activeActionRef = useRef<string | null>(null);
   const [openActionMenu, setOpenActionMenu] = useState<{
     employeeId: string;
     top: number;
@@ -216,7 +217,8 @@ export default function AdminAccountsClient({
     options: RequestInit,
     successTitle: string,
   ) => {
-    if (activeActionKey) return;
+    if (activeActionRef.current) return;
+    activeActionRef.current = key;
     setActiveActionKey(key);
     showGlobalLoading("Đang lưu thay đổi...");
 
@@ -249,6 +251,7 @@ export default function AdminAccountsClient({
       );
       refreshPage();
     } finally {
+      activeActionRef.current = null;
       setActiveActionKey(null);
       hideGlobalLoading();
     }
@@ -526,6 +529,17 @@ export default function AdminAccountsClient({
                                         <Mail className="h-3.5 w-3.5" />
                                       )}
                                       {accountAction.label}
+                                    </button>
+                                  )}
+                                  {account.accountConnectionStatus === "NOT_CONNECTED" && (
+                                    <button
+                                      type="button"
+                                      disabled={Boolean(activeActionKey) || isPending}
+                                      onClick={() => runAction(`${account.employeeId}:connect`, `/api/admin/employees/${account.employeeId}/connect-account`, { method: "POST" }, "Đã kết nối tài khoản")}
+                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-900 disabled:opacity-50"
+                                    >
+                                      <ShieldCheck className="h-3.5 w-3.5" />
+                                      Kết nối tài khoản hiện có
                                     </button>
                                   )}
                                   <button

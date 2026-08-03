@@ -261,7 +261,7 @@ The same authorized POST response now uses these public codes:
 `resultUncertain`; PostgreSQL/PostgREST codes map to an allowlisted category and
 unknown values normalize to `unavailable`.
 
-### Historical preflight insert schema expectation matrix
+### Complete insert schema expectation matrix (historical preflight)
 
 The original `public.employees` DDL is not tracked. This historical table is
 superseded by the approved metadata findings and repair above. “Inferred” below means the

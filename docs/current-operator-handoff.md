@@ -1,5 +1,19 @@
 # Current Operator Handoff
 
+## Employee Auth invitation diagnostic boundary (2026-08-03)
+
+The `Maker Lab` Employee fixture already exists and must not be recreated. The
+application repair separates **Gửi lời mời**, **Kết nối tài khoản hiện có**,
+**Gửi lại lời mời**, and **Gửi link đặt lại mật khẩu**, returns an honest
+Supabase-accepted/delivery-unknown result with a correlation ID, and prevents
+same-client double submission. See
+[employee-auth-email-workflow.md](employee-auth-email-workflow.md).
+
+Production Auth and Employee mutations remain operator-only. A controlled manual
+retry may occur only after deployment verification; retain the correlation ID and
+inspect Supabase Auth/provider logs plus Site URL and redirect allowlist before
+deciding whether to resend. Codex Cloud did not send an email or mutate the fixture.
+
 **Prepared:** 2026-08-03
 **Authority:** this is the exact local execution authority. Status is owned by
 [the ERP implementation roadmap](ERP_IMPLEMENTATION_ROADMAP.md); package-specific

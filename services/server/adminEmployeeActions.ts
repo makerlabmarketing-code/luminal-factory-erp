@@ -49,9 +49,32 @@ export interface AdminActionResult {
   success: true;
   message: string;
   code?: string;
+  deliveryState?: 'not_requested' | 'accepted' | 'unknown';
+  accountState?: 'not_connected' | 'invite_pending' | 'linked' | 'password_reset_requested';
+  correlationId?: string;
   failureStage?: string;
   employee?: EmployeeAccountRow;
   warnings?: string[];
+}
+
+function authActionAccepted(
+  code: string,
+  accountState: NonNullable<AdminActionResult['accountState']>,
+  message: string,
+  correlationId: string,
+  deliveryState: NonNullable<AdminActionResult['deliveryState']> = 'accepted'
+): AdminActionResult {
+  return { success: true, code, deliveryState, accountState, message, correlationId };
+}
+
+function logAuthAction(input: {
+  correlationId: string;
+  operation: 'invite' | 'connect' | 'resend_invite' | 'password_reset';
+  employeeId: string;
+  outcome: 'accepted' | 'rejected' | 'linked';
+  code: string;
+}) {
+  console.info('[employee-auth-action]', input);
 }
 
 function cleanText(value: unknown, maxLength = 160): string | null {
@@ -505,6 +528,14 @@ async function findUnmappedAuthUserIdForEmployeeEmail(employee: EmployeeAccountR
 
   const matches = await findAuthUsersByEmail(email);
   if (matches.length === 0) return null;
+  if (matches.length !== 1) {
+    throw new AuthFlowError({
+      status: 409,
+      code: 'employee_auth_duplicate',
+      message: 'Có nhiều tài khoản Auth trùng email. Không thể tự động liên kết.',
+      failureStage: 'auth_lookup',
+    });
+  }
 
   const supabaseAdmin = createSupabaseAdminClient();
   const matchIds = matches.map((user) => user.id);
@@ -538,6 +569,18 @@ async function findUnmappedAuthUserIdForEmployeeEmail(employee: EmployeeAccountR
   return matches[0]?.id || null;
 }
 
+async function verifyLinkedAuthEmail(employee: EmployeeAccountRow) {
+  const supabaseAdmin = createSupabaseAdminClient();
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(employee.auth_user_id!);
+  if (error || !data.user) {
+    throw new AuthFlowError({ status: 409, code: 'employee_auth_lookup_failed', message: 'Không thể xác nhận tài khoản Auth đang liên kết.', failureStage: 'auth_lookup' });
+  }
+  if (normalizeEmail(data.user.email) !== normalizeEmail(employee.email)) {
+    throw new AuthFlowError({ status: 409, code: 'employee_auth_connection_failed', message: 'Email hồ sơ không khớp email tài khoản Auth. Không gửi email.', failureStage: 'auth_lookup' });
+  }
+  return data.user;
+}
+
 async function ensureAccountActionTarget(employeeId: string, options: { requireEmail: boolean }) {
   await requireAdminEmployeePermission('ACCOUNT_MANAGE');
   const employee = await loadTargetEmployee(employeeId);
@@ -563,33 +606,22 @@ async function ensureAccountActionTarget(employeeId: string, options: { requireE
   return employee;
 }
 
-export async function inviteEmployee(employeeId: string): Promise<AdminActionResult> {
+export async function inviteEmployee(employeeId: string, correlationId = crypto.randomUUID()): Promise<AdminActionResult> {
   const employee = await ensureAccountActionTarget(employeeId, { requireEmail: true });
 
   if (employee.auth_user_id) {
-    return { success: true, message: 'Hồ sơ này đã có tài khoản hệ thống.' };
+    throw new AuthFlowError({ status: 409, code: 'employee_auth_duplicate', message: 'Hồ sơ này đã liên kết tài khoản. Không thể gửi lời mời mới.', failureStage: 'auth_lookup' });
   }
 
   await ensureNoDuplicateEmployeeEmail(employee);
   const existingUnmappedAuthUserId = await findUnmappedAuthUserIdForEmployeeEmail(employee);
   if (existingUnmappedAuthUserId) {
-    const supabaseAdmin = createSupabaseAdminClient();
-    const { error: connectError } = await supabaseAdmin
-      .from('employees')
-      .update({ auth_user_id: existingUnmappedAuthUserId })
-      .eq('id', employee.id)
-      .is('auth_user_id', null);
-
-    if (connectError) {
-      throw new AuthFlowError({
-        status: 500,
-        code: 'employee_auth_connection_failed',
-        message: 'Không thể liên kết tài khoản Auth hiện có. Hồ sơ nhân sự vẫn được giữ nguyên.',
-        failureStage: 'auth_connection',
-      });
-    }
-
-    return { success: true, message: 'Đã liên kết tài khoản Auth hiện có. Không cấp thêm Workspace hoặc quyền mới.' };
+    throw new AuthFlowError({
+      status: 409,
+      code: 'employee_auth_user_exists',
+      message: 'Email đã có tài khoản Auth chưa liên kết. Hãy dùng “Kết nối tài khoản”; hệ thống không tạo tài khoản thứ hai.',
+      failureStage: 'auth_lookup',
+    });
   }
 
   const supabaseAdmin = createSupabaseAdminClient();
@@ -601,6 +633,7 @@ export async function inviteEmployee(employeeId: string): Promise<AdminActionRes
   });
 
   if (error) {
+    logAuthAction({ correlationId, operation: 'invite', employeeId: String(employee.id), outcome: 'rejected', code: 'employee_invitation_failed' });
     throw new AuthFlowError({
       status: 409,
       code: 'employee_invitation_failed',
@@ -633,35 +666,51 @@ export async function inviteEmployee(employeeId: string): Promise<AdminActionRes
       failureStage: 'auth_connection',
     });
   }
-
-  return { success: true, message: 'Đã gửi lời mời kích hoạt tài khoản.' };
+  logAuthAction({ correlationId, operation: 'invite', employeeId: String(employee.id), outcome: 'accepted', code: 'employee_invite_accepted' });
+  return authActionAccepted(
+    'employee_invite_accepted',
+    'invite_pending',
+    'Supabase Auth đã tiếp nhận yêu cầu gửi lời mời. Trạng thái giao đến hộp thư hiện chưa xác định; vui lòng kiểm tra thư rác hoặc thử lại sau nếu cần.',
+    correlationId
+  );
 }
 
-export async function resendEmployeeInvite(employeeId: string): Promise<AdminActionResult> {
+export async function connectEmployeeAuthAccount(employeeId: string, correlationId = crypto.randomUUID()): Promise<AdminActionResult> {
   const employee = await ensureAccountActionTarget(employeeId, { requireEmail: true });
-  if (!employee.auth_user_id) return inviteEmployee(employeeId);
-
-  const supabaseAdmin = createSupabaseAdminClient();
-  const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(employee.email!.trim(), {
-    redirectTo: buildAuthRedirectUrl(
-      getPublicAppBaseUrl(),
-      `${AUTH_CALLBACK_PATH}?mode=invite&next=${encodeURIComponent(buildUpdatePasswordRedirectPath('invite'))}`
-    ),
-  });
-
-  if (error) {
-    throw new AuthFlowError({
-      status: 409,
-      code: 'workspace_forbidden',
-      message: toSafeAuthErrorMessage(error.message),
-      failureStage: 'employee_lookup',
-    });
+  if (employee.auth_user_id) {
+    return authActionAccepted('employee_account_already_linked', 'linked', 'Hồ sơ đã liên kết tài khoản Auth.', correlationId, 'not_requested');
   }
-
-  return { success: true, message: 'Đã gửi lại lời mời kích hoạt tài khoản.' };
+  await ensureNoDuplicateEmployeeEmail(employee);
+  const authUserId = await findUnmappedAuthUserIdForEmployeeEmail(employee);
+  if (!authUserId) {
+    throw new AuthFlowError({ status: 404, code: 'employee_auth_user_not_found', message: 'Không tìm thấy tài khoản Auth có email khớp chính xác. Hãy gửi lời mời trước.', failureStage: 'auth_lookup' });
+  }
+  const supabaseAdmin = createSupabaseAdminClient();
+  const { data, error } = await supabaseAdmin.from('employees').update({ auth_user_id: authUserId }).eq('id', employee.id).is('auth_user_id', null).select('id, auth_user_id').maybeSingle();
+  if (error || !data || data.auth_user_id !== authUserId) {
+    throw new AuthFlowError({ status: 409, code: 'employee_auth_connection_failed', message: 'Không thể xác nhận liên kết tài khoản. Hồ sơ nhân sự chưa bị thay đổi hoặc đã được thao tác ở nơi khác.', failureStage: 'auth_connection' });
+  }
+  logAuthAction({ correlationId, operation: 'connect', employeeId: String(employee.id), outcome: 'linked', code: 'employee_account_linked' });
+  return authActionAccepted('employee_account_linked', 'linked', 'Đã liên kết tài khoản Auth có email khớp chính xác. Không cấp thêm Workspace hoặc quyền mới.', correlationId, 'not_requested');
 }
 
-export async function sendEmployeePasswordReset(employeeId: string): Promise<AdminActionResult> {
+export async function resendEmployeeInvite(employeeId: string, correlationId = crypto.randomUUID()): Promise<AdminActionResult> {
+  const employee = await ensureAccountActionTarget(employeeId, { requireEmail: true });
+  if (!employee.auth_user_id) return inviteEmployee(employeeId, correlationId);
+
+  const authUser = await verifyLinkedAuthEmail(employee);
+  if (authUser.email_confirmed_at || authUser.confirmed_at) {
+    throw new AuthFlowError({ status: 409, code: 'employee_auth_duplicate', message: 'Tài khoản đã xác nhận email. Hãy dùng “Đặt lại mật khẩu” thay vì gửi lại lời mời.', failureStage: 'auth_lookup' });
+  }
+  throw new AuthFlowError({
+    status: 409,
+    code: 'employee_invite_resend_unsupported',
+    message: 'Supabase Auth không hỗ trợ gửi lại lời mời Admin hiện có qua API resend. Không có email mới nào được yêu cầu; không dùng đặt lại mật khẩu thay cho lời mời.',
+    failureStage: 'invitation_send',
+  });
+}
+
+export async function sendEmployeePasswordReset(employeeId: string, correlationId = crypto.randomUUID()): Promise<AdminActionResult> {
   const employee = await ensureAccountActionTarget(employeeId, { requireEmail: true });
   if (!employee.auth_user_id) {
     throw new AuthFlowError({
@@ -673,6 +722,7 @@ export async function sendEmployeePasswordReset(employeeId: string): Promise<Adm
   }
 
   const supabaseAdmin = createSupabaseAdminClient();
+  await verifyLinkedAuthEmail(employee);
   const { error } = await supabaseAdmin.auth.resetPasswordForEmail(employee.email!.trim(), {
     redirectTo: buildPasswordRecoveryRedirectUrl(getPublicAppBaseUrl()),
   });
@@ -686,7 +736,8 @@ export async function sendEmployeePasswordReset(employeeId: string): Promise<Adm
     });
   }
 
-  return { success: true, message: 'Đã gửi link đặt lại mật khẩu.' };
+  logAuthAction({ correlationId, operation: 'password_reset', employeeId: String(employee.id), outcome: 'accepted', code: 'employee_password_reset_accepted' });
+  return authActionAccepted('employee_password_reset_accepted', 'password_reset_requested', 'Supabase Auth đã tiếp nhận yêu cầu đặt lại mật khẩu. Ứng dụng chưa thể xác nhận email đã đến hộp thư.', correlationId);
 }
 
 export async function revokeEmployeeAccess(employeeId: string): Promise<AdminActionResult> {

@@ -8,13 +8,13 @@ function toJsonResponse(result: unknown, init?: ResponseInit) {
   return response;
 }
 
-function toErrorResponse(error: unknown) {
+function toErrorResponse(error: unknown, correlationId: string) {
   if (error instanceof AuthFlowError) {
-    return toJsonResponse({ success: false, message: error.message }, { status: error.status });
+    return toJsonResponse({ success: false, code: error.code, message: error.message, correlationId }, { status: error.status });
   }
 
   return toJsonResponse(
-    { success: false, message: 'Không thể gửi lời mời.' },
+    { success: false, code: 'employee_invitation_failed', message: 'Không thể gửi lời mời.', correlationId },
     { status: 500 }
   );
 }
@@ -23,9 +23,10 @@ export async function POST(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
+  const correlationId = crypto.randomUUID();
   try {
-    return toJsonResponse(await inviteEmployee(params.id));
+    return toJsonResponse(await inviteEmployee(params.id, correlationId));
   } catch (error) {
-    return toErrorResponse(error);
+    return toErrorResponse(error, correlationId);
   }
 }
