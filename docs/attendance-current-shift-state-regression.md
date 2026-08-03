@@ -110,3 +110,29 @@ not reuse the stale-row employee.
 
 Revert the Attendance application commit. No schema, RLS, migration history,
 runtime flag, or production row is changed by this fix.
+
+## 2026-08-03 same-minute completion correction
+
+Production smoke provisioned the dedicated **Maker Lab** Employee/Auth fixture
+with Staff-only workspace access, the active `Xưởng chính Luminal` facility, and
+a zero hourly rate. Staff check-in and immediate check-out succeeded; the Admin
+read-only page showed the completed 04:18 PM–04:18 PM record. Duplicate
+current-shift prevention also succeeded. The Staff entry, however, did not expose
+a shared login page, and the completed record displayed zero converted shifts.
+
+The conversion defect was application-side: finalized shift conversion reused
+the raw positive-minute helper, which intentionally returns zero for zero raw
+minutes, and finalized summaries excluded completed rows when worked minutes were
+zero. A valid completed row now applies the approved minimum after completion and
+status validation: **0–180 minutes = 1 shift, 181–360 minutes = 2 shifts, and more
+than 360 minutes = 3 shifts**. Raw duration remains unchanged, so a same-minute
+record still displays `0 phút`. Open, cancelled, invalid, rejected, and
+recovery-only rows receive zero finalized shifts. Salary remains derived from raw
+hours and hourly rate; an explicit zero rate remains zero.
+
+The correction is dynamic. Staff history, current-shift completion, Admin monthly
+summary, calendar tooltip, and detail dialog use the shared finalized conversion.
+The existing Maker Lab row does not require a database update or backfill. Admin
+Attendance remains read-only and Attendance recovery remains disabled. The full
+Attendance gate stays open until the corrected production deployment and manual
+Staff/Admin retest are retained.

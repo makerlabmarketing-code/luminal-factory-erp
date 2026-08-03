@@ -7,7 +7,7 @@ import {
   canAccessStaff,
   requireAuthenticatedEmployee,
 } from '@/services/server/auth';
-import { resolveWorkspaceDefaultPath } from '@/utils/auth/flow';
+import { resolveWorkspaceRedirectPath } from '@/utils/auth/flow';
 
 function hasSupabaseAuthCookie(request: NextRequest) {
   return request.cookies
@@ -103,10 +103,10 @@ async function verifyWorkspaceSession(request: NextRequest) {
       canAccessAdmin(authContext),
       canAccessStaff(authContext),
     ]);
-    const redirectPath = resolveWorkspaceDefaultPath({
+    const redirectPath = resolveWorkspaceRedirectPath({
       canAccessAdmin: adminAccess.allowed,
       canAccessStaff: staffAccess.allowed,
-    });
+    }, new URL(request.url).searchParams.get('next'));
 
     if (!adminAccess.allowed && !staffAccess.allowed) {
       return jsonNoStore(

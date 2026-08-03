@@ -3,6 +3,7 @@ import {
   calculateFinalizedAttendanceSummary,
   calculateShiftUnitsFromMinutes,
   getAttendanceShiftName,
+  getEmployeeHourlyRate,
   getFinalizedShiftUnitsForRecord,
   getWorkedMinutesForRecord,
   isOpenAttendanceRecordStale,
@@ -12,6 +13,9 @@ import {
 } from '../services/attendanceService';
 
 describe('attendance shift calculation', () => {
+  it('preserves an explicitly configured zero hourly rate', () => {
+    expect(getEmployeeHourlyRate({ id: 1, full_name: 'Nhân sự thử', hourly_rate: 0 })).toBe(0);
+  });
   it.each([
     { minutes: 1, shifts: 1 },
     { minutes: 120, shifts: 1 },
@@ -132,6 +136,44 @@ describe('attendance shift calculation', () => {
     expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: '14:01:00' })).toBe(3);
   });
 
+  it('counts a same-minute valid completed record as one shift without changing raw duration', () => {
+    const record = {
+      id: 2,
+      employee_id: 10,
+      work_date: '2026-08-03',
+      shift_name: 'Ca Chiều',
+      check_in: '16:18:42',
+      check_out: '16:18:42',
+      total_hours: 0,
+      status: 'PRESENT',
+    };
+
+    expect(getWorkedMinutesForRecord(record)).toBe(0);
+    expect(getFinalizedShiftUnitsForRecord(record)).toBe(1);
+    expect(calculateFinalizedAttendanceSummary([record])).toEqual({
+      totalShifts: 1,
+      totalHours: 0,
+    });
+    expect(mergeAttendanceRecords([record])[0].calculated_shifts).toBe(1);
+  });
+
+  it.each(['CANCELLED', 'INVALID', 'REJECTED', 'RECOVERY_ONLY'])(
+    'does not grant a minimum shift to %s rows',
+    (status) => {
+      expect(
+        getFinalizedShiftUnitsForRecord({
+          id: status,
+          employee_id: 10,
+          work_date: '2026-08-03',
+          shift_name: 'Ca Chiều',
+          check_in: '16:18:00',
+          check_out: '16:18:00',
+          status,
+        })
+      ).toBe(0);
+    }
+  );
+
   it('excludes cancelled rows from finalized hours and shifts while retaining the row', () => {
     const cancelled = {
       id: 91,
@@ -212,10 +254,10 @@ describe('attendance shift calculation', () => {
 
     expect(summary.selectedMonth).toEqual({
       records: 3,
-      completed: 1,
+      completed: 2,
       open: 1,
       stale: 1,
-      excluded: 1,
+      excluded: 0,
     });
     expect(summary.outsideSelectedMonth).toEqual({
       records: 1,
@@ -225,7 +267,7 @@ describe('attendance shift calculation', () => {
     });
   });
 
-  it('aggregates only completed positive-duration rows', () => {
+  it('aggregates every valid completed row while preserving zero raw duration', () => {
     const summary = calculateFinalizedAttendanceSummary([
       {
         id: 1,
@@ -253,6 +295,6 @@ describe('attendance shift calculation', () => {
       },
     ]);
 
-    expect(summary).toEqual({ totalShifts: 1, totalHours: 3 });
+    expect(summary).toEqual({ totalShifts: 2, totalHours: 3 });
   });
 });

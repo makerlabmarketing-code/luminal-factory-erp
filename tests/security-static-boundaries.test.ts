@@ -165,7 +165,7 @@ describe('static security boundaries', () => {
     expect(adminLogin).toMatch(/submitAdminLogin/);
     expect(adminLoginFlow).toMatch(/Email hoặc mật khẩu chưa đúng\./);
     expect(workspaceAuth).toMatch(/requireAuthenticatedEmployee/);
-    expect(workspaceAuth).toMatch(/resolveWorkspaceDefaultPath/);
+    expect(workspaceAuth).toMatch(/resolveWorkspaceRedirectPath/);
     expect(forgotPassword).toMatch(
       /Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu sẽ được gửi\./
     );
@@ -224,7 +224,7 @@ describe('static security boundaries', () => {
     expect(middleware).toMatch(/NextResponse\.redirect\(redirectUrl,\s*308\)/);
     expect(staffPortal).toMatch(/redirect\(queryString \? `\/staff\?\$\{queryString\}` : '\/staff'\)/);
     expect(authFlow).toMatch(/STAFF_PORTAL_PATH = '\/staff'/);
-    expect(authFlow).toMatch(/LOGIN_ENTRY_PATH = '\/admin\/dashboard'/);
+    expect(authFlow).toMatch(/LOGIN_ENTRY_PATH = '\/login'/);
   });
 
   it('keeps the legacy staff portal path free of staff login UI', () => {

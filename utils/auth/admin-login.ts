@@ -80,8 +80,14 @@ function toAdminVerificationMessage(
   return ADMIN_LOGIN_MESSAGES.serverError;
 }
 
-export async function verifyAdminSessionWithApi(): Promise<AdminSessionVerificationResponse> {
-  return fetch('/api/auth/workspaces', {
+export async function verifyAdminSessionWithApi(
+  nextPath?: string
+): Promise<AdminSessionVerificationResponse> {
+  const endpoint = nextPath
+    ? `/api/auth/workspaces?next=${encodeURIComponent(nextPath)}`
+    : '/api/auth/workspaces';
+
+  return fetch(endpoint, {
     method: 'POST',
     headers: {
       Accept: 'application/json',

@@ -11,7 +11,22 @@ export async function middleware(request: NextRequest) {
 
   const { supabase, response } = createClient(request);
 
-  await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (request.nextUrl.pathname.startsWith('/staff') && (error || !data.user)) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    loginUrl.search = '';
+    loginUrl.searchParams.set(
+      'next',
+      `${request.nextUrl.pathname}${request.nextUrl.search}`
+    );
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+    return redirectResponse;
+  }
 
   return response;
 }

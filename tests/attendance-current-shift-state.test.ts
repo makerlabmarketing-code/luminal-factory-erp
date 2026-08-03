@@ -37,7 +37,7 @@ describe('Attendance current-shift state regression', () => {
   it('calculates shift units only for completed records', () => {
     expect(service).toMatch(/getFinalizedShiftUnitsForRecord/);
     expect(service).toMatch(/if \(!isAttendanceRecordComplete\(record\)\) return 0/);
-    expect(client).toMatch(/const shiftUnits = isComplete\s*\?\s*calculateShiftUnitsFromMinutes/);
+    expect(client).toMatch(/getFinalizedShiftUnitsForRecord\(record\)/);
   });
 
   it('creates one normalized attendance row for check-in', () => {
@@ -54,7 +54,7 @@ describe('Attendance current-shift state regression', () => {
 
   it('applies a successful mutation response before background refresh', () => {
     const applyIndex = client.indexOf('applyAttendancePayload(result.attendance)');
-    const refreshIndex = client.indexOf('void loadAttendanceData(historyMonthInput');
+    const refreshIndex = client.indexOf('void loadAttendanceData(historyMonthInput', applyIndex);
     expect(applyIndex).toBeGreaterThan(-1);
     expect(refreshIndex).toBeGreaterThan(applyIndex);
   });
@@ -66,15 +66,24 @@ describe('Attendance current-shift state regression', () => {
 
   it('refreshes selected-month history after a mutation', () => {
     expect(route).toMatch(/loadAttendancePayload\(authContext\.employee, monthInput, now\)/);
-    expect(route).toMatch(/getLatestAttendanceRecordForDate\(employee\.id, todayStr\)/);
+    expect(route).toMatch(/getAttendanceRecordByShift\(employee\.id, todayStr, currentShiftName\)/);
     expect(client).toMatch(/month: historyMonthInput/);
     expect(client).toMatch(/setAttendanceHistory\(payload\.attendanceHistory\)/);
   });
 
-  it('returns the UI to the start state from the persisted checkout payload', () => {
+  it('keeps a completed current shift out of the start state', () => {
     expect(route).toMatch(/shiftState,\s*currentShift:/);
     expect(client).toMatch(/setShiftState\(payload\.shiftState\)/);
-    expect(client).toContain("'Bắt đầu ca'");
+    expect(client).toMatch(/todayRecord\?\.check_out\) return/);
+    expect(client).toMatch(/!\(shiftState === 'NO_OPEN_SHIFT' && todayRecord\?\.check_out\)/);
+  });
+
+  it('shows the completed shift facts and does not invite a retry', () => {
+    expect(client).toContain('Ca hiện tại đã được ghi nhận. Bạn không cần chấm công lại.');
+    expect(client).toContain('Ca: {todayRecord.shift_name}');
+    expect(client).toContain('Trạng thái: Đã ghi nhận');
+    expect(client).toContain('Vào: {todayRecord.check_in?.slice(0, 5)}');
+    expect(client).toContain('Ra: {todayRecord.check_out?.slice(0, 5)}');
   });
 
   it('preserves stable attendance state on checkout failure', () => {

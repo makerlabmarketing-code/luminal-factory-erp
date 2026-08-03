@@ -333,3 +333,25 @@ that reveal sensitive internal structure before sharing evidence. Stop on any
 `FAIL`, `REVIEW_REQUIRED`, duplicate, missing relation/column, denied metadata, or
 unexpected output. There is no forward or rollback schema script until the exact
 defect is proven from this evidence.
+
+## 2026-08-03 Staff entry and same-minute Attendance correction
+
+The Maker Lab Employee/Auth fixture was provisioned successfully with Staff-only
+workspace access, the verified active facility, and zero hourly rate. Production
+Staff check-in/check-out and duplicate current-shift prevention succeeded. The
+observed defects are bounded to shared login entry routing, finalized conversion
+of a zero-minute completed row, and the completed-current-shift action state.
+
+The application correction routes clean Staff requests to `/login`, preserves a
+safe local Staff target, resolves the destination from server-owned workspace
+access, dynamically derives one converted shift for a valid same-minute completed
+row, and hides the check-in action when that current shift already exists. The
+Admin Attendance gate remains read-only; recovery remains disabled. No SQL,
+migration, row repair, RLS, Auth identity, Employee, permission, runtime flag, or
+production data mutation is authorized by this package.
+
+After protected-main deployment is confirmed through `/api/system/version`, run
+only the manual incognito Staff/Admin display retest. Do not create another
+Attendance row unless a new approved business date/shift is available. The
+Attendance gate remains incomplete until that corrected production evidence is
+retained.
