@@ -32,8 +32,8 @@ describe('Staff logout', () => {
 
     expect(signOut).toHaveBeenCalledTimes(1);
     expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
-    expect(logoutSource).toMatch(/if \(logoutInFlight\.current\) return/);
-    expect(logoutSource).toMatch(/logoutInFlight\.current = true[\s\S]*await signOutCurrentDevice/);
+    expect(logoutSource).toMatch(/if \(logoutStartedRef\.current\) return/);
+    expect(logoutSource).toMatch(/logoutStartedRef\.current = true[\s\S]*await signOutCurrentDevice/);
   });
 
   it('replaces history with the shared login after successful sign-out', () => {
