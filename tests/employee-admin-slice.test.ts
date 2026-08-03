@@ -192,6 +192,24 @@ describe('employee admin list and account actions slice', () => {
     expect(resetBody).toMatch(/resetPasswordForEmail/);
   });
 
+  it('separates existing-account linking and exposes honest Auth email acceptance state', () => {
+    const actions = source('services/server/adminEmployeeActions.ts');
+    const listClient = source('app/admin/employees/AdminEmployeesClient.tsx');
+    const accountClient = source('app/admin/accounts/AdminAccountsClient.tsx');
+    const connectRoute = source('app/api/admin/employees/[id]/connect-account/route.ts');
+
+    expect(connectRoute).toMatch(/connectEmployeeAuthAccount/);
+    expect(connectRoute).not.toMatch(/request\.json/);
+    expect(actions).toMatch(/employee_auth_user_exists/);
+    expect(actions).toMatch(/employee_account_linked/);
+    expect(actions).toMatch(/deliveryState/);
+    expect(actions).toMatch(/email đã đến hộp thư/);
+    expect(actions).toMatch(/employee_invite_resend_unsupported/);
+    expect(`${listClient}${accountClient}`).toMatch(/Kết nối tài khoản hiện có/);
+    expect(listClient).toMatch(/activeActionRef\.current/);
+    expect(accountClient).toMatch(/activeActionRef\.current/);
+  });
+
   it('keeps Supabase admin secrets server-only and out of the employee client bundle source', () => {
     const adminClient = source('utils/supabase/admin.ts');
     const clientSource = source('app/admin/employees/AdminEmployeesClient.tsx');

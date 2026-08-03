@@ -423,3 +423,18 @@ verified through `/api/system/version`, the exact next boundary is
 `READY_FOR_EMPLOYEE_CREATE_RETRY`: submit the known fixture once manually and
 retain the approved safe success/failure fields. Do not mark the Attendance
 fixture complete until a created Employee ID and its later fixture gates pass.
+
+## 2026-08-03 — Employee Auth email workflow correction
+
+The reported Employee invitation blocker is addressed as a bounded Cloud
+application slice. Invite, exact-email existing-account connection, controlled
+invite resend, and linked-account password reset now have distinct server-owned
+operations and safe structured results. Employee List, Employee Detail, and
+Account Management expose the separate connection action and synchronously lock
+duplicate requests. Accepted Auth requests are described as accepted—not as
+provider delivery or inbox receipt—and carry a correlation ID. The complete
+boundary and remaining operator-only SMTP/allowlist/delivery checks are recorded
+in [employee-auth-email-workflow.md](employee-auth-email-workflow.md).
+
+No Employee was created, and no production Auth invitation, password reset,
+account link, permission mutation, SQL, or runtime mutation was performed.

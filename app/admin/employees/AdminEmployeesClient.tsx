@@ -152,6 +152,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
     diagnostic: EmployeeCreateSafeDiagnostic;
   } | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
+  const activeActionRef = useRef<string | null>(null);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [savingEmployee, setSavingEmployee] = useState(false);
   const savingEmployeeRef = useRef(false);
@@ -193,8 +194,9 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
 
   const runAction = async (employee: EmployeeListItem, actionPath: string, successTitle: string) => {
     const actionKey = `${employee.employeeId}:${actionPath}`;
-    if (activeActionKey) return;
+    if (activeActionRef.current) return;
 
+    activeActionRef.current = actionKey;
     setActiveActionKey(actionKey);
     showGlobalLoading(actionPath.includes('invite') ? 'Đang gửi lời mời...' : 'Đang lưu thay đổi...');
 
@@ -215,6 +217,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
       showToast(successTitle, result.message || 'Đã thực hiện thao tác.', 'success');
       refreshPage();
     } finally {
+      activeActionRef.current = null;
       setActiveActionKey(null);
       hideGlobalLoading();
     }
@@ -497,6 +500,20 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                                   >
                                     <AccountIcon className="h-3.5 w-3.5" />
                                     {activeEmployeeAction ? 'Đang xử lý...' : accountAction.label}
+                                  </button>
+                                )}
+                                {capabilities.canManageAccounts && employee.accountConnectionStatus === 'NOT_CONNECTED' && (
+                                  <button
+                                    type="button"
+                                    disabled={isPending || Boolean(activeActionKey)}
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      runAction(employee, 'connect-account', 'Đã kết nối tài khoản');
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <UserRound className="h-3.5 w-3.5" />
+                                    Kết nối tài khoản hiện có
                                   </button>
                                 )}
                               </div>
