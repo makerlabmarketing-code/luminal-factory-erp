@@ -29,6 +29,7 @@ import { AdminListRequestError, useAdminListData, type AdminListErrorCode } from
 import { accountConnectionExplanations, accountConnectionLabels } from '@/lib/accountConnection';
 import { AdminPage } from '@/component/AdminUI';
 import type { EmployeeCreateRequest as EmployeeFormState } from '@/lib/employeeCreateContract';
+import type { EmployeeCreateSafeDiagnostic } from '@/lib/employeePersistenceDiagnostics';
 
 interface ApiActionResponse {
   success?: boolean;
@@ -37,7 +38,7 @@ interface ApiActionResponse {
   failureStage?: string;
   fieldErrors?: Record<string, string>;
   correlationId?: string;
-  diagnosticAvailable?: boolean;
+  diagnostic?: EmployeeCreateSafeDiagnostic;
 }
 
 const legacyInviteCopyForRegression = 'Gửi lời mời';
@@ -113,7 +114,7 @@ async function parseActionResponse(response: Response): Promise<ApiActionRespons
       failureStage: payload.failureStage,
       fieldErrors: payload.fieldErrors,
       correlationId: payload.correlationId,
-      diagnosticAvailable: payload.diagnosticAvailable,
+      diagnostic: payload.diagnostic,
     };
   }
 
@@ -145,6 +146,11 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
   const [formState, setFormState] = useState<EmployeeFormState | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [formFieldErrors, setFormFieldErrors] = useState<Record<string, string>>({});
+  const [formDiagnostic, setFormDiagnostic] = useState<{
+    code?: string;
+    correlationId?: string;
+    diagnostic: EmployeeCreateSafeDiagnostic;
+  } | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [savingEmployee, setSavingEmployee] = useState(false);
@@ -217,6 +223,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
   const openCreateForm = () => {
     setFormError(null);
     setFormFieldErrors({});
+    setFormDiagnostic(null);
     setFormState(emptyForm);
   };
 
@@ -228,6 +235,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
     setSavingEmployee(true);
     setFormError(null);
     setFormFieldErrors({});
+    setFormDiagnostic(null);
     showGlobalLoading('Đang lưu thay đổi...');
 
     try {
@@ -252,6 +260,11 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
         const fieldErrors = result.fieldErrors || {};
         setFormFieldErrors(fieldErrors);
         setFormError(message);
+        setFormDiagnostic(result.diagnostic ? {
+          code: result.code,
+          correlationId: result.correlationId,
+          diagnostic: result.diagnostic,
+        } : null);
         showToast('Không thể lưu', message, 'error');
         const firstInvalidField = Object.keys(fieldErrors)[0];
         if (firstInvalidField) {
@@ -267,6 +280,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
       const message = 'Không thể kết nối để lưu hồ sơ nhân sự. Vui lòng thử lại.';
       setFormError(message);
       setFormFieldErrors({});
+      setFormDiagnostic(null);
       showToast('Không thể lưu', message, 'error');
     } finally {
       savingEmployeeRef.current = false;
@@ -568,9 +582,24 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
             </div>
             <div className="border-t border-slate-800 p-5 pt-3">
               {formError && (
-                <p role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-[11px] font-semibold text-red-200">
-                  {formError}
-                </p>
+                <div role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-[11px] text-red-200">
+                  <p className="font-semibold">{formError}</p>
+                  {formDiagnostic && (
+                    <details className="mt-2 border-t border-red-300/20 pt-2">
+                      <summary className="cursor-pointer font-semibold">Chi tiết kỹ thuật an toàn</summary>
+                      <dl className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-x-3 gap-y-1 text-red-100/90">
+                        <dt>Giai đoạn</dt><dd className="break-words">{formDiagnostic.diagnostic.operationStage}</dd>
+                        <dt>Mã lỗi</dt><dd className="break-words">{formDiagnostic.diagnostic.databaseCode}</dd>
+                        <dt>Cột an toàn</dt><dd className="break-words">{formDiagnostic.diagnostic.column}</dd>
+                        <dt>Ràng buộc</dt><dd className="break-words">{formDiagnostic.diagnostic.constraint}</dd>
+                        <dt>Phân loại</dt><dd className="break-words">{formDiagnostic.diagnostic.category}</dd>
+                        <dt>Đã đọc lại</dt><dd>{formDiagnostic.diagnostic.readbackAttempted ? 'Có' : 'Không'}</dd>
+                        <dt>Có hàng trả về</dt><dd>{formDiagnostic.diagnostic.rowReturned ? 'Có' : 'Không'}</dd>
+                        {formDiagnostic.correlationId && <><dt>Mã tra cứu</dt><dd className="break-all">{formDiagnostic.correlationId}</dd></>}
+                      </dl>
+                    </details>
+                  )}
+                </div>
               )}
               <div className="flex gap-2">
               <button type="button" disabled={savingEmployee} onClick={() => setFormState(null)} className="flex-1 rounded-lg border border-slate-800 bg-slate-950 p-3 font-bold text-slate-400 hover:bg-slate-800 disabled:opacity-60">Hủy</button>

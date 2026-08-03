@@ -116,30 +116,47 @@ tracked migrations add compatibility columns, policies, and constraints around
 that pre-existing table. Therefore no production schema drift or rejecting
 constraint is claimed without an approved log or metadata read.
 
-## 2026-08-02 — Operator diagnostic evidence surface
+## 2026-08-03 — Authoritative same-response diagnostic surface
 
-Employee create persistence failures now retain a short-lived, deployment-local
-diagnostic record keyed by the create correlation ID. An authenticated Admin with
-`ADMIN_WORKSPACE` and `EMPLOYEE_MANAGE` may read one record through:
+Production correlation ID `71b10315-5d73-4c16-9f5b-ee5d39c1538b` proved the
+correlation lookup design could return `employee_diagnostic_unavailable`. The old
+15-minute, 100-entry `globalThis` map was process- and instance-local,
+non-durable, not shared between serverless requests, and lost on cold start or
+deployment. Vercel may route the create POST and diagnostic GET to different
+instances, so lookup could legitimately fail immediately. Increasing its TTL or
+size would not correct instance locality.
 
-`GET /api/admin/employees/diagnostics/<correlationId>`
+The separate `GET /api/admin/employees/diagnostics/<correlationId>` endpoint and
+its in-memory store are removed. The authoritative diagnostic is now constructed
+inside the same authorized create request that receives the Supabase/PostgREST
+failure and returned as `diagnostic` beside the safe code, stage, field errors,
+and correlation ID. It contains only `available`, `operationStage`, normalized
+`databaseCode`, allowlisted `table`, `column`, and `constraint`, `rowReturned`,
+`readbackAttempted`, and allowlisted `category`. Every unknown string becomes
+`unavailable`. Raw message/detail/hint, SQL, stack, request values, employee
+identity/contact data, facility labels, credentials, headers, and environment
+values cannot enter this response type.
 
-The response is `status=available` only when the record is present and returns
-the timestamp, operation stage, normalized Postgres code, allowlisted table,
-column, constraint, row-returned state, readback-attempted state, and safe error
-category. Missing or expired records return `status=unavailable`; invalid IDs
-are rejected. Responses are `Cache-Control: no-store` and never include the
-employee payload, email, phone, title, raw database text, SQL, headers,
-credentials, or environment values.
+`createEmployee` authorizes `ADMIN_WORKSPACE` plus `EMPLOYEE_MANAGE` before
+parsing/persistence and before any diagnostic is constructed. Unauthenticated,
+Staff, public, or permission-denied requests therefore receive their controlled
+authorization failure without a diagnostic. There is no public lookup endpoint,
+shared diagnostic persistence, database table, migration, or external store.
 
-The cache is intentionally bounded to 100 records and 15 minutes and is local
-to the serving deployment instance. It is an evidence aid, not durable audit
-storage: a request routed to another serverless instance may correctly return
-`unavailable`. Operators must retain only the correlation ID, timestamp, safe
-response, and HTTP status. No production retry is implied by a diagnostic
-record. Correlation IDs from failures that occurred before this endpoint was
-deployed cannot be reconstructed or populated retroactively; they correctly
-remain `unavailable`.
+Insert constraints are reported as `employee_insert_constraint_failed` at
+`employee_insert`; unexpected insert failures use `employee_insert_failed`;
+known dependency/schema failures use `employee_persistence_unavailable` (503).
+Readback is classified separately as `employee_insert_readback`; an ambiguous
+outcome uses `employee_result_uncertain` and instructs the Admin to search by the
+exact normalized email before any separately approved retry. The service still
+performs only read-only email recovery after ambiguity, returns the created ID
+when one exact row proves success, and never retries the insert automatically.
+
+A single separately approved production Employee create remains required to
+capture the real safe failure. Employee creation is **not** marked fixed until
+that retry succeeds. For that retry retain the HTTP status, `success`, `code`,
+`failureStage`, Vietnamese `message`, `fieldErrors`, the complete safe
+`diagnostic` object, and `correlationId`; do not retain the request payload.
 
 ## Authoritative employee source
 

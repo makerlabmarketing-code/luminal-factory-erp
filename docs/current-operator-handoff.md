@@ -1,6 +1,6 @@
 # Current Operator Handoff
 
-**Prepared:** 2026-08-01
+**Prepared:** 2026-08-03
 **Authority:** this is the exact local execution authority. Status is owned by
 [the ERP implementation roadmap](ERP_IMPLEMENTATION_ROADMAP.md); package-specific
 predicates and commands remain in their linked runbooks.
@@ -9,6 +9,30 @@ runtime flag was changed, and no manual deployment occurred. The production
 runtime evidence below was collected through read-only endpoints; any automatic
 Vercel deployment after protected-main merge is observed, not manually
 controlled.
+
+## Employee create diagnostic retry boundary (2026-08-03)
+
+PR #117's 15-minute, 100-entry lookup was deployment-local and therefore could
+not be authoritative across Vercel instances. The application-only repair
+removes both that map and `GET /api/admin/employees/diagnostics/<correlationId>`.
+Safe diagnostics now arrive in the same POST failure response, only after server
+authorization confirms `ADMIN_WORKSPACE` and `EMPLOYEE_MANAGE`. There is no
+shared diagnostic persistence and no production mutation is needed to make the
+diagnostic available.
+
+After the repaired commit is merged and read-only `/api/system/version` reports
+that exact merged commit, stop at `READY_FOR_ONE_SAME_RESPONSE_DIAGNOSTIC_RETRY`.
+Do not retry automatically. A separately approved Admin retry must use one known
+test-only payload, submit exactly once, preserve the dialog state, and capture
+only: timestamp/timezone, HTTP status, `success`, `code`, `failureStage`, safe
+Vietnamese `message`, `fieldErrors`, `diagnostic.available`,
+`diagnostic.operationStage`, `diagnostic.databaseCode`, `diagnostic.table`,
+`diagnostic.column`, `diagnostic.constraint`, `diagnostic.rowReturned`,
+`diagnostic.readbackAttempted`, `diagnostic.category`, and `correlationId`. Never
+capture the request body, cookies, headers, tokens, raw errors, or environment.
+If the result is uncertain, search by the exact normalized email before requesting
+approval for any further attempt. Do not mark Employee creation fixed until a
+production create and returned ID are proven.
 
 ## Tonight's ordered execution sequence
 

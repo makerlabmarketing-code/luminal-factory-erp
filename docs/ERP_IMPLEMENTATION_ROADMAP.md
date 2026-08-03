@@ -367,20 +367,20 @@ Attendance smoke test has not occurred and no fixture has been provisioned.
 The exact next boundary is
 `READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`.
 
-## 2026-08-02 — Employee create core-mutation diagnostic surface
+## 2026-08-03 — Employee create same-response diagnostic repair
 
-Two repeated production Employee create attempts passed the shared payload
-contract but returned a generic `core_mutation` failure. No approved production
-log query or retry was available, so the exact database constraint remains
-unproven. The application now records a bounded, sanitized, deployment-local
-diagnostic keyed by the request correlation ID and exposes it only to
-`ADMIN_WORKSPACE` + `EMPLOYEE_MANAGE` through
-`/api/admin/employees/diagnostics/<correlationId>`. Known insert constraint and
-readback failures use stage-appropriate public codes; raw database details and
-payload values remain server-only. The cache is not durable and does not enable
-or perform a retry. No production employee, facility, Auth, SQL, migration,
-RLS, or environment mutation occurred.
+Production evidence showed correlation lookup can return unavailable because the
+PR #117 implementation stored diagnostics only in a deployment-local process
+map. That map is neither durable nor shared across Vercel instances, so the
+separate GET endpoint was not a production-reliable evidence path. The endpoint
+and map are removed; an allowlisted diagnostic now returns directly in the same
+authorized Employee create failure response. Unknown machine values normalize to
+`unavailable`, insert and readback stages/codes are distinct, and ambiguous
+results instruct exact normalized-email search without automatically retrying.
 
-The next boundary is
-`READY_FOR_ONE_OPERATOR_DIAGNOSTIC_RETRY`; any retry remains a separate,
-explicitly approved operator action.
+No shared persistence, dependency, SQL, migration, RLS, environment, deployment,
+or production mutation is required. Employee create remains unverified in
+production. The next boundary is
+`READY_FOR_ONE_SAME_RESPONSE_DIAGNOSTIC_RETRY`: after protected-main deployment
+is verified through `/api/system/version`, one retry requires separate operator
+approval and must capture only the safe response contract.
