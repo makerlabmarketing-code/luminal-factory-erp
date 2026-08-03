@@ -22,6 +22,21 @@ without exposing tokens or raw callback errors. Password-update completion uses
 the same workspace endpoint, so Staff-only accounts do not pass through an Admin
 page after setting a password.
 
+## Staff session exit
+
+The Staff profile is the visible session-management surface on desktop and
+mobile. `Đăng xuất` uses the shared Supabase local-scope sign-out helper, locks
+before the asynchronous request, and replaces browser history with `/login` only
+after Supabase confirms success. A failure keeps the Staff view in place and
+shows controlled Vietnamese copy with a client-generated support ID; tokens,
+cookies, and raw provider errors are never rendered or logged.
+
+The application does not clear unrelated browser preferences. Middleware
+continues to verify the Supabase user for every `/staff` navigation, so a logged
+out or expired session cannot restore protected Staff content through browser
+Back or direct navigation. Login after logout follows the same server-owned
+workspace rules above; logout never chooses an Admin destination.
+
 ## Production origin and callback safety
 
 `NEXT_PUBLIC_APP_BASE_URL` owns the public origin and must be
@@ -32,6 +47,7 @@ code.
 
 ## Rollback
 
-Revert the shared login page, workspace redirect route, middleware redirect, and
-workspace return-path helper together. This changes no Auth identity, Employee,
-workspace permission, RLS policy, database row, or Supabase configuration.
+Revert the shared login page, workspace redirect route, middleware redirect,
+workspace return-path helper, and Staff profile logout component together. This
+changes no Auth identity, Employee, workspace permission, RLS policy, database
+row, or Supabase configuration.

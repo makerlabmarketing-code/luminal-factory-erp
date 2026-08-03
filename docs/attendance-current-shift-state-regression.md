@@ -136,3 +136,19 @@ The existing Maker Lab row does not require a database update or backfill. Admin
 Attendance remains read-only and Attendance recovery remains disabled. The full
 Attendance gate stays open until the corrected production deployment and manual
 Staff/Admin retest are retained.
+
+## 2026-08-03 production display evidence and remaining session gate
+
+The Maker Lab production Staff route now shows the completed 16:18–16:18 shift,
+raw duration `0 phút`, and one converted shift. Check-in, check-out, duplicate
+current-shift prevention, minimum completed-shift conversion, refresh
+persistence, and the absence of a new Start action are verified. The zero-rate
+fixture remains zero payable. Attendance recovery remains disabled and Admin
+Attendance remains read-only.
+
+The full Attendance gate is still open because Staff had no reachable logout
+action for a controlled clean-session retest. The bounded Staff session slice
+adds logout without changing Attendance state or mutation logic. After its
+production deployment, manually verify logout, protected-route behavior,
+Staff-only login routing, and the unchanged completed shift. Do not create
+another Attendance row for that verification.

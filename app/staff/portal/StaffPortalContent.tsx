@@ -127,7 +127,7 @@ export default function StaffPortalContent({
         {visitedTabs.profile && <StaffProfileContent workerData={worker} assignedBranchData={assignedBranch} />}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-2 py-3.5 z-50 flex justify-around items-center shadow-2xl text-[10px] font-bold">
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-slate-800 bg-slate-900/95 px-2 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-3.5 text-[10px] font-bold shadow-2xl backdrop-blur-md">
         <button onClick={() => setActiveTab('attendance')} className={`flex flex-col items-center gap-1 transition-all duration-200 focus:outline-none cursor-pointer ${activeTab === 'attendance' ? 'text-blue-400 font-black' : 'text-slate-500'}`}>
           <Clock className="w-4 h-4" /><span>Ca Làm Việc</span>
         </button>
