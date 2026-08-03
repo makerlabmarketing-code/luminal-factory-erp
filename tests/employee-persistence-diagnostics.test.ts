@@ -1,20 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildEmployeeCreatePersistenceDiagnostics,
+  buildEmployeeCreateSafeDiagnostic,
   inferEmployeeFieldErrors,
-  isEmployeeDiagnosticCorrelationId,
-  readEmployeeCreatePersistenceDiagnostic,
-  recordEmployeeCreatePersistenceDiagnostic,
 } from '../lib/employeePersistenceDiagnostics';
 
-describe('employee persistence diagnostics', () => {
-  it('retains only allowlisted safe diagnostics and no payload fields', () => {
-    const diagnostics = buildEmployeeCreatePersistenceDiagnostics({
-      correlationId: 'safe-correlation-id',
-      failureStage: 'core_mutation',
-      requestReachedSupabase: true,
+describe('employee same-response persistence diagnostics', () => {
+  it('returns only allowlisted safe evidence for the immediate response', () => {
+    const diagnostic = buildEmployeeCreateSafeDiagnostic({
+      operationStage: 'employee_insert',
       readbackAttempted: false,
-      rowCreated: false,
+      rowReturned: false,
       details: {
         errorCategory: 'database_constraint',
         supabaseErrorCode: '23514',
@@ -23,81 +18,55 @@ describe('employee persistence diagnostics', () => {
       },
     });
 
-    expect(diagnostics).toMatchObject({
-      operation: 'employee_create',
+    expect(diagnostic).toEqual({
+      available: true,
+      operationStage: 'employee_insert',
+      databaseCode: '23514',
       table: 'employees',
-      supabaseColumn: 'branch_code',
-      supabaseConstraint: 'employees_branch_code_fkey',
-      insertReturnedRowCount: 0,
+      column: 'branch_code',
+      constraint: 'employees_branch_code_fkey',
       rowReturned: false,
       readbackAttempted: false,
+      category: 'database_constraint',
     });
-    expect(JSON.stringify(diagnostics)).not.toContain('makerlab.marketing@gmail.com');
-    expect(JSON.stringify(diagnostics)).not.toContain('Xưởng chính Luminal');
   });
 
-  it('redacts unknown columns and constraints instead of guessing a field', () => {
-    expect(inferEmployeeFieldErrors({ supabaseColumn: 'name_suffix', supabaseConstraint: 'secret_constraint' })).toBeUndefined();
-    expect(buildEmployeeCreatePersistenceDiagnostics({
-      failureStage: 'core_mutation',
-      requestReachedSupabase: true,
-      readbackAttempted: false,
-      rowCreated: false,
-      details: { supabaseColumn: 'name_suffix', supabaseConstraint: 'secret_constraint' },
-    })).toMatchObject({ supabaseColumn: null, supabaseConstraint: null });
-  });
-
-  it('retains normalized PostgreSQL and PostgREST error codes', () => {
-    expect(buildEmployeeCreatePersistenceDiagnostics({
-      failureStage: 'core_mutation',
-      requestReachedSupabase: true,
-      readbackAttempted: false,
-      rowCreated: false,
-      details: { supabaseErrorCode: '23514' },
-    }).supabaseErrorCode).toBe('23514');
-    expect(buildEmployeeCreatePersistenceDiagnostics({
-      failureStage: 'core_mutation',
-      requestReachedSupabase: true,
-      readbackAttempted: false,
-      rowCreated: false,
-      details: { supabaseErrorCode: 'not-a-code' },
-    }).supabaseErrorCode).toBeNull();
-    expect(buildEmployeeCreatePersistenceDiagnostics({
-      failureStage: 'core_readback',
-      requestReachedSupabase: true,
+  it('normalizes every unknown machine value to unavailable', () => {
+    expect(buildEmployeeCreateSafeDiagnostic({
+      operationStage: 'employee_insert_readback',
       readbackAttempted: true,
-      rowCreated: false,
-      details: { supabaseErrorCode: 'PGRST116' },
-    }).supabaseErrorCode).toBe('PGRST116');
+      rowReturned: false,
+      details: {
+        errorCategory: 'customer-secret',
+        supabaseErrorCode: 'not-a-code',
+        supabaseColumn: 'secret_column',
+        supabaseConstraint: 'secret_constraint',
+      },
+    })).toMatchObject({
+      databaseCode: 'unavailable', column: 'unavailable',
+      constraint: 'unavailable', category: 'unavailable',
+    });
   });
 
-  it('maps exact known database columns without substring collisions', () => {
+  it('maps only exact allowlisted columns and constraints to fields', () => {
     expect(inferEmployeeFieldErrors({ supabaseColumn: 'status' })).toEqual({
       employmentStatus: 'Vui lòng chọn trạng thái làm việc hợp lệ.',
     });
-    expect(inferEmployeeFieldErrors({ supabaseColumn: 'name_suffix' })).toBeUndefined();
-  });
-
-  it('stores only short-lived correlation diagnostics for the operator surface', () => {
-    const correlationId = 'c462020c-26ba-4b80-a083-da696ae38539';
-    const now = new Date('2026-08-02T14:30:00.000Z');
-    const diagnostic = buildEmployeeCreatePersistenceDiagnostics({
-      correlationId,
-      failureStage: 'core_mutation',
-      requestReachedSupabase: true,
-      readbackAttempted: false,
-      rowCreated: false,
-      details: { errorCategory: 'database_constraint', supabaseErrorCode: '23514' },
+    expect(inferEmployeeFieldErrors({ supabaseConstraint: 'employees_email_unique' })).toEqual({
+      email: 'Vui lòng kiểm tra email nhân sự.',
     });
-
-    expect(recordEmployeeCreatePersistenceDiagnostic(diagnostic, now)).toBe(true);
-    expect(readEmployeeCreatePersistenceDiagnostic(correlationId, new Date('2026-08-02T14:35:00.000Z')))
-      .toMatchObject({ correlationId, timestamp: now.toISOString(), failureStage: 'core_mutation' });
-    expect(readEmployeeCreatePersistenceDiagnostic(correlationId, new Date('2026-08-02T14:46:00.000Z'))).toBeNull();
+    expect(inferEmployeeFieldErrors({ supabaseColumn: 'status_private' })).toBeUndefined();
   });
 
-  it('accepts only UUID correlation identifiers', () => {
-    expect(isEmployeeDiagnosticCorrelationId('0831171c-11bc-4007-b29d-c62282fe0a40')).toBe(true);
-    expect(isEmployeeDiagnosticCorrelationId('safe-correlation-id')).toBe(false);
+  it('has no place to retain raw database text or payload values', () => {
+    const diagnostic = buildEmployeeCreateSafeDiagnostic({
+      operationStage: 'employee_insert', readbackAttempted: false, rowReturned: false,
+      details: { errorCategory: 'unexpected', supabaseErrorCode: '23502', supabaseColumn: 'phone' },
+    });
+    const serialized = JSON.stringify(diagnostic);
+    for (const privateValue of [
+      'raw database message', 'makerlab.marketing@gmail.com', '+84901234567',
+      'Tester', 'Xưởng chính Luminal', 'SELECT *', 'sensitive-token-value',
+    ]) expect(serialized).not.toContain(privateValue);
   });
 });

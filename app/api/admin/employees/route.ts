@@ -28,7 +28,7 @@ function toErrorResponse(error: unknown, correlationId: string, operation: 'crea
         code: error.code,
         failureStage: error.failureStage,
         fieldErrors: error.fieldErrors,
-        diagnosticAvailable: Boolean(error.diagnosticAvailable),
+        diagnostic: error.diagnostic,
         correlationId,
       },
       { status: error.status }

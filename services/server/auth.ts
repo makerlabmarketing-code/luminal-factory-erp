@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createClient } from '@/utils/supabase/server';
+import type { EmployeeCreateSafeDiagnostic } from '@/lib/employeePersistenceDiagnostics';
 
 export class AuthFlowError extends Error {
   status: number;
@@ -8,7 +9,7 @@ export class AuthFlowError extends Error {
   failureStage: AuthFailureStage;
   safeDetails?: Record<string, boolean | number | string | null>;
   fieldErrors?: Record<string, string>;
-  diagnosticAvailable?: boolean;
+  diagnostic?: EmployeeCreateSafeDiagnostic;
 
   constructor({
     status,
@@ -17,7 +18,7 @@ export class AuthFlowError extends Error {
     failureStage,
     safeDetails,
     fieldErrors,
-    diagnosticAvailable,
+    diagnostic,
   }: {
     status: number;
     code: AuthFlowErrorCode;
@@ -25,7 +26,7 @@ export class AuthFlowError extends Error {
     failureStage: AuthFailureStage;
     safeDetails?: Record<string, boolean | number | string | null>;
     fieldErrors?: Record<string, string>;
-    diagnosticAvailable?: boolean;
+    diagnostic?: EmployeeCreateSafeDiagnostic;
   }) {
     super(message);
     this.name = 'AuthFlowError';
@@ -34,7 +35,7 @@ export class AuthFlowError extends Error {
     this.failureStage = failureStage;
     this.safeDetails = safeDetails;
     this.fieldErrors = fieldErrors;
-    this.diagnosticAvailable = diagnosticAvailable;
+    this.diagnostic = diagnostic;
   }
 }
 
@@ -69,8 +70,11 @@ export type AuthFlowErrorCode =
   | 'employee_email_soft_deleted_duplicate'
   | 'employee_lookup_failed'
   | 'employee_persistence_failed'
+  | 'employee_insert_failed'
   | 'employee_insert_constraint_failed'
   | 'employee_insert_readback_failed'
+  | 'employee_persistence_unavailable'
+  | 'employee_result_uncertain'
   | 'employee_update_failed'
   | 'admin_client_configuration_failed'
   | 'employee_invitation_failed'
@@ -116,6 +120,10 @@ export type AuthFailureStage =
   | 'core_mutation'
   | 'returned_result_decode'
   | 'core_readback'
+  | 'employee_insert'
+  | 'employee_insert_readback'
+  | 'employee_post_insert_processing'
+  | 'employee_audit_write'
   | 'optional_enrichment'
   | 'project_insert'
   | 'unknown';
