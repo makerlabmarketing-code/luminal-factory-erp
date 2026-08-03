@@ -16,9 +16,10 @@ import {
 
 interface AdminLoginFormProps {
   message?: string;
+  nextPath?: string;
 }
 
-export default function AdminLoginForm({ message }: AdminLoginFormProps) {
+export default function AdminLoginForm({ message, nextPath }: AdminLoginFormProps) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const { hideGlobalLoading, setGlobalLoadingMessage, showGlobalLoading } = useGlobalLoading();
@@ -43,7 +44,7 @@ export default function AdminLoginForm({ message }: AdminLoginFormProps) {
       auth: supabase.auth,
       email,
       password,
-      verifyAdminSession: verifyAdminSessionWithApi,
+      verifyAdminSession: () => verifyAdminSessionWithApi(nextPath),
       onStep: (step, status) => {
         setAuthStep(step);
         setAuthStepStatus(status ?? null);

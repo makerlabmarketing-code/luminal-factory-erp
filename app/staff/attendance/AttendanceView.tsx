@@ -15,7 +15,6 @@ import type { Employee } from '@/lib/types/employee';
 import type { Facility as FacilityType } from '@/lib/types/facility';
 import {
   type AttendanceShiftState,
-  calculateShiftUnitsFromMinutes,
   formatWorkedDuration,
   getAttendanceShiftName,
   getFinalizedShiftUnitsForRecord,
@@ -202,6 +201,7 @@ export function StaffAttendanceContent({
   const handleToggleShift = async () => {
     if (submitLockRef.current) return;
     if (shiftState === 'STALE_OPEN_SHIFT') return;
+    if (shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out) return;
 
     if (!worker) {
       showToast('Lỗi', 'Không tìm thấy hồ sơ nhân sự!', 'error');
@@ -246,6 +246,12 @@ export function StaffAttendanceContent({
         };
         setMutationError(errorState);
         showToast('Không thể cập nhật ca làm', errorState.message, 'error');
+        if (result?.code === 'attendance_already_checked_out') {
+          void loadAttendanceData(historyMonthInput, {
+            showLoading: false,
+            preserveVisibleDataOnError: true,
+          });
+        }
         return;
       }
 
@@ -401,6 +407,15 @@ export function StaffAttendanceContent({
         <div className="w-full bg-emerald-950/20 border border-emerald-900/40 p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 animate-fadeIn">
           <CheckCircle2 className="w-6 h-6 text-emerald-400" />
           <p className="text-xs font-bold text-emerald-400">Ca làm việc đã hoàn thành!</p>
+          <p className="text-center text-[11px] text-emerald-100/80">
+            Ca hiện tại đã được ghi nhận. Bạn không cần chấm công lại.
+          </p>
+          <div className="grid w-full grid-cols-2 gap-2 border-t border-emerald-900/30 pt-2 text-[11px] font-mono">
+            <span className="text-slate-400">Ca: {todayRecord.shift_name}</span>
+            <span className="text-right text-slate-400">Trạng thái: Đã ghi nhận</span>
+            <span className="text-slate-400">Vào: {todayRecord.check_in?.slice(0, 5)}</span>
+            <span className="text-right text-slate-400">Ra: {todayRecord.check_out?.slice(0, 5)}</span>
+          </div>
           <div className="flex flex-col sm:flex-row justify-between gap-1 w-full text-[11px] font-mono border-t border-emerald-900/30 pt-2 mt-2">
             <span className="text-slate-400">Thời gian: {formatWorkedDuration(finalizedTodayMinutes)}</span>
             <span className="text-emerald-300 font-bold">Ca quy đổi: {finalizedTodayShiftUnits} ca</span>
@@ -408,7 +423,7 @@ export function StaffAttendanceContent({
         </div>
       )}
 
-      {shiftState !== 'STALE_OPEN_SHIFT' && (
+      {shiftState !== 'STALE_OPEN_SHIFT' && !(shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out) && (
         <button
           type="button"
           onClick={handleToggleShift}
@@ -521,9 +536,7 @@ export function StaffAttendanceContent({
               const isComplete = isAttendanceRecordComplete(record);
               const workedMinutes = getWorkedMinutesForRecord(record);
               const displayHours = Number((workedMinutes / 60).toFixed(2));
-              const shiftUnits = isComplete
-                ? calculateShiftUnitsFromMinutes(workedMinutes)
-                : 0;
+              const shiftUnits = getFinalizedShiftUnitsForRecord(record);
               const displayDate = formatBusinessDate(businessDateFromDateInput(record.work_date));
 
               return (
@@ -587,9 +600,7 @@ export function StaffAttendanceContent({
                   const isComplete = isAttendanceRecordComplete(record);
                   const workedMinutes = getWorkedMinutesForRecord(record);
                   const displayHours = Number((workedMinutes / 60).toFixed(2));
-                  const shiftUnits = isComplete
-                    ? calculateShiftUnitsFromMinutes(workedMinutes)
-                    : 0;
+                  const shiftUnits = getFinalizedShiftUnitsForRecord(record);
                   const displayDate = formatBusinessDate(businessDateFromDateInput(record.work_date));
 
                   return (

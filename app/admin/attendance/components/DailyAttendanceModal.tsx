@@ -11,7 +11,7 @@ import {
   getEmployeeHourlyRate,
   getWorkedMinutesForRecord,
   hasDuplicatedShift,
-  calculateShiftUnitsFromMinutes,
+  getFinalizedShiftUnitsForRecord,
   updateAttendanceRecordTime,
   upsertAttendanceRecord,
 } from '@/services/attendanceService';
@@ -250,7 +250,7 @@ export default function DailyAttendanceModal({
                 {myRecords.map((record) => {
                   const recordEmployee = employees.find((employee) => String(employee.id) === String(record.employee_id));
                   const workedMinutes = getWorkedMinutesForRecord(record);
-                  const shiftUnits = calculateShiftUnitsFromMinutes(workedMinutes);
+                  const shiftUnits = getFinalizedShiftUnitsForRecord(record);
                   const isLegacyLog = String(record.id).startsWith('log-');
 
                   return (
@@ -267,7 +267,7 @@ export default function DailyAttendanceModal({
                       <div className="flex flex-wrap items-center gap-2 mt-1">
                         <p className="text-[10px] text-slate-500 font-mono">[{record.shift_name}]</p>
 
-                        {workedMinutes > 0 && (
+                        {getFinalizedShiftUnitsForRecord(record) > 0 && (
                           <span className="text-[10px] bg-slate-800/60 text-emerald-400 px-1.5 py-0.5 rounded font-mono">
                             {formatWorkedDuration(workedMinutes)} · {shiftUnits} ca
                           </span>

@@ -8,6 +8,7 @@ import {
   getConfiguredAppBaseUrl,
   parseAuthCallbackAction,
   resolveWorkspaceDefaultPath,
+  resolveWorkspaceRedirectPath,
   resolveSafeRedirectPath,
   validateNewPassword,
 } from '../utils/auth/flow';
@@ -95,6 +96,45 @@ describe('auth flow helpers', () => {
     expect(resolveSafeRedirectPath('//example.com', ADMIN_DASHBOARD_PATH)).toBe(
       ADMIN_DASHBOARD_PATH
     );
+  });
+
+  it('preserves only safe Staff return targets for a staff-only account', () => {
+    expect(
+      resolveWorkspaceRedirectPath(
+        { canAccessAdmin: false, canAccessStaff: true },
+        '/staff/attendance?month=2026-08'
+      )
+    ).toBe('/staff/attendance?month=2026-08');
+    expect(
+      resolveWorkspaceRedirectPath(
+        { canAccessAdmin: false, canAccessStaff: true },
+        'https://example.com/steal-session'
+      )
+    ).toBe('/staff');
+  });
+
+  it('does not route a single-workspace account into an unauthorized workspace', () => {
+    expect(
+      resolveWorkspaceRedirectPath(
+        { canAccessAdmin: true, canAccessStaff: false },
+        '/staff/attendance'
+      )
+    ).toBe('/admin/dashboard');
+    expect(
+      resolveWorkspaceRedirectPath(
+        { canAccessAdmin: false, canAccessStaff: true },
+        '/admin/attendance'
+      )
+    ).toBe('/staff');
+  });
+
+  it('keeps the approved admin default for dual-workspace accounts', () => {
+    expect(
+      resolveWorkspaceRedirectPath(
+        { canAccessAdmin: true, canAccessStaff: true },
+        '/staff/attendance'
+      )
+    ).toBe('/admin/dashboard');
   });
 
   it('defaults dual-workspace users to admin after login', () => {

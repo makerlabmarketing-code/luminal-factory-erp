@@ -47,7 +47,8 @@ function normalizeTimeValue(value: string | null | undefined): string | null {
 }
 
 function getEmployeeHourlyRate(employee: ServerEmployee): number {
-  return Number(employee.hourly_rate || 30000);
+  const rate = Number(employee.hourly_rate ?? 30000);
+  return Number.isFinite(rate) && rate >= 0 ? rate : 30000;
 }
 
 function findMatchedBranch(employee: ServerEmployee, branches: Facility[]): Facility | null {
@@ -118,24 +119,6 @@ async function getAttendanceRecordByShift(
     .eq('work_date', workDate)
     .eq('shift_name', shiftName)
     .order('id', { ascending: true })
-    .limit(1);
-
-  if (error) throw error;
-
-  return ((data as AttendanceRecord[] | null)?.[0]) || null;
-}
-
-async function getLatestAttendanceRecordForDate(
-  employeeId: number | string,
-  workDate: string
-) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('attendance')
-    .select(ATTENDANCE_SELECT)
-    .eq('employee_id', employeeId)
-    .eq('work_date', workDate)
-    .order('id', { ascending: false })
     .limit(1);
 
   if (error) throw error;
@@ -219,10 +202,11 @@ async function loadAttendancePayload(
 
   const openRecord = await getOpenAttendanceRecord(employee.id);
   const shiftState = resolveAttendanceShiftState(openRecord, now);
+  const currentShiftName = getAttendanceShiftName(now);
   const currentShiftRecord =
     shiftState === 'ACTIVE_SHIFT_TODAY'
       ? openRecord
-      : await getLatestAttendanceRecordForDate(employee.id, todayStr);
+      : await getAttendanceRecordByShift(employee.id, todayStr, currentShiftName);
   const matchedBranch = await loadOptionalMatchedBranch(employee);
   const attendancePayload = await loadAttendanceData({
     monthInput,

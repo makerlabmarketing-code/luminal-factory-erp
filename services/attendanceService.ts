@@ -71,7 +71,8 @@ async function createBrowserDataClient() {
 }
 
 export function getEmployeeHourlyRate(employee: Employee | undefined | null): number {
-  return Number(employee?.hourly_rate || 30000);
+  const rate = Number(employee?.hourly_rate ?? 30000);
+  return Number.isFinite(rate) && rate >= 0 ? rate : 30000;
 }
 
 export function normalizeTimeValue(value: string | null | undefined): string | null {
@@ -158,7 +159,7 @@ export function enrichAttendanceRecord(record: AttendanceRecord, now = new Date(
   return {
     ...record,
     total_worked_minutes: workedMinutes,
-    calculated_shifts: calculateShiftUnitsFromMinutes(workedMinutes),
+    calculated_shifts: getFinalizedShiftUnitsForRecord(record),
   };
 }
 
@@ -237,7 +238,9 @@ export function mergeAttendanceRecords(records: AttendanceRecord[]): AttendanceR
 }
 
 export function isAttendanceRecordComplete(record: AttendanceRecord): boolean {
-  return !isAttendanceRecordCancelled(record) && Boolean(record.check_in && record.check_out);
+  const status = record.status?.trim().toUpperCase();
+  const rejectedStatus = status === 'INVALID' || status === 'REJECTED' || status === 'RECOVERY_ONLY';
+  return !isAttendanceRecordCancelled(record) && !rejectedStatus && Boolean(record.check_in && record.check_out);
 }
 
 export function isAttendanceRecordCancelled(record: AttendanceRecord): boolean {
@@ -271,7 +274,7 @@ export function resolveAttendanceShiftState(
 
 export function getFinalizedShiftUnitsForRecord(record: AttendanceRecord): number {
   if (!isAttendanceRecordComplete(record)) return 0;
-  return calculateShiftUnitsFromMinutes(getWorkedMinutesForRecord(record));
+  return Math.max(1, calculateShiftUnitsFromMinutes(getWorkedMinutesForRecord(record)));
 }
 
 export function calculateFinalizedAttendanceSummary(
@@ -282,11 +285,9 @@ export function calculateFinalizedAttendanceSummary(
       if (!isAttendanceRecordComplete(record)) return summary;
 
       const workedMinutes = getWorkedMinutesForRecord(record);
-      if (workedMinutes <= 0) return summary;
 
       return {
-        totalShifts:
-          summary.totalShifts + calculateShiftUnitsFromMinutes(workedMinutes),
+        totalShifts: summary.totalShifts + getFinalizedShiftUnitsForRecord(record),
         totalHours: Number(
           (summary.totalHours + workedMinutes / 60).toFixed(2)
         ),
@@ -316,8 +317,7 @@ export function summarizeAttendanceScope(params: {
     const openRecords = records.filter(isMissingCheckoutRecord);
     const completedRecords = records.filter(
       (record) =>
-        isAttendanceRecordComplete(record) &&
-        getWorkedMinutesForRecord(record) > 0
+        isAttendanceRecordComplete(record)
     );
     const excludedRecords = records.filter(
       (record) =>

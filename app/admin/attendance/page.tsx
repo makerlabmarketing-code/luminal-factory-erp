@@ -17,9 +17,9 @@ import type { Employee } from '@/lib/types/employee';
 import {
   type AttendanceScopeSummary,
   calculateFinalizedAttendanceSummary,
-  calculateShiftUnitsFromMinutes,
   formatWorkedDuration,
   getWorkedMinutesForRecord,
+  getFinalizedShiftUnitsForRecord,
   isAttendanceRecordComplete,
   isAttendanceRecordOverdue,
   isMissingCheckoutRecord,
@@ -361,7 +361,7 @@ export default function AdminAttendanceManagement() {
                         const currentEmp = employees.find((employee) => String(employee.id) === String(rec.employee_id));
                         const empTitle = currentEmp?.title || 'Chưa gán';
                         const workedMinutes = getWorkedMinutesForRecord(rec);
-                        const shiftUnits = calculateShiftUnitsFromMinutes(workedMinutes);
+                        const shiftUnits = getFinalizedShiftUnitsForRecord(rec);
                         
                         return (
                           <div key={rec.id || rIdx} className="border-b border-slate-850/50 pb-1.5 last:border-none last:pb-0">

@@ -438,3 +438,25 @@ in [employee-auth-email-workflow.md](employee-auth-email-workflow.md).
 
 No Employee was created, and no production Auth invitation, password reset,
 account link, permission mutation, SQL, or runtime mutation was performed.
+
+## 2026-08-03 — Staff authentication entry and Attendance minimum shift correction
+
+Status: `READY_FOR_PROTECTED_REVIEW`. The dedicated Maker Lab fixture, Staff
+check-in/check-out, and duplicate current-shift prevention succeeded in production.
+New evidence proved two bounded application defects: Staff routes lacked a shared
+unauthenticated entry, and a valid same-minute completed record was excluded from
+the minimum finalized shift because its raw/displayed duration was zero.
+
+The application now uses a shared `/login` entry with a safe local return target
+and server-owned workspace resolution. Valid completed Attendance uses the
+approved 180/360-minute boundaries with a one-shift minimum, while raw duration
+and hourly-rate salary remain separate. The completed current-shift card replaces
+the write action and exposes shift, timestamps, duration, converted shifts, and
+final state. Staff history and every Admin read-only aggregate/detail surface use
+the shared dynamic calculation, so no existing-row SQL correction is required.
+
+`ATTENDANCE_RECOVERY_ENABLED` remains false/unset and Admin Attendance remains
+read-only. No recovery, SQL, migration, RLS, backfill, Auth/Employee/permission,
+runtime, or production data mutation belongs to this slice. Do not mark the
+Attendance gate passed until protected-main deployment is verified and the
+manual incognito Staff entry plus Staff/Admin converted-shift retest passes.

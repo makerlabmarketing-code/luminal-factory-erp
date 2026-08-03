@@ -1,6 +1,6 @@
 export const AUTH_CALLBACK_PATH = '/auth/callback';
 export const UPDATE_PASSWORD_PATH = '/auth/update-password';
-export const LOGIN_ENTRY_PATH = '/admin/dashboard';
+export const LOGIN_ENTRY_PATH = '/login';
 export const ADMIN_DASHBOARD_PATH = '/admin/dashboard';
 export const STAFF_PORTAL_PATH = '/staff';
 export const NO_WORKSPACE_PATH = '/auth/no-workspace';
@@ -131,7 +131,13 @@ export function isSafeInternalRedirectPath(value: string | null | undefined): bo
   if (value.startsWith('//')) return false;
 
   const [pathname] = value.split(/[?#]/);
-  return allowedRedirectPaths.has(pathname);
+  return (
+    allowedRedirectPaths.has(pathname) ||
+    pathname === '/staff' ||
+    pathname.startsWith('/staff/') ||
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/')
+  );
 }
 
 export function resolveSafeRedirectPath(
@@ -147,6 +153,33 @@ export function resolveWorkspaceDefaultPath({
 }: WorkspaceDefaultAccess): string {
   if (canAccessAdmin) return ADMIN_DASHBOARD_PATH;
   if (canAccessStaff) return STAFF_PORTAL_PATH;
+
+  return NO_WORKSPACE_PATH;
+}
+
+export function resolveWorkspaceRedirectPath(
+  access: WorkspaceDefaultAccess,
+  requestedPath?: string | null
+): string {
+  const safeRequestedPath = isSafeInternalRedirectPath(requestedPath)
+    ? requestedPath!
+    : null;
+
+  if (access.canAccessAdmin && access.canAccessStaff) {
+    return resolveWorkspaceDefaultPath(access);
+  }
+
+  if (access.canAccessStaff) {
+    return safeRequestedPath?.startsWith('/staff')
+      ? safeRequestedPath
+      : STAFF_PORTAL_PATH;
+  }
+
+  if (access.canAccessAdmin) {
+    return safeRequestedPath?.startsWith('/admin')
+      ? safeRequestedPath
+      : ADMIN_DASHBOARD_PATH;
+  }
 
   return NO_WORKSPACE_PATH;
 }
