@@ -355,3 +355,19 @@ only the manual incognito Staff/Admin display retest. Do not create another
 Attendance row unless a new approved business date/shift is available. The
 Attendance gate remains incomplete until that corrected production evidence is
 retained.
+
+## 2026-08-03 Staff logout and clean-session retest handoff
+
+Production evidence now confirms Maker Lab check-in and check-out at 16:18,
+duplicate current-shift prevention, raw duration of zero minutes, one converted
+shift, zero payable at the zero hourly-rate fixture, and no Start action for the
+completed current shift. Attendance recovery remains disabled and Admin
+Attendance remains read-only.
+
+The remaining gate is a manual clean-session test after the Staff profile logout
+slice deploys. Open the Staff profile, use `Đăng xuất` once, confirm `/login`,
+confirm browser Back and direct `/staff` access require authentication, then log
+in as Maker Lab and confirm the Staff-only destination and unchanged completed
+shift. Do not create another Attendance row. This application-only slice changes
+no Employee, Auth identity, permission, Attendance, Payroll, SQL, schema,
+migration, RLS, environment, runtime flag, or Supabase configuration.
