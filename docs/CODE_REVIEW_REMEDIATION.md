@@ -373,3 +373,15 @@ No open pull request or unresolved PR conversation was returned by the connected
 | Facility relation is requested but `financial_ledger` has no approved facility column. | BLOCKED_BY_SCHEMA_AND_BUSINESS_CONTRACT | Existing approved migration adds `project_id` but no facility relationship. | Did not invent or overload a field; project mapping is supported behind the existing gate. A facility relation requires a separately approved schema/domain decision. |
 
 Validation after production review: lint PASS; `npx tsc --noEmit` PASS; 71 test files / 566 tests PASS; production build PASS. True linked-edit atomicity, database-atomic attachment-count enforcement, and private Storage activation remain operator/live approval gates. No SQL, RPC, migration, RLS, Storage object, runtime flag, production row, deployment, commit, push, or pull request was changed.
+
+## 2026-08-03 Staff profile logout review
+
+Self-review found no actionable P0/P1 issue in this bounded application-only
+slice. The visible profile action uses local-scope sign-out, an immediate ref
+lock, controlled failure text with a generated support ID, fixed `/login`
+document replacement, auth-router refresh, and mobile safe-area spacing. Static
+and behavioral regression coverage verifies the shared sign-out boundary and
+prevents raw provider-error disclosure. Existing workspace routing and
+Attendance business behavior remain unchanged. `REVIEW_SOURCE_UNAVAILABLE`:
+hosted Codex review findings and unresolved pull-request conversations are not
+exposed in this environment.

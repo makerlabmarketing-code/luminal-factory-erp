@@ -355,3 +355,25 @@ only the manual incognito Staff/Admin display retest. Do not create another
 Attendance row unless a new approved business date/shift is available. The
 Attendance gate remains incomplete until that corrected production evidence is
 retained.
+
+## 2026-08-03 Staff profile logout delivery
+
+The bounded Staff logout slice adds a visible **Đăng xuất** action and account
+summary to **Cá Nhân**. It uses the shared local-device Supabase sign-out,
+synchronously locks duplicate taps, shows progress, refreshes the auth router,
+and replaces document history with the fixed `/login` destination. A failed
+request remains on the profile and shows only controlled Vietnamese feedback plus
+a generated support ID. Mobile bottom spacing includes the device safe area.
+
+The authentication routing contract remains unchanged: Staff-only accounts route
+to Staff, Admin-only accounts route to Admin, dual-workspace accounts retain the
+Admin default, and only approved local return paths are accepted. The slice does
+not change Attendance calculations or mutations. Maker Lab's completed shift
+remains 16:18–16:18, zero raw minutes, one converted shift, with no Start action;
+duplicate current-shift writes remain blocked, zero-rate pay remains zero,
+Attendance recovery remains disabled, and Admin Attendance remains read-only.
+
+After protected-main deployment is confirmed through `/api/system/version`, the
+next boundary is `READY_FOR_STAFF_LOGOUT_LOGIN_RETEST`. The operator must perform
+the documented manual logout/login and retained Attendance display check. Do not
+automate authentication or create another Attendance row.
