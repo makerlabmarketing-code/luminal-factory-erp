@@ -82,13 +82,39 @@ export function StaffProfileContent({
   const assignedBranchName = assignedBranch?.name || assignedBranch?.facility_name || (legacyFacility && !/^\d+$/.test(legacyFacility) ? legacyFacility : null) || 'Cơ sở chưa xác định';
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 text-xs max-w-2xl mx-auto animate-fadeIn w-full text-slate-100 font-sans">
+    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl space-y-5 text-xs max-w-2xl mx-auto animate-fadeIn w-full text-slate-100 font-sans">
       <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
         <Briefcase className="w-4 h-4 text-blue-400" />
         <h2 className="font-bold text-slate-200 uppercase tracking-wider text-[12px]">
           Hồ Sơ Thành Viên Số Hóa
         </h2>
       </div>
+
+      <section aria-labelledby="staff-account-heading" className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+        <h3 id="staff-account-heading" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          Tài khoản hiện tại
+        </h3>
+        <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <dt className="text-[10px] text-slate-500">Nhân sự</dt>
+            <dd className="mt-1 font-bold text-slate-100">{worker.full_name}</dd>
+          </div>
+          <div>
+            <dt className="text-[10px] text-slate-500">Chức danh</dt>
+            <dd className="mt-1 font-bold text-slate-100">{worker.title || 'Chưa cập nhật'}</dd>
+          </div>
+          {worker.email && (
+            <div className="min-w-0">
+              <dt className="text-[10px] text-slate-500">Email liên kết</dt>
+              <dd className="mt-1 truncate font-bold text-slate-100">{worker.email}</dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-[10px] text-slate-500">Khu vực</dt>
+            <dd className="mt-1 font-bold text-slate-100">Khu vực nhân viên</dd>
+          </div>
+        </dl>
+      </section>
 
       <div className="bg-slate-950 border border-slate-850 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-4 text-[11px]">
         <div>
