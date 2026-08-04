@@ -66,7 +66,9 @@ export default function DailyAttendanceModal({
   const [newShift, setNewShift] = useState('');
   const [newIn, setNewIn] = useState('');
   const [newOut, setNewOut] = useState('');
+  const [createReason, setCreateReason] = useState('');
   const [adjustmentReason, setAdjustmentReason] = useState('');
+  const [adjustmentReasonError, setAdjustmentReasonError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const myRecords = useMemo(() => existingRecords.filter((record) => {
@@ -97,7 +99,9 @@ export default function DailyAttendanceModal({
     setNewShift(shifts[0]?.shift_name || '');
     setNewIn('');
     setNewOut('');
+    setCreateReason('');
     setAdjustmentReason('');
+    setAdjustmentReasonError('');
   }, [isOpen, myRecords, shifts]);
 
   if (!isOpen || !dateStr) return null;
@@ -125,9 +129,10 @@ export default function DailyAttendanceModal({
       }
 
       if (adjustmentReason.trim().length < 10) {
-        showToast('Thiếu lý do', 'Lý do điều chỉnh phải có ít nhất 10 ký tự.', 'error');
+        setAdjustmentReasonError('Vui lòng nhập lý do điều chỉnh có ít nhất 10 ký tự.');
         return;
       }
+      setAdjustmentReasonError('');
 
       const record = await updateAttendanceRecordTime({
         recordId,
@@ -163,9 +168,10 @@ export default function DailyAttendanceModal({
     }
 
     if (adjustmentReason.trim().length < 10) {
-      showToast('Thiếu lý do', 'Lý do điều chỉnh phải có ít nhất 10 ký tự.', 'error');
+      setAdjustmentReasonError('Vui lòng nhập lý do hủy có ít nhất 10 ký tự.');
       return;
     }
+    setAdjustmentReasonError('');
 
     showConfirm('Xác nhận xóa', `Bạn có chắc chắn muốn xóa bản ghi [${shiftName}] này không?`, async () => {
       setIsSubmitting(true);
@@ -227,7 +233,7 @@ export default function DailyAttendanceModal({
         checkIn: newIn,
         checkOut: newOut,
         hourlyRate: baseHourlyRate,
-        reason: adjustmentReason.trim(),
+        reason: createReason.trim(),
       });
 
       showToast('Thành công', 'Đã bổ sung ca làm việc.', 'success');
@@ -264,6 +270,9 @@ export default function DailyAttendanceModal({
                 className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-blue-500"
                 placeholder="Nhập ít nhất 10 ký tự"
               />
+              {adjustmentReasonError && (
+                <span className="mt-1 block text-[10px] text-red-400" role="alert">{adjustmentReasonError}</span>
+              )}
            </label>
           )}
           {auditEvents.length > 0 && (
@@ -468,6 +477,17 @@ export default function DailyAttendanceModal({
                 />
               </div>
             </div>
+
+            <label className="block text-[10px] text-slate-400">
+              Ghi chú bổ sung (không bắt buộc)
+              <textarea
+                value={createReason}
+                onChange={(event) => setCreateReason(event.target.value)}
+                rows={2}
+                className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-blue-500"
+                placeholder="Có thể để trống"
+              />
+            </label>
 
             <div className="pt-2">
               <button

@@ -49,6 +49,7 @@ export type AuthFlowErrorCode =
   | 'attendance_recovery_disabled'
   | 'attendance_manual_mutation_disabled'
   | 'attendance_reason_required'
+  | 'attendance_invalid_time_order'
   | 'admin_verification_failed'
   | 'employee_list_load_failed'
   | 'employee_detail_load_failed'
