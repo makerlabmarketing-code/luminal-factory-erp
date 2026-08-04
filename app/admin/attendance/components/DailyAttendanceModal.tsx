@@ -24,7 +24,7 @@ interface DailyAttendanceModalProps {
   existingRecords: AttendanceRecord[];
   currentEmpId: string;
   onClose: () => void;
-  onReload: () => void;
+  onRecordChanged: (record: AttendanceRecord, operation: 'create' | 'update' | 'delete') => void;
   showToast: (title: string, message: string, type: ToastType) => void;
   showConfirm: (title: string, message: string, onConfirm: () => void) => void;
   canAdjust: boolean;
@@ -56,7 +56,7 @@ export default function DailyAttendanceModal({
   existingRecords,
   currentEmpId,
   onClose,
-  onReload,
+  onRecordChanged,
   showToast,
   showConfirm,
   canAdjust,
@@ -129,7 +129,7 @@ export default function DailyAttendanceModal({
         return;
       }
 
-      await updateAttendanceRecordTime({
+      const record = await updateAttendanceRecordTime({
         recordId,
         employeeId: targetRecord.employee_id,
         workDate: targetRecord.work_date,
@@ -141,7 +141,7 @@ export default function DailyAttendanceModal({
       });
 
       showToast('Thành công', 'Đã cập nhật giờ công.', 'success');
-      onReload();
+      onRecordChanged(record, 'update');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể cập nhật giờ công.';
       showToast('Lỗi', message, 'error');
@@ -170,9 +170,9 @@ export default function DailyAttendanceModal({
       setIsSubmitting(true);
 
       try {
-        await deleteAttendanceRecord(recordId, adjustmentReason.trim());
+        const record = await deleteAttendanceRecord(recordId, adjustmentReason.trim());
         showToast('Đã xóa', 'Bản ghi chấm công đã được gỡ bỏ.', 'info');
-        onReload();
+        onRecordChanged(record, 'delete');
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Không thể xóa bản ghi.';
         showToast('Lỗi', message, 'error');
@@ -218,7 +218,7 @@ export default function DailyAttendanceModal({
     setIsSubmitting(true);
 
     try {
-      await upsertAttendanceRecord({
+      const record = await upsertAttendanceRecord({
         employee: currentEmployee,
         workDate: dateStr,
         shiftName: newShift,
@@ -229,7 +229,7 @@ export default function DailyAttendanceModal({
       });
 
       showToast('Thành công', 'Đã bổ sung ca làm việc.', 'success');
-      onReload();
+      onRecordChanged(record, 'create');
       setNewIn('');
       setNewOut('');
       setAdjustmentReason('');

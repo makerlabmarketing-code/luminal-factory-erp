@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
+import { DataTableError, DataTablePagination, DataTableShell, DataTableSkeleton } from '@/component/data-table/DataTable';
 import { LogIn, LogOut, RefreshCcw, AlertTriangle, CheckCircle2, Building2 } from 'lucide-react';
 import {
   businessDateFromDateInput,
@@ -295,33 +296,6 @@ export function StaffAttendanceContent({
     }
   };
 
-  if (fetching) {
-    return (
-      <div className="text-center p-12 text-xs text-slate-500 font-mono">
-        <RefreshCcw className="w-4 h-4 animate-spin text-blue-500 mx-auto mb-2" />
-        Đang tải dữ liệu chấm công...
-      </div>
-    );
-  }
-
-  if (fetchError) {
-    return (
-      <div className="flex flex-col items-center justify-center p-10 bg-slate-900 border border-red-500/30 rounded-3xl space-y-3 shadow-xl max-w-md mx-auto mt-6 text-center text-xs text-red-100 w-full animate-fadeIn" role="alert">
-        <AlertTriangle className="w-8 h-8 text-red-400" />
-        <p className="font-bold text-red-300">Không thể tải dữ liệu chấm công</p>
-        <p className="text-[11px] text-red-100/80">{fetchError}</p>
-        <button
-          type="button"
-          onClick={() => void loadAttendanceData(historyMonthInput)}
-          className="inline-flex items-center gap-2 rounded-lg border border-red-400/30 bg-red-950/30 px-3 py-2 font-bold text-red-100 transition hover:bg-red-900/40 focus:outline-none focus:ring-2 focus:ring-red-400"
-        >
-          <RefreshCcw className="h-3.5 w-3.5" />
-          Thử lại
-        </button>
-      </div>
-    );
-  }
-
   if (!worker) {
     return (
       <div className="flex flex-col items-center justify-center p-10 bg-slate-900 border border-slate-800 rounded-3xl space-y-3 shadow-xl max-w-md mx-auto mt-6 text-center text-xs text-slate-300 w-full animate-fadeIn">
@@ -448,7 +422,7 @@ export function StaffAttendanceContent({
         </div>
       )}
 
-      {shiftState !== 'STALE_OPEN_SHIFT' &&
+      {!fetching && !fetchError && shiftState !== 'STALE_OPEN_SHIFT' &&
         (!(shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out) || canContinueCurrentShift) && (
         <button
           type="button"
@@ -554,7 +528,14 @@ export function StaffAttendanceContent({
           </div>
         )}
 
-        <div className="space-y-2 md:hidden">
+        <DataTableShell label="Lịch sử chấm công" height="compact" isRefreshing={fetching && attendanceHistory.length > 0}>
+          {fetching && attendanceHistory.length === 0 ? (
+            <DataTableSkeleton rows={HISTORY_ITEMS_PER_PAGE} columns={5} />
+          ) : fetchError ? (
+            <DataTableError message={fetchError} onRetry={() => void loadAttendanceData(historyMonthInput)} />
+          ) : (
+          <>
+        <div className="space-y-2 p-2 md:hidden">
           {attendanceHistory.length === 0 ? (
             <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-6 text-center text-[11px] text-slate-500 italic">
               Chưa có dữ liệu chấm công trong tháng này.
@@ -652,27 +633,10 @@ export function StaffAttendanceContent({
           </table>
         </div>
 
-        <div className="flex items-center justify-between gap-3 text-[11px] text-slate-500 font-mono">
-          <span>Trang {safeHistoryPage}/{historyTotalPages} · {attendanceHistory.length} bản ghi</span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
-              disabled={safeHistoryPage <= 1}
-              className="px-2 py-1 rounded-lg border border-slate-800 bg-slate-900 text-slate-300 disabled:opacity-30"
-            >
-              Trước
-            </button>
-            <button
-              type="button"
-              onClick={() => setHistoryPage((page) => Math.min(historyTotalPages, page + 1))}
-              disabled={safeHistoryPage >= historyTotalPages}
-              className="px-2 py-1 rounded-lg border border-slate-800 bg-slate-900 text-slate-300 disabled:opacity-30"
-            >
-              Sau
-            </button>
-          </div>
-        </div>
+        <DataTablePagination page={safeHistoryPage} pageSize={HISTORY_ITEMS_PER_PAGE} total={attendanceHistory.length} onPageChange={setHistoryPage} />
+          </>
+          )}
+        </DataTableShell>
       </div>
     </div>
   );

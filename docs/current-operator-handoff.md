@@ -401,3 +401,7 @@ smoke writes until duplicate-active-row preflight and migration/RPC approval
 pass. Expected schema impact is one partial unique index, one RLS-protected
 operation-audit table, and two server-authorized RPCs; no existing rows are
 backfilled by the package.
+
+## Shared table / Attendance local-loading retest (2026-08-04)
+
+The current application slice is `READY_FOR_TABLE_LOCAL_LOADING_RETEST`. Review `shared-data-table-guidance.md` for the inventory and boundaries. Retest Staff initial history loading and month refresh without a card/shell reset, then verify check-in/out only updates the current aggregate card and local history. Retest Admin month/employee changes plus create/update/cancellation with the daily modal and selected date stable. Do not perform production Attendance mutations from Codex Cloud; any manual mutation remains separately operator-approved and runtime-gated. Recovery remains disabled. Employee, Projects/tasks, and Finance table migrations are not part of this PR.

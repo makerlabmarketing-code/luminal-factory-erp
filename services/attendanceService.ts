@@ -494,7 +494,7 @@ export async function updateAttendanceRecordTime(params: {
   checkOut: string;
   hourlyRate: number;
   reason: string;
-}): Promise<void> {
+}): Promise<AttendanceRecord> {
   const response = await fetch('/api/admin/attendance', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -513,6 +513,9 @@ export async function updateAttendanceRecordTime(params: {
     const result = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(result?.error || 'Không thể cập nhật giờ công.');
   }
+
+  const result = (await response.json()) as { record: AttendanceRecord };
+  return result.record;
 }
 
 export async function upsertAttendanceRecord(params: {
@@ -523,7 +526,7 @@ export async function upsertAttendanceRecord(params: {
   checkOut: string;
   hourlyRate: number;
   reason: string;
-}): Promise<void> {
+}): Promise<AttendanceRecord> {
   const response = await fetch('/api/admin/attendance', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -541,9 +544,11 @@ export async function upsertAttendanceRecord(params: {
     const result = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(result?.error || 'Không thể bổ sung ca làm việc.');
   }
+  const result = (await response.json()) as { record: AttendanceRecord };
+  return result.record;
 }
 
-export async function deleteAttendanceRecord(recordId: number | string, reason: string): Promise<void> {
+export async function deleteAttendanceRecord(recordId: number | string, reason: string): Promise<AttendanceRecord> {
   const response = await fetch(
     `/api/admin/attendance?recordId=${encodeURIComponent(String(recordId))}&reason=${encodeURIComponent(reason)}`,
     {
@@ -555,6 +560,8 @@ export async function deleteAttendanceRecord(recordId: number | string, reason: 
     const result = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(result?.error || 'Không thể xóa bản ghi.');
   }
+  const result = (await response.json()) as { record: AttendanceRecord };
+  return result.record;
 }
 
 export function hasDuplicatedShift(params: {
