@@ -248,3 +248,43 @@ Expected: dependency objects exist and RPC is invoker/service-role only. Disable
 ## 5. Configuration and monitoring evidence
 
 Before enabling any gate, capture the platform configuration diff showing only the server variable. Never use `NEXT_PUBLIC_*`. After enablement, run the relevant application test command against the approved environment and retain timestamped route/RPC log queries. A flag-only rollback is always the first response and must be possible without database rollback.
+
+### 4.8 Attendance multi-check and Admin manual mutation (pending approval)
+
+Status: `LIVE_APPROVAL_REQUIRED`. Keep both server-only gates
+`ATTENDANCE_MULTI_CHECK_ENABLED` and `ATTENDANCE_MANUAL_MUTATIONS_ENABLED`
+false or unset. They are independent of `ATTENDANCE_RECOVERY_ENABLED`.
+
+Run the read-only preflight first:
+
+```bash
+psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/20260804_attendance_multi_check_admin_mutations_preflight.sql
+```
+
+Stop on any duplicate active Employee/date/shift group, missing prerequisite,
+unexpected existing operation-audit object, or non-zero affected-row repair
+requirement. The approved SQL Editor/psql order is: (1) preflight and retain its
+read-only output; (2) after explicit live approval, execute the forward package
+once; (3) execute validation and retain its output; (4) enable only the selected
+server gate; (5) run authenticated smoke tests; and (6) if rollback is approved,
+disable both gates first and execute the rollback package only when its empty-audit
+guard passes. The equivalent commands are:
+
+```bash
+psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/20260804_attendance_multi_check_admin_mutations_forward.sql
+psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/20260804_attendance_multi_check_admin_mutations_validation.sql
+psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/20260804_attendance_multi_check_admin_mutations_rollback.sql
+```
+
+In SQL Editor, paste the same files in that order, one file per transaction; do
+not combine forward and rollback. Never replay the package or run a backfill.
+The rollback package refuses to drop non-empty audit history and requires both
+gates disabled first.
+
+Enabled smoke must prove one aggregate row through check-in → check-out →
+continuation check-in → check-out, earliest/latest aggregation including the
+break, approved conversion boundaries, next-shift availability, and exactly one
+audited Admin create/update/cancellation. Unauthorized Admin, view-only Admin,
+duplicate, overlap, missing-reason, and browser/RPC privilege attempts must
+fail. Retain redacted timestamps, row IDs, operation, reason, actor, correlation
+ID, and validation output; never retain credentials or raw database errors.

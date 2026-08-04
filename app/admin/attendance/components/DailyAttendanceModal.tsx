@@ -28,11 +28,20 @@ interface DailyAttendanceModalProps {
   showToast: (title: string, message: string, type: ToastType) => void;
   showConfirm: (title: string, message: string, onConfirm: () => void) => void;
   canAdjust: boolean;
+  auditEvents: AttendanceAuditEvent[];
 }
 
 interface EditRow {
   check_in: string;
   check_out: string;
+}
+
+interface AttendanceAuditEvent {
+  id: number | string;
+  operation: string;
+  reason: string;
+  correlation_id: string;
+  occurred_at: string;
 }
 
 function getRecordKey(recordId: number | string): string {
@@ -51,11 +60,13 @@ export default function DailyAttendanceModal({
   showToast,
   showConfirm,
   canAdjust,
+  auditEvents,
 }: DailyAttendanceModalProps) {
   const [editRows, setEditRows] = useState<Record<string, EditRow>>({});
   const [newShift, setNewShift] = useState('');
   const [newIn, setNewIn] = useState('');
   const [newOut, setNewOut] = useState('');
+  const [adjustmentReason, setAdjustmentReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const myRecords = useMemo(() => existingRecords.filter((record) => {
@@ -86,6 +97,7 @@ export default function DailyAttendanceModal({
     setNewShift(shifts[0]?.shift_name || '');
     setNewIn('');
     setNewOut('');
+    setAdjustmentReason('');
   }, [isOpen, myRecords, shifts]);
 
   if (!isOpen || !dateStr) return null;
@@ -112,6 +124,11 @@ export default function DailyAttendanceModal({
         return;
       }
 
+      if (adjustmentReason.trim().length < 10) {
+        showToast('Thiếu lý do', 'Lý do điều chỉnh phải có ít nhất 10 ký tự.', 'error');
+        return;
+      }
+
       await updateAttendanceRecordTime({
         recordId,
         employeeId: targetRecord.employee_id,
@@ -120,6 +137,7 @@ export default function DailyAttendanceModal({
         checkIn: rowData.check_in,
         checkOut: rowData.check_out,
         hourlyRate: baseHourlyRate,
+        reason: adjustmentReason.trim(),
       });
 
       showToast('Thành công', 'Đã cập nhật giờ công.', 'success');
@@ -143,11 +161,16 @@ export default function DailyAttendanceModal({
       return;
     }
 
+    if (adjustmentReason.trim().length < 10) {
+      showToast('Thiếu lý do', 'Lý do điều chỉnh phải có ít nhất 10 ký tự.', 'error');
+      return;
+    }
+
     showConfirm('Xác nhận xóa', `Bạn có chắc chắn muốn xóa bản ghi [${shiftName}] này không?`, async () => {
       setIsSubmitting(true);
 
       try {
-        await deleteAttendanceRecord(recordId);
+        await deleteAttendanceRecord(recordId, adjustmentReason.trim());
         showToast('Đã xóa', 'Bản ghi chấm công đã được gỡ bỏ.', 'info');
         onReload();
       } catch (error) {
@@ -202,12 +225,14 @@ export default function DailyAttendanceModal({
         checkIn: newIn,
         checkOut: newOut,
         hourlyRate: baseHourlyRate,
+        reason: adjustmentReason.trim(),
       });
 
       showToast('Thành công', 'Đã bổ sung ca làm việc.', 'success');
       onReload();
       setNewIn('');
       setNewOut('');
+      setAdjustmentReason('');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể bổ sung ca làm việc.';
       showToast('Lỗi', message, 'error');
@@ -228,8 +253,32 @@ export default function DailyAttendanceModal({
             <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
               CHI TIẾT CÔNG CA NGÀY
             </h2>
-            <p className="text-[11px] text-slate-400 font-medium mt-1">{displayDate}</p>
-          </div>
+          <p className="text-[11px] text-slate-400 font-medium mt-1">{displayDate}</p>
+          {canAdjust && (
+            <label className="mt-3 block text-[10px] text-slate-400">
+              Lý do điều chỉnh (bắt buộc)
+              <textarea
+                value={adjustmentReason}
+                onChange={(event) => setAdjustmentReason(event.target.value)}
+                rows={2}
+                className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-blue-500"
+                placeholder="Nhập ít nhất 10 ký tự"
+              />
+           </label>
+          )}
+          {auditEvents.length > 0 && (
+            <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/60 p-2 text-[10px] text-slate-400">
+              <p className="font-bold text-slate-300">Lịch sử điều chỉnh</p>
+              <div className="mt-1 max-h-24 space-y-1 overflow-y-auto">
+                {auditEvents.slice(0, 8).map((event) => (
+                  <p key={event.id}>
+                    {event.operation} · {event.reason} · {new Date(event.occurred_at).toLocaleString('vi-VN')}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-white transition p-1">
             <X className="w-5 h-5" />
           </button>

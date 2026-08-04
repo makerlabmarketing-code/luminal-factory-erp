@@ -460,3 +460,22 @@ read-only. No recovery, SQL, migration, RLS, backfill, Auth/Employee/permission,
 runtime, or production data mutation belongs to this slice. Do not mark the
 Attendance gate passed until protected-main deployment is verified and the
 manual incognito Staff entry plus Staff/Admin converted-shift retest passes.
+
+## 2026-08-04 — Attendance multi-check and Admin mutation preparation
+
+Status: `LIVE_APPROVAL_REQUIRED`. The bounded application contract now supports
+the approved same-date/same-shift continuation model: one active aggregate row,
+earliest valid check-in, latest valid check-out, elapsed duration including
+breaks, and the approved one/ two/ three converted-shift thresholds. The Staff
+client applies the returned aggregate row locally, avoiding a second visible
+full-loading cycle. Admin manual create/update/delete is independently gated
+from recovery, requires `ATTENDANCE_MANAGE` and an adjustment reason, and calls
+an audited atomic RPC contract; deletion is a reasoned cancellation.
+
+The application gates remain false/unset. Draft-only SQL prepares an active-row
+partial unique index, an RLS-protected operation audit table, and server-owned
+Staff/Admin RPCs. No migration, RPC activation, RLS change, backfill, existing
+row repair, runtime activation, or production Attendance/Payroll mutation has
+occurred. Before any activation, run the read-only preflight, confirm zero
+duplicate active Employee/date/shift groups, review the forward/rollback package,
+and obtain explicit `LIVE_APPROVAL_REQUIRED` for execution and post-run checks.

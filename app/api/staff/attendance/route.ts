@@ -24,6 +24,7 @@ import {
   type ServerEmployee,
 } from '@/services/server/auth';
 import { loadFacilityDirectory } from '@/services/server/facilityDirectory';
+import { isAttendanceMultiCheckEnabled } from '@/lib/attendanceManualMutationGate';
 
 const ATTENDANCE_SELECT =
   'id, employee_id, work_date, shift_name, check_in, check_out, total_hours, total_salary, status, cancelled_at';
@@ -89,6 +90,7 @@ async function getOpenAttendanceRecord(employeeId: number | string, workDate?: s
     .from('attendance')
     .select(ATTENDANCE_SELECT)
     .eq('employee_id', employeeId)
+    .is('cancelled_at', null)
     .is('check_out', null)
     .not('check_in', 'is', null)
     .order('work_date', { ascending: false })
@@ -118,6 +120,7 @@ async function getAttendanceRecordByShift(
     .eq('employee_id', employeeId)
     .eq('work_date', workDate)
     .eq('shift_name', shiftName)
+    .is('cancelled_at', null)
     .order('id', { ascending: true })
     .limit(1);
 
@@ -230,6 +233,9 @@ async function loadAttendancePayload(
     staleOpenShift: shiftState === 'STALE_OPEN_SHIFT' ? openRecord : null,
     todayRecord: currentShiftRecord || null,
     isInShift: shiftState === 'ACTIVE_SHIFT_TODAY',
+    capabilities: {
+      multiCheckEnabled: isAttendanceMultiCheckEnabled(),
+    },
     attendanceHistory: attendancePayload.attendanceRecords,
     sourceCounts: attendancePayload.sourceCounts,
   };
@@ -300,6 +306,24 @@ function assertKnownPostFields(body: Record<string, unknown>) {
       'Dữ liệu chấm công không hợp lệ.'
     );
   }
+}
+
+async function runMultiCheckMutation(params: {
+  action: 'check_in' | 'check_out';
+}) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('staff_attendance_multi_mutation', {
+    p_action: params.action,
+  });
+
+  if (error) throw error;
+
+  const record = (Array.isArray(data) ? data[0] : data) as AttendanceRecord | null;
+  if (!record) {
+    throw new StaffAttendanceError(409, 'attendance_shift_changed', 'Ca làm đã thay đổi. Vui lòng tải lại dữ liệu.');
+  }
+
+  return record;
 }
 
 export async function GET(request: Request) {
@@ -374,6 +398,21 @@ export async function POST(request: Request) {
     }
 
     if (action === 'check_out') {
+      if (isAttendanceMultiCheckEnabled() && openRecord) {
+        const data = await runMultiCheckMutation({
+          action,
+        });
+
+        revalidatePath('/staff/attendance');
+        return NextResponse.json({
+          success: true,
+          code: 'attendance_checked_out',
+          message: `Đã tan ca [${openRecord.shift_name}] thành công.`,
+          record: data,
+          capabilities: { multiCheckEnabled: true },
+        });
+      }
+
       if (!openRecord) {
         throw new StaffAttendanceError(
           409,
@@ -409,14 +448,12 @@ export async function POST(request: Request) {
       }
 
       revalidatePath('/staff/attendance');
-      const attendance = await loadAttendancePayload(authContext.employee, monthInput, now);
-
       return NextResponse.json({
         success: true,
         code: 'attendance_checked_out',
         message: `Đã tan ca [${openRecord.shift_name}] thành công.`,
         record: data,
-        attendance,
+        capabilities: { multiCheckEnabled: false },
       });
     }
 
@@ -434,7 +471,7 @@ export async function POST(request: Request) {
       currentShift
     );
 
-    if (existingShift) {
+    if (existingShift && !isAttendanceMultiCheckEnabled()) {
       throw new StaffAttendanceError(
         409,
         'attendance_already_checked_out',
@@ -486,12 +523,29 @@ export async function POST(request: Request) {
       todayStr,
       currentShift
     );
-    if (openRecordAfterLocation || existingShiftAfterLocation) {
+    if (openRecordAfterLocation || (existingShiftAfterLocation && !isAttendanceMultiCheckEnabled())) {
       throw new StaffAttendanceError(
         409,
         'attendance_already_checked_in',
         'Ca làm đã được ghi nhận. Vui lòng tải lại dữ liệu.'
       );
+    }
+
+    if (isAttendanceMultiCheckEnabled()) {
+      const data = await runMultiCheckMutation({
+        action,
+      });
+
+      revalidatePath('/staff/attendance');
+      return NextResponse.json({
+        success: true,
+        code: 'attendance_checked_in',
+        message: existingShift
+          ? `Đã tiếp tục ca [${currentShift}] lúc ${timeStr}.`
+          : `Đã ghi nhận [${currentShift}] lúc ${timeStr}.`,
+        record: data,
+        capabilities: { multiCheckEnabled: true },
+      });
     }
 
     const { data, error } = await supabase
@@ -511,14 +565,12 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     revalidatePath('/staff/attendance');
-    const attendance = await loadAttendancePayload(authContext.employee, monthInput, now);
-
     return NextResponse.json({
       success: true,
       code: 'attendance_checked_in',
       message: `Đã ghi nhận [${currentShift}] lúc ${timeStr}.`,
       record: data,
-      attendance,
+      capabilities: { multiCheckEnabled: false },
     });
   } catch (error) {
     return toStaffAttendanceErrorResponse(error);
