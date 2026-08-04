@@ -142,6 +142,7 @@ export default function DailyAttendanceModal({
 
       showToast('Thành công', 'Đã cập nhật giờ công.', 'success');
       onRecordChanged(record, 'update');
+      onClose();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể cập nhật giờ công.';
       showToast('Lỗi', message, 'error');
@@ -173,6 +174,7 @@ export default function DailyAttendanceModal({
         const record = await deleteAttendanceRecord(recordId, adjustmentReason.trim());
         showToast('Đã xóa', 'Bản ghi chấm công đã được gỡ bỏ.', 'info');
         onRecordChanged(record, 'delete');
+        onClose();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Không thể xóa bản ghi.';
         showToast('Lỗi', message, 'error');
@@ -230,9 +232,7 @@ export default function DailyAttendanceModal({
 
       showToast('Thành công', 'Đã bổ sung ca làm việc.', 'success');
       onRecordChanged(record, 'create');
-      setNewIn('');
-      setNewOut('');
-      setAdjustmentReason('');
+      onClose();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể bổ sung ca làm việc.';
       showToast('Lỗi', message, 'error');

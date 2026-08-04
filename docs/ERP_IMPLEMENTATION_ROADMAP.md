@@ -485,3 +485,19 @@ and obtain explicit `LIVE_APPROVAL_REQUIRED` for execution and post-run checks.
 Status: `READY_FOR_TABLE_LOCAL_LOADING_RETEST`. PR A establishes one presentation-only shared data-table system and migrates Staff Attendance history plus Admin Attendance calendar/daily-modal refresh behavior. Staff mutations continue to patch the authoritative aggregate response with no success GET. Admin manual create/update/cancellation patch the returned row locally, preserving the selected date and modal; month/employee changes remain one scoped GET. Employee, Projects/tasks, and Finance are deliberately deferred to bounded follow-up PRs documented in `shared-data-table-guidance.md`.
 
 No SQL, migration, RLS, runtime gate, recovery action, production Attendance mutation, or manual deployment occurred. Attendance recovery remains disabled.
+
+## 2026-08-04 — Admin Attendance manual-entry production blocker
+
+Status: `READY_FOR_OPERATOR_RETEST`. The Admin Attendance payload now keeps the
+database `shifts` directory as its configured source and falls back, only when
+that directory is empty, to the same morning/afternoon/evening definitions owned
+by the Attendance shift resolver. Successful manual create/update/cancellation
+patches the returned row into the selected day and closes the modal; validation
+and API failures leave the modal and entered values visible. Notification
+updates no longer change the GET callback identity, so a mutation toast cannot
+trigger a page-wide Attendance reload. Month and Employee filter state remain
+untouched.
+
+No SQL, schema, RLS, runtime-gate, RPC, Payroll, audit-contract, or production
+Attendance mutation was performed. Operator retest remains required with the
+already-approved runtime environment.

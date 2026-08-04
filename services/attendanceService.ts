@@ -15,6 +15,17 @@ import type { Employee } from '@/lib/types/employee';
 
 const SHIFT_MINUTES = 180;
 
+/**
+ * Default Attendance business configuration used by the shift resolver.
+ * The database `shifts` directory may override this list when it is populated.
+ */
+export const DEFAULT_ATTENDANCE_SHIFTS: readonly Shift[] = [
+  { id: 'default-morning', shift_name: 'Ca Sáng', start_time: '06:00:00', end_time: '12:00:00' },
+  { id: 'default-afternoon', shift_name: 'Ca Chiều', start_time: '12:00:00', end_time: '18:00:00' },
+  // The resolver also maps 00:00-05:59 here; keep the end unset until an overnight policy is approved.
+  { id: 'default-evening', shift_name: 'Ca Tối', start_time: '18:00:00', end_time: null },
+] as const;
+
 export type AttendanceShiftState =
   | 'NO_OPEN_SHIFT'
   | 'ACTIVE_SHIFT_TODAY'
@@ -59,10 +70,10 @@ function getBusinessTimeParts(instant: Date): { hour: number; minute: number } {
 export function getAttendanceShiftName(instant: Date): string {
   const { hour } = getBusinessTimeParts(instant);
 
-  if (hour >= 6 && hour < 12) return 'Ca Sáng';
-  if (hour >= 12 && hour < 18) return 'Ca Chiều';
+  if (hour >= 6 && hour < 12) return DEFAULT_ATTENDANCE_SHIFTS[0].shift_name;
+  if (hour >= 12 && hour < 18) return DEFAULT_ATTENDANCE_SHIFTS[1].shift_name;
 
-  return 'Ca Tối';
+  return DEFAULT_ATTENDANCE_SHIFTS[2].shift_name;
 }
 
 async function createBrowserDataClient() {
