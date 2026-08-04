@@ -385,3 +385,14 @@ prevents raw provider-error disclosure. Existing workspace routing and
 Attendance business behavior remain unchanged. `REVIEW_SOURCE_UNAVAILABLE`:
 hosted Codex review findings and unresolved pull-request conversations are not
 exposed in this environment.
+
+## 2026-08-04 Facility reconciliation and Vietnamese geocoding review
+
+`REVIEW_SOURCE_UNAVAILABLE`: hosted Codex review findings and unresolved pull-request conversations are not exposed in this environment. The production evidence supplied for this task, current Facility UI/API/service flow, geocoding helper, shared Admin list loader, repository guidance, focused regression tests, and full validation supplied the available review evidence.
+
+| Finding | Classification | Evidence | Remediation / status |
+| --- | --- | --- | --- |
+| Successful Facility mutations waited for a second full-list GET before the table could change. | ACTIONABLE / P2_PRODUCTION_DEFECT | The API already returned authoritative create/update rows, but the client discarded them and called `loadFacilities()`; delete returned no ID. | Reconcile returned records locally by stable ID, return/reconcile the deleted ID, and remove mutation-triggered GET requests. The modal closes only after a confirmed authoritative response; failures retain form state. |
+| The geocoder submitted one raw query, accepted the first result, and blindly exposed provider/network text. | ACTIONABLE / P2_PRODUCTION_DEFECT | The helper used `encodeURIComponent(address)`, `limit=1`, and `data[0]` without Vietnam normalization, coordinate validation, or relevance scoring. | Added bounded search-only Vietnamese candidates, contextual `P.` interpretations, `URLSearchParams`, VN restriction, scored selection, typed safe failures, duplicate-click locking, and compact weak-result confirmation without changing the stored address or automatically saving. |
+
+Self-review found no actionable P0/P1 issue in this bounded application-only change. No SQL, schema/RLS/grant change, production Facility mutation, runtime activation, provider key, deployment, or production smoke test was performed.
