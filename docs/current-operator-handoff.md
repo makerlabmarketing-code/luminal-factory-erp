@@ -405,3 +405,17 @@ backfilled by the package.
 ## Shared table / Attendance local-loading retest (2026-08-04)
 
 The current application slice is `READY_FOR_TABLE_LOCAL_LOADING_RETEST`. Review `shared-data-table-guidance.md` for the inventory and boundaries. Retest Staff initial history loading and month refresh without a card/shell reset, then verify check-in/out only updates the current aggregate card and local history. Retest Admin month/employee changes plus create/update/cancellation with the daily modal and selected date stable. Do not perform production Attendance mutations from Codex Cloud; any manual mutation remains separately operator-approved and runtime-gated. Recovery remains disabled. Employee, Projects/tasks, and Finance table migrations are not part of this PR.
+
+### Admin manual-entry blocker follow-up
+
+Status: `READY_FOR_OPERATOR_RETEST`. The empty production `shifts` result now
+uses the existing Attendance resolver's default three-shift configuration while
+still preferring configured database rows. Retest that the selector shows
+`Ca Sáng`, `Ca Chiều`, and `Ca Tối`; a failed save preserves the modal and form;
+and a confirmed save closes the modal while updating only the affected calendar
+day and summaries. Also verify the selected month and Employee filter remain
+unchanged and that `Đang tải dữ liệu chấm công...` does not replace the page.
+
+Codex Cloud did not execute SQL, alter schema/RLS/runtime gates, call the live
+mutation RPC, or mutate production Attendance. Payroll calculation and immutable
+audit/RPC contracts are unchanged.

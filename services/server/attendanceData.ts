@@ -8,6 +8,7 @@ import {
   formatBusinessDateInput,
 } from '@/lib/business-date';
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
+import { DEFAULT_ATTENDANCE_SHIFTS } from '@/services/attendanceService';
 import type { Employee } from '@/lib/types/employee';
 import {
   type AttendanceScopeSummary,
@@ -285,7 +286,9 @@ export async function loadAttendanceData(params: {
 
   return {
     employees: (employeeResult?.data || []) as Employee[],
-    shifts: (shiftResult?.data || []) as Shift[],
+    shifts: shiftResult?.data?.length
+      ? (shiftResult.data as Shift[])
+      : DEFAULT_ATTENDANCE_SHIFTS.map((shift) => ({ ...shift })),
     attendanceRecords: mergedRecords,
     sourceCounts: {
       attendance: attendanceRecords.length,

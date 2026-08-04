@@ -1,6 +1,6 @@
 // component/NotificationContext.tsx
 'use client';
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Info, CheckCircle2, HelpCircle, AlertCircle } from 'lucide-react';
 import { OVERLAY_Z_INDEX } from '@/lib/constants/overlays';
@@ -43,7 +43,7 @@ export function NotificationProvider({
     show: false, title: '', desc: '', onConfirm: () => {}, cancelLabel: 'Hủy bỏ', confirmLabel: 'Xác nhận'
   });
 
-  const showToast = (
+  const showToast = useCallback((
     title: string,
     desc: string,
     type: ToastType = 'success',
@@ -66,9 +66,9 @@ export function NotificationProvider({
       }, options.durationMs ?? (type === 'success' ? 4500 : 9000));
       toastTimers.current.set(id, timer);
     }
-  };
+  }, []);
 
-  const showConfirm = (title: string, desc: string, onConfirm: () => void, labels: { cancelLabel?: string; confirmLabel?: string } = {}) => {
+  const showConfirm = useCallback((title: string, desc: string, onConfirm: () => void, labels: { cancelLabel?: string; confirmLabel?: string } = {}) => {
     setConfirm({
       show: true,
       title,
@@ -80,7 +80,9 @@ export function NotificationProvider({
       cancelLabel: labels.cancelLabel || 'Hủy bỏ',
       confirmLabel: labels.confirmLabel || 'Xác nhận',
     });
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({ showToast, showConfirm }), [showConfirm, showToast]);
 
   useEffect(() => {
     setMounted(true);
@@ -180,7 +182,7 @@ export function NotificationProvider({
   );
 
   return (
-    <NotificationContext.Provider value={{ showToast, showConfirm }}>
+    <NotificationContext.Provider value={contextValue}>
       {children}
       {mounted ? createPortal(notificationLayer, document.body) : null}
     </NotificationContext.Provider>
