@@ -313,28 +313,43 @@ export default function AdminProjectManagement() {
   const targetDateRef = useRef<HTMLInputElement>(null);
   const managerRef = useRef<HTMLSelectElement>(null);
   const loadPromiseRef = useRef<Promise<void> | null>(null);
+  const creationOptionsPromiseRef = useRef<Promise<void> | null>(null);
+  const creationOptionsLoadedRef = useRef(false);
+  const createProjectLockRef = useRef(false);
   const [cancellingProjectId, setCancellingProjectId] = useState<number | null>(null);
   const [creationStage, setCreationStage] = useState('');
   const [taskDetails, setTaskDetails] = useState<Record<string, { employeeId: string; deadline: string; note: string }>>({});
   const [draftStages, setDraftStages] = useState<StageTemplate[]>(() => PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage) => ({ ...stage, taskNames: [...stage.taskNames] })));
 
-  const loadCreationOptions = async () => {
+  const loadCreationOptions = () => {
+    if (creationOptionsLoadedRef.current) return Promise.resolve();
+    if (creationOptionsPromiseRef.current) return creationOptionsPromiseRef.current;
+
     setEmployeeLoadState('loading');
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-    try {
-      const response = await fetch('/api/admin/projects', { cache: 'no-store', signal: controller.signal });
-      const payload = await response.json().catch(() => null) as { employees?: Array<{ employeeId: number; fullName: string; title: string | null }>; workflowCreationAvailable?: boolean; message?: string } | null;
-      if (!response.ok) throw new Error(payload?.message || 'employee_candidates_failed');
-      setEmployeeCandidates(payload?.employees || []);
-      setWorkflowCreationAvailable(payload?.workflowCreationAvailable === true);
-      setEmployeeLoadState('success');
-    } catch {
-      setEmployeeCandidates([]);
-      setEmployeeLoadState('error');
-    } finally {
-      clearTimeout(timeout);
-    }
+    const request = Promise.resolve().then(async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+      try {
+        const response = await fetch('/api/admin/projects', { cache: 'no-store', signal: controller.signal });
+        const payload = await response.json().catch(() => null) as { employees?: Array<{ employeeId: number; fullName: string; title: string | null }>; workflowCreationAvailable?: boolean; message?: string } | null;
+        if (!response.ok) throw new Error(payload?.message || 'employee_candidates_failed');
+        setEmployeeCandidates(payload?.employees || []);
+        setWorkflowCreationAvailable(payload?.workflowCreationAvailable === true);
+        creationOptionsLoadedRef.current = true;
+        setEmployeeLoadState('success');
+      } catch (error) {
+        creationOptionsLoadedRef.current = false;
+        setEmployeeCandidates([]);
+        setEmployeeLoadState('error');
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+        creationOptionsPromiseRef.current = null;
+      }
+    });
+    creationOptionsPromiseRef.current = request;
+    void request.catch(() => undefined);
+    return request;
   };
 
   const openCreateModal = () => {
@@ -396,6 +411,7 @@ export default function AdminProjectManagement() {
   ];
 
   const handleCreateProject = async () => {
+    if (createProjectLockRef.current) return;
     if (isCreatingProject) return;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -413,6 +429,7 @@ export default function AdminProjectManagement() {
       return;
     }
 
+    createProjectLockRef.current = true;
     setIsCreatingProject(true);
     setCreationStage('Đang tạo dự án...');
     try {
@@ -483,6 +500,7 @@ export default function AdminProjectManagement() {
     } catch (error) {
       showToast('Không thể tạo dự án.', projectCreateErrorMessage(error), 'error');
     } finally {
+      createProjectLockRef.current = false;
       setIsCreatingProject(false);
       setCreationStage('');
     }

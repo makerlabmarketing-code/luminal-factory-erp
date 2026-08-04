@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -388,6 +388,8 @@ export default function ProjectDetailPage() {
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [candidateEmployees, setCandidateEmployees] = useState<Array<{ employeeId: number; fullName: string; title: string | null }>>([]);
   const [candidateEmployeesLoaded, setCandidateEmployeesLoaded] = useState(false);
+  const candidateLoadPromiseRef = useRef<Promise<void> | null>(null);
+  const memberMutationLockRef = useRef(false);
   const [memberEmployeeId, setMemberEmployeeId] = useState('');
   const [memberRoleCode, setMemberRoleCode] = useState<ProjectMemberDTO['roleCode']>('CONTRIBUTOR');
   const [projectCapabilities, setProjectCapabilities] = useState<ProjectCapabilitiesDTO>({
@@ -644,9 +646,11 @@ export default function ProjectDetailPage() {
 
 
   const loadCandidateEmployees = async () => {
-    if (candidateEmployeesLoaded || membersLoading) return;
+    if (candidateEmployeesLoaded) return;
+    if (candidateLoadPromiseRef.current) return candidateLoadPromiseRef.current;
     setMembersLoading(true);
-    try {
+    const request = (async () => {
+      try {
       const response = await fetch(`/api/admin/projects/${projectId}/members?scope=candidates`, { cache: 'no-store' });
       if (!response.ok) throw new Error('employee_load_failed');
       const payload = await response.json() as { candidates?: Array<{ employeeId: number; fullName: string; title: string | null }> };
@@ -656,7 +660,11 @@ export default function ProjectDetailPage() {
       showToast('Không thể tải danh sách nhân sự.', 'Vui lòng thử lại sau.', 'error');
     } finally {
       setMembersLoading(false);
+      candidateLoadPromiseRef.current = null;
     }
+    })();
+    candidateLoadPromiseRef.current = request;
+    return request;
   };
 
   const openAddMemberModal = async () => {
@@ -676,7 +684,8 @@ export default function ProjectDetailPage() {
   };
 
   const handleAddMember = async () => {
-    if (!canManageMembers || memberActionLoading) return;
+    if (!canManageMembers || memberActionLoading || memberMutationLockRef.current) return;
+    memberMutationLockRef.current = true;
     setMemberActionLoading(true);
     try {
       const response = await fetch(`/api/admin/projects/${projectId}/members`, {
@@ -693,14 +702,16 @@ export default function ProjectDetailPage() {
     } catch (error) {
       showToast('Không thể thêm thành viên.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
     } finally {
+      memberMutationLockRef.current = false;
       setMemberActionLoading(false);
     }
   };
 
   const handleChangeRole = async (member: ProjectMemberDTO) => {
-    if (!canManageMembers || memberActionLoading) return;
+    if (!canManageMembers || memberActionLoading || memberMutationLockRef.current) return;
     const nextRole = window.prompt('Nhập role mới: PROJECT_OWNER, PROJECT_MANAGER, CREATIVE_LEAD hoặc CONTRIBUTOR', member.roleCode);
     if (!nextRole) return;
+    memberMutationLockRef.current = true;
     setMemberActionLoading(true);
     try {
       const response = await fetch(`/api/admin/projects/${projectId}/members/${member.membershipId}`, {
@@ -715,13 +726,16 @@ export default function ProjectDetailPage() {
     } catch (error) {
       showToast('Không thể đổi vai trò.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
     } finally {
+      memberMutationLockRef.current = false;
       setMemberActionLoading(false);
     }
   };
 
   const handleRevokeMember = (member: ProjectMemberDTO) => {
-    if (!canManageMembers || memberActionLoading) return;
+    if (!canManageMembers || memberActionLoading || memberMutationLockRef.current) return;
     showConfirm('Thu hồi thành viên', 'Thành viên sẽ không còn hoạt động trong dự án, lịch sử vẫn được giữ lại.', async () => {
+      if (memberMutationLockRef.current) return;
+      memberMutationLockRef.current = true;
       setMemberActionLoading(true);
       try {
         const response = await fetch(`/api/admin/projects/${projectId}/members/${member.membershipId}/revoke`, { method: 'POST' });
@@ -732,6 +746,7 @@ export default function ProjectDetailPage() {
       } catch (error) {
         showToast('Không thể thu hồi thành viên.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
       } finally {
+        memberMutationLockRef.current = false;
         setMemberActionLoading(false);
       }
     });

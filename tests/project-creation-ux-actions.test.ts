@@ -34,6 +34,7 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     for (const page of [projectPage]) {
       expect(page).toMatch(/aria-busy="true"/);
       expect(page).toMatch(/Đang khởi tạo dự án/);
+      expect(page).toMatch(/if \(createProjectLockRef\.current\) return/);
       expect(page).toMatch(/if \(isCreatingProject\) return/);
       expect(page).toMatch(/disabled=\{isCreatingProject\}/);
     }

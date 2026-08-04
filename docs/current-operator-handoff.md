@@ -470,3 +470,48 @@ the afternoon active card and `Kết thúc ca` are visible, attempt a rejected
 evening Start, check out the afternoon session, verify evening `Bắt đầu ca`
 appears, refresh while an earlier session is open, and verify duplicate clicks
 produce only one request.
+
+## 2026-08-05 Project Membership Slice 0 baseline
+
+Status: `OPERATOR_QUERY_REQUIRED` for live Project Membership schema/RLS and
+runtime confirmation. The repository audit is complete on
+`codex/project-membership-baseline`; Attendance remains out of scope.
+
+Authority: `project_members.project_id` + `project_members.employee_id` + an
+ACTIVE role row. The server derives the actor from the authenticated Employee.
+The approved role codes are `PROJECT_OWNER`, `PROJECT_MANAGER`,
+`CREATIVE_LEAD`, and `CONTRIBUTOR`; revoke is soft and historical. Admin global
+view/manage requires the server-side workspace and permission checks. Project
+Manager membership can manage members; Creative Lead and Contributor are
+view-only at this boundary.
+
+Known blockers for later slices:
+
+- compatibility project creation can persist a project before its manager
+  membership and return a warning;
+- role replacement is two writes and needs an atomic mutation boundary;
+- database uniqueness currently needs confirmation for one active role per
+  Employee/project regardless of role code;
+- membership audit lacks reason, correlation, and before/after event records;
+- the legacy Staff task loader is not assignment-scoped through a server read
+  model and must not be expanded in Project Detail Slice 0.
+
+The exact read-only package is
+`supabase/validation/20260805_project_membership_baseline_readonly.sql`.
+Do not run production SQL, migrations, backfills, RLS changes, RPC deployment,
+or live project/membership mutations automatically.
+
+Manual next check after the operator returns the package output:
+
+1. Confirm `public.project_members`, its Employee/project foreign keys, RLS,
+   policies, grants, and the active-role unique index match the repository
+   authority.
+2. Confirm duplicate active Employee/project groups, active memberships for
+   inactive Employees, projects without owners, and task assignments without
+   active membership are all zero or explicitly reviewed.
+3. Confirm `projects.project_code` exists, is non-blank and unique, and record
+   the `create_project_atomic` function privilege state.
+
+Paste the redacted result sets back with table names, counts, policy/index
+definitions, function privilege booleans, and no tokens, cookies, connection
+strings, Employee PII, or raw database secrets.
