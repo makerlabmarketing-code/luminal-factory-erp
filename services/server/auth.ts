@@ -50,6 +50,7 @@ export type AuthFlowErrorCode =
   | 'attendance_manual_mutation_disabled'
   | 'attendance_reason_required'
   | 'attendance_invalid_time_order'
+  | 'attendance_invalid_mutation'
   | 'admin_verification_failed'
   | 'employee_list_load_failed'
   | 'employee_detail_load_failed'
@@ -378,7 +379,7 @@ export async function requireWorkspaceAccess(
     throw new AuthFlowError({
       status: 500,
       code: 'admin_verification_failed',
-      message: 'Không thể xác minh quyền truy cập. Vui lòng thử lại.',
+      message: 'KhÃ´ng thá»ƒ xÃ¡c minh quyá»n truy cáº­p. Vui lÃ²ng thá»­ láº¡i.',
       failureStage: 'workspace_access',
       safeDetails: workspaceResult.safeDetails,
     });
@@ -393,7 +394,7 @@ export async function requireWorkspaceAccess(
     throw new AuthFlowError({
       status: 403,
       code: 'workspace_forbidden',
-      message: 'Tài khoản chưa được cấp quyền truy cập.',
+      message: 'TÃ i khoáº£n chÆ°a Ä‘Æ°á»£c cáº¥p quyá»n truy cáº­p.',
       failureStage: 'workspace_access',
       safeDetails: {
         workspace_code: workspaceCode,
@@ -421,7 +422,7 @@ export async function requirePermission(permissionCode: string): Promise<AuthCon
     throw new AuthFlowError({
       status: 500,
       code: 'admin_verification_failed',
-      message: 'Không thể xác minh quyền truy cập. Vui lòng thử lại.',
+      message: 'KhÃ´ng thá»ƒ xÃ¡c minh quyá»n truy cáº­p. Vui lÃ²ng thá»­ láº¡i.',
       failureStage: 'permission_check',
       safeDetails: permissionResult.safeDetails,
     });
@@ -431,7 +432,7 @@ export async function requirePermission(permissionCode: string): Promise<AuthCon
     throw new AuthFlowError({
       status: 403,
       code: 'permission_forbidden',
-      message: 'Bạn không có quyền thực hiện thao tác này.',
+      message: 'Báº¡n khÃ´ng cÃ³ quyá»n thá»±c hiá»‡n thao tÃ¡c nÃ y.',
       failureStage: 'permission_check',
       safeDetails: {
         permission_check_result: 'denied',
@@ -569,7 +570,7 @@ async function requireAuthenticatedEmployeeWithSelect(employeeSelect: string): P
       throw new AuthFlowError({
         status: 404,
         code: 'employee_not_linked',
-        message: 'Tài khoản chưa được liên kết với nhân viên.',
+        message: 'TÃ i khoáº£n chÆ°a Ä‘Æ°á»£c liÃªn káº¿t vá»›i nhÃ¢n viÃªn.',
         failureStage: result.failureStage,
         safeDetails: result.safeDetails,
       });
@@ -579,7 +580,7 @@ async function requireAuthenticatedEmployeeWithSelect(employeeSelect: string): P
       throw new AuthFlowError({
         status: 403,
         code: 'employee_inactive',
-        message: 'Bạn không có quyền truy cập khu vực quản trị.',
+        message: 'Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p khu vá»±c quáº£n trá»‹.',
         failureStage: result.failureStage,
         safeDetails: result.safeDetails,
       });
@@ -589,7 +590,7 @@ async function requireAuthenticatedEmployeeWithSelect(employeeSelect: string): P
       throw new AuthFlowError({
         status: 500,
         code: 'admin_verification_failed',
-        message: 'Không thể xác minh quyền quản trị. Vui lòng thử lại.',
+        message: 'KhÃ´ng thá»ƒ xÃ¡c minh quyá»n quáº£n trá»‹. Vui lÃ²ng thá»­ láº¡i.',
         failureStage: result.failureStage,
         safeDetails: result.safeDetails,
       });
@@ -598,7 +599,7 @@ async function requireAuthenticatedEmployeeWithSelect(employeeSelect: string): P
     throw new AuthFlowError({
       status: 401,
       code: 'session_not_verified',
-      message: 'Phiên đăng nhập chưa được xác nhận. Vui lòng đăng nhập lại.',
+      message: 'PhiÃªn Ä‘Äƒng nháº­p chÆ°a Ä‘Æ°á»£c xÃ¡c nháº­n. Vui lÃ²ng Ä‘Äƒng nháº­p láº¡i.',
       failureStage: result.failureStage,
       safeDetails: result.safeDetails,
     });
@@ -615,7 +616,7 @@ export async function requireAdminEmployee(): Promise<AuthContext> {
       throw new AuthFlowError({
         status: 404,
         code: 'employee_not_linked',
-        message: 'Tài khoản chưa được liên kết với nhân viên.',
+        message: 'TÃ i khoáº£n chÆ°a Ä‘Æ°á»£c liÃªn káº¿t vá»›i nhÃ¢n viÃªn.',
         failureStage: result.failureStage,
         safeDetails: result.safeDetails,
       });
@@ -625,7 +626,7 @@ export async function requireAdminEmployee(): Promise<AuthContext> {
       throw new AuthFlowError({
         status: 403,
         code: 'employee_inactive',
-        message: 'Bạn không có quyền truy cập khu vực quản trị.',
+        message: 'Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p khu vá»±c quáº£n trá»‹.',
         failureStage: result.failureStage,
         safeDetails: result.safeDetails,
       });
@@ -635,7 +636,7 @@ export async function requireAdminEmployee(): Promise<AuthContext> {
       throw new AuthFlowError({
         status: 500,
         code: 'admin_verification_failed',
-        message: 'Không thể xác minh quyền quản trị. Vui lòng thử lại.',
+        message: 'KhÃ´ng thá»ƒ xÃ¡c minh quyá»n quáº£n trá»‹. Vui lÃ²ng thá»­ láº¡i.',
         failureStage: result.failureStage,
         safeDetails: result.safeDetails,
       });
@@ -644,7 +645,7 @@ export async function requireAdminEmployee(): Promise<AuthContext> {
     throw new AuthFlowError({
       status: 401,
       code: 'session_not_verified',
-      message: 'Phiên đăng nhập chưa được xác nhận. Vui lòng đăng nhập lại.',
+      message: 'PhiÃªn Ä‘Äƒng nháº­p chÆ°a Ä‘Æ°á»£c xÃ¡c nháº­n. Vui lÃ²ng Ä‘Äƒng nháº­p láº¡i.',
       failureStage: result.failureStage,
       safeDetails: result.safeDetails,
     });
@@ -657,7 +658,7 @@ export async function requireAdminEmployee(): Promise<AuthContext> {
     throw new AuthFlowError({
       status: 403,
       code: 'admin_forbidden',
-      message: 'Bạn không có quyền truy cập khu vực quản trị.',
+      message: 'Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p khu vá»±c quáº£n trá»‹.',
       failureStage: 'workspace_access',
       safeDetails: {
         get_user_success: true,

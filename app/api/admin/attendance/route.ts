@@ -6,7 +6,6 @@ import { AttendanceDataError, loadAttendanceData } from '@/services/server/atten
 import { AuthFlowError, hasPermission, requireWorkspaceAccess } from '@/services/server/auth';
 import { isAttendanceManualMutationEnabled } from '@/lib/attendanceManualMutationGate';
 import {
-  normalizeAdminAttendanceCreateReason,
   normalizeRequiredAdminAttendanceReason,
 } from '@/lib/adminAttendanceReason';
 
@@ -19,7 +18,7 @@ async function requireAttendanceView() {
     throw new AuthFlowError({
       status: 403,
       code: 'permission_forbidden',
-      message: 'Bạn không có quyền xem dữ liệu chấm công.',
+      message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem dá»¯ liá»‡u cháº¥m cÃ´ng.',
       failureStage: 'permission_check',
     });
   }
@@ -32,7 +31,7 @@ async function requireAttendanceManage() {
     throw new AuthFlowError({
       status: 403,
       code: 'permission_forbidden',
-      message: 'Bạn không có quyền điều chỉnh chấm công.',
+      message: 'Báº¡n khÃ´ng cÃ³ quyá»n Ä‘iá»u chá»‰nh cháº¥m cÃ´ng.',
       failureStage: 'permission_check',
     });
   }
@@ -40,7 +39,7 @@ async function requireAttendanceManage() {
     throw new AuthFlowError({
       status: 503,
       code: 'attendance_manual_mutation_disabled',
-      message: 'Điều chỉnh chấm công đang chờ kích hoạt.',
+      message: 'Äiá»u chá»‰nh cháº¥m cÃ´ng Ä‘ang chá» kÃ­ch hoáº¡t.',
       failureStage: 'permission_check',
     });
   }
@@ -87,12 +86,12 @@ function toErrorResponse(error: unknown, action: AttendanceAction) {
     return NextResponse.json(
       {
         error: status === 409
-          ? 'Bản ghi chấm công đã thay đổi hoặc bị trùng. Vui lòng tải lại dữ liệu.'
+          ? 'Báº£n ghi cháº¥m cÃ´ng Ä‘Ã£ thay Ä‘á»•i hoáº·c bá»‹ trÃ¹ng. Vui lÃ²ng táº£i láº¡i dá»¯ liá»‡u.'
           : status === 404
-            ? 'Không tìm thấy hồ sơ liên quan đến bản ghi chấm công.'
+            ? 'KhÃ´ng tÃ¬m tháº¥y há»“ sÆ¡ liÃªn quan Ä‘áº¿n báº£n ghi cháº¥m cÃ´ng.'
             : status === 400
-              ? 'Dữ liệu điều chỉnh chấm công không hợp lệ.'
-              : action === 'load' ? 'Không thể tải dữ liệu chấm công.' : 'Không thể cập nhật dữ liệu chấm công.',
+              ? 'Dá»¯ liá»‡u Ä‘iá»u chá»‰nh cháº¥m cÃ´ng khÃ´ng há»£p lá»‡.'
+              : action === 'load' ? 'KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u cháº¥m cÃ´ng.' : 'KhÃ´ng thá»ƒ cáº­p nháº­t dá»¯ liá»‡u cháº¥m cÃ´ng.',
         code: publicCode,
         failure_stage: 'mutation',
       },
@@ -102,7 +101,7 @@ function toErrorResponse(error: unknown, action: AttendanceAction) {
 
   return NextResponse.json(
     {
-      error: action === 'load' ? 'Không thể tải dữ liệu chấm công.' : 'Không thể cập nhật dữ liệu chấm công.',
+      error: action === 'load' ? 'KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u cháº¥m cÃ´ng.' : 'KhÃ´ng thá»ƒ cáº­p nháº­t dá»¯ liá»‡u cháº¥m cÃ´ng.',
       code: action === 'load' ? 'attendance_load_failed' : 'attendance_update_failed',
       failure_stage: action === 'load' ? 'unknown_load_failure' : 'unknown_update_failure',
     },
@@ -111,11 +110,11 @@ function toErrorResponse(error: unknown, action: AttendanceAction) {
 }
 
 const requiredFieldMessages: Record<string, string> = {
-  employeeId: 'Vui lòng chọn nhân sự.',
-  workDate: 'Vui lòng chọn ngày chấm công.',
-  shiftName: 'Vui lòng chọn ca làm việc.',
-  checkIn: 'Vui lòng nhập giờ vào.',
-  checkOut: 'Vui lòng nhập giờ ra.',
+  employeeId: 'Vui lÃ²ng chá»n nhÃ¢n sá»±.',
+  workDate: 'Vui lÃ²ng chá»n ngÃ y cháº¥m cÃ´ng.',
+  shiftName: 'Vui lÃ²ng chá»n ca lÃ m viá»‡c.',
+  checkIn: 'Vui lÃ²ng nháº­p giá» vÃ o.',
+  checkOut: 'Vui lÃ²ng nháº­p giá» ra.',
 };
 
 function requiredString(body: AttendanceMutationBody, key: string): string {
@@ -124,11 +123,52 @@ function requiredString(body: AttendanceMutationBody, key: string): string {
     throw new AuthFlowError({
       status: 400,
       code: 'admin_verification_failed',
-      message: requiredFieldMessages[key] || 'Thiếu dữ liệu chấm công bắt buộc.',
+      message: requiredFieldMessages[key] || 'Thiáº¿u dá»¯ liá»‡u cháº¥m cÃ´ng báº¯t buá»™c.',
       failureStage: 'validation',
     });
   }
   return value.trim();
+}
+
+function numericId(value: unknown): string | null {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0 ? String(value) : null;
+  }
+
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    const normalized = value.trim().replace(/^0+(?=\d)/, '');
+    return normalized === '0' ? null : normalized;
+  }
+
+  return null;
+}
+
+function requiredEmployeeId(body: AttendanceMutationBody): string {
+  const employeeId = numericId(body.employeeId);
+  if (!employeeId) {
+    throw new AuthFlowError({
+      status: 400,
+      code: 'admin_verification_failed',
+      message: requiredFieldMessages.employeeId,
+      failureStage: 'validation',
+    });
+  }
+
+  return employeeId;
+}
+
+function requiredTime(body: AttendanceMutationBody, key: 'checkIn' | 'checkOut'): string {
+  const value = requiredString(body, key);
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(value)) {
+    throw new AuthFlowError({
+      status: 400,
+      code: 'attendance_invalid_mutation',
+      message: 'Giá» cháº¥m cÃ´ng khÃ´ng há»£p lá»‡.',
+      failureStage: 'validation',
+    });
+  }
+
+  return value.length === 5 ? `${value}:00` : value;
 }
 
 function requiredReason(body: AttendanceMutationBody): string {
@@ -137,7 +177,7 @@ function requiredReason(body: AttendanceMutationBody): string {
     throw new AuthFlowError({
       status: 400,
       code: 'attendance_reason_required',
-      message: 'Lý do điều chỉnh phải có ít nhất 10 ký tự.',
+      message: 'LÃ½ do Ä‘iá»u chá»‰nh pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±.',
       failureStage: 'validation',
     });
   }
@@ -149,23 +189,42 @@ function validateTimeOrdering(checkIn: string, checkOut: string): void {
     throw new AuthFlowError({
       status: 400,
       code: 'attendance_invalid_time_order',
-      message: 'Giờ ra phải bằng hoặc sau giờ vào.',
+      message: 'Giá» ra pháº£i báº±ng hoáº·c sau giá» vÃ o.',
       failureStage: 'validation',
     });
   }
 }
 
-function optionalRecordId(body: AttendanceMutationBody): string | number | null {
-  const recordId = body.recordId;
-  if (typeof recordId === 'number' && Number.isFinite(recordId)) return recordId;
-  if (typeof recordId === 'string' && recordId.trim() !== '') return recordId.trim();
-  return null;
+function optionalRecordId(body: AttendanceMutationBody): string | null {
+  return numericId(body.recordId);
+}
+
+async function validateTargetEmployee(employeeId: string): Promise<void> {
+  // Keep this lookup on the authenticated client so the existing RLS/workspace
+  // boundary remains part of the target Employee validation. Do not use a
+  // privileged client or accept a display/auth identifier here.
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('employees')
+    .select('id, status, is_active')
+    .eq('id', employeeId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data || data.is_active === false || ['INACTIVE', 'LOCKED'].includes(String(data.status || '').toUpperCase())) {
+    throw new AuthFlowError({
+      status: 400,
+      code: 'admin_verification_failed',
+      message: 'NhÃ¢n sá»± khÃ´ng tá»“n táº¡i hoáº·c khÃ´ng cÃ²n hoáº¡t Ä‘á»™ng trong pháº¡m vi Ä‘Æ°á»£c phÃ©p.',
+      failureStage: 'validation',
+    });
+  }
 }
 
 async function runAdminAttendanceMutation(params: {
   operation: 'CREATE' | 'UPDATE' | 'DELETE';
-  recordId?: string | number | null;
-  employeeId?: string | number | null;
+  recordId?: string | null;
+  employeeId?: string | null;
   workDate?: string | null;
   shiftName?: string | null;
   checkIn?: string | null;
@@ -223,18 +282,20 @@ export async function POST(request: Request) {
   try {
     await requireAttendanceManage();
     const body = (await request.json().catch(() => null)) as AttendanceMutationBody | null;
-    if (!body) return NextResponse.json({ error: 'Thiếu dữ liệu chấm công.' }, { status: 400 });
-    const checkIn = requiredString(body, 'checkIn');
-    const checkOut = requiredString(body, 'checkOut');
+    if (!body) return NextResponse.json({ error: 'Thiáº¿u dá»¯ liá»‡u cháº¥m cÃ´ng.' }, { status: 400 });
+    const employeeId = requiredEmployeeId(body);
+    const checkIn = requiredTime(body, 'checkIn');
+    const checkOut = requiredTime(body, 'checkOut');
     validateTimeOrdering(checkIn, checkOut);
+    await validateTargetEmployee(employeeId);
     const result = await runAdminAttendanceMutation({
       operation: 'CREATE',
-      employeeId: requiredString(body, 'employeeId'),
+      employeeId,
       workDate: requiredString(body, 'workDate'),
       shiftName: requiredString(body, 'shiftName'),
       checkIn,
       checkOut,
-      reason: normalizeAdminAttendanceCreateReason(body.reason),
+      reason: requiredReason(body),
     });
     return NextResponse.json({ success: true, record: result });
   } catch (error) {
@@ -246,18 +307,20 @@ export async function PATCH(request: Request) {
   try {
     await requireAttendanceManage();
     const body = (await request.json().catch(() => null)) as AttendanceMutationBody | null;
-    if (!body) return NextResponse.json({ error: 'Thiếu dữ liệu chấm công.' }, { status: 400 });
+    if (!body) return NextResponse.json({ error: 'Thiáº¿u dá»¯ liá»‡u cháº¥m cÃ´ng.' }, { status: 400 });
     const recordId = optionalRecordId(body);
     if (!recordId || String(recordId).startsWith('log-')) {
-      return NextResponse.json({ error: 'Dữ liệu log cũ cần được chuyển đổi trước khi điều chỉnh.' }, { status: 400 });
+      return NextResponse.json({ error: 'Dá»¯ liá»‡u log cÅ© cáº§n Ä‘Æ°á»£c chuyá»ƒn Ä‘á»•i trÆ°á»›c khi Ä‘iá»u chá»‰nh.' }, { status: 400 });
     }
-    const checkIn = requiredString(body, 'checkIn');
-    const checkOut = requiredString(body, 'checkOut');
+    const checkIn = requiredTime(body, 'checkIn');
+    const checkOut = requiredTime(body, 'checkOut');
     validateTimeOrdering(checkIn, checkOut);
+    const employeeId = requiredEmployeeId(body);
+    await validateTargetEmployee(employeeId);
     const result = await runAdminAttendanceMutation({
       operation: 'UPDATE',
       recordId,
-      employeeId: requiredString(body, 'employeeId'),
+      employeeId,
       workDate: requiredString(body, 'workDate'),
       shiftName: requiredString(body, 'shiftName'),
       checkIn,
@@ -274,13 +337,13 @@ export async function DELETE(request: Request) {
   try {
     await requireAttendanceManage();
     const url = new URL(request.url);
-    const recordId = url.searchParams.get('recordId');
-    if (!recordId || recordId.startsWith('log-')) {
-      return NextResponse.json({ error: 'Dữ liệu log cũ cần được chuyển đổi trước khi xóa.' }, { status: 400 });
+    const recordId = numericId(url.searchParams.get('recordId'));
+    if (!recordId) {
+      return NextResponse.json({ error: 'Dá»¯ liá»‡u log cÅ© cáº§n Ä‘Æ°á»£c chuyá»ƒn Ä‘á»•i trÆ°á»›c khi xÃ³a.' }, { status: 400 });
     }
     const reason = (url.searchParams.get('reason') || '').trim();
     if (reason.length < 10) {
-      return NextResponse.json({ error: 'Lý do hủy phải có ít nhất 10 ký tự.', code: 'attendance_cancellation_reason_required' }, { status: 400 });
+      return NextResponse.json({ error: 'LÃ½ do há»§y pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±.', code: 'attendance_cancellation_reason_required' }, { status: 400 });
     }
     const result = await runAdminAttendanceMutation({
       operation: 'DELETE',
