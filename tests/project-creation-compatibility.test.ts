@@ -43,6 +43,7 @@ describe('safe project creation compatibility mode', () => {
   });
 
   it('blocks duplicate submits and handles partial creation with its returned id', () => {
+    expect(page).toMatch(/if \(createProjectLockRef\.current\) return/);
     expect(page).toMatch(/if \(isCreatingProject\) return/);
     expect(page).toMatch(/result\.warnings\.length > 0/);
     expect(page).toMatch(/openProjectDetail\(result\.project\.id\)/);

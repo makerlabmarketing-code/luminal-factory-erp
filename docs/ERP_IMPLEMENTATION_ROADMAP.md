@@ -551,3 +551,41 @@ split, migration, reclassification, or second open record is introduced.
 No SQL, migration, backfill, RLS change, runtime activation, production query,
 or production Attendance mutation was performed. Recovery remains disabled.
 Manual Staff Attendance retest remains required after deployment.
+
+## 2026-08-05 Project Membership — Slice 0 baseline
+
+Status: `OPERATOR_QUERY_REQUIRED` for production schema/RLS/runtime confirmation;
+repository application boundary: `APPLICATION_COMPLETE` for the audited baseline.
+
+The current authority map is recorded in
+[project-membership-current-state.md](project-membership-current-state.md).
+`public.project_members` remains the stable project membership source keyed by
+`projects.id` and `employees.id`, with project-scoped role codes
+`PROJECT_OWNER`, `PROJECT_MANAGER`, `CREATIVE_LEAD`, and `CONTRIBUTOR`. Server
+authorization derives the actor from the authenticated Employee and separates
+global Admin view/manage overrides from project membership capabilities.
+
+Slice 0 added only proven request-safety fixes: project-create employee options
+are cached and deduplicated, project creation has a synchronous duplicate-submit
+lock, Project Detail candidate loading shares an in-flight request, and member
+mutations use a synchronous action lock. Attendance behavior is unchanged.
+
+Confirmed follow-up gaps are not client-only fixes: compatibility project creation
+has separate project/membership writes and can return a membership warning after
+project persistence; role change revokes before inserting the replacement role;
+the current database index does not enforce one active role per Employee/project
+regardless of role code; membership mutations have no reason/correlation/before-
+after audit event; and the legacy Staff task loader is not assignment-scoped on a
+server boundary. Project-code column/unique-index/RPC privilege state also needs
+live confirmation because repository history contains both compatibility and
+draft/rollout authorities.
+
+Read-only operator package:
+`supabase/validation/20260805_project_membership_baseline_readonly.sql`.
+No SQL, migration, RLS change, RPC deployment, backfill, runtime activation,
+production query, or live project/membership mutation was performed.
+
+Next approved application scope is **Slice 1 — membership read model and Project
+Detail display**. Slice 2 must wait for the atomic mutation and owner/role
+semantics decision; Slice 3 owns Staff/task assignment-scoped visibility; Slice 4
+owns audit, performance, and completion hardening.
