@@ -76,6 +76,7 @@ describe('Attendance multi-check contract', () => {
     const forward = source('supabase/drafts/20260804_attendance_multi_check_admin_mutations_forward.sql');
     const rollback = source('supabase/drafts/20260804_attendance_multi_check_admin_mutations_rollback.sql');
     const preflight = source('supabase/drafts/20260804_attendance_multi_check_admin_mutations_preflight.sql');
+    const validation = source('supabase/drafts/20260804_attendance_multi_check_admin_mutations_validation.sql');
     expect(forward).toContain('attendance_employee_date_shift_active_idx');
     expect(forward).toContain('attendance_operation_audit');
     expect(forward).toContain('attendance_cancellation_audit');
@@ -87,5 +88,36 @@ describe('Attendance multi-check contract', () => {
     expect(forward).toContain('has_permission(\'ATTENDANCE_MANAGE\')');
     expect(rollback).toContain('Refusing rollback: attendance operation audit history is non-empty');
     expect(preflight).toContain('having count(*) > 1');
+    expect(preflight.split('\n')[0]).toBe('-- READ-ONLY PREFLIGHT — RUN BEFORE FORWARD SQL');
+    expect(validation.split('\n')[0]).toBe('-- READ-ONLY POST-FORWARD VALIDATION');
+    expect(validation).toContain('policies.policyname');
+    expect(validation).not.toMatch(/\bpolname\b/);
+    expect(validation).toContain("to_regclass('public.attendance_operation_audit') is null");
+    expect(validation).toContain("execute $query$");
+    expect(rollback).toContain("execute 'select exists (select 1 from public.attendance_operation_audit)'");
+  });
+
+  it('keeps the rollout package internally consistent and read-only checks out of migrations', () => {
+    const paths = ['preflight', 'forward', 'validation', 'rollback'].map(
+      (stage) => `supabase/drafts/20260804_attendance_multi_check_admin_mutations_${stage}.sql`,
+    );
+    const [preflight, forward, validation, rollback] = paths.map(source);
+    const staffSignature = 'public.staff_attendance_multi_mutation(text)';
+    const adminSignature = 'public.admin_attendance_mutation(text,bigint,bigint,date,text,time without time zone,time without time zone,text,uuid)';
+    for (const sql of [preflight, forward, validation, rollback]) {
+      expect(sql).toContain('attendance_operation_audit');
+      expect(sql).toContain(staffSignature);
+      expect(sql).toContain(adminSignature);
+    }
+    for (const sql of [preflight, forward, validation, rollback]) {
+      expect(sql).toContain('attendance_employee_date_shift_active_idx');
+    }
+    expect(preflight).not.toMatch(/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate)\s+(table|into|public\.|on|all)/i);
+    expect(validation).not.toMatch(/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate)\s+(table|into|public\.|on|all)/i);
+    expect(forward).toMatch(/^-- Draft-only forward package[\s\S]*\bbegin;/);
+    expect(forward).toContain('create table public.attendance_operation_audit');
+    expect(forward).toContain('package-owned rollout objects already exist');
+    expect(rollback).toContain('audit_history_exists');
+    expect(paths.every((path) => path.startsWith('supabase/drafts/'))).toBe(true);
   });
 });
