@@ -8,12 +8,12 @@ const root = join(__dirname, '..');
 const source = (path: string) => readFileSync(join(root, path), 'utf8');
 
 describe('Admin Attendance reason contract', () => {
-  it.each([undefined, '', ' quÃ¡ ngáº¯n '])('rejects a missing or short audited reason (%s)', (reason) => {
+  it.each([undefined, '', ' quá ngắn '])('rejects a missing or short audited reason (%s)', (reason) => {
     expect(normalizeRequiredAdminAttendanceReason(reason)).toBeNull();
   });
 
   it('trims and preserves a valid reason for every audited action', () => {
-    expect(normalizeRequiredAdminAttendanceReason('  Bá»• sung theo phiáº¿u giáº¥y  ')).toBe('Bá»• sung theo phiáº¿u giáº¥y');
+    expect(normalizeRequiredAdminAttendanceReason('  Bổ sung theo phiếu giấy  ')).toBe('Bổ sung theo phiếu giấy');
   });
 
   it('requires an audited reason for CREATE, UPDATE, and cancellation', () => {
@@ -38,7 +38,7 @@ describe('Admin Attendance reason contract', () => {
     const modal = source('app/admin/attendance/components/DailyAttendanceModal.tsx');
     const service = source('services/attendanceService.ts');
     const page = source('app/admin/attendance/page.tsx');
-    expect(modal).toContain('LÃ½ do bá»• sung (báº¯t buá»™c, Ã­t nháº¥t 10 kÃ½ tá»±)');
+    expect(modal).toContain('Lý do bổ sung (bắt buộc, ít nhất 10 ký tự)');
     expect(modal).toMatch(/const record = await upsertAttendanceRecord\([\s\S]*onRecordChanged\(record, 'create'\);\s*onClose\(\);/);
     expect(service.match(/method: 'POST'/g)).toHaveLength(1);
     expect(page).not.toMatch(/onRecordChanged={[\s\S]{0,200}loadData/);

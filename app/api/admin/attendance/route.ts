@@ -18,7 +18,7 @@ async function requireAttendanceView() {
     throw new AuthFlowError({
       status: 403,
       code: 'permission_forbidden',
-      message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem dá»¯ liá»‡u cháº¥m cÃ´ng.',
+      message: 'Bạn không có quyền xem dữ liệu chấm công.',
       failureStage: 'permission_check',
     });
   }
@@ -31,7 +31,7 @@ async function requireAttendanceManage() {
     throw new AuthFlowError({
       status: 403,
       code: 'permission_forbidden',
-      message: 'Báº¡n khÃ´ng cÃ³ quyá»n Ä‘iá»u chá»‰nh cháº¥m cÃ´ng.',
+      message: 'Bạn không có quyền điều chỉnh chấm công.',
       failureStage: 'permission_check',
     });
   }
@@ -39,7 +39,7 @@ async function requireAttendanceManage() {
     throw new AuthFlowError({
       status: 503,
       code: 'attendance_manual_mutation_disabled',
-      message: 'Äiá»u chá»‰nh cháº¥m cÃ´ng Ä‘ang chá» kÃ­ch hoáº¡t.',
+      message: 'Điều chỉnh chấm công đang chờ kích hoạt.',
       failureStage: 'permission_check',
     });
   }
@@ -86,12 +86,12 @@ function toErrorResponse(error: unknown, action: AttendanceAction) {
     return NextResponse.json(
       {
         error: status === 409
-          ? 'Báº£n ghi cháº¥m cÃ´ng Ä‘Ã£ thay Ä‘á»•i hoáº·c bá»‹ trÃ¹ng. Vui lÃ²ng táº£i láº¡i dá»¯ liá»‡u.'
+          ? 'Bản ghi chấm công đã thay đổi hoặc bị trùng. Vui lòng tải lại dữ liệu.'
           : status === 404
-            ? 'KhÃ´ng tÃ¬m tháº¥y há»“ sÆ¡ liÃªn quan Ä‘áº¿n báº£n ghi cháº¥m cÃ´ng.'
+            ? 'Không tìm thấy hồ sơ liên quan đến bản ghi chấm công.'
             : status === 400
-              ? 'Dá»¯ liá»‡u Ä‘iá»u chá»‰nh cháº¥m cÃ´ng khÃ´ng há»£p lá»‡.'
-              : action === 'load' ? 'KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u cháº¥m cÃ´ng.' : 'KhÃ´ng thá»ƒ cáº­p nháº­t dá»¯ liá»‡u cháº¥m cÃ´ng.',
+              ? 'Dữ liệu điều chỉnh chấm công không hợp lệ.'
+              : action === 'load' ? 'Không thể tải dữ liệu chấm công.' : 'Không thể cập nhật dữ liệu chấm công.',
         code: publicCode,
         failure_stage: 'mutation',
       },
@@ -101,7 +101,7 @@ function toErrorResponse(error: unknown, action: AttendanceAction) {
 
   return NextResponse.json(
     {
-      error: action === 'load' ? 'KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u cháº¥m cÃ´ng.' : 'KhÃ´ng thá»ƒ cáº­p nháº­t dá»¯ liá»‡u cháº¥m cÃ´ng.',
+      error: action === 'load' ? 'Không thể tải dữ liệu chấm công.' : 'Không thể cập nhật dữ liệu chấm công.',
       code: action === 'load' ? 'attendance_load_failed' : 'attendance_update_failed',
       failure_stage: action === 'load' ? 'unknown_load_failure' : 'unknown_update_failure',
     },
@@ -110,11 +110,11 @@ function toErrorResponse(error: unknown, action: AttendanceAction) {
 }
 
 const requiredFieldMessages: Record<string, string> = {
-  employeeId: 'Vui lÃ²ng chá»n nhÃ¢n sá»±.',
-  workDate: 'Vui lÃ²ng chá»n ngÃ y cháº¥m cÃ´ng.',
-  shiftName: 'Vui lÃ²ng chá»n ca lÃ m viá»‡c.',
-  checkIn: 'Vui lÃ²ng nháº­p giá» vÃ o.',
-  checkOut: 'Vui lÃ²ng nháº­p giá» ra.',
+  employeeId: 'Vui lòng chọn nhân sự.',
+  workDate: 'Vui lòng chọn ngày chấm công.',
+  shiftName: 'Vui lòng chọn ca làm việc.',
+  checkIn: 'Vui lòng nhập giờ vào.',
+  checkOut: 'Vui lòng nhập giờ ra.',
 };
 
 function requiredString(body: AttendanceMutationBody, key: string): string {
@@ -123,7 +123,7 @@ function requiredString(body: AttendanceMutationBody, key: string): string {
     throw new AuthFlowError({
       status: 400,
       code: 'admin_verification_failed',
-      message: requiredFieldMessages[key] || 'Thiáº¿u dá»¯ liá»‡u cháº¥m cÃ´ng báº¯t buá»™c.',
+      message: requiredFieldMessages[key] || 'Thiếu dữ liệu chấm công bắt buộc.',
       failureStage: 'validation',
     });
   }
@@ -163,7 +163,7 @@ function requiredTime(body: AttendanceMutationBody, key: 'checkIn' | 'checkOut')
     throw new AuthFlowError({
       status: 400,
       code: 'attendance_invalid_mutation',
-      message: 'Giá» cháº¥m cÃ´ng khÃ´ng há»£p lá»‡.',
+      message: 'Giờ chấm công không hợp lệ.',
       failureStage: 'validation',
     });
   }
@@ -177,7 +177,7 @@ function requiredReason(body: AttendanceMutationBody): string {
     throw new AuthFlowError({
       status: 400,
       code: 'attendance_reason_required',
-      message: 'LÃ½ do Ä‘iá»u chá»‰nh pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±.',
+      message: 'Lý do điều chỉnh phải có ít nhất 10 ký tự.',
       failureStage: 'validation',
     });
   }
@@ -189,7 +189,7 @@ function validateTimeOrdering(checkIn: string, checkOut: string): void {
     throw new AuthFlowError({
       status: 400,
       code: 'attendance_invalid_time_order',
-      message: 'Giá» ra pháº£i báº±ng hoáº·c sau giá» vÃ o.',
+      message: 'Giờ ra phải bằng hoặc sau giờ vào.',
       failureStage: 'validation',
     });
   }
@@ -215,7 +215,7 @@ async function validateTargetEmployee(employeeId: string): Promise<void> {
     throw new AuthFlowError({
       status: 400,
       code: 'admin_verification_failed',
-      message: 'NhÃ¢n sá»± khÃ´ng tá»“n táº¡i hoáº·c khÃ´ng cÃ²n hoáº¡t Ä‘á»™ng trong pháº¡m vi Ä‘Æ°á»£c phÃ©p.',
+      message: 'Nhân sự không tồn tại hoặc không còn hoạt động trong phạm vi được phép.',
       failureStage: 'validation',
     });
   }
@@ -282,7 +282,7 @@ export async function POST(request: Request) {
   try {
     await requireAttendanceManage();
     const body = (await request.json().catch(() => null)) as AttendanceMutationBody | null;
-    if (!body) return NextResponse.json({ error: 'Thiáº¿u dá»¯ liá»‡u cháº¥m cÃ´ng.' }, { status: 400 });
+    if (!body) return NextResponse.json({ error: 'Thiếu dữ liệu chấm công.' }, { status: 400 });
     const employeeId = requiredEmployeeId(body);
     const checkIn = requiredTime(body, 'checkIn');
     const checkOut = requiredTime(body, 'checkOut');
@@ -307,10 +307,10 @@ export async function PATCH(request: Request) {
   try {
     await requireAttendanceManage();
     const body = (await request.json().catch(() => null)) as AttendanceMutationBody | null;
-    if (!body) return NextResponse.json({ error: 'Thiáº¿u dá»¯ liá»‡u cháº¥m cÃ´ng.' }, { status: 400 });
+    if (!body) return NextResponse.json({ error: 'Thiếu dữ liệu chấm công.' }, { status: 400 });
     const recordId = optionalRecordId(body);
     if (!recordId || String(recordId).startsWith('log-')) {
-      return NextResponse.json({ error: 'Dá»¯ liá»‡u log cÅ© cáº§n Ä‘Æ°á»£c chuyá»ƒn Ä‘á»•i trÆ°á»›c khi Ä‘iá»u chá»‰nh.' }, { status: 400 });
+      return NextResponse.json({ error: 'Dữ liệu log cũ cần được chuyển đổi trước khi điều chỉnh.' }, { status: 400 });
     }
     const checkIn = requiredTime(body, 'checkIn');
     const checkOut = requiredTime(body, 'checkOut');
@@ -339,11 +339,11 @@ export async function DELETE(request: Request) {
     const url = new URL(request.url);
     const recordId = numericId(url.searchParams.get('recordId'));
     if (!recordId) {
-      return NextResponse.json({ error: 'Dá»¯ liá»‡u log cÅ© cáº§n Ä‘Æ°á»£c chuyá»ƒn Ä‘á»•i trÆ°á»›c khi xÃ³a.' }, { status: 400 });
+      return NextResponse.json({ error: 'Dữ liệu log cũ cần được chuyển đổi trước khi xóa.' }, { status: 400 });
     }
     const reason = (url.searchParams.get('reason') || '').trim();
     if (reason.length < 10) {
-      return NextResponse.json({ error: 'LÃ½ do há»§y pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±.', code: 'attendance_cancellation_reason_required' }, { status: 400 });
+      return NextResponse.json({ error: 'Lý do hủy phải có ít nhất 10 ký tự.', code: 'attendance_cancellation_reason_required' }, { status: 400 });
     }
     const result = await runAdminAttendanceMutation({
       operation: 'DELETE',

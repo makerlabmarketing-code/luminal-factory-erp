@@ -156,7 +156,7 @@ export default function DailyAttendanceModal({
 
   const handleUpdateRecord = async (recordId: number | string) => {
     if (!canAdjust) {
-      showToast('KhÃ´ng cÃ³ quyá»n', 'Báº¡n khÃ´ng cÃ³ quyá»n Ä‘iá»u chá»‰nh cháº¥m cÃ´ng.', 'error');
+      showToast('Không có quyền', 'Bạn không có quyền điều chỉnh chấm công.', 'error');
       return;
     }
 
@@ -168,23 +168,23 @@ export default function DailyAttendanceModal({
       const targetRecord = myRecords.find((record) => String(record.id) === String(recordId));
 
       if (!rowData || !targetRecord) {
-        showToast('Thiáº¿u dá»¯ liá»‡u', 'KhÃ´ng tÃ¬m tháº¥y dÃ²ng cáº§n cáº­p nháº­t.', 'error');
+        showToast('Thiếu dữ liệu', 'Không tìm thấy dòng cần cập nhật.', 'error');
         return;
       }
 
       if (String(targetRecord.id).startsWith('log-')) {
-        showToast('ChÆ°a thá»ƒ Ä‘iá»u chá»‰nh', 'Dá»¯ liá»‡u log cÅ© cáº§n Ä‘Æ°á»£c chuyá»ƒn Ä‘á»•i trÆ°á»›c khi sá»­a.', 'error');
+        showToast('Chưa thể điều chỉnh', 'Dữ liệu log cũ cần được chuyển đổi trước khi sửa.', 'error');
         return;
       }
 
       if (!isRowDirty(targetRecord, rowData)) {
-        showToast('ChÆ°a cÃ³ thay Ä‘á»•i', 'HÃ£y thay Ä‘á»•i giá» vÃ o hoáº·c giá» ra trÆ°á»›c khi lÆ°u.', 'info');
+        showToast('Chưa có thay đổi', 'Hãy thay đổi giờ vào hoặc giờ ra trước khi lưu.', 'info');
         return;
       }
 
       if (adjustmentReason.trim().length < 10) {
         focusReason('adjustment');
-        setAdjustmentReasonError('Vui lÃ²ng nháº­p lÃ½ do Ä‘iá»u chá»‰nh cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±.');
+        setAdjustmentReasonError('Vui lòng nhập lý do điều chỉnh có ít nhất 10 ký tự.');
         return;
       }
       setAdjustmentReasonError('');
@@ -200,12 +200,12 @@ export default function DailyAttendanceModal({
         reason: adjustmentReason.trim(),
       });
 
-      showToast('ThÃ nh cÃ´ng', 'ÄÃ£ cáº­p nháº­t giá» cÃ´ng.', 'success');
+      showToast('Thành công', 'Đã cập nhật giờ công.', 'success');
       onRecordChanged(record, 'update');
       onClose();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'KhÃ´ng thá»ƒ cáº­p nháº­t giá» cÃ´ng.';
-      showToast('Lá»—i', message, 'error');
+      const message = error instanceof Error ? error.message : 'Không thể cập nhật giờ công.';
+      showToast('Lỗi', message, 'error');
     } finally {
       endAction(actionKey);
     }
@@ -213,34 +213,34 @@ export default function DailyAttendanceModal({
 
   const handleDeleteRecord = (recordId: number | string, shiftName: string) => {
     if (!canAdjust) {
-      showToast('KhÃ´ng cÃ³ quyá»n', 'Báº¡n khÃ´ng cÃ³ quyá»n Ä‘iá»u chá»‰nh cháº¥m cÃ´ng.', 'error');
+      showToast('Không có quyền', 'Bạn không có quyền điều chỉnh chấm công.', 'error');
       return;
     }
 
     if (String(recordId).startsWith('log-')) {
-      showToast('ChÆ°a thá»ƒ xÃ³a', 'Dá»¯ liá»‡u log cÅ© cáº§n Ä‘Æ°á»£c chuyá»ƒn Ä‘á»•i trÆ°á»›c khi xÃ³a.', 'error');
+      showToast('Chưa thể xóa', 'Dữ liệu log cũ cần được chuyển đổi trước khi xóa.', 'error');
       return;
     }
 
     if (adjustmentReason.trim().length < 10) {
       focusReason('adjustment');
-      setAdjustmentReasonError('Vui lÃ²ng nháº­p lÃ½ do há»§y cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±.');
+      setAdjustmentReasonError('Vui lòng nhập lý do hủy có ít nhất 10 ký tự.');
       return;
     }
     setAdjustmentReasonError('');
 
-    showConfirm('XÃ¡c nháº­n xÃ³a', `Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a báº£n ghi [${shiftName}] nÃ y khÃ´ng?`, async () => {
+    showConfirm('Xác nhận xóa', `Bạn có chắc chắn muốn xóa bản ghi [${shiftName}] này không?`, async () => {
       const actionKey = `delete:${getRecordKey(recordId)}`;
       if (!beginAction(actionKey)) return;
 
       try {
         const record = await deleteAttendanceRecord(recordId, adjustmentReason.trim());
-        showToast('ÄÃ£ xÃ³a', 'Báº£n ghi cháº¥m cÃ´ng Ä‘Ã£ Ä‘Æ°á»£c gá»¡ bá».', 'info');
+        showToast('Đã xóa', 'Bản ghi chấm công đã được gỡ bỏ.', 'info');
         onRecordChanged(record, 'delete');
         onClose();
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'KhÃ´ng thá»ƒ xÃ³a báº£n ghi.';
-        showToast('Lá»—i', message, 'error');
+        const message = error instanceof Error ? error.message : 'Không thể xóa bản ghi.';
+        showToast('Lỗi', message, 'error');
       } finally {
         endAction(actionKey);
       }
@@ -249,28 +249,28 @@ export default function DailyAttendanceModal({
 
   const handleAddNewRecord = async () => {
     if (!canAdjust) {
-      showToast('KhÃ´ng cÃ³ quyá»n', 'Báº¡n khÃ´ng cÃ³ quyá»n Ä‘iá»u chá»‰nh cháº¥m cÃ´ng.', 'error');
+      showToast('Không có quyền', 'Bạn không có quyền điều chỉnh chấm công.', 'error');
       return;
     }
 
     if (!selectedEmployeeId || !newShift) {
       employeeSelectRef.current?.focus();
-      showToast('Thiáº¿u dá»¯ liá»‡u', 'Vui lÃ²ng chá»n nhÃ¢n sá»± vÃ  ca lÃ m viá»‡c.', 'error');
+      showToast('Thiếu dữ liệu', 'Vui lòng chọn nhân sự và ca làm việc.', 'error');
       return;
     }
 
     if (!currentEmployee) {
-      showToast('Lá»—i', 'KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u nhÃ¢n sá»±.', 'error');
+      showToast('Lỗi', 'Không tìm thấy dữ liệu nhân sự.', 'error');
       return;
     }
 
     if (!newIn || !newOut) {
-      showToast('Thiáº¿u dá»¯ liá»‡u', 'Vui lÃ²ng nháº­p Ä‘á»§ giá» vÃ o vÃ  giá» ra.', 'error');
+      showToast('Thiếu dữ liệu', 'Vui lòng nhập đủ giờ vào và giờ ra.', 'error');
       return;
     }
 
     if (createReason.trim().length < 10) {
-      setCreateReasonError('Vui lÃ²ng nháº­p lÃ½ do bá»• sung cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±.');
+      setCreateReasonError('Vui lòng nhập lý do bổ sung có ít nhất 10 ký tự.');
       focusReason('create');
       return;
     }
@@ -284,7 +284,7 @@ export default function DailyAttendanceModal({
     });
 
     if (duplicated) {
-      showToast('ÄÃ£ tá»“n táº¡i', 'NhÃ¢n sá»± nÃ y Ä‘Ã£ cÃ³ báº£n ghi cho ca Ä‘Ã£ chá»n.', 'info');
+      showToast('Đã tồn tại', 'Nhân sự này đã có bản ghi cho ca đã chọn.', 'info');
       return;
     }
 
@@ -302,12 +302,12 @@ export default function DailyAttendanceModal({
         reason: createReason.trim(),
       });
 
-      showToast('ThÃ nh cÃ´ng', 'ÄÃ£ bá»• sung ca lÃ m viá»‡c.', 'success');
+      showToast('Thành công', 'Đã bổ sung ca làm việc.', 'success');
       onRecordChanged(record, 'create');
       onClose();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'KhÃ´ng thá»ƒ bá»• sung ca lÃ m viá»‡c.';
-      showToast('Lá»—i', message, 'error');
+      const message = error instanceof Error ? error.message : 'Không thể bổ sung ca làm việc.';
+      showToast('Lỗi', message, 'error');
     } finally {
       endAction(actionKey);
     }
@@ -315,7 +315,7 @@ export default function DailyAttendanceModal({
 
   const displayDate = formatBusinessDate(businessDateFromDateInput(dateStr), { weekday: 'long' });
 
-  const currentEmpName = currentEmployee?.full_name || (currentEmpId ? 'Äang táº£i...' : 'Chá»n má»™t nhÃ¢n sá»± á»Ÿ bá»™ lá»c');
+  const currentEmpName = currentEmployee?.full_name || (currentEmpId ? 'Đang tải...' : 'Chọn một nhân sự ở bộ lọc');
   const selectableEmployees = currentEmpId
     ? employees.filter((employee) => String(employee.id) === String(currentEmpId))
     : employees;
@@ -326,12 +326,12 @@ export default function DailyAttendanceModal({
         <div className="flex justify-between items-center p-5 border-b border-slate-800/80">
           <div>
             <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-              CHI TIáº¾T CÃ”NG CA NGÃ€Y
+              CHI TIẾT CÔNG CA NGÀY
             </h2>
           <p className="text-[11px] text-slate-400 font-medium mt-1">{displayDate}</p>
           {canAdjust && (
             <label className="mt-3 block text-[10px] text-slate-400">
-              LÃ½ do Ä‘iá»u chá»‰nh (báº¯t buá»™c)
+              Lý do điều chỉnh (bắt buộc)
               <textarea
                 value={adjustmentReason}
                 ref={adjustmentReasonRef}
@@ -341,7 +341,7 @@ export default function DailyAttendanceModal({
                 }}
                 rows={2}
                 className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-blue-500"
-                placeholder="Nháº­p Ã­t nháº¥t 10 kÃ½ tá»±"
+                placeholder="Nhập ít nhất 10 ký tự"
               />
               {adjustmentReasonError && (
                 <span className="mt-1 block text-[10px] text-red-400" role="alert">{adjustmentReasonError}</span>
@@ -350,11 +350,11 @@ export default function DailyAttendanceModal({
           )}
           {auditEvents.length > 0 && (
             <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/60 p-2 text-[10px] text-slate-400">
-              <p className="font-bold text-slate-300">Lá»‹ch sá»­ Ä‘iá»u chá»‰nh</p>
+              <p className="font-bold text-slate-300">Lịch sử điều chỉnh</p>
               <div className="mt-1 max-h-24 space-y-1 overflow-y-auto">
                 {auditEvents.slice(0, 8).map((event) => (
                   <p key={event.id}>
-                    {event.operation} Â· {event.reason} Â· {new Date(event.occurred_at).toLocaleString('vi-VN')}
+                    {event.operation} · {event.reason} · {new Date(event.occurred_at).toLocaleString('vi-VN')}
                   </p>
                 ))}
               </div>
@@ -369,12 +369,12 @@ export default function DailyAttendanceModal({
         <div className="p-5 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
           <div className="space-y-3">
             <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-              CÃ¡c ca Ä‘Ã£ ghi nháº­n
+              Các ca đã ghi nhận
             </h3>
 
             {myRecords.length === 0 ? (
               <div className="text-center p-6 border border-dashed border-slate-800 rounded-lg text-slate-500 text-[11px] italic">
-                ChÆ°a cÃ³ dá»¯ liá»‡u cháº¥m cÃ´ng.
+                Chưa có dữ liệu chấm công.
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2.5">
@@ -400,16 +400,16 @@ export default function DailyAttendanceModal({
 
                         {getFinalizedShiftUnitsForRecord(record) > 0 && (
                           <span className="text-[10px] bg-slate-800/60 text-emerald-400 px-1.5 py-0.5 rounded font-mono">
-                            {formatWorkedDuration(workedMinutes)} Â· {shiftUnits} ca
+                            {formatWorkedDuration(workedMinutes)} · {shiftUnits} ca
                           </span>
                         )}
 
                         <span className="text-[10px] bg-slate-800/60 text-slate-400 px-1.5 py-0.5 rounded font-mono">
-                          Äiá»u chá»‰nh: {record.adjustment_note ? 'CÃ³' : 'KhÃ´ng'}
+                          Điều chỉnh: {record.adjustment_note ? 'Có' : 'Không'}
                         </span>
 
                         <span className="text-[10px] bg-slate-800/60 text-slate-400 px-1.5 py-0.5 rounded font-mono">
-                          NgÆ°á»i Ä‘iá»u chá»‰nh: {record.adjusted_by_name || 'ChÆ°a cÃ³ audit'}
+                          Người điều chỉnh: {record.adjusted_by_name || 'Chưa có audit'}
                         </span>
                       </div>
                     </div>
@@ -417,7 +417,7 @@ export default function DailyAttendanceModal({
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="flex flex-col">
                         <label className="text-[9px] text-slate-500 font-medium uppercase mb-1">
-                          Giá» VÃ o
+                          Giờ Vào
                         </label>
                         <input
                           type="time"
@@ -439,7 +439,7 @@ export default function DailyAttendanceModal({
 
                       <div className="flex flex-col">
                         <label className="text-[9px] text-slate-500 font-medium uppercase mb-1">
-                          Giá» Ra
+                          Giờ Ra
                         </label>
                         <input
                           type="time"
@@ -465,7 +465,7 @@ export default function DailyAttendanceModal({
                           onClick={() => handleUpdateRecord(record.id)}
                           disabled={!canAdjust || isLegacyLog || isRowPending(record.id)}
                           className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-md border border-transparent hover:border-blue-500/20 transition disabled:opacity-40"
-                          title={isLegacyLog ? 'Dá»¯ liá»‡u log cÅ© chá»‰ Ä‘á»c' : 'LÆ°u cáº­p nháº­t'}
+                          title={isLegacyLog ? 'Dữ liệu log cũ chỉ đọc' : 'Lưu cập nhật'}
                         >
                           <Save className="w-3.5 h-3.5" />
                         </button>
@@ -475,12 +475,12 @@ export default function DailyAttendanceModal({
                           onClick={() => handleDeleteRecord(record.id, record.shift_name)}
                           disabled={!canAdjust || isLegacyLog || isRowPending(record.id)}
                           className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-md border border-transparent hover:border-red-500/20 transition disabled:opacity-40"
-                          title={isLegacyLog ? 'Dá»¯ liá»‡u log cÅ© chá»‰ Ä‘á»c' : 'XÃ³a ca nÃ y'}
+                          title={isLegacyLog ? 'Dữ liệu log cũ chỉ đọc' : 'Xóa ca này'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                         {isLegacyLog && (
-                          <span className="text-[9px] text-amber-400" role="status">Chá»‰ Ä‘á»c: log cÅ©</span>
+                          <span className="text-[9px] text-amber-400" role="status">Chỉ đọc: log cũ</span>
                         )}
                       </div>
                     </div>
@@ -493,24 +493,24 @@ export default function DailyAttendanceModal({
 
           <div className="bg-[#0b0f19] border border-slate-800 p-4 rounded-lg space-y-3 mt-4">
             <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Plus className="w-3 h-3" /> Bá»• sung ca thá»§ cÃ´ng
+              <Plus className="w-3 h-3" /> Bổ sung ca thủ công
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
               <div className="md:col-span-2 min-w-0">
                 <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">
-                  NhÃ¢n sá»±:
+                  Nhân sự:
                 </label>
                 <div className="relative">
                   <select
                     ref={employeeSelectRef}
-                    aria-label="NhÃ¢n sá»±"
+                    aria-label="Nhân sự"
                     className="w-full bg-[#131924] border border-slate-800 px-2 py-1.5 rounded-md text-[11px] text-slate-300 focus:border-blue-500 focus:outline-none"
                     value={selectedEmployeeId}
                     disabled={!canAdjust || isPending('create')}
                     onChange={(event) => setSelectedEmployeeId(event.target.value)}
                   >
-                    <option value="">Chá»n nhÃ¢n sá»±</option>
+                    <option value="">Chọn nhân sự</option>
                     {selectableEmployees.map((employee) => (
                       <option key={employee.id} value={String(employee.id)}>
                         {employee.full_name}
@@ -519,14 +519,14 @@ export default function DailyAttendanceModal({
                   </select>
                   <input type="hidden" name="employeeId" value={employeeSelection.employeeId} />
                   {!employeeSelection.employee && (
-                    <p className="mt-1 text-[10px] text-amber-400">Chá»n nhÃ¢n sá»± Ä‘á»ƒ giá»¯ Ä‘Ãºng mÃ£ nhÃ¢n sá»± khi táº¡o.</p>
+                    <p className="mt-1 text-[10px] text-amber-400">Chọn nhân sự để giữ đúng mã nhân sự khi tạo.</p>
                   )}
                 </div>
               </div>
 
               <div className="md:col-span-1 min-w-0">
                 <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">
-                  Ca lÃ m:
+                  Ca làm:
                 </label>
                 <select
                   className="w-full bg-[#131924] border border-slate-800 px-2 py-1.5 rounded-md text-[11px] text-slate-300 focus:border-blue-500 focus:outline-none"
@@ -544,7 +544,7 @@ export default function DailyAttendanceModal({
 
               <div className="md:col-span-1 min-w-0">
                 <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">
-                  Giá» VÃ o:
+                  Giờ Vào:
                 </label>
                 <input
                   type="time"
@@ -558,7 +558,7 @@ export default function DailyAttendanceModal({
 
               <div className="md:col-span-1 min-w-0">
                 <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">
-                  Giá» Ra:
+                  Giờ Ra:
                 </label>
                 <input
                   type="time"
@@ -572,7 +572,7 @@ export default function DailyAttendanceModal({
             </div>
 
             <label className="block text-[10px] text-slate-400">
-              LÃ½ do bá»• sung (báº¯t buá»™c, Ã­t nháº¥t 10 kÃ½ tá»±)
+              Lý do bổ sung (bắt buộc, ít nhất 10 ký tự)
               <textarea
                 value={createReason}
                 ref={createReasonRef}
@@ -582,7 +582,7 @@ export default function DailyAttendanceModal({
                 }}
                 rows={2}
                 className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-blue-500"
-                placeholder="Nháº­p lÃ½ do bá»• sung"
+                placeholder="Nhập lý do bổ sung"
               />
               {createReasonError && (
                 <span className="mt-1 block text-[10px] text-red-400" role="alert">{createReasonError}</span>
@@ -596,7 +596,7 @@ export default function DailyAttendanceModal({
                 disabled={!canAdjust || !currentEmployee || isPending('create')}
                 className="w-full bg-[#131924] hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-300 font-medium py-2 rounded-md transition text-[11px] flex justify-center items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <CheckCircle2 className="w-3.5 h-3.5" /> LÆ°u báº£n ghi bá»• sung
+                <CheckCircle2 className="w-3.5 h-3.5" /> Lưu bản ghi bổ sung
               </button>
             </div>
           </div>

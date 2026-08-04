@@ -37,7 +37,7 @@ describe('Admin Attendance mutation regressions', () => {
     expect(modal).toContain('setSelectedEmployeeId(currentEmpId)');
     expect(modal).toContain('value={selectedEmployeeId}');
     expect(modal).toContain('value={employeeSelection.employeeId}');
-    expect(modal).toContain('Chá»n nhÃ¢n sá»±');
+    expect(modal).toContain('Chọn nhân sự');
     expect(modal).toContain('setSelectedEmployeeId(event.target.value)');
   });
 

@@ -21,8 +21,8 @@ Supabase configuration change, or live-data mutation was performed.
 ## Employee Auth invitation diagnostic boundary (2026-08-03)
 
 The `Maker Lab` Employee fixture already exists and must not be recreated. The
-application repair separates **Gá»­i lá»i má»i**, **Káº¿t ná»‘i tÃ i khoáº£n hiá»‡n cÃ³**,
-**Gá»­i láº¡i lá»i má»i**, and **Gá»­i link Ä‘áº·t láº¡i máº­t kháº©u**, returns an honest
+application repair separates **Gửi lời mời**, **Kết nối tài khoản hiện có**,
+**Gửi lại lời mời**, and **Gửi link đặt lại mật khẩu**, returns an honest
 Supabase-accepted/delivery-unknown result with a correlation ID, and prevents
 same-client double submission. See
 [employee-auth-email-workflow.md](employee-auth-email-workflow.md).
@@ -144,7 +144,7 @@ retained audit event ID `1`.
 The approved interim policy permits one unmistakably test-only active employee to
 remain payroll-visible only when `hourly_rate=0`; its completed Attendance evidence
 row may remain, but it must never be settled, adjusted, reimbursed, assigned real
-work, or reused as a real employee. Employee Detail â†’ **TÃ i chÃ­nh cÃ¡ nhÃ¢n** now
+work, or reused as a real employee. Employee Detail → **Tài chính cá nhân** now
 supports an `EMPLOYEE_MANAGE` + `FINANCE_VIEW` hourly-rate PATCH through the existing
 server route. Zero is preserved, negative/invalid/over-precision/out-of-range values
 fail before persistence, and Payroll calculation remains unchanged.
@@ -215,7 +215,7 @@ application activation, rollback is
 The uncommitted local task branch contains a bounded Admin ledger repair. Browser
 mutations are replaced by a server-owned finance-permission boundary; executor
 and beneficiary render independently; beneficiary QR uses the stable beneficiary
-employee ID; legacy rows without a reliable beneficiary show `ChÆ°a xÃ¡c Ä‘á»‹nh`;
+employee ID; legacy rows without a reliable beneficiary show `Chưa xác định`;
 and document operations are prepared behind the still-disabled reimbursement
 gate plus `FINANCE_ATTACHMENT_WRITES_ENABLED=false`. The server refuses extended
 schema activation when schema readiness is missing and refuses attachment access
@@ -244,16 +244,16 @@ Do not execute these as a batch. After B and C are closed with retained evidence
 re-read the roadmap, select only the first eligible package below, run its
 read-only preflight, and stop before its first mutation:
 
-1. **Employee Profile extension â€” `BLOCKED_BY_BUSINESS_DECISION`.** The existing
+1. **Employee Profile extension — `BLOCKED_BY_BUSINESS_DECISION`.** The existing
    `hourly_rate` field is not part of this schema extension and has its bounded
    permission-aware Employee Detail editor. The eight proposed profile field,
    sensitive-data, audit, retention, and deletion decisions remain unresolved.
-2. **Ledger/Reimbursement â€” `READY_FOR_LOCAL_OPERATOR`.**
+2. **Ledger/Reimbursement — `READY_FOR_LOCAL_OPERATOR`.**
    Use package `20260728153000`; keep `FINANCE_REIMBURSEMENT_ENABLED=false`.
-3. **Payroll â€” `READY_FOR_LOCAL_OPERATOR`.** Depends on Attendance/Facility evidence;
+3. **Payroll — `READY_FOR_LOCAL_OPERATOR`.** Depends on Attendance/Facility evidence;
    use `20260728100414`, require an explicit first official month, and keep
    `PAYROLL_SETTLEMENT_ENABLED=false`.
-4. **ERP transactional email â€” `BLOCKED_BY_DEPENDENCY` for live delivery.**
+4. **ERP transactional email — `BLOCKED_BY_DEPENDENCY` for live delivery.**
    After protected review and explicit configuration/smoke approval, follow
    `docs/email-setup.md`, stop before the first live send, and keep
    `EMAIL_DELIVERY_ENABLED=false` until its one-recipient smoke gate passes.
@@ -358,8 +358,8 @@ retained.
 
 ## 2026-08-03 Staff profile logout delivery
 
-The bounded Staff logout slice adds a visible **ÄÄƒng xuáº¥t** action and account
-summary to **CÃ¡ NhÃ¢n**. It uses the shared local-device Supabase sign-out,
+The bounded Staff logout slice adds a visible **Đăng xuất** action and account
+summary to **Cá Nhân**. It uses the shared local-device Supabase sign-out,
 synchronously locks duplicate taps, shows progress, refreshes the auth router,
 and replaces document history with the fixed `/login` destination. A failed
 request remains on the profile and shows only controlled Vietnamese feedback plus
@@ -369,7 +369,7 @@ The authentication routing contract remains unchanged: Staff-only accounts route
 to Staff, Admin-only accounts route to Admin, dual-workspace accounts retain the
 Admin default, and only approved local return paths are accepted. The slice does
 not change Attendance calculations or mutations. Maker Lab's completed shift
-remains 16:18â€“16:18, zero raw minutes, one converted shift, with no Start action;
+remains 16:18–16:18, zero raw minutes, one converted shift, with no Start action;
 duplicate current-shift writes remain blocked, zero-rate pay remains zero,
 Attendance recovery remains disabled, and Admin Attendance remains read-only.
 
@@ -414,10 +414,10 @@ The current application slice is `READY_FOR_TABLE_LOCAL_LOADING_RETEST`. Review 
 Status: `READY_FOR_OPERATOR_RETEST`. The empty production `shifts` result now
 uses the existing Attendance resolver's default three-shift configuration while
 still preferring configured database rows. Retest that the selector shows
-`Ca SÃ¡ng`, `Ca Chiá»u`, and `Ca Tá»‘i`; a failed save preserves the modal and form;
+`Ca Sáng`, `Ca Chiều`, and `Ca Tối`; a failed save preserves the modal and form;
 and a confirmed save closes the modal while updating only the affected calendar
 day and summaries. Also verify the selected month and Employee filter remain
-unchanged and that `Äang táº£i dá»¯ liá»‡u cháº¥m cÃ´ng...` does not replace the page.
+unchanged and that `Đang tải dữ liệu chấm công...` does not replace the page.
 
 Codex Cloud did not execute SQL, alter schema/RLS/runtime gates, call the live
 mutation RPC, or mutate production Attendance. Payroll calculation and immutable
