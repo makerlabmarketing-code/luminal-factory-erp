@@ -52,9 +52,10 @@ describe('Attendance current-shift state regression', () => {
     expect(route).toMatch(/existingShiftAfterLocation/);
   });
 
-  it('applies the returned aggregate row without a second full loading cycle', () => {
+  it('applies check-in locally and reevaluates the current shift after checkout', () => {
     expect(client).toContain('applyMutationRecord(result.record)');
-    expect(client).toMatch(/applyMutationRecord\(result\.record\);\s*showToast/);
+    expect(client).toMatch(/if \(action === 'check_out'\)[\s\S]*loadAttendanceData\(historyMonthInput/);
+    expect(client).toMatch(/showLoading: false/);
   });
 
   it('returns the completed aggregate record after checkout', () => {
@@ -73,7 +74,7 @@ describe('Attendance current-shift state regression', () => {
     expect(route).toMatch(/shiftState,\s*currentShift:/);
     expect(client).toMatch(/setShiftState\(payload\.shiftState\)/);
     expect(client).toMatch(/canContinueAttendanceShift/);
-    expect(client).toMatch(/todayRecord\?\.check_out && !canContinueCurrentShift/);
+    expect(client).toMatch(/todayRecord\?\.check_out && !canStartCurrentShift/);
   });
 
   it('shows the completed shift facts and does not invite a retry', () => {

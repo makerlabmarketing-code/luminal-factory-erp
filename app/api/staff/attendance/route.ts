@@ -85,6 +85,8 @@ async function loadFacilities() {
 }
 
 async function getOpenAttendanceRecord(employeeId: number | string, workDate?: string) {
+  // Deliberately omit workDate for the normal check-in guard: an open
+  // Attendance row from any shift/date blocks every new check-in.
   const supabase = await createClient();
   let query = supabase
     .from('attendance')
@@ -106,6 +108,16 @@ async function getOpenAttendanceRecord(employeeId: number | string, workDate?: s
   if (error) throw error;
 
   return ((data as AttendanceRecord[] | null)?.[0]) || null;
+}
+
+function assertNoOpenAttendanceForCheckIn(openRecord: AttendanceRecord | null): void {
+  if (openRecord) {
+    throw new StaffAttendanceError(
+      409,
+      'attendance_already_checked_in',
+      'Bạn đang có một ca làm việc chưa kết thúc.'
+    );
+  }
 }
 
 async function getAttendanceRecordByShift(
@@ -457,13 +469,7 @@ export async function POST(request: Request) {
       });
     }
 
-    if (openRecord) {
-      throw new StaffAttendanceError(
-        409,
-        'attendance_already_checked_in',
-        'Bạn đang có một ca làm việc chưa kết thúc.'
-      );
-    }
+    assertNoOpenAttendanceForCheckIn(openRecord);
 
     const existingShift = await getAttendanceRecordByShift(
       authContext.employee.id,
@@ -523,7 +529,8 @@ export async function POST(request: Request) {
       todayStr,
       currentShift
     );
-    if (openRecordAfterLocation || (existingShiftAfterLocation && !isAttendanceMultiCheckEnabled())) {
+    assertNoOpenAttendanceForCheckIn(openRecordAfterLocation);
+    if (existingShiftAfterLocation && !isAttendanceMultiCheckEnabled()) {
       throw new StaffAttendanceError(
         409,
         'attendance_already_checked_in',

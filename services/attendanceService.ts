@@ -302,6 +302,23 @@ export function canContinueAttendanceShift(params: {
   );
 }
 
+/**
+ * A completed record blocks another start only while it belongs to the
+ * currently resolved shift. A completed earlier shift must not block the next
+ * shift; an open record is always handled by the active checkout state.
+ */
+export function canStartAttendanceShift(params: {
+  record: AttendanceRecord | null | undefined;
+  currentShiftName: string;
+  multiCheckEnabled: boolean;
+}): boolean {
+  if (!params.record || isAttendanceRecordCancelled(params.record)) return true;
+  if (isMissingCheckoutRecord(params.record)) return false;
+  if (params.record.shift_name !== params.currentShiftName) return true;
+
+  return canContinueAttendanceShift(params);
+}
+
 export function calculateFinalizedAttendanceSummary(
   records: AttendanceRecord[]
 ): FinalizedAttendanceSummary {
