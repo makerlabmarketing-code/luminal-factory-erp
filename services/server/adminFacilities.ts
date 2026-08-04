@@ -323,5 +323,5 @@ export async function deleteAdminFacility(body: Record<string, unknown>) {
     });
   }
 
-  return { success: true };
+  return { success: true, deletedId: facilityId };
 }

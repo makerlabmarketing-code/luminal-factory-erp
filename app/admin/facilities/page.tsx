@@ -2,10 +2,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
-import { fetchCoordinatesFromAddress } from '@/ultis/geocoding';
+import { fetchCoordinatesFromAddress, type GeocodeMatch } from '@/ultis/geocoding';
 import { MapPin, Plus, Trash2, Edit2, X, RefreshCcw, Navigation, Loader2 } from 'lucide-react';
 import { AdminListRequestError, useAdminListData } from '@/hooks/useAdminListData';
 import { AdminPage } from '@/component/AdminUI';
+import { reconcileCreatedFacility, reconcileDeletedFacility, reconcileUpdatedFacility } from '@/lib/facilityReconciliation';
 
 type AdminFacility = {
   id: number | string;
@@ -22,6 +23,8 @@ type FacilityApiResult = {
   success?: boolean;
   message?: string;
   facilities?: AdminFacility[];
+  facility?: AdminFacility;
+  deletedId?: number | string;
   capabilities?: { canPersistStatusAndCode: boolean; canManageFacilities: boolean };
   code?: string;
 };
@@ -32,6 +35,9 @@ export default function AdminFacilitiesManagement() {
   const [showModal, setShowModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [branches, setBranches] = useState<AdminFacility[]>([]);
+  const [geocodeDisplayName, setGeocodeDisplayName] = useState<string | null>(null);
+  const [geocodeAlternatives, setGeocodeAlternatives] = useState<GeocodeMatch[]>([]);
 
   // States for CRUD
   const [isEditing, setIsEditing] = useState(false);
@@ -51,9 +57,12 @@ export default function AdminFacilitiesManagement() {
       return result;
   };
   const { data: facilityData, error: loadError, isLoading: loading, isRefreshing, refresh: loadFacilities } = useAdminListData({ request: facilityRequest });
-  const branches = facilityData?.facilities || [];
   const canManageFacilities = facilityData?.capabilities?.canManageFacilities !== false;
   const hasFacilityStatus = facilityData?.capabilities?.canPersistStatusAndCode === true;
+
+  useEffect(() => {
+    if (facilityData?.facilities) setBranches(facilityData.facilities);
+  }, [facilityData]);
 
   useEffect(() => {
     if (!showModal) return;
@@ -72,13 +81,14 @@ export default function AdminFacilitiesManagement() {
     }
 
     setIsGeocoding(true);
-    const result = await fetchCoordinatesFromAddress(address);
-    setIsGeocoding(false);
+    const result = await fetchCoordinatesFromAddress(address).finally(() => setIsGeocoding(false));
 
     if (result.success) {
       setLat(result.lat);
       setLng(result.lng);
-      showToast('Dò tọa độ xong', 'Hệ thống đã tự động định vị mốc Vĩ độ và Kinh độ cho cơ sở!', 'success');
+      setGeocodeDisplayName(result.displayName || null);
+      setGeocodeAlternatives(result.alternatives || []);
+      showToast(result.errorCode === 'ambiguous' ? 'Cần xác nhận địa chỉ' : 'Dò tọa độ xong', result.error || 'Đã điền tọa độ. Vui lòng xác nhận địa chỉ bản đồ trước khi lưu.', result.errorCode === 'ambiguous' ? 'info' : 'success');
     } else {
       showToast('Lỗi định vị', result.error || 'Không thể tìm thấy tọa độ từ địa chỉ này.', 'error');
     }
@@ -93,6 +103,8 @@ export default function AdminFacilitiesManagement() {
     setLat('');
     setLng('');
     setRadius('20');
+    setGeocodeDisplayName(null);
+    setGeocodeAlternatives([]);
     setShowModal(true);
   };
 
@@ -105,6 +117,8 @@ export default function AdminFacilitiesManagement() {
     setLat(b.lat?.toString() || '');
     setLng(b.lng?.toString() || '');
     setRadius(b.radius?.toString() || '20');
+    setGeocodeDisplayName(null);
+    setGeocodeAlternatives([]);
     setShowModal(true);
   };
 
@@ -140,9 +154,13 @@ export default function AdminFacilitiesManagement() {
         throw new Error('Không thể lưu cơ sở làm việc. Vui lòng thử lại.');
       }
 
+      if (!result.facility) throw new Error('Không thể xác nhận dữ liệu cơ sở vừa lưu. Vui lòng thử lại.');
+      setBranches((current) => isEditing
+        ? reconcileUpdatedFacility(current, result.facility!)
+        : reconcileCreatedFacility(current, result.facility!));
+
       showToast('Đã lưu', 'Đã lưu cơ sở làm việc.', 'success');
       setShowModal(false);
-      loadFacilities();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Không thể lưu cơ sở làm việc. Vui lòng thử lại.';
       setSaveError(message);
@@ -166,8 +184,10 @@ export default function AdminFacilitiesManagement() {
           throw new Error(result.message || 'Không thể xóa cơ sở làm việc.');
         }
 
+        const deletedId = result.deletedId ?? id;
+        setBranches((current) => reconcileDeletedFacility(current, deletedId));
+
         showToast('Đã xóa', 'Đã xóa cơ sở làm việc.', 'success');
-        loadFacilities();
       } catch (err) {
         showToast('Lỗi hệ thống', err instanceof Error ? err.message : 'Không thể xóa cơ sở làm việc.', 'error');
       }
@@ -270,6 +290,23 @@ export default function AdminFacilitiesManagement() {
                     {isGeocoding ? 'Đang dò...' : 'Dò Tọa Độ'}
                   </button>
                 </div>
+                {geocodeDisplayName && (
+                  <div className="mt-2 rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3" role="status">
+                    <p className="font-semibold text-cyan-200">Địa chỉ bản đồ (chỉ để xác nhận)</p>
+                    <p className="mt-1 text-slate-300">{geocodeDisplayName}</p>
+                    {geocodeAlternatives.length > 1 && (
+                      <div className="mt-2 space-y-1.5">
+                        <p className="text-amber-200">Địa chỉ có nhiều kết quả gần giống, vui lòng chọn lại.</p>
+                        {geocodeAlternatives.map((option) => (
+                          <button key={`${option.lat}-${option.lng}`} type="button" onClick={() => { setLat(option.lat); setLng(option.lng); setGeocodeDisplayName(option.displayName); }} className="block w-full rounded border border-slate-700 p-2 text-left hover:border-cyan-500/50">
+                            {option.displayName}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-2 text-[10px] text-slate-500">Địa chỉ đã nhập được giữ nguyên. Tọa độ chưa được lưu cho đến khi bấm lưu cơ sở.</p>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div><label className="text-slate-400 font-medium">Vĩ độ (Latitude):</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 text-cyan-400 font-mono font-bold focus:outline-none" value={lat} onChange={e => setLat(e.target.value)} /></div>
