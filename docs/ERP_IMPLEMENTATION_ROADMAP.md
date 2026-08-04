@@ -78,4 +78,456 @@ security decisions, and broad SaaS/release phases remain dependency-blocked.
 
 ## 2026-07-30 Attendance current-shift regression
 
-Fresh production evidence invalidated×<ÒÚ$z{-®éÜj×7B6ÆVçW²6ÆVçWf–ÇW&W2&WGW&â'F–Â#&&W7VÇB&F†W"F†âfÇ6R7V66W72â6öçFVçB6–væGW&W2ÂÔ”ÔRöW‡FVç6–öâw&VVÖVçBÂ7F&ÆR6öçFVçBÖFG&W76VBF‡2ÂF&vWBÖÆVFvW"W†—7FVæ6RÂæBGWÆ–6FR6öçFVçB&R6†V6¶VB6W'fW"×6–FRâF†RW†7B&—fFRÖ'V6¶WBG&gB6¶vR—27W&6RöG&gG2ó##cƒöf–ææ6UöWf–FVæ6U÷7F÷&vU÷¶f÷'v&BÇ&öÆÆ&6·Òç7ÆÇW27W&6R÷fÆ–FF–öâó##cƒöf–ææ6UöWf–FVæ6U÷7F÷&vU÷fÆ–FF–öâç7Æâ—B—2æ÷B&öÖ÷FVB÷"W†V7WFVBâ¶VWGF6†ÖVçBw&—FW2F—6&ÆVBVçF–Ââ÷W&F÷"Ö&÷fVBFF&6RÖFöÖ–27F—fRÖ6÷VçB–çf&–çBæBWF†VçF–6FVB6öæ7W'&Væ7’ö6ÆVçW6Öö¶R&R6ö×ÆWFRà ¥F†R&RÖ6öÖÖ—B&öGV7F–öâ&Wf–Wr&VÖ÷fVBF†R6WVVçF–Â6ö×Vç6F–öâF‚g&öÒF†—2FÖ–â“¢÷&F–æ'’öæR×&÷rVF—G2&VÖ–âf–Æ&ÆRÂv†–ÆRç’VF—BF†B†2÷"v÷VÆB7&VFRÆ–æ¶VB6÷VçFW"×&÷ræ÷rf–Ç26Æ÷6VBVçF–ÂF†R&÷fVBFöÖ–2%2—27F—fRâWFFW2æòÆöævW"&WÆ6R7&VF÷"÷"–FV×÷FVæ7’&÷fVææ6RÂÖ—76–ærF&vWG2&WGW&âCFÂæB66†VÖ7F—fF–öâf–Ç2v—F‚6öçG&öÆÆVBf–WFæÖW6RS6v†Vâ&VF–æW72—2'6VçBâf–æÂÆö6ÂfÆ–FF–öâ76W3¢Æ–çB†2æòv&æ–æw2öW'&÷'2Âç‚G62ÒÖæôVÖ—F76W2ÂÆÂsFW7Bf–ÆW2òScbFW7G272ÂæBF†R&öGV7F–öâ'V–ÆB76W2âæò5Âõ%2ÂÖ–w&F–öâÂ7F÷&vRöÆ–7’ÂÆ—fRö&¦V7BÂ'VçF–ÖRfÆrÂÆVv7’&÷rÂFWÆ÷–ÖVçBÂ6öÖÖ—BÂW6‚Â÷"VÆÂ&WVW7Bv26†ævVBâf–ææ6RÆ–æ¶VBÖÆVFvW"G'VRFöÖ–6—G’&VÖ–ç2$TE•ôdõ%ôÄô4ÅôõU$Dõ&²ÆVFvW"õ&V–Ö'W'6VÖVçBæB&—fFR7F÷&vR&VÖ–â$TE•ôdõ%ôÄô4ÅôõU$Dõ&²&÷F‚f–ææ6R'VçF–ÖRfÆw27F’fÇ6R÷Vç6WBâÄ•dUô$õdÅõ$UT•$TFÆ–W2&Vf÷&Rç’f–ææ6R%2Â&V–Ö'W'6VÖVçBÖ–w&F–öâÂ&—fFR'V6¶WBÂ7F÷&vRöÆ–7’Â&6¶f–ÆÂÂ÷"'VçF–ÖR7F—fF–öâà ¢22##bÓ‚Ó(	BGFVæFæ6Rf—‡GW&R†÷W&Ç’×&FRFÖ–æ—7G&F–öà ¥F†R&÷fVB–çFW&–Ò&öGV7F–öâ×FW7BöÆ–7’ÆÆ÷w2öæRFVF–6FVBGFVæFæ6Rf—‡GW&P§Fò&VÖ–â—&öÆÂ×f—6–&ÆRv—F‚âW†7B¦W&ò†÷W&Ç’&FRæB&ö†–&—G26WGFÆVÖVçBÀ¦F§W7FÖVçBÂ&V–Ö'W'6VÖVçBÂ&VÂv÷&²ÂæB&VÂV×Æ÷–VR&WW6RâF†R&÷VæFVBÆö6À§6Æ–6RFG2†÷W&Ç’×&FRVF—F–ærFòV×Æ÷–VRFWF–Â(i"¢¥L:’6Œ:Öæ‚<:æŒ:&â¢¢F‡&÷Vv‚F†P¦W†—7F–ær7F&ÆRV×Æ÷–VRD4‚&÷WFRâ6W'fW"WF†÷&—¦F–öâ&WV—&W2&÷F€¦TÕÄõ”TUôÔätVæBd”ää4Uõd”Uv²6Æ–VçBæB6W'fW"fÆ–FF–öâ66WB¦W&òÀ§&V¦V7BæVvF—fR÷"ÖÆf÷&ÖVBfÇVW2ÂÆÆ÷rBÖ÷7BGvòFV6–ÖÂÆ6W2ÂæBVæf÷&6P§F†RW†—7F–ærçVÖW&–2ƒBÃ"–7F÷&vRÖ†–×VÒâ'F–ÂWFFW2&W6W'fRWfW'’öÖ—GFV@¦V×Æ÷–VRf–VÆBÂ7V66W72&Vg&W6†W2V×Æ÷–VRFWF–ÂÂæB7G'V7GW&VBW'6—7FVæ6RÆöw0§&V6÷&B7F÷"ÂF&vWBÂ÷WF6öÖRÂæB×WFF–öâ¶W—2v—F†÷WB6ö×Vç6F–öâfÇVW2à ¤æò—&öÆÂ6Æ7VÆF–öâÂ66†VÖÂÖ–w&F–öâÂ$Å2Â'VçF–ÖRfÆrÂ÷"&öGV7F–öâFF—0¦6†ævVBâgFW"&÷FV7FVBÖÖ–âFVÆ—fW'’Â7F÷@¦$TE•ôdõ%õDU5Eôd•…EU$Uõ$õd•4”ôä”äuô$õdÆ¢F†R&öGV7F–öâf—‡GW&R×W7B&P¦7&VFVBÂ–çf—FVBÂ76–væVBöæÇ’5Ddeõtõ$µ54VæBöæRfW&–f–VB7F—fRf6–Æ—G’À§6WB÷&VB&6²B¦W&òÂæB6öæf—&ÖVB'6VçBg&öÒ&VÂ&ö¦V7BÂ&V–Ö'W'6VÖVçBÀ§&RÖW†—7F–ærGFVæFæ6RÂæB6WGFÆVÖVçB7F—f—G’F‡&÷Vv‚6W&FVÇ’&÷fVBFÖ–à¥T’7F–öç2âF†R7V'6WVVçFÇ’&÷fVB&WF–æVB6Öö¶R&÷r—2F†R6öÆRGFVæFæ6P¦W†6WF–öââF†R'Væ&öö²×fW&–f–6F–öâ6Æ–6Ræ÷r&÷f–FW2F†R&VBÖöæÇ¦ö’÷7—7FVÒ÷fW'6–öæFWÆ÷–ÖVçB–FVçF—G’&W7öç6RæBF†R&÷FV7FVBæ÷&ÖÆ—¦V@¦ö’öFÖ–â÷'VçF–ÖRöGFVæFæ6R×&V6÷fW'–7FGW2&W7öç6Râ&öGV7F–öâfW&–f–6F–öà¦æBf—‡GW&R&÷f—6–öæ–ær&VÖ–â÷W&F÷"&÷fÂ&÷VæF&–W2à ¢22##bÓ‚Ó(	B&öGV7F–öâGFVæFæ6R'VçF–ÖRfW&–f–6F–öâWf–FVæ6P ¥F†RWF†÷&—FF—fR&öGV7F–öâÆ–2—2‡GG3¢òöW'æÇVÖ–æÆf7F÷'’æ6öÖâF†P§&VBÖöæÇ’fW'6–öâVæGö–çB&WGW&æVB7V66W73×G'VVÂ7FGW3Öf–Æ&ÆVÀ¦FWÆ÷–ÖVçDVçf—&öæÖVçC×&öGV7F–öæÂæB&÷fVBÖ–â6öÖÖ—@¦S#“scf6CfC““6cC6VC#ccSsƒS–#“#ScCvVöâ##bÓ‚Ó‚³s£’â–âF†R6ÖP¦WF†VçF–6FVBFÖ–â'&÷w6W"6W76–öâv—F‚DÔ”åõtõ$µ54Væ@¦EDTäDä4Uõd”UvÂF†R&V6÷fW'’VæGö–çB&WGW&æV@¦vFSÔEDTäDä4Uõ$T4õdU%•ôTä$ÄTFÂæ÷&ÖÆ—¦VB7FGW3ÖF—6&ÆVFÂæB6fP¦6÷'&VÆF–öâ”B&3sc3SrÓ&F&"ÓCS“‚Ö#ƒ–bÓVcvc†“SC#–à ¤öæÇ’&VF7FVBVæGö–çBWf–FVæ6Rv2&WF–æVC²æò&rVçf—&öæÖVçBfÇVRÀ¦7&VFVçF–ÂÂ6öö¶–RÂFö¶VâÂ÷"Vç&VÆFVBFWÆ÷–ÖVçBÖWFFFv2&V6÷&FVBâæğ¦V×Æ÷–VRÂWF‚–FVçF—G’ÂGFVæFæ6R&÷rÂ—&öÆÂ&÷rÂ5ÂÂÖ–w&F–öâÀ¥7W&6Rõ$Å2õ7F÷&vR6WGF–ærÂ'VçF–ÖRfÆrÂ÷"FWÆ÷–ÖVçBv26†ævVBâF†P¤GFVæFæ6R6Öö¶RFW7B†2æ÷Bö67W'&VBæBæòf—‡GW&R†2&VVâ&÷f—6–öæVBà¥F†RW†7BæW‡B&÷VæF'’—0¦$TE•ôdõ%õDU5Eôd•…EU$Uõ$õd•4”ôä”äuô$õdÆà ¢22##bÓ‚Ó2(	BV×Æ÷–VR7&VFR6ÖR×&W7öç6RF–væ÷7F–2&W—  ¥&öGV7F–öâWf–FVæ6R6†÷vVB6÷'&VÆF–öâÆöö·W6â&WGW&âVæf–Æ&ÆR&V6W6RF†P¥"3r–×ÆVÖVçFF–öâ7F÷&VBF–væ÷7F–72öæÇ’–âFWÆ÷–ÖVçBÖÆö6Â&ö6W70¦ÖâF†BÖ—2æV—F†W"GW&&ÆRæ÷"6†&VB7&÷72fW&6VÂ–ç7Fæ6W2Â6òF†P§6W&FRtUBVæGö–çBv2æ÷B&öGV7F–öâ×&VÆ–&ÆRWf–FVæ6RF‚âF†RVæGö–ç@¦æBÖ&R&VÖ÷fVC²âÆÆ÷vÆ—7FVBF–væ÷7F–2æ÷r&WGW&ç2F—&V7FÇ’–âF†R6ÖP¦WF†÷&—¦VBV×Æ÷–VR7&VFRf–ÇW&R&W7öç6RâVæ¶æ÷vâÖ6†–æRfÇVW2æ÷&ÖÆ—¦RFğ¦Væf–Æ&ÆVÂ–ç6W'BæB&VF&6²7FvW2ö6öFW2&RF—7F–æ7BÂæBÖ&–wV÷W0§&W7VÇG2–ç7G'V7BW†7Bæ÷&ÖÆ—¦VBÖVÖ–Â6V&6‚v—F†÷WBWFöÖF–6ÆÇ’&WG'––ærà ¤æò6†&VBW'6—7FVæ6RÂFWVæFVæ7’Â5ÂÂÖ–w&F–öâÂ$Å2ÂVçf—&öæÖVçBÂFWÆ÷–ÖVçBÀ¦÷"&öGV7F–öâ×WFF–öâ—2&WV—&VBâV×Æ÷–VR7&VFR&VÖ–ç2VçfW&–f–VB–à§&öGV7F–öââF†RÖWFFFÖvFR6V7F–öâ&VÆ÷r7WW'6VFW2F†Rf÷&ÖW"–ÖÖVF–FR×&WG'¦&÷VæF'“¢Fòæ÷B&WG'’&Vf÷&RF†R&VBÖöæÇ’&VfÆ–v‡BWf–FVæ6R—2&Wf–WvVBà ¢22##bÓ‚Ó2(	BV×Æ÷–VR7&VFRÆ–6F–öâF–væ÷7F–26ö×ÆWF–öâæBÖWFFFvFP ¥7FGW3¢Ä•dUô$õdÅõ$UT•$TFâF†R&÷VæFVBÆ–6F–öâ6Æ–6Ræ÷r&WGW&ç2F†P¦ÆÆ÷vÆ—7FVB7W&6Rõ÷7Fu$U5BF–væ÷7F–2–âF†R6ÖRWF†÷&—¦VBõ5B&W7öç6RÀ¦Ö&·2Ö&–wV÷W2&VF&6²÷WF6öÖW2W‡Æ–6—FÇ’ÂW6W2V×Æ÷–VR×7V6–f–2V&Æ–2W'&÷ ¦6öFW2ÂæB&W6VçG2W‡æF&ÆRf–WFæÖW6RFÖ–âÖöæÇ’FV6†æ–6ÂFWF–ÂâF†R&VÖ÷fV@¦–ç7Fæ6RÖÆö6ÂtUBÆöö·W&VÖ–ç2FW&V6FVBæBæöâÖWF†÷&—FF—fRà ¥&W÷6—F÷'’–ç7V7F–öâ6ææ÷B&÷fR&öGV7F–öâ6ö×F–&–Æ—G’&V6W6RF†R÷&–v–æÀ¦V&Æ–2æV×Æ÷–VW6DDÂ—2'6VçBâF†RæW‡BvFR—2F†R¦W&òÖ×WFF–öâ&VBÖöæÇ§&VfÆ–v‡B–â7W&6RöG&gG2ó##cƒ5öV×Æ÷–VUö7&VFU÷66†VÖ÷&VfÆ–v‡Bç7ÆÂF†Và¦—G2fÆ–FF–öâf–ÆRâFòæ÷B&WG'’V×Æ÷–VR7&VFR&Vf÷&RF†R&WF–æVBÖWFFF¦÷WGWB—2&Wf–WvVBâæòf÷'v&BÖ–w&F–öâÂ&öÆÆ&6²DDÂÂ&öGV7F–öâ5ÂW†V7WF–öâÀ¤V×Æ÷–VRôWF‚ôf6–Æ—G’×WFF–öâÂVçf—&öæÖVçB6†ævRÂ÷"FWÆ÷–ÖVçB×WFF–öâ—0§'BöbF†—26Æ–6Rà ¢22##bÓ‚Ó2(	BV×Æ÷–VR7&VFR"×Fö¶VâW'6—7FVæ6R&W—  ¥7FGW3¢$TE•ôdõ%õ$õDT5DTEõ$Ud”Uvâ&÷fVB&VBÖöæÇ’&öGV7F–öâÖWFFF§&÷fVBV×Æ÷–VW2ç%÷Fö¶Væ—2âVç7WÆ–VBäõBåTÄÆöæòÖFVfVÇB6öÇVÖâæBF†P¦6W6RöbF†R#3S&V×Æ÷–VR–ç6W'B&V¦V7F–öââ&W÷6—F÷'’æB&WF–æVBÖWFFF¦Wf–FVæ6R–FVçF–g’—B2F†RÆöærÖÆ—fVBGFVæFæ6R6†V6²Ö–â7&VFVçF–ÂæB&÷fP§F†RVæ—VR6öç7G&–çBV×Æ÷–VW5÷%÷Fö¶Våö¶W–²æòW†—7F–ærvVæW&F÷"÷"G&6¶V@§fÇVRf÷&ÖBv2f÷VæBà ¥F†R&÷VæFVBÆ–6F–öâ6Æ–6Ræ÷rvVæW&FW27'—Föw&†–6ÆÇ’6V7W&RUT”Bc@¦öæÇ’gFW"FÖ–âWF†VçF–6F–öâæBTÕÄõ”TUôÔätVWF†÷&—¦F–öâÂFG2—BFğ§F†RV×Æ÷–VR–ç6W'BÂW†6ÇVFW2—Bg&öÒF†RV&Æ–2&WVW7BÂæ÷&ÖÂ&W7öç6RÀ¦F–væ÷7F–72ÂæBfÇVW2ÆövvVB'’F†RfÆ÷rÂæB&WG&–W2öæÇ’&÷fVâ"×Fö¶Và¦#3SV6öÆÆ—6–öâv—F‚Ö†–×VÒöbF‡&VR6W'fW"GFV×G2â#3S&Ö2Fğ¦V×Æ÷–VUö–ç6W'Eö6öç7G&–çEöf–ÆVF²âW††W7FVB"6öÆÆ—6–öâÖ2Fğ¦V×Æ÷–VU÷%÷Fö¶Våö6öæfÆ–7F²&÷F‚W6R6fRf÷&ÒÖW76vRv—F‚Ü:2"æŒ:&â>» ¦6öçFW‡Bv—F†÷WB&WfVÆ–ærF†RFö¶Vâ÷"FF&6RFW‡Bà ¤æòÖ–w&F–öâÂ5ÂW†V7WF–öâÂ66†VÖõ$Å2ôWF‚ôf6–Æ—G’öFF×WFF–öâÂ÷"WFöÖF–0§&öGV7F–öâ&WG'’&VÆöæw2FòF†—26Æ–6RâgFW"&÷FV7FVBÖÖ–âFWÆ÷–ÖVçB—0§fW&–f–VBF‡&÷Vv‚ö’÷7—7FVÒ÷fW'6–öæÂF†RW†7BæW‡B&÷VæF'’—0¦$TE•ôdõ%ôTÕÄõ”TUô5$TDUõ$UE%–¢7V&Ö—BF†R¶æ÷vâf—‡GW&Röæ6RÖçVÆÇ’æ@§&WF–âF†R&÷fVB6fR7V66W72öf–ÇW&Rf–VÆG2âFòæ÷BÖ&²F†RGFVæFæ6P¦f—‡GW&R6ö×ÆWFRVçF–Â7&VFVBV×Æ÷–VR”BæB—G2ÆFW"f—‡GW&RvFW272à ¢22##bÓ‚Ó2(	BV×Æ÷–VRWF‚VÖ–Âv÷&¶fÆ÷r6÷'&V7F–öà ¥F†R&W÷'FVBV×Æ÷–VR–çf—FF–öâ&Æö6¶W"—2FG&W76VB2&÷VæFVB6Æ÷V@¦Æ–6F–öâ6Æ–6Râ–çf—FRÂW†7BÖVÖ–ÂW†—7F–ærÖ66÷VçB6öææV7F–öâÂ6öçG&öÆÆV@¦–çf—FR&W6VæBÂæBÆ–æ¶VBÖ66÷VçB77v÷&B&W6WBæ÷r†fRF—7F–æ7B6W'fW"Ö÷væV@¦÷W&F–öç2æB6fR7G'V7GW&VB&W7VÇG2âV×Æ÷–VRÆ—7BÂV×Æ÷–VRFWF–ÂÂæ@¤66÷VçBÖævVÖVçBW‡÷6RF†R6W&FR6öææV7F–öâ7F–öâæB7–æ6‡&öæ÷W6Ç’Æö6°¦GWÆ–6FR&WVW7G2â66WFVBWF‚&WVW7G2&RFW67&–&VB266WFVN(	Fæ÷B0§&÷f–FW"FVÆ—fW'’÷"–æ&÷‚&V6V—N(	FæB6''’6÷'&VÆF–öâ”BâF†R6ö×ÆWFP¦&÷VæF'’æB&VÖ–æ–ær÷W&F÷"ÖöæÇ’4ÕEöÆÆ÷vÆ—7BöFVÆ—fW'’6†V6·2&R&V6÷&FV@¦–â¶V×Æ÷–VRÖWF‚ÖVÖ–Â×v÷&¶fÆ÷ræÖEÒ†V×Æ÷–VRÖWF‚ÖVÖ–Â×v÷&¶fÆ÷ræÖB’à ¤æòV×Æ÷–VRv27&VFVBÂæBæò&öGV7F–öâWF‚–çf—FF–öâÂ77v÷&B&W6WBÀ¦66÷VçBÆ–æ²ÂW&Ö—76–öâ×WFF–öâÂ5ÂÂ÷"'VçF–ÖR×WFF–öâv2W&f÷&ÖVBà ¢22##bÓ‚Ó2(	B7FfbWF†VçF–6F–öâVçG'’æBGFVæFæ6RÖ–æ–×VÒ6†–gB6÷'&V7F–öà ¥7FGW3¢$TE•ôdõ%õ$õDT5DTEõ$Ud”UvâF†RFVF–6FVBÖ¶W"Æ"f—‡GW&RÂ7Ff`¦6†V6²Ö–âö6†V6²Ö÷WBÂæBGWÆ–6FR7W'&VçB×6†–gB&WfVçF–öâ7V66VVFVB–â&öGV7F–öâà¤æWrWf–FVæ6R&÷fVBGvò&÷VæFVBÆ–6F–öâFVfV7G3¢7Ffb&÷WFW2Æ6¶VB6†&V@§VæWF†VçF–6FVBVçG'’ÂæBfÆ–B6ÖRÖÖ–çWFR6ö×ÆWFVB&V6÷&Bv2W†6ÇVFVBg&öĞ§F†RÖ–æ–×VÒf–æÆ—¦VB6†–gB&V6W6R—G2&röF—7Æ–VBGW&F–öâv2¦W&òà ¥F†RÆ–6F–öâæ÷rW6W26†&VBöÆöv–æVçG'’v—F‚6fRÆö6Â&WGW&âF&vW@¦æB6W'fW"Ö÷væVBv÷&·76R&W6öÇWF–öââfÆ–B6ö×ÆWFVBGFVæFæ6RW6W2F†P¦&÷fVBƒó3cÖÖ–çWFR&÷VæF&–W2v—F‚öæR×6†–gBÖ–æ–×VÒÂv†–ÆR&rGW&F–öà¦æB†÷W&Ç’×&FR6Æ'’&VÖ–â6W&FRâF†R6ö×ÆWFVB7W'&VçB×6†–gB6&B&WÆ6W0§F†Rw&—FR7F–öâæBW‡÷6W26†–gBÂF–ÖW7F×2ÂGW&F–öâÂ6öçfW'FVB6†–gG2Âæ@¦f–æÂ7FFRâ7Ffb†—7F÷'’æBWfW'’FÖ–â&VBÖöæÇ’vw&VvFRöFWF–Â7W&f6RW6P§F†R6†&VBG–æÖ–26Æ7VÆF–öâÂ6òæòW†—7F–ær×&÷r5Â6÷'&V7F–öâ—2&WV—&VBà ¦EDTäDä4Uõ$T4õdU%•ôTä$ÄTF&VÖ–ç2fÇ6R÷Vç6WBæBFÖ–âGFVæFæ6R&VÖ–ç0§&VBÖöæÇ’âæò&V6÷fW'’Â5ÂÂÖ–w&F–öâÂ$Å2Â&6¶f–ÆÂÂWF‚ôV×Æ÷–VR÷W&Ö—76–öâÀ§'VçF–ÖRÂ÷"&öGV7F–öâFF×WFF–öâ&VÆöæw2FòF†—26Æ–6RâFòæ÷BÖ&²F†P¤GFVæFæ6RvFR76VBVçF–Â&÷FV7FVBÖÖ–âFWÆ÷–ÖVçB—2fW&–f–VBæBF†P¦ÖçVÂ–æ6övæ—Fò7FfbVçG'’ÇW27FfbôFÖ–â6öçfW'FVB×6†–gB&WFW7B76W2à ¢22##bÓ‚ÓB(	BGFVæFæ6R×VÇF’Ö6†V6²æBFÖ–â×WFF–öâ&W&F–öà ¥7FGW3¢Ä•dUô$õdÅõ$UT•$TFâF†R&÷VæFVBÆ–6F–öâ6öçG&7Bæ÷r7W÷'G0§F†R&÷fVB6ÖRÖFFR÷6ÖR×6†–gB6öçF–çVF–öâÖöFVÃ¢öæR7F—fRvw&VvFR&÷rÀ¦V&Æ–W7BfÆ–B6†V6²Ö–âÂÆFW7BfÆ–B6†V6²Ö÷WBÂVÆ6VBGW&F–öâ–æ6ÇVF–æp¦'&V·2ÂæBF†R&÷fVBöæRòGvòòF‡&VR6öçfW'FVB×6†–gBF‡&W6†öÆG2âF†R7Ff`¦6Æ–VçBÆ–W2F†R&WGW&æVBvw&VvFR&÷rÆö6ÆÇ’Âfö–F–ær6V6öæBf—6–&ÆP¦gVÆÂÖÆöF–ær7–6ÆRâFÖ–âÖçVÂ7&VFR÷WFFRöFVÆWFR—2–æFWVæFVçFÇ’vFV@¦g&öÒ&V6÷fW'’Â&WV—&W2EDTäDä4UôÔätVæBâF§W7FÖVçB&V6öâÂæB6ÆÇ0¦âVF—FVBFöÖ–2%26öçG&7C²FVÆWF–öâ—2&V6öæVB6æ6VÆÆF–öâà ¥F†RÆ–6F–öâvFW2&VÖ–âfÇ6R÷Vç6WBâG&gBÖöæÇ’5Â&W&W2â7F—fR×&÷p§'F–ÂVæ—VR–æFW‚Ââ$Å2×&÷FV7FVB÷W&F–öâVF—BF&ÆRÂæB6W'fW"Ö÷væV@¥7FfbôFÖ–â%72âæòÖ–w&F–öâÂ%27F—fF–öâÂ$Å26†ævRÂ&6¶f–ÆÂÂW†—7F–æp§&÷r&W—"Â'VçF–ÖR7F—fF–öâÂ÷"&öGV7F–öâGFVæFæ6Rõ—&öÆÂ×WFF–öâ†0¦ö67W'&VBâ&Vf÷&Rç’7F—fF–öâÂ'VâF†R&VBÖöæÇ’&VfÆ–v‡BÂ6öæf—&Ò¦W&ğ¦GWÆ–6FR7F—fRV×Æ÷–VRöFFR÷6†–gBw&÷W2Â&Wf–WrF†Rf÷'v&B÷&öÆÆ&6²6¶vRÀ¦æBö'F–âW‡Æ–6—BÄ•dUô$õdÅõ$UT•$TFf÷"W†V7WF–öâæB÷7B×'Vâ6†V6·2à ¢22##bÓ‚ÓB(	B6†&VBF&ÆR–æg&7G'V7GW&RæBGFVæFæ6Rf—'7BvfP ¥7FGW3¢$TE•ôdõ%õD$ÄUôÄô4ÅôÄôD”äuõ$UDU5Fâ"W7F&Æ—6†W2öæR&W6VçFF–öâÖöæÇ’6†&VBFF×F&ÆR7—7FVÒæBÖ–w&FW27FfbGFVæFæ6R†—7F÷'’ÇW2FÖ–âGFVæFæ6R6ÆVæF"öF–Ç’ÖÖöFÂ&Vg&W6‚&V†f–÷"â7Ffb×WFF–öç26öçF–çVRFòF6‚F†RWF†÷&—FF—fRvw&VvFR&W7öç6Rv—F‚æò7V66W72tUBâFÖ–âÖçVÂ7&VFR÷WFFRö6æ6VÆÆF–öâF6‚F†R&WGW&æVB&÷rÆö6ÆÇ’Â&W6W'f–ærF†R6VÆV7FVBFFRæBÖöFÃ²ÖöçF‚öV×Æ÷–VR6†ævW2&VÖ–âöæR66÷VBtUBâV×Æ÷–VRÂ&ö¦V7G2÷F6·2ÂæBf–ææ6R&RFVÆ–&W&FVÇ’FVfW'&VBFò&÷VæFVBföÆÆ÷r×W'2Fö7VÖVçFVB–â6†&VBÖFF×F&ÆRÖwV–Fæ6RæÖFà ¤æò5ÂÂÖ–w&F–öâÂ$Å2Â'VçF–ÖRvFRÂ&V6÷fW'’7F–öâÂ&öGV7F–öâGFVæFæ6R×WFF–öâÂ÷"ÖçVÂFWÆ÷–ÖVçBö67W'&VBâGFVæFæ6R&V6÷fW'’&VÖ–ç2F—6&ÆVBà ¢22##bÓ‚ÓB(	BFÖ–âGFVæFæ6RÖçVÂÖVçG'’&öGV7F–öâ&Æö6¶W  ¥7FGW3¢$TE•ôdõ%ôõU$Dõ%õ$UDU5FâF†RFÖ–âGFVæFæ6R–ÆöBæ÷r¶VW2F†P¦FF&6R6†–gG6F—&V7F÷'’2—G26öæf–wW&VB6÷W&6RæBfÆÇ2&6²ÂöæÇ’v†Và§F†BF—&V7F÷'’—2V×G’ÂFòF†R6ÖRÖ÷&æ–ærögFW&æööâöWfVæ–ærFVf–æ—F–öç2÷væV@¦'’F†RGFVæFæ6R6†–gB&W6öÇfW"â7V66W76gVÂÖçVÂ7&VFR÷WFFRö6æ6VÆÆF–öà§F6†W2F†R&WGW&æVB&÷r–çFòF†R6VÆV7FVBF’æB6Æ÷6W2F†RÖöFÃ²fÆ–FF–öà¦æB’f–ÇW&W2ÆVfRF†RÖöFÂæBVçFW&VBfÇVW2f—6–&ÆRâæ÷F–f–6F–öà§WFFW2æòÆöævW"6†ævRF†RtUB6ÆÆ&6²–FVçF—G’Â6ò×WFF–öâFö7B6ææ÷@§G&–vvW"vR×v–FRGFVæFæ6R&VÆöBâÖöçF‚æBV×Æ÷–VRf–ÇFW"7FFR&VÖ–à§VçF÷V6†VBà ¤æò5ÂÂ66†VÖÂ$Å2Â'VçF–ÖRÖvFRÂ%2Â—&öÆÂÂVF—BÖ6öçG&7BÂ÷"&öGV7F–öà¤GFVæFæ6R×WFF–öâv2W&f÷&ÖVBâ÷W&F÷"&WFW7B&VÖ–ç2&WV—&VBv—F‚F†P¦Ç&VG’Ö&÷fVB'VçF–ÖRVçf—&öæÖVçBà ¢22##bÓ‚ÓB(	BFÖ–âGFVæFæ6RÖçVÂÖ7&VFR&V6öâ6öçG&7@ ¥7FGW3¢5UU%4TDTEô%•ôDÔ”åôEDTäDä4UôÕUDD”ôåõt•$”äuõ$U•&âF†RV&Æ–W ¦Æ–6F–öâ6öçG&7BÆÆ÷vVB6W'fW"Ö÷væVBFVfVÇBf÷"6†÷'B7&VFRæ÷FRà¥F†R7W'&VçB&÷VæFVB&W—"Æ–vç2F†RT’æB6W'fW"v—F‚F†R&÷fVBVF—FV@¦6öçG&7C¢7&VFRÂWFFRÂæB6æ6VÆÆF–öâV6‚&WV—&RG&–ÖÖVB&V6öâöb@¦ÆV7B6†&7FW'2âæò66†VÖÂ$Å2ÂW&Ö—76–öâÂ'VçF–ÖRÖvFRÂ&V6÷fW'’À§—&öÆÂÂ%2Â÷"&öGV7F–öâGFVæFæ6R×WFF–öâv2W&f÷&ÖVB–âF†BV&Æ–W §6Æ–6Rà ¢22##bÓ‚ÓB(	BFÖ–âGFVæFæ6R×WFF–öâv—&–ær&W—  ¥7FGW3¢$TE•ôdõ%ôDÔ”åôEDTäDä4UôÕUDD”ôåõ$UDU5FâF†—2&÷VæFVBÆ–6F–öà§6Æ–6R6÷'&V7G2F†R¥4ôâV×Æ÷–VT–F6öçG&7B‡F†RT’6VæG27F&ÆP¦V×Æ÷–VW2æ–FÂ–æ6ÇVF–ærçVÖW&–2fÇVW2’Â&WF–ç2F†R6VÆV7FVBV×Æ÷–VR–B–à§F†RÖöFÂÂæBfÆ–FFW2F†R7F—fRF&vWBV×Æ÷–VRF‡&÷Vv‚F†RWF†VçF–6FV@§6W'fW"6Æ–VçB&Vf÷&RF†RVF—FVB×WFF–öâ%2â7&VFRÂWFFRÂæB6æ6VÆÆF–öà¦æ÷r†fR—6öÆFVBfÆ–FF–öâF‡3²7&VFR÷WFFRö6æ6VÆÆF–öâ&V6öç2&RV6€§fÆ–FFVBB²6†&7FW'22&WV—&VB'’F†RVF—B6öçG&7Bà ¤W†—7F–ær×&÷r6fRW6W2F—'G’6†V6²Ö–âö6†V6²Ö÷WB7FFRæBF6†W2öæÇ’F†P§&WGW&æVB&÷râ6æ6VÆÆF–öâ6öæf—&×2&Vf÷&R6ÆÆ–ærF†RW†—7F–ær6ögBÖFVÆWFP¦VF—BF‚âW"×&÷rö7F–öâÆö6·2&WfVçBGWÆ–6FR&WVW7G2ÂÆVv7’Æör&÷w0§&VÖ–âW‡Æ–6—FÇ’&VBÖöæÇ’ÂæB&V6÷fW'’&VÖ–ç2F—6&ÆVBæB–æFWVæFVçBg&öĞ¦æ÷&ÖÂFÖ–â×WFF–öâà ¤æò5ÂÂÖ–w&F–öâÂ&6¶f–ÆÂÂ$Å26†ævRÂ'VçF–ÖR7F—fF–öâÂ&öGV7F–öâVW'’À¦÷"&öGV7F–öâGFVæFæ6R×WFF–öâv2W&f÷&ÖVBâ&öGV7F–öâ&WFW7B&VÖ–ç0§&WV—&VBgFW"FWÆ÷–ÖVçBv—F‚F†R&÷fVB×WFF–öâvFRæBVF—FVB%2à
+Fresh production evidence invalidated the prior Attendance application-complete
+claim. The Staff page treated a historical unfinished `attendance` row as
+today's active shift, displayed an unbounded duration and three provisional
+shifts, and did not visibly transition after the attempted checkout.
+
+The repository application correction is `APPLICATION_COMPLETE`: current shift state is explicit,
+previous-date open rows are read-only operator warnings, GPS is check-in-only,
+successful mutations return and apply persisted state before background refresh,
+completed records alone contribute shift units, and the primary action is
+compact. Repository validation and the exact recovery boundary are recorded in
+[attendance-current-shift-state-regression.md](attendance-current-shift-state-regression.md).
+
+No SQL, runtime activation, production mutation, deployment, Facility Fixture 4
+PASS, Facility Fixture 5, or Attendance Gate 2 continuation is claimed. The
+existing stale row is `READY_FOR_OPERATOR` under the prepared Attendance
+recovery package; `ATTENDANCE_RECOVERY_ENABLED` remains false or unset.
+
+**Reconciled:** 2026-07-29
+**Repository baseline:** `bb3f431` (`docs: prepare phase template decision package (#91)`)
+**Scope:** repository evidence only. This reconciliation did not execute SQL/RPC, enable a runtime flag, deploy, merge, begin SaaS UI work, or inspect GitHub comments.
+
+## Status contract
+
+This roadmap uses only the following statuses:
+
+- `COMPLETE`: application code, database schema/RPC, runtime activation, and required verification are complete.
+- `APPLICATION_COMPLETE`: application code and tests are complete, but no production capability is claimed active.
+- `READY_FOR_OPERATOR`: the reviewed forward, rollback, and validation package is complete and ready for the approved operator workflow.
+- `LIVE_OPERATOR_VERIFICATION_REQUIRED`: production read-only, migration-history, fixture, smoke, or post-run evidence remains outstanding.
+- `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`: repository-safe work is complete and the named live gate can advance only through retained operator production evidence. This status never implies production PASS or runtime activation.
+- `RUNTIME_FLAG_DISABLED`: the application and package boundary exists, but its server runtime flag must remain false/unset.
+- `BLOCKED_BY_DEPENDENCY`: work cannot safely advance until a named preceding gate passes.
+- `BLOCKED_BY_BUSINESS_DECISION`: an approved business or security contract is required before implementation or delivery can advance.
+- `DEFERRED`: intentionally outside the current execution sequence.
+- `NOT_STARTED`: approved work has not begun.
+- `SUPERSEDED`: replaced by a named roadmap item or authority and must not be reopened independently.
+
+Repository presence is not production proof. A migration, draft SQL file, RPC definition, or passing static test does not by itself make a database-dependent feature `COMPLETE`.
+
+## Cloud execution classification
+
+This table is the scheduling authority for the current Cloud continuation. It classifies every roadmap item using only the five requested execution dispositions. `READY_FOR_OPERATOR` includes items whose application work is complete but whose production evidence, protected migration delivery, runtime activation, or live smoke checks belong to an operator. `COMPLETE` means no remaining work exists inside that roadmap item's approved repository scope; it does not promote a linked operator gate to production PASS.
+
+| Roadmap item | Cloud classification | Reason |
+|---|---|---|
+| 1. Project Membership | `READY_FOR_OPERATOR` | Application and regression scope is complete; retained production role and cancelled-project fixtures remain operator evidence. |
+| 2. Project authorization | `READY_FOR_OPERATOR` | Server authorization is implemented; production membership/RLS fixtures remain operator evidence. |
+| 3. Project Detail | `COMPLETE` | The approved core detail, state, retry, accessibility, copy, and responsive scope is complete; linked gated mutations remain classified separately. |
+| 4. Project atomic create | `READY_FOR_OPERATOR` | The application boundary and complete operator package exist; the runtime flag stays false. |
+| 5. Phase Workflow | `READY_FOR_OPERATOR` | The reviewed package and compatibility coverage exist; protected delivery and retained live evidence remain. |
+| 6. Phase status mutation | `READY_FOR_OPERATOR` | Migration and validation artifacts exist; activation depends on the operator-verified foundation. |
+| 7. Child Task CRUD | `READY_FOR_OPERATOR` | Approved application CRUD is complete; atomic create delivery and smoke evidence remain operator-only. |
+| 8. Task comments/activity | `READY_FOR_OPERATOR` | Disabled/error behavior and the complete SQL/RPC/RLS package exist; delivery and activation remain operator-only. |
+| 9. Facility directory | `READY_FOR_OPERATOR` | Repository regression is closed; compatibility, RLS, and production fixtures remain operator-only. |
+| 10. Attendance | `READY_FOR_OPERATOR` | Preserve `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`; Gate 2 has no further safe Cloud implementation. |
+| 11. Employee Account/Workspace | `READY_FOR_OPERATOR` | Application presentation and server boundaries are complete; catalog/linkage/grant fixtures remain operator evidence. |
+| 12. Ledger/Reimbursement | `READY_FOR_OPERATOR` | The approved application and complete package `20260728153000` exist; Storage/RLS review, delivery, and smoke evidence remain operator-only. |
+| 13. Payroll | `READY_FOR_OPERATOR` | The approved disabled application UI and immutable-settlement package exist; first-month configuration, delivery, fixtures, and activation remain operator-only. |
+| 14. Dashboard | `READY_FOR_OPERATOR` | Approved error/retry behavior is complete; empty/populated/denied production fixtures remain operator evidence. |
+| 15. Functional stabilization | `COMPLETE` | All approved safe application defect, loading, retry, submission, targeted-refresh, and regression work is complete. |
+| 16. Runtime gate readiness | `READY_FOR_OPERATOR` | All seven packages are inventoried and default-disabled; live evidence and activation remain operator-only. |
+| 17. Phase Templates | `BLOCKED_BY_BUSINESS_DECISION` | The decision package preserves twelve unanswered questions; no implementation or executable package is approved. |
+| 18. SaaS UI foundation | `BLOCKED_BY_DEPENDENCY` | The bounded affected journeys and prerequisite operator gates are unresolved; no broad foundation implementation is safe. |
+| 19. Broad SaaS UI re-skin | `BLOCKED_BY_DEPENDENCY` | Operational boundaries and runtime evidence remain unresolved. |
+| 20. Production hardening | `BLOCKED_BY_DEPENDENCY` | Stabilized production capabilities and an approved UI scope must precede release hardening. |
+
+No item is currently `SAFE_CLOUD_WORK_AVAILABLE`. The exact next safe Cloud item selected for this continuation was this repository reconciliation and operator-handoff correction; it is now `COMPLETE`. No application defect or approved UI/RPC/RLS package gap remained after inspection, so no application code, SQL, runtime flag, deployment, or completed Employee persistence scope was reopened.
+
+### Employee Detail and Employee Profile disposition
+
+- Employee Detail seven-tab application: `APPLICATION_COMPLETE` at completion commit `298fabb`; repository validation: `PASS`.
+- Employee Profile schema extension: `BLOCKED_BY_BUSINESS_DECISION`. Package `20260729_employee_profile_extension` remains draft-only and production migration is `NOT_EXECUTED`.
+- Employee audit/operator package: `READY_FOR_OPERATOR` for review only. Preserve its pre-run, forward, post-run, rollback, RLS/audit, and validation artifacts without promotion or execution.
+- Required decisions: final field semantics/nullability; per-field Admin read/edit; per-field Staff own-profile read/edit; sensitive-field visibility; audit field allowlist; audit retention period; storage of old/new sensitive values; and hard-delete versus archive-only audit retention.
+- No production SQL, authenticated production smoke, runtime flag activation, deployment, or merge occurred in this continuation.
+
+After applying the required skips, there is **no exact next `SAFE_CLOUD_WORK_AVAILABLE` item**. The next incomplete operational item is Item 16, Gate 2 Attendance recovery, but it is operator-only. Employee Profile can become the next safe repository slice only after all eight business/security decisions are approved; Phase Templates and the SaaS UI phases retain their existing blockers. This classification prevents Employee Profile from stopping the roadmap while also preventing speculative work.
+
+## Reconciled roadmap
+
+The order below preserves the functional roadmap sequence. Dependency corrections are explicit in **Remaining gate** and in the runtime matrix; they do not duplicate a feature as a second phase.
+
+| Roadmap item | Previous status | Verified status | Evidence | Remaining gate | Next action |
+|---|---|---|---|---|---|
+| 1. Project Membership | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Membership schema/backfill history and server management/authorization boundaries exist; stable-ID authorization is covered by `tests/project-membership-authorization.test.ts` and `tests/project-membership-management-static.test.ts`. | Production owner/manager/contributor/read-only/cancelled-project fixtures have not been retained as PASS evidence. | Operator runs the membership smoke fixtures in the [production runbook](production-runtime-gate-operator-runbook.md); do not recreate the completed application slice. |
+| 2. Project authorization | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Server authorization distinguishes session, employee, membership, dependency, permission, and cancelled-project outcomes in `services/server/projectMembershipAuthorization.ts`; Project Read RLS was recorded as delivered, with some fixture denials deferred. | Verify the remaining production membership/RLS authorization fixtures read-only. | Record operator evidence through the [production runbook](production-runtime-gate-operator-runbook.md); no application reimplementation. |
+| 3. Project Detail | `APPLICATION_COMPLETE` | `APPLICATION_COMPLETE` | Core-first loading, server project code, phase metadata, targeted section retries, accessibility/copy slices, and operational-state tests are present in `app/admin/projects/[projectId]/page.tsx`, `tests/project-detail-operational-state.test.ts`, and `tests/project-detail-stepper.test.ts`. | Gated phase/task/comment mutations remain governed by their own linked roadmap items; they are not duplicate Project Detail work. | Preserve this slice; verify linked operator gates rather than scheduling Project Detail again. |
+| 4. Project atomic create | `APPLICATION_COMPLETE` | `RUNTIME_FLAG_DISABLED` | Server orchestration and compatibility tests exist; pre-run, forward, post-run, validation, rollback, and backfill artifacts are prepared under `supabase/drafts/20260728_project_creation_atomic_*` and `supabase/drafts/20260721_project_creation_atomic_*`. | Dependencies and RPC privileges/atomicity must pass operator delivery and smoke tests; `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED` remains false/unset. | Follow this gate's card in the [activation matrix](runtime-gate-activation-matrix.md) and [production runbook](production-runtime-gate-operator-runbook.md). |
+| 5. Phase Workflow | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Normalized workflow foundation forward/rollback/validation/review artifacts are complete under `supabase/drafts/20260718_phase_workflow_foundation_*`; read-only compatibility and rollout tests exist. | Confirm migration history or deliver through the approved path, then retain post-run object/count/RLS and legacy-read evidence. Foundation flag remains false until PASS. | Operator executes the Phase Workflow foundation card in the [activation matrix](runtime-gate-activation-matrix.md) via the [production runbook](production-runtime-gate-operator-runbook.md). |
+| 6. Phase status mutation | `READY_FOR_OPERATOR` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Transition validator, membership authorization, status route, promoted migration `supabase/migrations/20260727044729_phase_status_dependency.sql`, validation, pre-run, and rollback artifacts exist with focused tests. | Foundation must be active; migration-history, authorization, dependency, audit, cancelled-project, and post-run checks must PASS. `PHASE_STATUS_MUTATION_ENABLED` remains false. | Operator follows the phase-status card in the [activation matrix](runtime-gate-activation-matrix.md) and [production runbook](production-runtime-gate-operator-runbook.md). |
+| 7. Child Task CRUD | `APPLICATION_COMPLETE` | `RUNTIME_FLAG_DISABLED` | Normalized task read/edit/status/cancel UI and server contracts exist in `services/server/taskAssignmentFoundation.ts` and project task routes; regression coverage includes `tests/task-assignment-foundation.test.ts` and `tests/task-detail-subtask-binding.test.ts`. | Atomic task-create RPC delivery, privilege validation, atomicity and authorization smoke tests remain; `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED` stays false. | Use the exact task-create package in the [activation matrix](runtime-gate-activation-matrix.md) and [production runbook](production-runtime-gate-operator-runbook.md); do not reschedule CRUD implementation. |
+| 8. Task comments/activity | `APPLICATION_COMPLETE` | `RUNTIME_FLAG_DISABLED` | Bounded timeline/comment boundary and tests exist in `services/server/projectActivity.ts`, `app/admin/projects/[projectId]/ProjectTimelineSection.tsx`, and `services/projectActivity.test.ts`; full pre/forward/post/rollback artifacts exist under `supabase/drafts/20260728_task_comments_activity_*`. | Operator must deliver and validate immutable history, RLS, actor derivation, bounded reads, and cross-project denial; `TASK_COMMENTS_ACTIVITY_ENABLED` stays false. | Follow the comments/activity gate in the [activation matrix](runtime-gate-activation-matrix.md) and [production runbook](production-runtime-gate-operator-runbook.md). |
+| 9. Facility directory | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Facility and Employee reads now use the authorized request session instead of requiring a privileged secret; legacy ID/code/name resolution, resilient in-page failures, disabled mutations, focused tests, the tracked status/code migration, and a draft-only scoped read-RLS package exist. The 2026-07-28 focused regression covered Employee List/Detail, Facility List/CRUD, Employee â†” Facility mapping, legacy values, error/retry states, permissions, navigation, and API contracts with 88 focused assertions passing (`FACILITY_DIRECTORY_REGRESSION_PASS`). | Production compatibility/RLS audit, migration-history/post-run validation, authorized/denied directory fixtures, assigned-facility and inactive-exclusion smoke tests remain; `FACILITY_ACTIVE_STATE_ENABLED` stays false. | Application work is closed and the remaining gate is deferred to the production operator. The operator follows the exact order in [the Facility compatibility report](facility-employee-production-compatibility.md), beginning with read-only audit and running the draft RLS forward only after approval and only if required. |
+| 10. Attendance | `APPLICATION_COMPLETE` | `PRODUCTION_CORRECTION_COMPLETE_SMOKE_REQUIRED` | Attendance application work and repository validation are complete. The approved stale-row forward committed once; post-run and package-wide validation passed; exactly one cancelled row and immutable audit event ID `1` are retained with no Payroll reference or duplicate state. Read-only production runtime verification also passed on the approved main commit with recovery disabled. | Dedicated test-fixture provisioning and authenticated production Staff/Admin smoke remain. `ATTENDANCE_RECOVERY_ENABLED` stays false until that documented smoke passes and any later activation receives separate approval. | Do not replay the forward or run rollback. The operator first obtains fixture-provisioning approval, then performs only the remaining smoke through the [activation matrix](runtime-gate-activation-matrix.md) and [production runbook](production-runtime-gate-operator-runbook.md). |
+| 11. Employee Account/Workspace | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Server-derived account/workspace/preset/permission management and tests exist; reviewed permission catalog forward/validation/rollback artifacts are registered in the operator handoff. | Verify employee/Auth linkage, catalog delta, known/unknown codes, grant/revoke, and fail-closed fixtures before enabling mutations. | Operator runs the account/workspace package from the [production runbook](production-runtime-gate-operator-runbook.md); preserve the completed application UI. |
+| 12. Ledger/Reimbursement | `APPLICATION_COMPLETE` | `READY_FOR_OPERATOR` | Approved executor/beneficiary, reimbursement status, server actor/audit, no-delete, idempotency, payroll-source, RLS, attachment metadata, migration and operator packages are complete under identifier `20260728153000`. | Protected-main migration delivery, private Storage/RLS review, post-run authorization/smoke evidence, and separate runtime approval remain. | Operator follows package 8 in the SQL handoff; keep `FINANCE_REIMBURSEMENT_ENABLED` false/unset and preserve every legacy salary row. |
+| 13. Payroll | `BLOCKED_BY_BUSINESS_DECISION` | `READY_FOR_OPERATOR` | Approved shift boundaries, attendance aggregation, immutable settlement/adjustment/audit RPCs, own-salary and admin confirmation views, authorization/RLS/grants, runtime gating, and the complete operator package are implemented in `services/server/payroll.ts`, Payroll routes/pages, migration `20260728100414`, and focused regression tests. | Production pre-run, protected-main migration delivery, post-run validation, explicit first-month configuration, permission fixtures, smoke tests, and runtime activation remain operator-only. `PAYROLL_SETTLEMENT_ENABLED` stays false/unset. | Operator follows the Payroll package in the SQL handoff; no historical settlement/backfill, live mutation, flag enablement, deployment, or merge is authorized here. |
+| 14. Dashboard | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Server-owned paid-ledger DTO, visible failure, and in-app retry are implemented and covered by `tests/admin-dashboard-dto.test.ts`. | Authorized production fixtures for empty, populated, denied, and error ledger states have not been retained as PASS evidence. | Operator performs the Dashboard read-only smoke checks in the [production runbook](production-runtime-gate-operator-runbook.md); do not redesign it in this task. |
+| 15. Functional stabilization | `BLOCKED_BY_DEPENDENCY` | `APPLICATION_COMPLETE` | The current journey matrix and safe application fixes are recorded in [the functional stabilization report](core-erp-functional-stabilization-report.md). Payroll request ordering, duplicate-submit feedback, and Retry state are covered by `tests/payroll-immutable-settlement.test.ts`. | Live operator verification/runtime activation remains for Account, Facility, Attendance, Project Workflow, Child Task create, Comments/Activity, Ledger/Reimbursement, Payroll, and Dashboard. | Safe repository work is complete. Continue with item 16 operator evidence; do not infer any gate active. |
+| 16. Runtime gate readiness | `READY_FOR_OPERATOR` | `READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL` | All seven server-owned gates, artifacts, dependencies, smoke tests, activation prerequisites, rollback triggers, and default-false tests are owned by the [activation matrix](runtime-gate-activation-matrix.md) and [production runbook](production-runtime-gate-operator-runbook.md). Attendance stale-row correction, post-run, and package validation are `PASS`; read-only production runtime verification passed for commit `e2090766cd6d9193f43ed2006657859b9251647e` with recovery `disabled`; audit event ID `1` is retained. Employee persistence separately records `EMPLOYEE_PROFILE_PERSISTENCE_PASS`. | Attendance requires a dedicated zero-rate test fixture before authenticated Staff/Admin smoke. | **Exact next Attendance gate:** obtain `READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`, then perform production Staff/Admin smoke. Keep `ATTENDANCE_RECOVERY_ENABLED=false`; forward replay and rollback are not authorized. |
+| 17. Phase Templates | `BLOCKED_BY_BUSINESS_DECISION` | `BLOCKED_BY_BUSINESS_DECISION` | The preserved [business-decision package](phase-template-business-decision.md) defines bounded options and twelve unanswered business questions without creating application code or executable SQL. | The business owner must answer all twelve questions and approve the seed catalog or an empty catalog. | Preserve the package. Do not implement, infer rules, promote draft SQL, or silently approve a contract. |
+| 18. SaaS UI foundation | `NOT_STARTED` | `BLOCKED_BY_DEPENDENCY` | `SETUP-CODEX-ERP.md` defines the future shared shell/design-system scope; the stabilization report classifies only a subset of journeys as safe for scoped planning. | Operational gates are unresolved and the approved bounded foundation scope is not isolated from them. | Do not implement yet. Reassess only after the affected journeys and prerequisite operator evidence are explicit. |
+| 19. Broad SaaS UI re-skin | `BLOCKED_BY_DEPENDENCY` | `BLOCKED_BY_DEPENDENCY` | The stabilization report explicitly blocks broad redesign while operational boundaries remain unresolved. | Every affected stabilization journey and runtime gate must have the required retained evidence, and the foundation scope must be approved. | Keep broad re-skin blocked; do not reinterpret completed functional polish as a new re-skin slice. |
+| 20. Production hardening | `NOT_STARTED` | `BLOCKED_BY_DEPENDENCY` | `SETUP-CODEX-ERP.md` defines performance, accessibility, production build, monitoring, and release-readiness criteria. Existing application slices have local regression/build coverage but no completed release-hardening phase. | Depends on stabilized production capabilities and the approved UI scope; deployment remains a separate approval gate. | Begin only after stabilization and the approved UI phase; do not deploy or merge as part of roadmap reconciliation. |
+
+## 2026-07-29 Employee Profile persistence closure
+
+`EMPLOYEE_PROFILE_PERSISTENCE_PASS`: authenticated production smoke verified Admin updates and hard-refresh readback without changing omitted fields, plus Staff phone and bank updates limited to the authenticated employee. `public.employees` is the authoritative source and both workspaces use the same persistence/readback contract. Mutation success remains distinct from optional enrichment/readback warnings, and workspace notification isolation passed. The Employee Profile persistence incident is **CLOSED**; no SQL, RLS broadening, or runtime flag change was required.
+
+Roadmap reconciliation advances Item 16 to the exact next incomplete item: **Gate 2, Attendance recovery**. Repository-safe review and regression work is allowed; production SQL, runtime activation, and a live PASS claim remain operator-only.
+
+### Attendance Gate 2 repository-safe checkpoint
+
+The normal Staff POST route remains independent from `ATTENDANCE_RECOVERY_ENABLED`: it derives the authenticated employee and server time, inserts check-in, and updates only that employee's open record on check-out. Only Admin recovery is flag-gated, so false/unset preserves normal Staff attendance and read-only Admin use.
+
+The existing pre-run, tracked forward migration, post-run validation, rollback, authorization/RLS, runtime matrix, and smoke runbook were reviewed. The pre-run now checks every required relation and helper, including `shifts` and `current_employee_id()`. Post-run validation now reports helper availability and an explicit zero-row `missing_policy` result. Focused regression coverage binds these artifacts to own-row Staff access, Admin view/manage permissions, non-membership authority, RLS-preserving rollback, and default-disabled recovery.
+
+No further safe Attendance Cloud implementation remains. Attendance application work is `APPLICATION_COMPLETE`, repository validation is `PASS`, and the read-only production runtime verification is `PASS` for the approved main commit with `ATTENDANCE_RECOVERY_ENABLED` normalized to `disabled`. No production SQL or runtime activation occurred, and no live Attendance smoke PASS is claimed.
+
+The remaining operator sequence is exact: (1) verify migration history and do not replay a recorded migration, (2) run the registered Attendance Gate 2 read-only pre-run, (3) retain the registered post-run evidence, (4) obtain dedicated test-fixture provisioning approval and provision only the documented zero-rate fixture, (5) perform authenticated production authorization and smoke checks for own-row Staff access plus authorized and denied Admin fixtures, and (6) keep `ATTENDANCE_RECOVERY_ENABLED=false` until every artifact and check passes.
+
+## 2026-07-28 Payroll settlement checkpoint
+
+Roadmap item 13 is now `READY_FOR_OPERATOR`. The approved contract is implemented as an application and delivery slice: a completed attendance row contributes one to three shifts at the official 180/360-minute boundaries; salary derives from snapshotted worked time and hourly rate; each employee/month has one immutable settlement; corrections are immutable revision rows with server-derived actor/time; and ACTIVE Staff Workspace employees receive only their own salary projection without admin audit details. The first settlement month remains empty until an authorized operator configures it explicitly.
+
+`PAYROLL_SETTLEMENT_ENABLED` must remain false/unset. No SQL/RPC was executed, no historical settlement was generated, no legacy salary/attendance row was rewritten, and no live flag, deployment, or merge occurred. The remaining action is the operator sequence registered in `docs/production-operator-sql-handoff.md`.
+
+**Exact next roadmap item:** Roadmap item 12, Ledger/Reimbursement, remains the earlier incomplete item in roadmap order and is still `BLOCKED_BY_BUSINESS_DECISION`. If that finance/security contract is not approved, there is no additional safe application item; proceed only with retained operator evidence for already packaged gates and do not begin the SaaS UI re-skin.
+
+## 2026-07-28 Facility regression and Attendance continuation checkpoint
+
+`FACILITY_DIRECTORY_REGRESSION_PASS`: the focused repository regression passed without an application regression. The check was intentionally limited to Employee List, Employee Detail, Facility List, Facility CRUD, Employee â†” Facility mapping, legacy facility values, error/retry states, permissions, navigation, and API contracts. No runtime flag was enabled and no SQL was executed.
+
+Roadmap item 10 Attendance was then resumed without restarting either completed application slice. The safe application review completed explicit in-page retry, visible current-open-shift context, a prior-date stale-shift warning, and a synchronous submission lock that closes the gap before React commits disabled state. Staff access, check-in/out, history, facility display, calculation, permission, API, and default-disabled recovery contracts remain covered and independent from Project Membership. Attendance has therefore reached `LIVE_APPROVAL_REQUIRED`: retained Facility production PASS evidence, Attendance RLS/authorization smoke evidence, and any later flag activation belong to the operator workflow and remain prohibited in this run.
+
+The isolated `npm run build` continuation completed with exit code 0 after compilation, lint/type validation, page-data collection, static generation, and page optimization. The earlier termination is therefore classified as a Codex Cloud timeout/resource termination rather than a Node process termination or an application build error. Attendance remains `APPLICATION_COMPLETE` with `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`; this build result does not claim production activation. `FACILITY_ACTIVE_STATE_ENABLED=false` and `ATTENDANCE_RECOVERY_ENABLED=false` remain the required runtime state.
+
+## Next safe roadmap item
+
+Facility Directory and Attendance are no longer active repository work. Their application slices are closed; Facility remains `LIVE_OPERATOR_VERIFICATION_REQUIRED` and Attendance Gate 2 is `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED`. Their remaining gates are deferred to the production operator. `FACILITY_ACTIVE_STATE_ENABLED=false` and `ATTENDANCE_RECOVERY_ENABLED=false` remain mandatory until the operator retains the required PASS evidence.
+
+Applying the required skip rule to production SQL, authenticated production sessions, runtime activation, business approval, and deployment-only evidence leaves **no currently executable safe Cloud roadmap item**. The exact next incomplete item remains **Item 16, Gate 2 â€” Attendance recovery**, but it is operator-only. Items 12 and 13 are repository-complete packages awaiting operator delivery; items 17â€“19 remain approval- or dependency-blocked. This continuation therefore does not invent Attendance work, reopen Employee Profile, or jump ahead to SaaS UI or production hardening.
+
+The exact next operational action is the Attendance operator sequence above. The next business action is approval of the bounded [Phase Template decision package](phase-template-business-decision.md); this planning package does not reopen Attendance or authorize Phase Template implementation. New Cloud application work becomes eligible only after retained evidence or an approved scope makes a later dependency-blocked item safe. The bounded scope/dependency boundary for any SaaS UI foundation also remains undecided, and broad re-skin remains blocked. Until then, no SQL, runtime activation, deployment, merge, speculative application work, or SaaS UI re-skin is authorized.
+
+## Seven runtime gates
+
+The authoritative inventory, dependencies, package paths, activation prerequisites, and rollback triggers for all seven gates live in [the runtime-gate activation matrix](runtime-gate-activation-matrix.md). Exact operator commands, evidence capture, smoke tests, monitoring, flag changes, and rollback procedure live in [the production runtime-gate operator runbook](production-runtime-gate-operator-runbook.md).
+
+1. `FACILITY_ACTIVE_STATE_ENABLED`
+2. `ATTENDANCE_RECOVERY_ENABLED`
+3. `PHASE_WORKFLOW_FOUNDATION_ENABLED`
+4. `PHASE_STATUS_MUTATION_ENABLED`
+5. `TASK_COMMENTS_ACTIVITY_ENABLED`
+6. `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED`
+7. `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED`
+
+Facility/Attendance and Project Workflow are independent roots. Within Project Workflow, Phase foundation precedes Phase status and Comments/Activity; Comments/Activity precedes the two sibling atomic-create gates. This dependency link prevents the completed Project Detail and Child Task application slices from being scheduled again.
+
+## SaaS UI decision
+
+- **Scoped SaaS foundation:** not yet approved for implementation in this roadmap state. A later tightly scoped foundation may be safe for journeys already classified functional, but only after its dependency boundary is explicit and does not cover unresolved operational contracts.
+- **Broad SaaS re-skin:** remains `BLOCKED_BY_DEPENDENCY` until functional stabilization reaches final PASS.
+- **Current execution boundary:** Facility and Attendance verification is deferred to the production operator. The repository scan reaches the Ledger/Reimbursement business-decision gate and does not begin a SaaS slice.
+
+## Historical status normalization
+
+Earlier batch numbers, corrective slices, and â€œPhase 1â€“5 Project Workflow Completionâ€ entries are commit/history labels, not parallel roadmap items. Their delivered application work is incorporated into items 1â€“16 above and must not be reopened or scheduled independently. The old Phase Template SQL proposal is `DEFERRED` and non-executable; the [current business-decision package](phase-template-business-decision.md) owns approval of scope, permissions, lifecycle, seeds, and compatibility. Phase Templates remain `BLOCKED_BY_BUSINESS_DECISION`. The earlier broad UI-polish phase is `SUPERSEDED` by items 17 and 18. Commit history remains the immutable implementation narrative; this document is the current scheduling authority.
+
+## Rollback
+
+This is a documentation-only reconciliation. Roll back by reverting this document change. No application, schema, RLS, RPC, runtime configuration, production data, or deployment state changed.
+
+## 2026-07-28 Ledger/Reimbursement completion checkpoint
+
+Roadmap item 12 is now `READY_FOR_OPERATOR`. The approved contract is implemented through a default-disabled, server-owned reimbursement capability and migration `20260728153000`: executor/payer and beneficiary are separate, employee and external beneficiary representations coexist, null legacy beneficiaries display **ChÆ°a xÃ¡c Ä‘á»‹nh**, and no legacy salary row is inferred or rewritten. Staff submission and own-record reads are server/RLS constrained; approval, rejection, and payment require finance capabilities; server-derived immutable history, idempotency, no-hard-delete, payroll source identity, attachment metadata, and private-storage design are packaged.
+
+`FINANCE_REIMBURSEMENT_ENABLED` must remain false/unset. No production SQL, storage mutation, runtime activation, legacy backfill, deployment, or merge occurred. The private `finance-evidence` bucket and its server-mediated signed-URL boundary require operator review and delivery before attachment upload is enabled; historical `bill_url` remains render-only compatibility.
+
+**Exact next roadmap item:** Roadmap item 15, Functional stabilization. After the Ledger/Reimbursement operator package and existing operational gates retain PASS evidence, reconcile the 13-journey stabilization matrix to final PASS. Items 17â€“18 SaaS UI remain blocked and must not start.
+
+## 2026-07-28 Functional stabilization completion checkpoint
+
+Roadmap item 15 is `APPLICATION_COMPLETE`. The repository audit found one active Payroll client-state regression: concurrent month requests could resolve out of order and replace the selected month with stale data. Admin and Staff Payroll now ignore superseded responses; Admin settlement/adjustment actions expose a Vietnamese pending state while the synchronous lock blocks duplicate mutation, and both Payroll views disable Retry while the replacement request is active. Focused coverage was added without changing the approved Payroll calculation, permission, RPC, or immutable-settlement contract.
+
+All safe roadmap application work is complete. This is not a claim that production capabilities are active. The runtime gates remain false/unset: `FINANCE_REIMBURSEMENT_ENABLED`, `FINANCE_ATTACHMENT_WRITES_ENABLED`, `PAYROLL_SETTLEMENT_ENABLED`, `FACILITY_ACTIVE_STATE_ENABLED`, `ATTENDANCE_RECOVERY_ENABLED`, `PHASE_WORKFLOW_FOUNDATION_ENABLED`, `PHASE_STATUS_MUTATION_ENABLED`, `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED`, `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED`, and `TASK_COMMENTS_ACTIVITY_ENABLED`. No SQL was executed, no flag was enabled, and no deployment or merge occurred.
+
+**Exact next roadmap item:** Item 16 â€” Runtime gate readiness, specifically operator execution and retained PASS evidence beginning with the independent Gate 1 Facility verification sequence. Item 17 scoped SaaS UI foundation is `PARTIALLY_SAFE` for planning only on journeys already classified functional; implementation was not started. Item 18 broad SaaS UI re-skin remains blocked.
+
+## 2026-07-29 â€” Employee completeness and transactional email foundation
+
+The explicitly approved Cloud slice is `APPLICATION_COMPLETE`. Employee Detail now uses **ChÆ°a cáº­p nháº­t** for successfully loaded nullable values, keeps core data visible during optional enrichment failure, retains local retry/no reload, independent dirty-tab saves and read-only permission behavior, and exposes existing contact/banking columns without a schema change. The repository-backed field/permission/dependency classification is owned by [employee-field-inventory.md](employee-field-inventory.md).
+
+ERP transactional email now has a default-disabled server SMTP gate, Admin-authorized single-recipient test action, preview, placeholder blocking, duplicate-submit protection, sanitized correlation/failure logging, and controlled result/toast states. Supabase Auth remains exclusively responsible for authentication mail. No secret, SQL, bulk/automatic send, runtime activation, deployment, or live email was performed. Production activation is `READY_FOR_OPERATOR` under [email-setup.md](email-setup.md).
+
+**Exact next roadmap item:** Item 16, Gate 2 â€” Attendance recovery operator evidence. The audited stale-row cancellation package is `PACKAGE_READY_FOR_OPERATOR`; production target identity, the expected one-row result, SQL execution, and live PASS remain operator-evidence gated. `ATTENDANCE_RECOVERY_ENABLED` remains false/unset.
+
+## 2026-07-29 â€” Employee Detail tab completeness clarification
+
+All seven existing Employee Detail tabs were audited without moving domain fields into Overview. Existing project memberships/tasks, current-month attendance, assigned account role, banking, rate and permission sources are now represented in their owning tabs with isolated optional-query warnings and Retry. Unsupported personal/job/audit fields are `SCHEMA_EXTENSION_REQUIRED`; the unexecuted `20260729_employee_profile_extension` pre/forward/post/rollback/validation draft package is `READY_FOR_OPERATOR`. Payroll, reimbursement and Attendance recovery remain runtime/operator-gated and are not simulated.
+
+**Exact next roadmap item:** operator/business review of the Employee Profile schema extension package. Production SQL remains prohibited until the draft semantics, RLS, sensitive-field visibility and audit retention are approved; afterward Item 16 Gate 2 Attendance evidence remains the next existing operational gate.
+
+## 2026-07-29 â€” Employee Detail completion status reconciliation
+
+The seven-tab Employee Detail application remains `APPLICATION_COMPLETE` and repository validation remains `PASS`; preserve completion commit `298fabb` and the documented tab ownership contract. The schema extension itself is `BLOCKED_BY_BUSINESS_DECISION`, while its non-executable audit/operator package is `READY_FOR_OPERATOR`. Production migration is `NOT_EXECUTED`.
+
+The unresolved contract is deliberately explicit: (1) field semantics/nullability, (2) Admin per-field read/edit, (3) Staff own-profile per-field read/edit, (4) sensitive visibility, (5) audit allowlist, (6) retention period, (7) old/new sensitive-value storage, and (8) hard-delete versus archive-only audit retention. No draft SQL was executed or promoted, no authenticated production smoke ran, no runtime flag changed, and no deployment or merge occurred.
+
+The continuation inspected the remaining roadmap classifications and found no item eligible as `SAFE_CLOUD_WORK_AVAILABLE`. Completed Project Detail, Child Task, Account presentation, Ledger/Reimbursement, Payroll UI, email foundation, loading/retry/empty-state, targeted-refresh, and duplicate-request slices remain closed absent new defect evidence. The exact next incomplete operational action remains operator-owned Attendance Gate 2; the exact next safe Cloud implementation item is **none until a blocker is resolved or new evidence identifies a repository defect**.
+
+## 2026-07-30 â€” Admin loader stability remediation
+
+Repository validation supplied new defect evidence: lint identified unstable effect dependencies in the transactional email and system-metadata loaders, plus an unbounded native VietQR image. The loaders now use stable callbacks and functional state updates, preserving the current preview/category without capturing stale selection state. The VietQR modal now provides explicit dimensions through the Next.js image boundary. Focused static regression coverage protects these three seams.
+
+This application-only remediation does not reopen any completed business workflow or operator package. No SQL, production-row query, runtime flag change, environment change, email send, deployment, or merge occurred. Attendance Gate 2 remains the exact next operator action; after this newly evidenced defect was resolved, no further item is classified `SAFE_CLOUD_WORK_AVAILABLE`.
+
+## 2026-07-31 â€” Staff Task loader resilience remediation
+
+The current-state rescan supplied bounded Project/Task defect evidence: selecting the first project changed the Staff Task loader callback identity and caused a second initial request; failed manual refreshes still reported success; and repeated refresh clicks could overlap before React committed pending state. The application-only repair uses a functional project selection, a stable loader dependency, a synchronous refresh lock, controlled Vietnamese failure feedback, a persistent stale-data warning with Retry, and a visible pending state. Focused regression coverage protects the request and error-state contracts.
+
+The supplied preparation commit `9bcacfa` is represented on the protected branch by PR #107 and merged repository commit `8836b25`; the remediation is therefore `COMPLETE_ON_MAIN`, not awaiting another hosted pull request. The merged repair removes the duplicate initial Staff Task fetch, prevents refresh false-success and overlapping refresh requests, and preserves stale visible task data when refresh fails. It does not change task assignment, transition, persistence, permission, authorization, or workflow business rules, and it does not reopen any operator package, completed task finding, or decision gate. No SQL, production-row inspection, runtime flag change, live email, deployment, or operator action occurred as part of the remediation delivery. Attendance stale-row cancellation and Finance atomic RPC remain `READY_FOR_LOCAL_OPERATOR`; Employee Profile schema extension, Phase Templates, and email history schema/RLS/archive/retry remain `BLOCKED_BY_BUSINESS_DECISION`. No further item is classified `SAFE_CLOUD_WORK_AVAILABLE`; stop at the existing operator/business-decision boundaries unless new repository or review evidence is supplied.
+
+## 2026-08-01 â€” Attendance stale-row cancellation operator evidence
+
+The Attendance production correction is complete: the approved guarded forward committed exactly once, the repository post-run passed, and package-wide read-only validation passed. Exactly one Attendance row is cancelled, immutable cancellation audit event ID `1` is retained, the employee open-row count is `0`, `check_out`, `total_hours`, and `total_salary` are `NULL`, finalized Payroll references are `0`, and duplicate state count is `0`.
+
+Retained evidence:
+
+- forward: `C:\Users\tungd\AppData\Local\Temp\attendance-cancellation-forward.txt`
+- post-run: `C:\Users\tungd\AppData\Local\Temp\attendance-cancellation-post-run.txt`
+- package validation: `C:\Users\tungd\AppData\Local\Temp\attendance-cancellation-validation.txt`
+
+`ATTENDANCE_RECOVERY_ENABLED` remains false. Attendance is not fully production-complete: the only remaining Attendance gate is the documented production Staff/Admin smoke. The forward must not be replayed, and rollback remains separately approval-gated using retained audit event ID `1`.
+
+## 2026-08-01 â€” Admin ledger beneficiary and attachment remediation
+
+New source-level defect evidence reopened only the bounded Admin ledger application seam. The page still wrote `financial_ledger` directly from the browser even though the approved RLS contract exposed only Admin `SELECT`; it also rendered `requested_by` as both executor and beneficiary, generated payment QR from that name, and presented attachment copy without an implemented runtime boundary.
+
+The local task branch now routes Admin list/create/update/payment mutations through an authenticated server boundary with `FINANCE_VIEW`, `FINANCE_CREATE`, and `FINANCE_UPDATE`; uses stable beneficiary and payer employee IDs when the existing reimbursement schema gate is active; keeps `requested_by` as legacy executor display compatibility; renders an unresolvable legacy beneficiary as **ChÆ°a xÃ¡c Ä‘á»‹nh**; and derives employee payment QR only from `beneficiary_employee_id`. Create/edit dialogs preserve failed input, use the global loading overlay, lock duplicate submissions synchronously, refresh targeted ledger data, and group transaction, people, payment, and document fields. Existing `bill_url` remains read-only compatibility and is never guessed into a beneficiary.
+
+Private attachment upload/list/signed preview/add/replace/remove plumbing is prepared but fails closed behind both `FINANCE_REIMBURSEMENT_ENABLED` and the new server-only `FINANCE_ATTACHMENT_WRITES_ENABLED` gate. The server also verifies the extended schema and the bucket's private/size/MIME configuration. Replacement uploads and records the new object before archiving and cleaning the old one; removal archives metadata before object cleanup; cleanup failures return a partial `202` result rather than false success. Content signatures, MIME/extension agreement, stable content-addressed paths, target-ledger existence, and duplicate content are checked server-side. The exact private-bucket draft package is `supabase/drafts/20260801_finance_evidence_storage_{forward,rollback}.sql` plus `supabase/validation/20260801_finance_evidence_storage_validation.sql`. It is not promoted or executed. Keep attachment writes disabled until an operator-approved database-atomic active-count invariant and authenticated concurrency/cleanup smoke are complete.
+
+The pre-commit production review removed the sequential compensation path from this Admin API: ordinary one-row edits remain available, while any edit that has or would create a linked counter-row now fails closed until the approved atomic RPC is active. Updates no longer replace creator or idempotency provenance, missing targets return `404`, and schema activation fails with a controlled Vietnamese `503` when readiness is absent. Final local validation passes: lint has no warnings/errors, `npx tsc --noEmit` passes, all 71 test files / 566 tests pass, and the production build passes. No SQL/RPC, migration, Storage policy, live object, runtime flag, legacy row, deployment, commit, push, or pull request was changed. Finance linked-ledger true atomicity remains `READY_FOR_LOCAL_OPERATOR`; Ledger/Reimbursement and private Storage remain `READY_FOR_LOCAL_OPERATOR`; both finance runtime flags stay false/unset. `LIVE_APPROVAL_REQUIRED` applies before any finance RPC, reimbursement migration, private bucket, Storage policy, backfill, or runtime activation.
+
+## 2026-08-01 â€” Attendance fixture hourly-rate administration
+
+The approved interim production-test policy allows one dedicated Attendance fixture
+to remain payroll-visible with an exact zero hourly rate and prohibits settlement,
+adjustment, reimbursement, real work, and real employee reuse. The bounded local
+slice adds hourly-rate editing to Employee Detail â†’ **TÃ i chÃ­nh cÃ¡ nhÃ¢n** through the
+existing stable employee PATCH route. Server authorization requires both
+`EMPLOYEE_MANAGE` and `FINANCE_VIEW`; client and server validation accept zero,
+reject negative or malformed values, allow at most two decimal places, and enforce
+the existing `numeric(14,2)` storage maximum. Partial updates preserve every omitted
+employee field, success refreshes Employee Detail, and structured persistence logs
+record actor, target, outcome, and mutation keys without compensation values.
+
+No payroll calculation, schema, migration, RLS, runtime flag, or production data is
+changed. After protected-main delivery, stop at
+`READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`: the production fixture must be
+created, invited, assigned only `STAFF_WORKSPACE` and one verified active facility,
+set/read back at zero, and confirmed absent from real project, reimbursement,
+pre-existing Attendance, and settlement activity through separately approved Admin
+UI actions. The subsequently approved retained smoke row is the sole Attendance
+exception. The runbook-verification slice now provides the read-only
+`/api/system/version` deployment identity response and the protected normalized
+`/api/admin/runtime/attendance-recovery` status response. Production verification
+and fixture provisioning remain operator approval boundaries.
+
+## 2026-08-01 â€” Production Attendance runtime verification evidence
+
+The authoritative production alias is `https://erp.luminalfactory.com`. The
+read-only version endpoint returned `success=true`, `status=available`,
+`deploymentEnvironment=production`, and approved main commit
+`e2090766cd6d9193f43ed2006657859b9251647e` on 2026-08-01 (+07:00). In the same
+authenticated Admin browser session with `ADMIN_WORKSPACE` and
+`ATTENDANCE_VIEW`, the recovery endpoint returned
+`gate=ATTENDANCE_RECOVERY_ENABLED`, normalized `status=disabled`, and safe
+correlation ID `bc763507-2dbb-4598-b89f-5f7f8a951429`.
+
+Only redacted endpoint evidence was retained; no raw environment value,
+credential, cookie, token, or unrelated deployment metadata was recorded. No
+employee, Auth identity, Attendance row, payroll row, SQL, migration,
+Supabase/RLS/Storage setting, runtime flag, or deployment was changed. The
+Attendance smoke test has not occurred and no fixture has been provisioned.
+The exact next boundary is
+`READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`.
+
+## 2026-08-03 â€” Employee create same-response diagnostic repair
+
+Production evidence showed correlation lookup can return unavailable because the
+PR #117 implementation stored diagnostics only in a deployment-local process
+map. That map is neither durable nor shared across Vercel instances, so the
+separate GET endpoint was not a production-reliable evidence path. The endpoint
+and map are removed; an allowlisted diagnostic now returns directly in the same
+authorized Employee create failure response. Unknown machine values normalize to
+`unavailable`, insert and readback stages/codes are distinct, and ambiguous
+results instruct exact normalized-email search without automatically retrying.
+
+No shared persistence, dependency, SQL, migration, RLS, environment, deployment,
+or production mutation is required. Employee create remains unverified in
+production. The metadata-gate section below supersedes the former immediate-retry
+boundary: do not retry before the read-only preflight evidence is reviewed.
+
+## 2026-08-03 â€” Employee create application diagnostic completion and metadata gate
+
+Status: `LIVE_APPROVAL_REQUIRED`. The bounded application slice now returns the
+allowlisted Supabase/PostgREST diagnostic in the same authorized POST response,
+marks ambiguous readback outcomes explicitly, uses Employee-specific public error
+codes, and presents expandable Vietnamese Admin-only technical detail. The removed
+instance-local GET lookup remains deprecated and non-authoritative.
+
+Repository inspection cannot prove production compatibility because the original
+`public.employees` DDL is absent. The next gate is the zero-mutation read-only
+preflight in `supabase/drafts/20260803_employee_create_schema_preflight.sql`, then
+its validation file. Do not retry Employee create before the retained metadata
+output is reviewed. No forward migration, rollback DDL, production SQL execution,
+Employee/Auth/Facility mutation, environment change, or deployment mutation is
+part of this slice.
+
+## 2026-08-03 â€” Employee create QR-token persistence repair
+
+Status: `READY_FOR_PROTECTED_REVIEW`. Approved read-only production metadata
+proved `employees.qr_token` is an unsupplied `NOT NULL`/no-default column and the
+cause of the `23502` Employee insert rejection. Repository and retained metadata
+evidence identify it as the long-lived Attendance check-in credential and prove
+the unique constraint `employees_qr_token_key`; no existing generator or tracked
+value format was found.
+
+The bounded application slice now generates a cryptographically secure UUID v4
+only after Admin authentication and `EMPLOYEE_MANAGE` authorization, adds it to
+the Employee insert, excludes it from the public request, normal response,
+diagnostics, and values logged by the flow, and retries only a proven QR-token
+`23505` collision with a maximum of three server attempts. `23502` maps to
+`employee_insert_constraint_failed`; an exhausted QR collision maps to
+`employee_qr_token_conflict`; both use a safe form message with `MÃ£ QR nhÃ¢n sá»±`
+context without revealing the token or database text.
+
+No migration, SQL execution, schema/RLS/Auth/Facility/data mutation, or automatic
+production retry belongs to this slice. After protected-main deployment is
+verified through `/api/system/version`, the exact next boundary is
+`READY_FOR_EMPLOYEE_CREATE_RETRY`: submit the known fixture once manually and
+retain the approved safe success/failure fields. Do not mark the Attendance
+fixture complete until a created Employee ID and its later fixture gates pass.
+
+## 2026-08-03 â€” Employee Auth email workflow correction
+
+The reported Employee invitation blocker is addressed as a bounded Cloud
+application slice. Invite, exact-email existing-account connection, controlled
+invite resend, and linked-account password reset now have distinct server-owned
+operations and safe structured results. Employee List, Employee Detail, and
+Account Management expose the separate connection action and synchronously lock
+duplicate requests. Accepted Auth requests are described as acceptedâ€”not as
+provider delivery or inbox receiptâ€”and carry a correlation ID. The complete
+boundary and remaining operator-only SMTP/allowlist/delivery checks are recorded
+in [employee-auth-email-workflow.md](employee-auth-email-workflow.md).
+
+No Employee was created, and no production Auth invitation, password reset,
+account link, permission mutation, SQL, or runtime mutation was performed.
+
+## 2026-08-03 â€” Staff authentication entry and Attendance minimum shift correction
+
+Status: `READY_FOR_PROTECTED_REVIEW`. The dedicated Maker Lab fixture, Staff
+check-in/check-out, and duplicate current-shift prevention succeeded in production.
+New evidence proved two bounded application defects: Staff routes lacked a shared
+unauthenticated entry, and a valid same-minute completed record was excluded from
+the minimum finalized shift because its raw/displayed duration was zero.
+
+The application now uses a shared `/login` entry with a safe local return target
+and server-owned workspace resolution. Valid completed Attendance uses the
+approved 180/360-minute boundaries with a one-shift minimum, while raw duration
+and hourly-rate salary remain separate. The completed current-shift card replaces
+the write action and exposes shift, timestamps, duration, converted shifts, and
+final state. Staff history and every Admin read-only aggregate/detail surface use
+the shared dynamic calculation, so no existing-row SQL correction is required.
+
+`ATTENDANCE_RECOVERY_ENABLED` remains false/unset and Admin Attendance remains
+read-only. No recovery, SQL, migration, RLS, backfill, Auth/Employee/permission,
+runtime, or production data mutation belongs to this slice. Do not mark the
+Attendance gate passed until protected-main deployment is verified and the
+manual incognito Staff entry plus Staff/Admin converted-shift retest passes.
+
+## 2026-08-04 â€” Attendance multi-check and Admin mutation preparation
+
+Status: `LIVE_APPROVAL_REQUIRED`. The bounded application contract now supports
+the approved same-date/same-shift continuation model: one active aggregate row,
+earliest valid check-in, latest valid check-out, elapsed duration including
+breaks, and the approved one/ two/ three converted-shift thresholds. The Staff
+client applies the returned aggregate row locally, avoiding a second visible
+full-loading cycle. Admin manual create/update/delete is independently gated
+from recovery, requires `ATTENDANCE_MANAGE` and an adjustment reason, and calls
+an audited atomic RPC contract; deletion is a reasoned cancellation.
+
+The application gates remain false/unset. Draft-only SQL prepares an active-row
+partial unique index, an RLS-protected operation audit table, and server-owned
+Staff/Admin RPCs. No migration, RPC activation, RLS change, backfill, existing
+row repair, runtime activation, or production Attendance/Payroll mutation has
+occurred. Before any activation, run the read-only preflight, confirm zero
+duplicate active Employee/date/shift groups, review the forward/rollback package,
+and obtain explicit `LIVE_APPROVAL_REQUIRED` for execution and post-run checks.
+
+## 2026-08-04 â€” Shared table infrastructure and Attendance first wave
+
+Status: `READY_FOR_TABLE_LOCAL_LOADING_RETEST`. PR A establishes one presentation-only shared data-table system and migrates Staff Attendance history plus Admin Attendance calendar/daily-modal refresh behavior. Staff mutations continue to patch the authoritative aggregate response with no success GET. Admin manual create/update/cancellation patch the returned row locally, preserving the selected date and modal; month/employee changes remain one scoped GET. Employee, Projects/tasks, and Finance are deliberately deferred to bounded follow-up PRs documented in `shared-data-table-guidance.md`.
+
+No SQL, migration, RLS, runtime gate, recovery action, production Attendance mutation, or manual deployment occurred. Attendance recovery remains disabled.
+
+## 2026-08-04 â€” Admin Attendance manual-entry production blocker
+
+Status: `READY_FOR_OPERATOR_RETEST`. The Admin Attendance payload now keeps the
+database `shifts` directory as its configured source and falls back, only when
+that directory is empty, to the same morning/afternoon/evening definitions owned
+by the Attendance shift resolver. Successful manual create/update/cancellation
+patches the returned row into the selected day and closes the modal; validation
+and API failures leave the modal and entered values visible. Notification
+updates no longer change the GET callback identity, so a mutation toast cannot
+trigger a page-wide Attendance reload. Month and Employee filter state remain
+untouched.
+
+No SQL, schema, RLS, runtime-gate, RPC, Payroll, audit-contract, or production
+Attendance mutation was performed. Operator retest remains required with the
+already-approved runtime environment.
+
+## 2026-08-04 â€” Admin Attendance manual-create reason contract
+
+Status: `SUPERSEDED_BY_ADMIN_ATTENDANCE_MUTATION_WIRING_REPAIR`. The earlier
+application contract allowed a server-owned default for a short create note.
+The current bounded repair aligns the UI and server with the approved audited
+contract: create, update, and cancellation each require a trimmed reason of at
+least 10 characters. No schema, RLS, permission, runtime-gate, recovery,
+payroll, RPC, or production Attendance mutation was performed in that earlier
+slice.
+
+## 2026-08-04 â€” Admin Attendance mutation wiring repair
+
+Status: `READY_FOR_ADMIN_ATTENDANCE_MUTATION_RETEST`. This bounded application
+slice corrects the JSON `employeeId` contract (the UI sends stable
+`employees.id`, including numeric values), retains the selected Employee id in
+the modal, and validates the active target Employee through the authenticated
+server client before the audited mutation RPC. Create, update, and cancellation
+now have isolated validation paths; create/update/cancellation reasons are each
+validated at 10+ characters as required by the audit contract.
+
+Existing-row save uses dirty check-in/check-out state and patches only the
+returned row. Cancellation confirms before calling the existing soft-delete
+audit path. Per-row/action locks prevent duplicate requests, legacy log rows
+remain explicitly read-only, and recovery remains disabled and independent from
+normal Admin mutation.
+
+No SQL, migration, backfill, RLS change, runtime activation, production query,
+or production Attendance mutation was performed. Production retest remains
+required after deployment with the approved mutation gate and audited RPC.
