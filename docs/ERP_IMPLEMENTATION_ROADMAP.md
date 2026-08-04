@@ -501,3 +501,17 @@ untouched.
 No SQL, schema, RLS, runtime-gate, RPC, Payroll, audit-contract, or production
 Attendance mutation was performed. Operator retest remains required with the
 already-approved runtime environment.
+
+## 2026-08-04 — Admin Attendance manual-create reason contract
+
+Status: `READY_FOR_ADMIN_ATTENDANCE_CREATE_RETEST`. Manual create accepts an
+optional operator note. The server preserves a trimmed note of at least 10
+characters and otherwise sends `Bổ sung thủ công bởi quản trị viên` to the
+existing audited RPC. Update and cancellation still require a trimmed reason of
+at least 10 characters, and cancellation remains audited rather than becoming a
+hard delete.
+
+The RPC still requires every audit reason to contain at least 10 trimmed
+characters, so the server-owned default satisfies the deployed contract without
+SQL changes. No schema, RLS, permission, runtime-gate, recovery, payroll, RPC, or
+production Attendance mutation was performed.

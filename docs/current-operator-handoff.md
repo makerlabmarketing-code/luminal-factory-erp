@@ -387,8 +387,11 @@ the approved 180/360-minute boundaries and one-shift minimum. Staff mutation
 responses reconcile the returned row locally without a second full-page fetch.
 
 Admin create/update/delete is separated from `ATTENDANCE_RECOVERY_ENABLED` and
-requires `ADMIN_WORKSPACE`, `ATTENDANCE_VIEW`, `ATTENDANCE_MANAGE`, an explicit
-reason, and an audited atomic RPC. Delete is a reasoned cancellation, not a
+requires `ADMIN_WORKSPACE`, `ATTENDANCE_VIEW`, `ATTENDANCE_MANAGE`, and an audited
+atomic RPC. Manual create accepts an optional operator note; the server replaces
+an empty or shorter-than-10-character note with `Bổ sung thủ công bởi quản trị viên`.
+Update and cancellation still require a trimmed reason of at least 10 characters.
+Delete is a reasoned cancellation, not a
 silent hard delete. Both capabilities remain fail-closed behind server-only
 gates until the reviewed RPC, active-row unique index, and operation-audit
 table are verified in production.
