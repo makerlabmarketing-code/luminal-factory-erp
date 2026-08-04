@@ -504,14 +504,30 @@ already-approved runtime environment.
 
 ## 2026-08-04 — Admin Attendance manual-create reason contract
 
-Status: `READY_FOR_ADMIN_ATTENDANCE_CREATE_RETEST`. Manual create accepts an
-optional operator note. The server preserves a trimmed note of at least 10
-characters and otherwise sends `Bổ sung thủ công bởi quản trị viên` to the
-existing audited RPC. Update and cancellation still require a trimmed reason of
-at least 10 characters, and cancellation remains audited rather than becoming a
-hard delete.
+Status: `SUPERSEDED_BY_ADMIN_ATTENDANCE_MUTATION_WIRING_REPAIR`. The earlier
+application contract allowed a server-owned default for a short create note.
+The current bounded repair aligns the UI and server with the approved audited
+contract: create, update, and cancellation each require a trimmed reason of at
+least 10 characters. No schema, RLS, permission, runtime-gate, recovery,
+payroll, RPC, or production Attendance mutation was performed in that earlier
+slice.
 
-The RPC still requires every audit reason to contain at least 10 trimmed
-characters, so the server-owned default satisfies the deployed contract without
-SQL changes. No schema, RLS, permission, runtime-gate, recovery, payroll, RPC, or
-production Attendance mutation was performed.
+## 2026-08-04 — Admin Attendance mutation wiring repair
+
+Status: `READY_FOR_ADMIN_ATTENDANCE_MUTATION_RETEST`. This bounded application
+slice corrects the JSON `employeeId` contract (the UI sends stable
+`employees.id`, including numeric values), retains the selected Employee id in
+the modal, and validates the active target Employee through the authenticated
+server client before the audited mutation RPC. Create, update, and cancellation
+now have isolated validation paths; create/update/cancellation reasons are each
+validated at 10+ characters as required by the audit contract.
+
+Existing-row save uses dirty check-in/check-out state and patches only the
+returned row. Cancellation confirms before calling the existing soft-delete
+audit path. Per-row/action locks prevent duplicate requests, legacy log rows
+remain explicitly read-only, and recovery remains disabled and independent from
+normal Admin mutation.
+
+No SQL, migration, backfill, RLS change, runtime activation, production query,
+or production Attendance mutation was performed. Production retest remains
+required after deployment with the approved mutation gate and audited RPC.

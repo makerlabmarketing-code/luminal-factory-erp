@@ -388,9 +388,9 @@ responses reconcile the returned row locally without a second full-page fetch.
 
 Admin create/update/delete is separated from `ATTENDANCE_RECOVERY_ENABLED` and
 requires `ADMIN_WORKSPACE`, `ATTENDANCE_VIEW`, `ATTENDANCE_MANAGE`, and an audited
-atomic RPC. Manual create accepts an optional operator note; the server replaces
-an empty or shorter-than-10-character note with `Bổ sung thủ công bởi quản trị viên`.
-Update and cancellation still require a trimmed reason of at least 10 characters.
+atomic RPC. The original create-note relaxation is superseded by the later
+wiring repair: create, update, and cancellation now require a trimmed reason of
+at least 10 characters.
 Delete is a reasoned cancellation, not a
 silent hard delete. Both capabilities remain fail-closed behind server-only
 gates until the reviewed RPC, active-row unique index, and operation-audit
@@ -422,3 +422,24 @@ unchanged and that `Đang tải dữ liệu chấm công...` does not replace th
 Codex Cloud did not execute SQL, alter schema/RLS/runtime gates, call the live
 mutation RPC, or mutate production Attendance. Payroll calculation and immutable
 audit/RPC contracts are unchanged.
+
+## 2026-08-04 Admin Attendance create/update/delete wiring repair
+
+Status: `READY_FOR_ADMIN_ATTENDANCE_MUTATION_RETEST`. The manual-create form now
+retains `employees.id` independently from the visible Employee selection and
+sends that stable id in the JSON payload. The API accepts the numeric JSON id,
+rejects display names, emails, and auth ids, and verifies the target Employee is
+active and visible through the authenticated server client before the audited
+RPC.
+
+Update now detects dirty check-in/check-out values, validates its own reason,
+focuses the reason field on failure, and patches only the returned row. Delete
+requires its own reason and confirmation, uses the existing audited soft
+cancellation RPC, and removes only the affected row after success. Legacy
+`log-*` rows remain read-only but now explain that state. Create, update, and
+delete use separate reason paths and row/action-scoped duplicate locks.
+
+No SQL, migration, RLS, backfill, runtime-gate activation, production
+Attendance mutation, or production query was performed. Recovery remains
+disabled. Manual production retest is required after the branch is deployed
+with the already-approved mutation gate and audited RPC available.

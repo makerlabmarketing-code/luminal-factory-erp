@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Save, Plus, User, CheckCircle2, Trash2 } from 'lucide-react';
 import type { AttendanceRecord, Shift, ToastType } from '@/lib/types/attendance';
 import type { Employee } from "@/lib/types/employee";
@@ -15,6 +15,7 @@ import {
   updateAttendanceRecordTime,
   upsertAttendanceRecord,
 } from '@/services/attendanceService';
+import { resolveAttendanceEmployeeSelection } from '@/lib/attendanceEmployeeSelection';
 
 interface DailyAttendanceModalProps {
   isOpen: boolean;
@@ -44,6 +45,17 @@ interface AttendanceAuditEvent {
   occurred_at: string;
 }
 
+function editableTime(value?: string | null): string {
+  return value ? value.substring(0, 5) : '';
+}
+
+function isRowDirty(record: AttendanceRecord, row?: EditRow): boolean {
+  return Boolean(row) && (
+    row?.check_in !== editableTime(record.check_in) ||
+    row?.check_out !== editableTime(record.check_out)
+  );
+}
+
 function getRecordKey(recordId: number | string): string {
   return String(recordId);
 }
@@ -63,13 +75,19 @@ export default function DailyAttendanceModal({
   auditEvents,
 }: DailyAttendanceModalProps) {
   const [editRows, setEditRows] = useState<Record<string, EditRow>>({});
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [newShift, setNewShift] = useState('');
   const [newIn, setNewIn] = useState('');
   const [newOut, setNewOut] = useState('');
   const [createReason, setCreateReason] = useState('');
+  const [createReasonError, setCreateReasonError] = useState('');
   const [adjustmentReason, setAdjustmentReason] = useState('');
   const [adjustmentReasonError, setAdjustmentReasonError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingActions, setPendingActions] = useState<Record<string, boolean>>({});
+  const mutationLocksRef = useRef(new Set<string>());
+  const employeeSelectRef = useRef<HTMLSelectElement>(null);
+  const createReasonRef = useRef<HTMLTextAreaElement>(null);
+  const adjustmentReasonRef = useRef<HTMLTextAreaElement>(null);
 
   const myRecords = useMemo(() => existingRecords.filter((record) => {
     if (!currentEmpId) return true;
@@ -77,9 +95,11 @@ export default function DailyAttendanceModal({
     return String(record.employee_id) === String(currentEmpId);
   }), [currentEmpId, existingRecords]);
 
-  const currentEmployee = employees.find((employee) => {
-    return String(employee.id) === String(currentEmpId);
-  });
+  const employeeSelection = useMemo(
+    () => resolveAttendanceEmployeeSelection(employees, selectedEmployeeId),
+    [employees, selectedEmployeeId],
+  );
+  const currentEmployee = employeeSelection.employee;
 
   const baseHourlyRate = getEmployeeHourlyRate(currentEmployee);
 
@@ -96,15 +116,43 @@ export default function DailyAttendanceModal({
     });
 
     setEditRows(initialEdits);
+    setSelectedEmployeeId(currentEmpId);
     setNewShift(shifts[0]?.shift_name || '');
     setNewIn('');
     setNewOut('');
     setCreateReason('');
+    setCreateReasonError('');
     setAdjustmentReason('');
     setAdjustmentReasonError('');
-  }, [isOpen, myRecords, shifts]);
+    setPendingActions({});
+    mutationLocksRef.current.clear();
+  }, [currentEmpId, isOpen, myRecords, shifts]);
 
   if (!isOpen || !dateStr) return null;
+
+  const beginAction = (actionKey: string): boolean => {
+    if (mutationLocksRef.current.has(actionKey)) return false;
+    mutationLocksRef.current.add(actionKey);
+    setPendingActions((current) => ({ ...current, [actionKey]: true }));
+    return true;
+  };
+
+  const endAction = (actionKey: string): void => {
+    mutationLocksRef.current.delete(actionKey);
+    setPendingActions((current) => {
+      const next = { ...current };
+      delete next[actionKey];
+      return next;
+    });
+  };
+
+  const isPending = (actionKey: string): boolean => Boolean(pendingActions[actionKey]);
+  const isRowPending = (recordId: number | string): boolean =>
+    isPending(`update:${getRecordKey(recordId)}`) || isPending(`delete:${getRecordKey(recordId)}`);
+
+  const focusReason = (kind: 'create' | 'adjustment'): void => {
+    (kind === 'create' ? createReasonRef : adjustmentReasonRef).current?.focus();
+  };
 
   const handleUpdateRecord = async (recordId: number | string) => {
     if (!canAdjust) {
@@ -112,7 +160,8 @@ export default function DailyAttendanceModal({
       return;
     }
 
-    setIsSubmitting(true);
+    const actionKey = `update:${getRecordKey(recordId)}`;
+    if (!beginAction(actionKey)) return;
 
     try {
       const rowData = editRows[getRecordKey(recordId)];
@@ -128,7 +177,13 @@ export default function DailyAttendanceModal({
         return;
       }
 
+      if (!isRowDirty(targetRecord, rowData)) {
+        showToast('Chưa có thay đổi', 'Hãy thay đổi giờ vào hoặc giờ ra trước khi lưu.', 'info');
+        return;
+      }
+
       if (adjustmentReason.trim().length < 10) {
+        focusReason('adjustment');
         setAdjustmentReasonError('Vui lòng nhập lý do điều chỉnh có ít nhất 10 ký tự.');
         return;
       }
@@ -152,7 +207,7 @@ export default function DailyAttendanceModal({
       const message = error instanceof Error ? error.message : 'Không thể cập nhật giờ công.';
       showToast('Lỗi', message, 'error');
     } finally {
-      setIsSubmitting(false);
+      endAction(actionKey);
     }
   };
 
@@ -168,13 +223,15 @@ export default function DailyAttendanceModal({
     }
 
     if (adjustmentReason.trim().length < 10) {
+      focusReason('adjustment');
       setAdjustmentReasonError('Vui lòng nhập lý do hủy có ít nhất 10 ký tự.');
       return;
     }
     setAdjustmentReasonError('');
 
     showConfirm('Xác nhận xóa', `Bạn có chắc chắn muốn xóa bản ghi [${shiftName}] này không?`, async () => {
-      setIsSubmitting(true);
+      const actionKey = `delete:${getRecordKey(recordId)}`;
+      if (!beginAction(actionKey)) return;
 
       try {
         const record = await deleteAttendanceRecord(recordId, adjustmentReason.trim());
@@ -185,7 +242,7 @@ export default function DailyAttendanceModal({
         const message = error instanceof Error ? error.message : 'Không thể xóa bản ghi.';
         showToast('Lỗi', message, 'error');
       } finally {
-        setIsSubmitting(false);
+        endAction(actionKey);
       }
     });
   };
@@ -196,7 +253,8 @@ export default function DailyAttendanceModal({
       return;
     }
 
-    if (!currentEmpId || !newShift) {
+    if (!selectedEmployeeId || !newShift) {
+      employeeSelectRef.current?.focus();
       showToast('Thiếu dữ liệu', 'Vui lòng chọn nhân sự và ca làm việc.', 'error');
       return;
     }
@@ -211,6 +269,13 @@ export default function DailyAttendanceModal({
       return;
     }
 
+    if (createReason.trim().length < 10) {
+      setCreateReasonError('Vui lòng nhập lý do bổ sung có ít nhất 10 ký tự.');
+      focusReason('create');
+      return;
+    }
+    setCreateReasonError('');
+
     const duplicated = hasDuplicatedShift({
       records: existingRecords,
       employeeId: currentEmployee.id,
@@ -223,7 +288,8 @@ export default function DailyAttendanceModal({
       return;
     }
 
-    setIsSubmitting(true);
+    const actionKey = 'create';
+    if (!beginAction(actionKey)) return;
 
     try {
       const record = await upsertAttendanceRecord({
@@ -243,13 +309,16 @@ export default function DailyAttendanceModal({
       const message = error instanceof Error ? error.message : 'Không thể bổ sung ca làm việc.';
       showToast('Lỗi', message, 'error');
     } finally {
-      setIsSubmitting(false);
+      endAction(actionKey);
     }
   };
 
   const displayDate = formatBusinessDate(businessDateFromDateInput(dateStr), { weekday: 'long' });
 
   const currentEmpName = currentEmployee?.full_name || (currentEmpId ? 'Đang tải...' : 'Chọn một nhân sự ở bộ lọc');
+  const selectableEmployees = currentEmpId
+    ? employees.filter((employee) => String(employee.id) === String(currentEmpId))
+    : employees;
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-fadeIn">
@@ -265,7 +334,11 @@ export default function DailyAttendanceModal({
               Lý do điều chỉnh (bắt buộc)
               <textarea
                 value={adjustmentReason}
-                onChange={(event) => setAdjustmentReason(event.target.value)}
+                ref={adjustmentReasonRef}
+                onChange={(event) => {
+                  setAdjustmentReason(event.target.value);
+                  setAdjustmentReasonError('');
+                }}
                 rows={2}
                 className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-blue-500"
                 placeholder="Nhập ít nhất 10 ký tự"
@@ -288,7 +361,7 @@ export default function DailyAttendanceModal({
             </div>
           )}
            </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white transition p-1">
+          <button type="button" onClick={onClose} className="text-slate-500 hover:text-white transition p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -349,7 +422,7 @@ export default function DailyAttendanceModal({
                         <input
                           type="time"
                           style={{ colorScheme: 'dark' }}
-                          disabled={!canAdjust || isLegacyLog}
+                          disabled={!canAdjust || isLegacyLog || isRowPending(record.id)}
                           value={editRows[getRecordKey(record.id)]?.check_in || ''}
                           onChange={(event) =>
                             setEditRows((prev) => ({
@@ -371,7 +444,7 @@ export default function DailyAttendanceModal({
                         <input
                           type="time"
                           style={{ colorScheme: 'dark' }}
-                          disabled={!canAdjust || isLegacyLog}
+                          disabled={!canAdjust || isLegacyLog || isRowPending(record.id)}
                           value={editRows[getRecordKey(record.id)]?.check_out || ''}
                           onChange={(event) =>
                             setEditRows((prev) => ({
@@ -388,22 +461,27 @@ export default function DailyAttendanceModal({
 
                       <div className="flex items-center gap-1 mt-4">
                         <button
+                          type="button"
                           onClick={() => handleUpdateRecord(record.id)}
-                          disabled={isSubmitting || !canAdjust || isLegacyLog}
+                          disabled={!canAdjust || isLegacyLog || isRowPending(record.id)}
                           className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-md border border-transparent hover:border-blue-500/20 transition disabled:opacity-40"
-                          title="Lưu cập nhật"
+                          title={isLegacyLog ? 'Dữ liệu log cũ chỉ đọc' : 'Lưu cập nhật'}
                         >
                           <Save className="w-3.5 h-3.5" />
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => handleDeleteRecord(record.id, record.shift_name)}
-                          disabled={isSubmitting || !canAdjust || isLegacyLog}
+                          disabled={!canAdjust || isLegacyLog || isRowPending(record.id)}
                           className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-md border border-transparent hover:border-red-500/20 transition disabled:opacity-40"
-                          title="Xóa ca này"
+                          title={isLegacyLog ? 'Dữ liệu log cũ chỉ đọc' : 'Xóa ca này'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
+                        {isLegacyLog && (
+                          <span className="text-[9px] text-amber-400" role="status">Chỉ đọc: log cũ</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -423,11 +501,26 @@ export default function DailyAttendanceModal({
                 <label className="text-[9px] text-slate-500 font-medium uppercase block mb-1">
                   Nhân sự:
                 </label>
-                <div className="w-full bg-[#131924] border border-slate-800 px-2 py-1.5 rounded-md text-[11px] text-slate-500 cursor-not-allowed flex items-center gap-1.5 select-none">
-                  <User className="w-3 h-3 shrink-0" />
-                  <span className="truncate" title={currentEmpName}>
-                    {currentEmpName}
-                  </span>
+                <div className="relative">
+                  <select
+                    ref={employeeSelectRef}
+                    aria-label="Nhân sự"
+                    className="w-full bg-[#131924] border border-slate-800 px-2 py-1.5 rounded-md text-[11px] text-slate-300 focus:border-blue-500 focus:outline-none"
+                    value={selectedEmployeeId}
+                    disabled={!canAdjust || isPending('create')}
+                    onChange={(event) => setSelectedEmployeeId(event.target.value)}
+                  >
+                    <option value="">Chọn nhân sự</option>
+                    {selectableEmployees.map((employee) => (
+                      <option key={employee.id} value={String(employee.id)}>
+                        {employee.full_name}
+                      </option>
+                    ))}
+                  </select>
+                  <input type="hidden" name="employeeId" value={employeeSelection.employeeId} />
+                  {!employeeSelection.employee && (
+                    <p className="mt-1 text-[10px] text-amber-400">Chọn nhân sự để giữ đúng mã nhân sự khi tạo.</p>
+                  )}
                 </div>
               </div>
 
@@ -479,20 +572,28 @@ export default function DailyAttendanceModal({
             </div>
 
             <label className="block text-[10px] text-slate-400">
-              Ghi chú bổ sung (không bắt buộc)
+              Lý do bổ sung (bắt buộc, ít nhất 10 ký tự)
               <textarea
                 value={createReason}
-                onChange={(event) => setCreateReason(event.target.value)}
+                ref={createReasonRef}
+                onChange={(event) => {
+                  setCreateReason(event.target.value);
+                  setCreateReasonError('');
+                }}
                 rows={2}
                 className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-blue-500"
-                placeholder="Có thể để trống"
+                placeholder="Nhập lý do bổ sung"
               />
+              {createReasonError && (
+                <span className="mt-1 block text-[10px] text-red-400" role="alert">{createReasonError}</span>
+              )}
             </label>
 
             <div className="pt-2">
               <button
+                type="button"
                 onClick={handleAddNewRecord}
-                disabled={isSubmitting || !canAdjust || !currentEmployee}
+                disabled={!canAdjust || !currentEmployee || isPending('create')}
                 className="w-full bg-[#131924] hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-300 font-medium py-2 rounded-md transition text-[11px] flex justify-center items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" /> Lưu bản ghi bổ sung
