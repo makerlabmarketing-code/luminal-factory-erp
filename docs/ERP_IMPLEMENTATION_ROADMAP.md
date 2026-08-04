@@ -531,3 +531,23 @@ normal Admin mutation.
 No SQL, migration, backfill, RLS change, runtime activation, production query,
 or production Attendance mutation was performed. Production retest remains
 required after deployment with the approved mutation gate and audited RPC.
+
+## 2026-08-05 Staff Attendance open-session shift transition
+
+Status: `READY_FOR_STAFF_ATTENDANCE_SHIFT_TRANSITION_RETEST`. An open
+Attendance remains the active session when the business clock enters a later
+shift; the UI continues to expose only the active card and `Kết thúc ca`.
+Completed earlier-shift rows no longer block the next shift, while completed
+same-shift rows retain the existing repeated same-shift capability behavior.
+After successful checkout, the Staff view performs a background authoritative
+refresh so the next configured shift can expose `Bắt đầu ca` immediately and
+already-completed next-shift rows remain blocked.
+
+The server check-in guard explicitly searches for an open Attendance without a
+shift-label restriction both before and after GPS validation. Duplicate-click
+locking and the existing atomic multi-check RPC contract remain intact; no
+split, migration, reclassification, or second open record is introduced.
+
+No SQL, migration, backfill, RLS change, runtime activation, production query,
+or production Attendance mutation was performed. Recovery remains disabled.
+Manual Staff Attendance retest remains required after deployment.

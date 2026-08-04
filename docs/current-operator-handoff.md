@@ -443,3 +443,30 @@ No SQL, migration, RLS, backfill, runtime-gate activation, production
 Attendance mutation, or production query was performed. Recovery remains
 disabled. Manual production retest is required after the branch is deployed
 with the already-approved mutation gate and audited RPC available.
+
+## 2026-08-05 Staff Attendance open-session shift transition
+
+Status: `READY_FOR_STAFF_ATTENDANCE_SHIFT_TRANSITION_RETEST`.
+
+An open afternoon Attendance remains active after the evening boundary. The
+Staff page does not expose another Start action while any open row exists and
+continues to show the original shift plus `Kết thúc ca`; it does not split the
+duration or move the row to the later shift. The server rejects check-in when
+any open Attendance exists, regardless of shift label, with a second guard after
+GPS validation.
+
+After a successful checkout, the page performs a non-blocking authoritative
+refresh of the selected month. The current shift is reevaluated from server
+data, so a completed afternoon row permits evening Start while an already
+completed evening row remains blocked. Same-shift continuation and aggregation
+remain unchanged, and the client submission lock still prevents duplicate
+clicks.
+
+No SQL, migration, backfill, RLS change, runtime activation, production query,
+or production Attendance mutation was performed. Recovery remains disabled.
+
+Manual retest: leave a Staff afternoon session open until evening, verify only
+the afternoon active card and `Kết thúc ca` are visible, attempt a rejected
+evening Start, check out the afternoon session, verify evening `Bắt đầu ca`
+appears, refresh while an earlier session is open, and verify duplicate clicks
+produce only one request.

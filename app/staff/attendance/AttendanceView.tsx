@@ -19,6 +19,7 @@ import {
   formatWorkedDuration,
   getAttendanceShiftName,
   canContinueAttendanceShift,
+  canStartAttendanceShift,
   getFinalizedShiftUnitsForRecord,
   getWorkedMinutesForRecord,
 } from '@/services/attendanceService';
@@ -219,12 +220,12 @@ export function StaffAttendanceContent({
   const handleToggleShift = async () => {
     if (submitLockRef.current) return;
     if (shiftState === 'STALE_OPEN_SHIFT') return;
-    const canContinueCurrentShift = canContinueAttendanceShift({
+    const canStartCurrentShift = canStartAttendanceShift({
       record: todayRecord,
       currentShiftName: getAttendanceShiftName(liveTime),
       multiCheckEnabled,
     });
-    if (shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out && !canContinueCurrentShift) return;
+    if (shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out && !canStartCurrentShift) return;
 
     if (!worker) {
       showToast('Lỗi', 'Không tìm thấy hồ sơ nhân sự!', 'error');
@@ -282,7 +283,15 @@ export function StaffAttendanceContent({
         throw new Error('Phản hồi chấm công không đầy đủ. Vui lòng thử lại.');
       }
 
-      applyMutationRecord(result.record);
+      if (action === 'check_out') {
+        const refreshed = await loadAttendanceData(historyMonthInput, {
+          showLoading: false,
+          preserveVisibleDataOnError: true,
+        });
+        if (!refreshed) applyMutationRecord(result.record);
+      } else {
+        applyMutationRecord(result.record);
+      }
       showToast('Cập nhật ca làm', result?.message || 'Đã ghi nhận chấm công.', 'success');
     } catch (error) {
       const message = isGeolocationError(error)
@@ -329,6 +338,11 @@ export function StaffAttendanceContent({
   const finalizedTodayShiftUnits =
     todayRecord ? getFinalizedShiftUnitsForRecord(todayRecord) : 0;
   const canContinueCurrentShift = canContinueAttendanceShift({
+    record: todayRecord,
+    currentShiftName: getAttendanceShiftName(liveTime),
+    multiCheckEnabled,
+  });
+  const canStartCurrentShift = canStartAttendanceShift({
     record: todayRecord,
     currentShiftName: getAttendanceShiftName(liveTime),
     multiCheckEnabled,
@@ -407,7 +421,9 @@ export function StaffAttendanceContent({
           <p className="text-center text-[11px] text-emerald-100/80">
             {canContinueCurrentShift
               ? 'Bạn có thể tiếp tục làm việc trong cùng ca này.'
-              : 'Ca hiện tại đã được ghi nhận. Bạn không cần chấm công lại.'}
+              : canStartCurrentShift
+                ? 'Ca hiện tại đã chuyển. Bạn có thể bắt đầu ca mới.'
+                : 'Ca hiện tại đã được ghi nhận. Bạn không cần chấm công lại.'}
           </p>
           <div className="grid w-full grid-cols-2 gap-2 border-t border-emerald-900/30 pt-2 text-[11px] font-mono">
             <span className="text-slate-400">Ca: {todayRecord.shift_name}</span>
@@ -423,7 +439,7 @@ export function StaffAttendanceContent({
       )}
 
       {!fetching && !fetchError && shiftState !== 'STALE_OPEN_SHIFT' &&
-        (!(shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out) || canContinueCurrentShift) && (
+        (!(shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out) || canStartCurrentShift) && (
         <button
           type="button"
           onClick={handleToggleShift}

@@ -66,10 +66,11 @@ describe('Attendance multi-check contract', () => {
     expect(route).toContain("publicCode = code === '23505'");
   });
 
-  it('does not trigger a post-mutation full Staff fetch', () => {
+  it('reevaluates the shift after checkout without showing a full loading state', () => {
     const client = source('app/staff/attendance/AttendanceView.tsx');
     expect(client).toContain('applyMutationRecord(result.record)');
-    expect(client).toMatch(/applyMutationRecord\(result\.record\);\s*showToast/);
+    expect(client).toMatch(/if \(action === 'check_out'\)[\s\S]*loadAttendanceData\(historyMonthInput/);
+    expect(client).toMatch(/showLoading: false/);
   });
 
   it('keeps RPC and audit SQL draft-only and fail-closed by operator gate', () => {
