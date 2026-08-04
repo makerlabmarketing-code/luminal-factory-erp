@@ -94,9 +94,9 @@ describe('staff attendance portal regression contract', () => {
     expect(client).toMatch(/shiftState === 'STALE_OPEN_SHIFT'/);
     expect(client).toMatch(/Có ca làm trước đó chưa được kết thúc\./);
     expect(client).toMatch(/Bạn đang trong ca làm việc/);
-    expect(client).toMatch(/onClick=\{\(\) => void loadAttendanceData\(historyMonthInput\)\}/);
+    expect(client).toMatch(/DataTableError message=\{fetchError\} onRetry=\{\(\) => void loadAttendanceData\(historyMonthInput\)\}/);
     expect(client).toMatch(/Thử lại/);
-    expect(client.indexOf('if (fetchError)')).toBeLessThan(client.lastIndexOf('if (!worker)'));
+    expect(client).not.toMatch(/if \(fetchError\)/);
   });
 
   it('keeps staff portal attendance initial load free of project and employee-list fetches', () => {

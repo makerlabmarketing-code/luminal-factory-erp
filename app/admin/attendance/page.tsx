@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
+import { DataTableError, DataTableShell, DataTableSkeleton } from '@/component/data-table/DataTable';
 import DailyAttendanceModal from './components/DailyAttendanceModal';
 import { Calendar as CalendarIcon, Clock, LayoutGrid, CreditCard, User } from 'lucide-react';
 import {
@@ -150,6 +151,13 @@ export default function AdminAttendanceManagement() {
     setEditDateStr(dayStr);
   };
 
+  const handleRecordChanged = useCallback((record: AttendanceRecord, operation: 'create' | 'update' | 'delete') => {
+    setAttendanceRecords((current) => {
+      const withoutRecord = current.filter((item) => String(item.id) !== String(record.id));
+      return operation === 'delete' ? withoutRecord : [...withoutRecord, record];
+    });
+  }, []);
+
   const calculatePayrollFromRecords = (targetRecords: AttendanceRecord[]): PayrollSummary => {
     return calculateFinalizedAttendanceSummary(targetRecords);
   };
@@ -196,15 +204,6 @@ export default function AdminAttendanceManagement() {
   const outsideMonthSummary = scopeSummary.outsideSelectedMonth;
   const { firstWeekday: firstDayOfMonth, daysInMonth } = businessMonthCalendar(currentBusinessMonth);
 
-  if (loading) {
-    return (
-      <div className="p-6 max-w-7xl mx-auto text-slate-400 bg-slate-950 min-h-screen font-sans">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-xs">
-          Đang tải dữ liệu chấm công...
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 text-slate-100 bg-slate-950 min-h-screen font-sans">
@@ -328,6 +327,13 @@ export default function AdminAttendanceManagement() {
 
       {/* FULL CALENDAR GRID */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl space-y-4">
+        <DataTableShell label="Lịch chấm công theo tháng" height="viewport" isRefreshing={loading && attendanceRecords.length > 0}>
+        {loading && attendanceRecords.length === 0 ? (
+          <DataTableSkeleton rows={5} columns={7} />
+        ) : loadError && attendanceRecords.length === 0 ? (
+          <DataTableError message={loadError} onRetry={() => void loadData()} />
+        ) : (
+          <>
         <h2 className="text-sm font-black text-slate-100 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-800/60 pb-3">
           <LayoutGrid className="w-4 h-4 text-purple-400" /> Bảng phân lịch chi tiết theo ngày
         </h2>
@@ -409,6 +415,9 @@ export default function AdminAttendanceManagement() {
             );
           })}
         </div>
+          </>
+        )}
+        </DataTableShell>
       </div>
 
       {/* COMPONENT MODAL CHI TIẾT NGÀY */}
@@ -422,7 +431,7 @@ export default function AdminAttendanceManagement() {
         onClose={() => {
           setEditDateStr(null);
         }}
-        onReload={loadData}
+        onRecordChanged={handleRecordChanged}
         showToast={showToast}
         showConfirm={showConfirm}
         canAdjust={canAdjustAttendance}

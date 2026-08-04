@@ -479,3 +479,9 @@ row repair, runtime activation, or production Attendance/Payroll mutation has
 occurred. Before any activation, run the read-only preflight, confirm zero
 duplicate active Employee/date/shift groups, review the forward/rollback package,
 and obtain explicit `LIVE_APPROVAL_REQUIRED` for execution and post-run checks.
+
+## 2026-08-04 — Shared table infrastructure and Attendance first wave
+
+Status: `READY_FOR_TABLE_LOCAL_LOADING_RETEST`. PR A establishes one presentation-only shared data-table system and migrates Staff Attendance history plus Admin Attendance calendar/daily-modal refresh behavior. Staff mutations continue to patch the authoritative aggregate response with no success GET. Admin manual create/update/cancellation patch the returned row locally, preserving the selected date and modal; month/employee changes remain one scoped GET. Employee, Projects/tasks, and Finance are deliberately deferred to bounded follow-up PRs documented in `shared-data-table-guidance.md`.
+
+No SQL, migration, RLS, runtime gate, recovery action, production Attendance mutation, or manual deployment occurred. Attendance recovery remains disabled.
