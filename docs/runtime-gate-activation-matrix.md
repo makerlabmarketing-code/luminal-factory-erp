@@ -69,3 +69,15 @@ commit `e2090766cd6d9193f43ed2006657859b9251647e` and the runtime response
 verified `status=disabled` with safe correlation ID
 `bc763507-2dbb-4598-b89f-5f7f8a951429`. The next boundary is
 `READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`; neither route activates a gate.
+
+## Attendance multi-check and Admin mutation gates (2026-08-04)
+
+`ATTENDANCE_MULTI_CHECK_ENABLED` and `ATTENDANCE_MANUAL_MUTATIONS_ENABLED`
+remain false/unset. The first enables the audited Staff continuation RPC; the
+second enables the separately authorized Admin create/update/cancellation RPC.
+Neither gate is derived from browser state or `ATTENDANCE_RECOVERY_ENABLED`.
+Activation requires the draft preflight, active-row uniqueness check, operation
+audit RLS review, RPC privilege review, validation output, and authenticated
+smoke evidence. Package: `supabase/drafts/20260804_attendance_multi_check_admin_mutations_*`.
+Until then, Staff keeps the existing single-completion behavior and Admin
+Attendance remains read-only; no production rows are changed by this slice.

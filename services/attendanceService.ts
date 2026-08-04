@@ -129,13 +129,13 @@ function laterTime(first: string | null | undefined, second: string | null | und
 
 export function getWorkedMinutesForRecord(record: AttendanceRecord, now = new Date()): number {
   if (isAttendanceRecordCancelled(record)) return 0;
+  if (record.check_in && record.check_out) {
+    return calculateWorkedMinutesFromStrings(record.check_in, record.check_out);
+  }
+
   const storedHours = normalizeHoursValue(record.total_hours);
   if (storedHours !== null && record.check_out) {
     return Math.round(storedHours * 60);
-  }
-
-  if (record.check_in && record.check_out) {
-    return calculateWorkedMinutesFromStrings(record.check_in, record.check_out);
   }
 
   if (record.check_in && !record.check_out) {
@@ -205,9 +205,9 @@ export function mergeAttendanceRecords(records: AttendanceRecord[]): AttendanceR
         ? calculateActualHoursFromMinutes(calculateWorkedMinutesFromStrings(mergedCheckIn, mergedCheckOut))
         : null;
     const mergedTotalHours =
+      calculatedTotalHours ??
       normalizeHoursValue(existing.total_hours) ??
-      normalizeHoursValue(record.total_hours) ??
-      calculatedTotalHours;
+      normalizeHoursValue(record.total_hours);
     const mergedTotalSalary = existing.total_salary ?? record.total_salary ?? null;
 
     mergedMap.set(key, {
@@ -275,6 +275,20 @@ export function resolveAttendanceShiftState(
 export function getFinalizedShiftUnitsForRecord(record: AttendanceRecord): number {
   if (!isAttendanceRecordComplete(record)) return 0;
   return Math.max(1, calculateShiftUnitsFromMinutes(getWorkedMinutesForRecord(record)));
+}
+
+export function canContinueAttendanceShift(params: {
+  record: AttendanceRecord | null | undefined;
+  currentShiftName: string;
+  multiCheckEnabled: boolean;
+}): boolean {
+  return Boolean(
+    params.multiCheckEnabled &&
+      params.record &&
+      isAttendanceRecordComplete(params.record) &&
+      params.record.shift_name === params.currentShiftName &&
+      !isAttendanceRecordCancelled(params.record)
+  );
 }
 
 export function calculateFinalizedAttendanceSummary(
@@ -479,6 +493,7 @@ export async function updateAttendanceRecordTime(params: {
   checkIn: string;
   checkOut: string;
   hourlyRate: number;
+  reason: string;
 }): Promise<void> {
   const response = await fetch('/api/admin/attendance', {
     method: 'PATCH',
@@ -490,6 +505,7 @@ export async function updateAttendanceRecordTime(params: {
       shiftName: params.shiftName,
       checkIn: params.checkIn,
       checkOut: params.checkOut,
+      reason: params.reason,
     }),
   });
 
@@ -506,6 +522,7 @@ export async function upsertAttendanceRecord(params: {
   checkIn: string;
   checkOut: string;
   hourlyRate: number;
+  reason: string;
 }): Promise<void> {
   const response = await fetch('/api/admin/attendance', {
     method: 'POST',
@@ -516,6 +533,7 @@ export async function upsertAttendanceRecord(params: {
       shiftName: params.shiftName,
       checkIn: params.checkIn,
       checkOut: params.checkOut,
+      reason: params.reason,
     }),
   });
 
@@ -525,10 +543,13 @@ export async function upsertAttendanceRecord(params: {
   }
 }
 
-export async function deleteAttendanceRecord(recordId: number | string): Promise<void> {
-  const response = await fetch(`/api/admin/attendance?recordId=${encodeURIComponent(String(recordId))}`, {
+export async function deleteAttendanceRecord(recordId: number | string, reason: string): Promise<void> {
+  const response = await fetch(
+    `/api/admin/attendance?recordId=${encodeURIComponent(String(recordId))}&reason=${encodeURIComponent(reason)}`,
+    {
     method: 'DELETE',
-  });
+    }
+  );
 
   if (!response.ok) {
     const result = (await response.json().catch(() => null)) as { error?: string } | null;

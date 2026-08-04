@@ -22,7 +22,8 @@ describe('Attendance Gate 2 repository package', () => {
     expect(staffRoute).toMatch(/supabase\s*\.from\('attendance'\)\s*\.insert/);
     expect(staffRoute).toMatch(/\.eq\('employee_id', authContext\.employee\.id\)/);
     expect(staffRoute).not.toContain('ATTENDANCE_RECOVERY_ENABLED');
-    expect(adminRoute).toMatch(/isRecoveryEnabled\(process\.env\.ATTENDANCE_RECOVERY_ENABLED\)/);
+    expect(adminRoute).toMatch(/isAttendanceManualMutationEnabled\(\)/);
+    expect(adminRoute).toContain('attendance_manual_mutation_disabled');
   });
 
   it('provides an audited one-row cancellation instead of a forced checkout', () => {
