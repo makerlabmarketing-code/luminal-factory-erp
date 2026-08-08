@@ -82,7 +82,7 @@ function isManagedCounterRow(row: OriginalLedgerRow): boolean {
   return row.type === 'VON_GOP' && /^\[(Đối ứng|Hủy đối ứng)\]/.test(row.category || '');
 }
 
-async function employeeName(employeeId: number | null): Promise<string | null> {
+async function employeeName(employeeId: number | string | null | undefined): Promise<string | null> {
   if (employeeId == null) return null;
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin.from('employees').select('full_name').eq('id', employeeId).maybeSingle();
