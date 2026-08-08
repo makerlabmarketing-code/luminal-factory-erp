@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addProjectMember, listProjectMemberCandidates, listProjectMembers, projectMembershipErrorResponse } from '@/services/server/projectMembershipManagement';
+import { addProjectMember, listProjectMemberCandidates, projectMembershipErrorResponse } from '@/services/server/projectMembershipManagement';
+import { getProjectMembershipReadModel } from '@/services/server/projectMembershipReadModel';
 
 function jsonNoStore(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
@@ -12,7 +13,23 @@ export async function GET(request: NextRequest, { params }: { params: { projectI
     if (request.nextUrl.searchParams.get('scope') === 'candidates') {
       return jsonNoStore(await listProjectMemberCandidates(params.projectId));
     }
-    return jsonNoStore(await listProjectMembers(params.projectId));
+
+    const readModel = await getProjectMembershipReadModel(params.projectId);
+    return jsonNoStore({
+      success: true,
+      members: readModel.members,
+      capabilities: readModel.capabilities,
+      summary: {
+        projectId: readModel.projectId,
+        projectCode: readModel.projectCode,
+        activeMemberCount: readModel.activeMemberCount,
+        ownerCount: readModel.ownerCount,
+        managerCount: readModel.managerCount,
+        creativeLeadCount: readModel.creativeLeadCount,
+        contributorCount: readModel.contributorCount,
+        hasActiveOwner: readModel.hasActiveOwner,
+      },
+    });
   } catch (error) {
     const mapped = projectMembershipErrorResponse(error);
     return jsonNoStore(mapped.body, { status: mapped.status });
