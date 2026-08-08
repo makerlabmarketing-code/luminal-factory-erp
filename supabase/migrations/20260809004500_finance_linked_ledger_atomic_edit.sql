@@ -35,6 +35,8 @@ declare
   v_target_link_category text;
   v_old_lock_key text;
   v_target_lock_key text;
+  v_old_lock_hash bigint;
+  v_target_lock_hash bigint;
   v_target_conflicts integer := 0;
 begin
   if p_entry_id is null or p_entry_id <= 0 then
@@ -44,7 +46,7 @@ begin
   if p_type is null or btrim(p_type) = ''
      or p_category is null or btrim(p_category) = ''
      or p_amount is null or p_amount <= 0
-     or p_month_period is null or p_month_period !~ '^(0[1-9]|1[0-2])/\d{4}$' then
+     or p_month_period is null or p_month_period !~ '^(0[1-9]|1[0-2])/[0-9]{4}$' then
     raise exception using errcode = '22023', message = 'invalid ledger update payload';
   end if;
 
@@ -62,11 +64,18 @@ begin
   v_target_link_category := '[Đối ứng] Vốn hiện vật: ' || p_category;
   v_old_lock_key := coalesce(v_original.category, '') || chr(31) || coalesce(v_original.requested_by, '');
   v_target_lock_key := coalesce(p_category, '') || chr(31) || coalesce(p_requested_by, '');
+  v_old_lock_hash := hashtextextended(v_old_lock_key, 0);
+  v_target_lock_hash := hashtextextended(v_target_lock_key, 0);
 
-  -- Serialize operations touching the old and target link identities.
-  perform pg_advisory_xact_lock(hashtextextended(v_old_lock_key, 0));
-  if v_target_lock_key <> v_old_lock_key then
-    perform pg_advisory_xact_lock(hashtextextended(v_target_lock_key, 0));
+  -- Always acquire identity locks in numeric order so cross-edits cannot deadlock.
+  if v_old_lock_hash = v_target_lock_hash then
+    perform pg_advisory_xact_lock(v_old_lock_hash);
+  elsif v_old_lock_hash < v_target_lock_hash then
+    perform pg_advisory_xact_lock(v_old_lock_hash);
+    perform pg_advisory_xact_lock(v_target_lock_hash);
+  else
+    perform pg_advisory_xact_lock(v_target_lock_hash);
+    perform pg_advisory_xact_lock(v_old_lock_hash);
   end if;
 
   select coalesce(array_agg(candidate.id order by candidate.id), '{}'::bigint[])
