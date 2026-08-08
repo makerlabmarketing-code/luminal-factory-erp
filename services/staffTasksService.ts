@@ -199,6 +199,9 @@ export async function updateStaffWorkflowTask(params: {
   return JSON.stringify(parsed);
 }
 
-export async function updateProjectDriveLink(): Promise<void> {
+export async function updateProjectDriveLink(_params: {
+  projectName: string;
+  driveLink: string;
+}): Promise<void> {
   throw new Error('Nhân viên chỉ được cập nhật công việc được giao. Link Drive dự án do quản lý dự án cập nhật.');
 }
