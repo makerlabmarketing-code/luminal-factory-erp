@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { AuthFlowError } from '@/services/server/auth';
-import { setAdminFinancialLedgerPaid, updateAdminFinancialLedger } from '@/services/server/adminFinancialLedger';
+import { setAdminFinancialLedgerPaid } from '@/services/server/adminFinancialLedger';
+import { updateAdminFinancialLedgerAtomicAware } from '@/services/server/adminFinancialLedgerAtomic';
 
 function id(value: string): number {
   const parsed = Number(value);
@@ -24,7 +25,7 @@ async function jsonBody(request: Request): Promise<Record<string, unknown>> {
 
 export async function PUT(request: Request, { params }: { params: { ledgerId: string } }) {
   try {
-    return NextResponse.json(await updateAdminFinancialLedger(id(params.ledgerId), await jsonBody(request)));
+    return NextResponse.json(await updateAdminFinancialLedgerAtomicAware(id(params.ledgerId), await jsonBody(request)));
   } catch (error) {
     return failure(error);
   }
