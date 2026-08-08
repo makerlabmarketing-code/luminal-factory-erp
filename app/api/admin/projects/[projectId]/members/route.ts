@@ -18,6 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: { projectI
     return jsonNoStore({
       success: true,
       members: readModel.members,
+      capabilities: readModel.capabilities,
       summary: {
         projectId: readModel.projectId,
         projectCode: readModel.projectCode,
