@@ -4,11 +4,6 @@ import type {
   WorkflowDescription,
   WorkflowSetting,
 } from '@/lib/types/workflow';
-import {
-  getWorkflowItems,
-  updateWorkflowProjectDriveLink,
-  updateWorkflowTask,
-} from '@/services/workflowService';
 
 export function parseWorkflowDescription(description?: string | null): WorkflowDescription {
   try {
@@ -45,12 +40,22 @@ export async function getStaffTasksData(params: {
     };
   }
 
-  const data = await getWorkflowItems();
+  const response = await fetch('/api/staff/tasks', { cache: 'no-store' });
+  const payload = await response.json().catch(() => null) as {
+    workerId?: number;
+    workerName?: string;
+    workflowItems?: WorkflowSetting[];
+    message?: string;
+  } | null;
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Không thể tải công việc được giao.');
+  }
 
   return {
-    workerId: employee.employee_id || employee.id,
-    workerName: employee.full_name,
-    workflowItems: data,
+    workerId: payload?.workerId ?? employee.employee_id ?? employee.id ?? null,
+    workerName: payload?.workerName || employee.full_name,
+    workflowItems: payload?.workflowItems || [],
   };
 }
 
@@ -70,7 +75,7 @@ export function buildWorkflowEditMaps(workflowItems: WorkflowSetting[]): {
       editableTasks[`${item.key}_TASK_${index}`] = {
         status: task.status || 'TODO',
         deadline: task.deadline || '',
-        note: task.note || '',
+        note: '',
       };
     });
   });
@@ -124,9 +129,8 @@ export function getTaskStats(params: {
         task.assignee_id !== null &&
         task.assignee_id !== undefined &&
         String(task.assignee_id) === String(params.workerId);
-      const matchesByName = task.assignee === params.workerName || task.assignee_name === params.workerName;
 
-      if (!matchesById && !matchesByName) return;
+      if (!matchesById) return;
 
       total += 1;
 
@@ -156,43 +160,48 @@ export async function updateStaffWorkflowTask(params: {
     throw new Error('Không tìm thấy đầu việc cần cập nhật.');
   }
 
-  parsed.tasks_list[params.taskIndex] = {
-    ...parsed.tasks_list[params.taskIndex],
-    status: params.bufferedTask.status,
-    deadline: params.bufferedTask.deadline,
-    note: params.bufferedTask.note.trim(),
-  };
-
-  const updatedDescription = JSON.stringify(parsed);
-  const taskId = parsed.tasks_list[params.taskIndex].id;
-
-  if (!taskId) {
-    throw new Error('Khong tim thay ID dau viec can cap nhat.');
+  const task = parsed.tasks_list[params.taskIndex];
+  if (!task.id) {
+    throw new Error('Không tìm thấy ID đầu việc cần cập nhật.');
   }
 
-  await updateWorkflowTask({
-    taskId,
-    status: params.bufferedTask.status,
-    deadline: params.bufferedTask.deadline,
-    note: params.bufferedTask.note.trim(),
-  });
+  const note = params.bufferedTask.note.trim();
+  if (!note) {
+    throw new Error('Vui lòng nhập nội dung báo cáo tiến độ.');
+  }
 
-  return updatedDescription;
+  const response = await fetch('/api/staff/tasks', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      taskId: task.id,
+      status: params.bufferedTask.status,
+      deadline: params.bufferedTask.deadline || null,
+      note,
+    }),
+  });
+  const payload = await response.json().catch(() => null) as {
+    task?: { status?: string; deadline?: string };
+    message?: string;
+  } | null;
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Không thể cập nhật đầu việc.');
+  }
+
+  parsed.tasks_list[params.taskIndex] = {
+    ...task,
+    status: payload?.task?.status || params.bufferedTask.status,
+    deadline: payload?.task?.deadline ?? params.bufferedTask.deadline,
+    note: '',
+  };
+
+  return JSON.stringify(parsed);
 }
 
-export async function updateProjectDriveLink(params: {
+export async function updateProjectDriveLink(_params: {
   projectName: string;
   driveLink: string;
 }): Promise<void> {
-  const phases = await getWorkflowItems();
-  const projectPhase = phases.find(
-    (phase) => phase.config_name?.split(' - ')[0] === params.projectName
-  );
-
-  if (!projectPhase?.project_id) return;
-
-  await updateWorkflowProjectDriveLink({
-    projectId: projectPhase.project_id,
-    driveLink: params.driveLink,
-  });
+  throw new Error('Nhân viên chỉ được cập nhật công việc được giao. Link Drive dự án do quản lý dự án cập nhật.');
 }
