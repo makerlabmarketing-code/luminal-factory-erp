@@ -2,7 +2,12 @@ import 'server-only';
 
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import { getProjectMembershipAuthorization, projectMembershipAuthError } from '@/services/server/projectMembershipAuthorization';
-import { canProjectMembershipPerformAction, projectRoleLabel, type ProjectMembershipRoleCode } from '@/services/server/projectMembershipAuthorizationCore';
+import {
+  canProjectMembershipPerformAction,
+  projectRoleLabel,
+  type ProjectMembershipCapabilities,
+  type ProjectMembershipRoleCode,
+} from '@/services/server/projectMembershipAuthorizationCore';
 
 interface EmployeeJoin {
   id?: number | string | null;
@@ -44,6 +49,7 @@ export interface ProjectMembershipReadSummary {
   creativeLeadCount: number;
   contributorCount: number;
   hasActiveOwner: boolean;
+  capabilities: ProjectMembershipCapabilities;
   members: ProjectMembershipReadMember[];
 }
 
@@ -135,6 +141,7 @@ export async function getProjectMembershipReadModel(rawProjectId: string): Promi
     creativeLeadCount: countRole('CREATIVE_LEAD'),
     contributorCount: countRole('CONTRIBUTOR'),
     hasActiveOwner: ownerCount > 0,
+    capabilities: authorization.capabilities,
     members,
   };
 }
