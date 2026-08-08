@@ -132,7 +132,7 @@ async function loadAssignedWorkflow(employeeId: number, employeeName: string): P
   const taskRows = (taskResult.data || []) as TaskRow[];
   if (taskRows.length === 0) return [];
 
-  const projectIds = [...new Set(taskRows.map((task) => Number(task.project_id)).filter((id) => Number.isInteger(id) && id > 0))];
+  const projectIds = Array.from(new Set(taskRows.map((task) => Number(task.project_id)).filter((id) => Number.isInteger(id) && id > 0)));
   const membershipResult = await supabase
     .from('project_members')
     .select('project_id')
@@ -145,8 +145,8 @@ async function loadAssignedWorkflow(employeeId: number, employeeName: string): P
   const scopedTasks = taskRows.filter((task) => allowedProjectIds.has(Number(task.project_id)));
   if (scopedTasks.length === 0) return [];
 
-  const scopedProjectIds = [...new Set(scopedTasks.map((task) => Number(task.project_id)))];
-  const phaseIds = [...new Set(scopedTasks.map((task) => Number(task.phase_id)).filter((id) => Number.isInteger(id) && id > 0))];
+  const scopedProjectIds = Array.from(new Set(scopedTasks.map((task) => Number(task.project_id))));
+  const phaseIds = Array.from(new Set(scopedTasks.map((task) => Number(task.phase_id)).filter((id) => Number.isInteger(id) && id > 0)));
   const [projectsResult, phasesResult] = await Promise.all([
     supabase.from('projects').select('id, project_name, project_code, drive_url, project_deadline, status').in('id', scopedProjectIds),
     phaseIds.length > 0
@@ -186,7 +186,7 @@ async function loadAssignedWorkflow(employeeId: number, employeeName: string): P
     grouped.set(groupKey, group);
   });
 
-  return [...grouped.values()]
+  return Array.from(grouped.values())
     .sort((left, right) => {
       const projectCompare = String(left.project.project_name || '').localeCompare(String(right.project.project_name || ''), 'vi');
       if (projectCompare !== 0) return projectCompare;
