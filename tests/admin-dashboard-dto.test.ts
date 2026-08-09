@@ -17,6 +17,8 @@ const marchBackfilledInJune: DashboardLedgerEntry = {
   amount: 100000,
   is_paid: true,
   month_period: '03/2026',
+  created_at: '2026-06-20T08:00:00.000Z',
+  cancelled_at: null,
 };
 
 const juneRevenue: DashboardLedgerEntry = {
@@ -26,6 +28,8 @@ const juneRevenue: DashboardLedgerEntry = {
   amount: 300000,
   is_paid: true,
   month_period: '06/2026',
+  created_at: '2026-06-25T08:00:00.000Z',
+  cancelled_at: null,
 };
 
 const julyCapital: DashboardLedgerEntry = {
@@ -35,6 +39,8 @@ const julyCapital: DashboardLedgerEntry = {
   amount: 250000,
   is_paid: true,
   month_period: '07/2026',
+  created_at: '2026-07-02T08:00:00.000Z',
+  cancelled_at: null,
 };
 
 function createDashboardClient({
@@ -76,6 +82,7 @@ describe('admin dashboard DTO', () => {
     expect(source).toMatch(/startTransition\(\(\) => router\.refresh\(\)\)/);
     expect(source).not.toMatch(/<a href="\/admin\/dashboard"/);
   });
+
   it('returns the minimal DTO for ADMIN ACTIVE data access', async () => {
     const queriedTables: string[] = [];
 
@@ -98,8 +105,7 @@ describe('admin dashboard DTO', () => {
         currentBalance: 450000,
       },
       monthlyCashFlow: [
-        { name: '03/2026', thu: 0, chi: 100000 },
-        { name: '06/2026', thu: 300000, chi: 0 },
+        { name: '06/2026', thu: 300000, chi: 100000 },
         { name: '07/2026', thu: 250000, chi: 0 },
       ],
       cashFlowComposition: [
@@ -110,6 +116,51 @@ describe('admin dashboard DTO', () => {
       reportingYear: '2026',
       generatedAt: '2026-07-14T00:00:00.000Z',
     });
+  });
+
+  it('uses the recorded month instead of the ledger business period for dashboard cashflow', () => {
+    const dto = buildAdminDashboardDto([marchBackfilledInJune], generatedAt);
+
+    expect(dto.monthlyCashFlow).toEqual([
+      { name: '06/2026', thu: 0, chi: 100000 },
+    ]);
+    expect(dto.monthlyCashFlow.find((period) => period.name === '03/2026')).toBeUndefined();
+  });
+
+  it('uses the operating timezone when created_at crosses a UTC month boundary', () => {
+    const dto = buildAdminDashboardDto([
+      {
+        ...juneRevenue,
+        created_at: '2026-06-30T18:30:00.000Z',
+      },
+    ], generatedAt);
+
+    expect(dto.monthlyCashFlow).toEqual([
+      { name: '07/2026', thu: 300000, chi: 0 },
+    ]);
+  });
+
+  it('keeps cancelled paid rows out of dashboard totals and charts', () => {
+    const dto = buildAdminDashboardDto([
+      julyCapital,
+      {
+        ...juneRevenue,
+        cancelled_at: '2026-07-01T00:00:00.000Z',
+      },
+    ], generatedAt);
+
+    expect(dto.summary).toEqual({
+      totalCapital: 250000,
+      totalRevenue: 0,
+      totalExpense: 0,
+      currentBalance: 250000,
+    });
+    expect(dto.monthlyCashFlow).toEqual([
+      { name: '07/2026', thu: 250000, chi: 0 },
+    ]);
+    expect(dto.cashFlowComposition).toEqual([
+      { name: 'Vốn Góp', value: 250000 },
+    ]);
   });
 
   it('blocks a user without admin access before querying finance tables', async () => {
@@ -178,16 +229,6 @@ describe('admin dashboard DTO', () => {
     ], generatedAt);
 
     expect(JSON.stringify(dto)).not.toMatch(/category|requested_by|created_at|updated_at|bank|account/i);
-  });
-
-  it('keeps dashboard and ledger summaries aligned on reporting period', () => {
-    const dto = buildAdminDashboardDto([marchBackfilledInJune, juneRevenue], generatedAt);
-
-    expect(dto.monthlyCashFlow.find((period) => period.name === '03/2026')).toEqual({
-      name: '03/2026',
-      thu: 0,
-      chi: 100000,
-    });
   });
 
   it('renders true zero data as a successful zero-valued DTO', () => {

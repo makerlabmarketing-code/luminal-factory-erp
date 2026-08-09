@@ -55,7 +55,8 @@ export interface AdminDashboardDataDependencies {
   now: () => Date;
 }
 
-export const DASHBOARD_LEDGER_SELECT = 'id, type, category, amount, is_paid, month_period';
+export const DASHBOARD_LEDGER_SELECT =
+  'id, type, category, amount, is_paid, month_period, created_at, cancelled_at';
 
 export async function getAdminDashboardDtoWithDependencies({
   requireAdmin,
