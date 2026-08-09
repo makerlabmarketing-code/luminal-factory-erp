@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
 import { businessMonthFromInstant, formatBusinessMonthInput } from '@/lib/business-date';
+import { FINANCE_ATTACHMENT_POLICY, validateFinanceAttachment } from '@/lib/financeExpenseWorkflow';
 import {
   Banknote,
   ChevronLeft,
   ChevronRight,
+  FileUp,
   Image as ImageIcon,
   RefreshCcw,
   Search,
@@ -38,7 +40,7 @@ export function StaffExpensesContent({
 
   const [expCategory, setExpCategory] = useState('');
   const [expAmount, setExpAmount] = useState('');
-  const [expBillUrl, setExpBillUrl] = useState('');
+  const [expReceiptFile, setExpReceiptFile] = useState<File | null>(null);
   const [expDate, setExpDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [expDescription, setExpDescription] = useState('');
   const [expProjectId, setExpProjectId] = useState('');
@@ -76,6 +78,20 @@ export function StaffExpensesContent({
     loadExpensesData();
   }, [loadExpensesData]);
 
+  const handleReceiptFile = (file: File | null) => {
+    if (!file) {
+      setExpReceiptFile(null);
+      return;
+    }
+    const validation = validateFinanceAttachment(file);
+    if (validation) {
+      showToast('Chứng từ không hợp lệ', validation, 'error');
+      setExpReceiptFile(null);
+      return;
+    }
+    setExpReceiptFile(file);
+  };
+
   const handleSubmitExpense = async () => {
     if (isSubmitting) return;
     if (!worker) {
@@ -92,24 +108,32 @@ export function StaffExpensesContent({
 
     setIsSubmitting(true);
     try {
-      await submitStaffExpense({
+      const result = await submitStaffExpense({
         employee: worker,
         category: expCategory,
         amount: numericAmount,
         transactionDate: expDate,
         description: expDescription,
         projectId: expProjectId,
-        billUrl: expBillUrl,
+        receiptFile: expReceiptFile,
         idempotencyKey: crypto.randomUUID(),
       });
 
       setExpCategory('');
       setExpAmount('');
-      setExpBillUrl('');
+      setExpReceiptFile(null);
       setExpDescription('');
       setExpProjectId('');
 
-      showToast('Nộp phiếu thành công', 'Yêu cầu hoàn ứng đã được gửi lên hệ thống chờ duyệt!', 'success');
+      if (!result.attachmentUploaded) {
+        showToast(
+          'Phiếu đã được tạo',
+          result.attachmentMessage || 'Phiếu đã được tạo nhưng chứng từ chưa tải được. Không cần nộp lại phiếu.',
+          'warning',
+        );
+      } else {
+        showToast('Nộp phiếu thành công', 'Yêu cầu hoàn ứng đã được gửi lên hệ thống chờ duyệt!', 'success');
+      }
       loadExpensesData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể gửi phiếu hoàn ứng.';
@@ -196,19 +220,30 @@ export function StaffExpensesContent({
         </div>
 
         <div>
-          <label className="text-slate-400 font-bold">Link ảnh hóa đơn Bill (Tùy chọn):</label>
-          <input
-            type="text"
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 focus:outline-none text-blue-400 font-mono"
-            value={expBillUrl}
-            onChange={(event) => setExpBillUrl(event.target.value)}
-          />
+          <label className="text-slate-400 font-bold">Chứng từ (tùy chọn):</label>
+          <label className="mt-1.5 flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-700 bg-slate-950 p-3 text-slate-300 hover:border-emerald-500/60">
+            <FileUp className="h-4 w-4 text-emerald-400" />
+            <span className="min-w-0 flex-1 truncate">
+              {expReceiptFile ? expReceiptFile.name : `Chọn ${FINANCE_ATTACHMENT_POLICY.allowedTypesLabel}, tối đa 10 MB`}
+            </span>
+            <input
+              type="file"
+              className="hidden"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={(event) => handleReceiptFile(event.target.files?.[0] || null)}
+            />
+          </label>
+          {expReceiptFile && (
+            <button type="button" className="mt-1 text-[10px] text-slate-500 hover:text-slate-300" onClick={() => setExpReceiptFile(null)}>
+              Bỏ chứng từ đã chọn
+            </button>
+          )}
         </div>
 
         <button
           onClick={handleSubmitExpense}
           disabled={isSubmitting}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 transition text-white font-black p-3.5 rounded-xl uppercase text-xs mt-2 cursor-pointer"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 transition text-white font-black p-3.5 rounded-xl uppercase text-xs mt-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? 'Đang gửi...' : 'Nộp phiếu hoàn ứng'}
         </button>
@@ -262,7 +297,7 @@ export function StaffExpensesContent({
                           rel="noreferrer"
                           className="text-blue-400 flex items-center gap-0.5 mt-1 text-[10px] hover:underline font-mono"
                         >
-                          <ImageIcon className="w-3 h-3" /> Mở xem hóa đơn
+                          <ImageIcon className="w-3 h-3" /> Mở xem chứng từ
                         </a>
                       )}
 
