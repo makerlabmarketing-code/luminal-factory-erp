@@ -129,7 +129,7 @@ export function StaffExpensesContent({
         showToast(
           'Phiếu đã được tạo',
           result.attachmentMessage || 'Phiếu đã được tạo nhưng chứng từ chưa tải được. Không cần nộp lại phiếu.',
-          'warning',
+          'info',
         );
       } else {
         showToast('Nộp phiếu thành công', 'Yêu cầu hoàn ứng đã được gửi lên hệ thống chờ duyệt!', 'success');
