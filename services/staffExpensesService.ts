@@ -41,18 +41,44 @@ export async function submitStaffExpense(params: {
   description: string;
   projectId?: string;
   payerEmployeeId?: string;
-  billUrl: string;
+  receiptFile?: File | null;
   idempotencyKey: string;
-}): Promise<void> {
+}): Promise<{
+  reimbursementId: string;
+  attachmentUploaded: boolean;
+  attachmentMessage?: string;
+}> {
   const response = await fetch('/api/staff/reimbursements', {
     method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       amount: params.amount, transactionDate: params.transactionDate, category: params.category,
       description: params.description, projectId: params.projectId || null,
       beneficiaryEmployeeId: params.employee.id, payerEmployeeId: params.payerEmployeeId || null,
-      receiptUrl: params.billUrl, idempotencyKey: params.idempotencyKey,
+      receiptUrl: null, idempotencyKey: params.idempotencyKey,
     }),
   });
-  const payload = await response.json() as { message?: string };
-  if (!response.ok) throw new Error(payload.message || 'Không thể gửi yêu cầu hoàn ứng.');
+  const payload = await response.json() as { reimbursementId?: string; message?: string };
+  if (!response.ok || !payload.reimbursementId) throw new Error(payload.message || 'Không thể gửi yêu cầu hoàn ứng.');
+
+  if (!params.receiptFile) {
+    return { reimbursementId: payload.reimbursementId, attachmentUploaded: true };
+  }
+
+  const form = new FormData();
+  form.append('file', params.receiptFile, params.receiptFile.name);
+  const attachmentResponse = await fetch(`/api/staff/reimbursements/${encodeURIComponent(payload.reimbursementId)}/attachments`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  });
+  const attachmentPayload = await attachmentResponse.json() as { message?: string };
+  if (!attachmentResponse.ok) {
+    return {
+      reimbursementId: payload.reimbursementId,
+      attachmentUploaded: false,
+      attachmentMessage: attachmentPayload.message || 'Phiếu đã được tạo nhưng chứng từ chưa tải được.',
+    };
+  }
+
+  return { reimbursementId: payload.reimbursementId, attachmentUploaded: true };
 }
