@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createClient } from '@/utils/supabase/server';
+import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import {
   AuthFlowError,
   hasPermission,
@@ -34,6 +35,17 @@ export interface PayrollMonthDTO {
   approvedAdjustments: PayrollAdjustmentDTO[];
   adjustmentTotal: number;
   finalPayableAmount: number;
+}
+
+export interface PayrollReadinessDTO {
+  schemaReady: boolean;
+  featureEnabled: boolean;
+  configured: boolean;
+  firstSettlementMonth: string | null;
+  canView: boolean;
+  canSettle: boolean;
+  canAdjust: boolean;
+  canConfigure: boolean;
 }
 
 function payrollEnabled() {
@@ -74,6 +86,85 @@ function ensureEnabled() {
   if (!payrollEnabled()) throw new AuthFlowError({ status: 503, code: 'service_unavailable', message: 'Tính năng quyết toán lương chưa được kích hoạt.', failureStage: 'persistence' });
 }
 
+export async function getAdminPayrollReadiness(): Promise<{ success: true; readiness: PayrollReadinessDTO }> {
+  const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
+  const [canView, canSettle, canAdjust, canConfigure] = await Promise.all([
+    hasPermission(auth, 'PAYROLL_VIEW'),
+    hasPermission(auth, PAYROLL_SETTLEMENT_PERMISSION),
+    hasPermission(auth, PAYROLL_ADJUST_PERMISSION),
+    hasPermission(auth, PAYROLL_CONFIGURE_PERMISSION),
+  ]);
+
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from('payroll_configuration')
+    .select('first_settlement_month')
+    .eq('singleton', true)
+    .maybeSingle();
+
+  if (error) {
+    return {
+      success: true,
+      readiness: {
+        schemaReady: false,
+        featureEnabled: payrollEnabled(),
+        configured: false,
+        firstSettlementMonth: null,
+        canView,
+        canSettle,
+        canAdjust,
+        canConfigure,
+      },
+    };
+  }
+
+  return {
+    success: true,
+    readiness: {
+      schemaReady: true,
+      featureEnabled: payrollEnabled(),
+      configured: Boolean(data?.first_settlement_month),
+      firstSettlementMonth: data?.first_settlement_month ? String(data.first_settlement_month).slice(0, 7) : null,
+      canView,
+      canSettle,
+      canAdjust,
+      canConfigure,
+    },
+  };
+}
+
+export async function configurePayrollFirstMonth(month: unknown) {
+  const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
+  if (!(await hasPermission(auth, PAYROLL_CONFIGURE_PERMISSION))) {
+    throw new AuthFlowError({ status: 403, code: 'permission_forbidden', message: 'Bạn chưa có quyền cấu hình tháng quyết toán đầu tiên.', failureStage: 'permission_check' });
+  }
+
+  const normalizedMonth = validMonth(typeof month === 'string' ? month : null);
+  const admin = createSupabaseAdminClient();
+  const { data: existing, error: configError } = await admin
+    .from('payroll_configuration')
+    .select('first_settlement_month')
+    .eq('singleton', true)
+    .maybeSingle();
+  if (configError) throw new AuthFlowError({ status: 503, code: 'service_unavailable', message: 'Gói dữ liệu quyết toán lương chưa sẵn sàng.', failureStage: 'persistence' });
+  if (existing?.first_settlement_month) {
+    throw new AuthFlowError({ status: 409, code: 'payload_validation_failed', message: 'Tháng quyết toán đầu tiên đã được cấu hình và không thể ghi đè.', failureStage: 'persistence' });
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('configure_payroll_first_month', { p_month: `${normalizedMonth}-01` });
+  if (error) {
+    const duplicate = error.code === '23505';
+    throw new AuthFlowError({
+      status: duplicate ? 409 : 400,
+      code: 'payload_validation_failed',
+      message: duplicate ? 'Tháng quyết toán đầu tiên đã được cấu hình.' : 'Không thể cấu hình tháng quyết toán đầu tiên.',
+      failureStage: 'persistence',
+    });
+  }
+  return { success: true as const, firstSettlementMonth: normalizedMonth };
+}
+
 export async function getOwnPayroll(month: string) {
   ensureEnabled();
   const auth = await requireWorkspaceAccess('STAFF_WORKSPACE');
@@ -89,6 +180,10 @@ export async function getAdminPayroll(month: string) {
   await requirePermission('PAYROLL_VIEW');
   const canSettle = await hasPermission(auth, PAYROLL_SETTLEMENT_PERMISSION);
   const canAdjust = await hasPermission(auth, PAYROLL_ADJUST_PERMISSION);
+  const admin = createSupabaseAdminClient();
+  const { data: config, error: configError } = await admin.from('payroll_configuration').select('first_settlement_month').eq('singleton', true).maybeSingle();
+  if (configError) throw new AuthFlowError({ status: 503, code: 'service_unavailable', message: 'Gói dữ liệu quyết toán lương chưa sẵn sàng.', failureStage: 'persistence' });
+  if (!config?.first_settlement_month) throw new AuthFlowError({ status: 409, code: 'payload_validation_failed', message: 'Chưa cấu hình tháng quyết toán đầu tiên.', failureStage: 'persistence' });
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('list_monthly_payroll_for_admin', { p_month: `${validMonth(month)}-01` });
   if (error) throw new Error('Không thể tải dữ liệu lương tháng.');
