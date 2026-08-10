@@ -3,12 +3,35 @@ import { getCheckoutReminderCandidates, sendTemplateEmailByGroup } from '@/servi
 
 const CHECKOUT_REMINDER_GROUP = 'ATTENDANCE_CHECKOUT_REMINDER';
 
-export async function GET() {
+function jsonNoStore(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init);
+  response.headers.set('Cache-Control', 'no-store');
+  return response;
+}
+
+function isAuthorizedCronRequest(request: Request): boolean {
+  const cronSecret = String(process.env.CRON_SECRET || '').trim();
+  if (!cronSecret) return false;
+  return request.headers.get('authorization') === `Bearer ${cronSecret}`;
+}
+
+export async function GET(request: Request) {
+  if (!isAuthorizedCronRequest(request)) {
+    return jsonNoStore(
+      {
+        success: false,
+        code: 'cron_unauthorized',
+        message: 'Yêu cầu tác vụ tự động không hợp lệ.',
+      },
+      { status: 401 }
+    );
+  }
+
   try {
     const candidates = await getCheckoutReminderCandidates();
 
     if (candidates.length === 0) {
-      return NextResponse.json({
+      return jsonNoStore({
         success: true,
         message: 'Không có ca nào quá giờ cần nhắc checkout.',
         sent: 0,
@@ -42,7 +65,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({
+    return jsonNoStore({
       success: true,
       sent,
       skipped,
@@ -50,7 +73,7 @@ export async function GET() {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Lỗi cron nhắc checkout.';
 
-    return NextResponse.json(
+    return jsonNoStore(
       {
         error: message,
       },
