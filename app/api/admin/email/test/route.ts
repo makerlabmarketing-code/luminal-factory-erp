@@ -7,7 +7,7 @@ const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 export async function POST(request: Request) {
   const correlationId = sanitizeEmailCorrelationId(request.headers.get('x-correlation-id') || undefined);
   try {
-    await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
+    await requireAdminEmployeePermission('EMAIL_TEMPLATE_MANAGE');
     const payload = await request.json() as { templateId?: number; recipient?: string };
     const recipient = payload.recipient?.trim() || '';
     if (!Number.isInteger(payload.templateId) || !isValidEmail(recipient)) return NextResponse.json({ success: false, code: 'INVALID_REQUEST', message: 'Vui lòng chọn mẫu và nhập email nhận thử hợp lệ.', correlationId }, { status: 400 });
