@@ -266,15 +266,19 @@ export class WorkflowRepository {
     if (detailProjectId !== null) withDeadlineQuery = withDeadlineQuery.eq('id', detailProjectId);
     const withDeadline = await withDeadlineQuery.order('id', { ascending: false });
 
-    let result = withDeadline;
-    if (withDeadline.error && isMissingProjectDeadlineColumn(withDeadline.error)) {
-      let fallbackQuery = supabase.from('projects').select('id, project_name, drive_url, status, created_at');
-      if (detailProjectId !== null) fallbackQuery = fallbackQuery.eq('id', detailProjectId);
-      result = await fallbackQuery.order('id', { ascending: false });
+    if (!withDeadline.error) {
+      return (withDeadline.data || [])
+        .map((row) => normalizeProjectRow(row as GenericRow))
+        .filter((row): row is WorkflowProject => row !== null);
     }
-    if (result.error) throw result.error;
+    if (!isMissingProjectDeadlineColumn(withDeadline.error)) throw withDeadline.error;
 
-    return (result.data || [])
+    let fallbackQuery = supabase.from('projects').select('id, project_name, drive_url, status, created_at');
+    if (detailProjectId !== null) fallbackQuery = fallbackQuery.eq('id', detailProjectId);
+    const fallback = await fallbackQuery.order('id', { ascending: false });
+    if (fallback.error) throw fallback.error;
+
+    return (fallback.data || [])
       .map((row) => normalizeProjectRow(row as GenericRow))
       .filter((row): row is WorkflowProject => row !== null);
   }
