@@ -12,6 +12,12 @@ import {
 const MAX_PROFILE_FIELD_LENGTH = 120;
 const cleanProfileField = (value: unknown) => typeof value === 'string' ? value.trim().slice(0, MAX_PROFILE_FIELD_LENGTH) : '';
 
+function jsonNoStore(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init);
+  response.headers.set('Cache-Control', 'no-store');
+  return response;
+}
+
 function logFailure(params: {
   correlationId: string;
   employeeId?: string | number;
@@ -41,7 +47,7 @@ function logFailure(params: {
 }
 
 const failureResponse = (correlationId: string, code: string, failureStage: string) =>
-  NextResponse.json({ error: 'Không thể lưu hồ sơ nhân sự.', code, failureStage, correlationId }, { status: 500 });
+  jsonNoStore({ error: 'Không thể lưu hồ sơ nhân sự.', code, failureStage, correlationId }, { status: 500 });
 
 export async function PATCH(request: Request) {
   const correlationId = crypto.randomUUID();
@@ -58,11 +64,11 @@ export async function PATCH(request: Request) {
     const authContext = await requireWorkspaceAccess('STAFF_WORKSPACE');
     employeeId = authContext.employee.id;
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-    if (!body) return NextResponse.json({ error: 'Dữ liệu hồ sơ không hợp lệ.' }, { status: 400 });
+    if (!body) return jsonNoStore({ error: 'Dữ liệu hồ sơ không hợp lệ.' }, { status: 400 });
 
     const allowedKeys = new Set(['phone', 'bankName', 'bankAccountNumber']);
     if (Object.keys(body).some((key) => !allowedKeys.has(key))) {
-      return NextResponse.json({ error: 'Bạn không được phép cập nhật trường này.', correlationId }, { status: 403 });
+      return jsonNoStore({ error: 'Bạn không được phép cập nhật trường này.', correlationId }, { status: 403 });
     }
     const payload = buildStaffProfileDatabaseUpdate(body, cleanProfileField);
 
@@ -102,11 +108,11 @@ export async function PATCH(request: Request) {
 
     revalidatePath('/staff');
     revalidatePath('/staff/profile');
-    return NextResponse.json({ success: true, employee, warnings, correlationId });
+    return jsonNoStore({ success: true, employee, warnings, correlationId });
   } catch (error) {
     if (error instanceof AuthFlowError) {
       logFailure({ correlationId, code: error.code, failureStage: error.failureStage, operation: 'authorization', trace, error });
-      return NextResponse.json({ error: error.message, code: error.code, failureStage: error.failureStage, correlationId }, { status: error.status });
+      return jsonNoStore({ error: error.message, code: error.code, failureStage: error.failureStage, correlationId }, { status: error.status });
     }
     logFailure({ correlationId, employeeId, code: 'staff_profile_unhandled_failure', failureStage: 'request_boundary', operation: 'request', trace, error });
     return failureResponse(correlationId, 'staff_profile_unhandled_failure', 'request_boundary');
