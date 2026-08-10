@@ -99,8 +99,9 @@ export async function GET() {
     if (templateResult.error) throw templateResult.error;
     if (metadataResult.error) throw metadataResult.error;
 
-    const emailGroups = Array.isArray(metadataResult.data?.data)
-      ? metadataResult.data.data
+    const metadataGroups = metadataResult.data?.data;
+    const emailGroups = Array.isArray(metadataGroups)
+      ? metadataGroups
       : DEFAULT_EMAIL_GROUPS;
 
     return jsonNoStore({
