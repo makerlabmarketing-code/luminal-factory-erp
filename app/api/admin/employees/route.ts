@@ -46,10 +46,21 @@ export async function GET() {
     return toJsonResponse(await getAdminEmployeeListData());
   } catch (error) {
     const correlationId = crypto.randomUUID();
-    if (error instanceof AuthFlowError && error.status === 403) {
-      return toJsonResponse({ success: false, code: 'forbidden', message: 'Bạn không có quyền xem danh sách nhân sự.', failureStage: error.failureStage, retryable: false, correlationId }, { status: 403 });
+    if (error instanceof AuthFlowError) {
+      const denied = error.status === 401 || error.status === 403;
+      return toJsonResponse(
+        {
+          success: false,
+          code: error.code,
+          message: error.message,
+          failureStage: error.failureStage,
+          retryable: error.status >= 500,
+          correlationId,
+        },
+        { status: error.status }
+      );
     }
-    return toJsonResponse({ success: false, code: 'employee_list_load_failed', message: 'Không thể tải danh sách nhân sự.', failureStage: error instanceof AuthFlowError ? error.failureStage : 'unknown', retryable: true, correlationId }, { status: 500 });
+    return toJsonResponse({ success: false, code: 'employee_list_load_failed', message: 'Không thể tải danh sách nhân sự.', failureStage: 'unknown', retryable: true, correlationId }, { status: 500 });
   }
 }
 
