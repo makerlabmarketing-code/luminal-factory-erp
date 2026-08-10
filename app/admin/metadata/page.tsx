@@ -1,13 +1,11 @@
 // app/admin/metadata/page.tsx
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/utils/supabase/client";
 import { useNotification } from "@/component/NotificationContext";
 import {
   Plus,
   Trash2,
   Save,
-  RefreshCcw,
   Layers,
   Search,
   ChevronLeft,
@@ -16,16 +14,23 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import {
-  DEFAULT_SYSTEM_METADATA_CATEGORIES,
   type SystemMetadataCategory,
   type SystemMetadataRow,
   type SystemMetadataValue,
 } from "@/lib/system-metadata-defaults";
 
+interface SystemMetadataResponse {
+  success?: boolean;
+  categories?: SystemMetadataCategory[];
+  category?: SystemMetadataCategory;
+  message?: string;
+}
+
 export default function MetadataManagement() {
   const { showToast, showConfirm } = useNotification();
   const [categories, setCategories] = useState<SystemMetadataCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedCatId, setSelectedCatId] = useState<string>("");
   const [subSearchTerm, setSubSearchTerm] = useState<string>("");
@@ -34,25 +39,29 @@ export default function MetadataManagement() {
   const [pageInput, setPageInput] = useState("1");
 
   const [newCatName, setNewCatName] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const loadMetadata = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const { data } = await supabase
-        .from("system_metadata")
-        .select("*")
-        .order("id", { ascending: true });
-      const loadedCategories = (
-        data && data.length > 0 ? data : DEFAULT_SYSTEM_METADATA_CATEGORIES
-      ) as SystemMetadataCategory[];
-      setCategories(loadedCategories);
-      if (loadedCategories.length > 0) {
-        setSelectedCatId((currentCategoryId) =>
-          currentCategoryId || loadedCategories[0].id.toString(),
-        );
+      const response = await fetch("/api/admin/system-metadata", { cache: "no-store" });
+      const payload = (await response.json().catch(() => null)) as SystemMetadataResponse | null;
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.message || "Không thể tải danh mục hệ thống.");
       }
-    } catch (e) {
-      console.error(e);
+
+      const loadedCategories = payload.categories || [];
+      setCategories(loadedCategories);
+      setSelectedCatId((currentCategoryId) => {
+        if (currentCategoryId && loadedCategories.some((item) => String(item.id) === currentCategoryId)) {
+          return currentCategoryId;
+        }
+        return loadedCategories[0]?.id != null ? String(loadedCategories[0].id) : "";
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể tải danh mục hệ thống.";
+      setLoadError(message);
     } finally {
       setLoading(false);
     }
@@ -115,31 +124,60 @@ export default function MetadataManagement() {
         "Vui lòng nhập tên danh mục.",
         "error",
       );
-    const { data } = await supabase
-      .from("system_metadata")
-      .insert([{ name: newCatName.trim(), data: [] }])
-      .select();
-    if (data && data.length > 0) setSelectedCatId(data[0].id.toString());
-    setNewCatName("");
-    loadMetadata();
-    // 🔥 ĐÃ VÁ: Chuyển sang Popup Toast dùng chung
-    showToast("Thành công", "Đã tạo danh mục hệ thống.", "success");
+
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin/system-metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCatName.trim() }),
+      });
+      const payload = (await response.json().catch(() => null)) as SystemMetadataResponse | null;
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.message || "Không thể tạo danh mục hệ thống.");
+      }
+
+      if (payload.category?.id != null) setSelectedCatId(String(payload.category.id));
+      setNewCatName("");
+      await loadMetadata();
+      showToast("Thành công", "Đã tạo danh mục hệ thống.", "success");
+    } catch (error) {
+      showToast(
+        "Không thể tạo danh mục",
+        error instanceof Error ? error.message : "Vui lòng thử lại.",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDeleteCategory = () => {
     if (!activeCategory || isFallbackCategory) return;
-    // 🔥 ĐÃ VÁ: Thay confirm() trình duyệt bằng hộp thoại Confirm Modal bo góc
     showConfirm(
       "Ngừng dùng danh mục",
       `Sếp có chắc chắn muốn ngừng dùng danh mục [${activeCategory.name}] cùng toàn bộ thuộc tính con không?`,
       async () => {
-        await supabase
-          .from("system_metadata")
-          .delete()
-          .eq("id", activeCategory.id);
-        setSelectedCatId("");
-        loadMetadata();
-        showToast("Đã cập nhật", "Danh mục lớn đã được gỡ bỏ.", "info");
+        try {
+          const response = await fetch(
+            `/api/admin/system-metadata?id=${encodeURIComponent(String(activeCategory.id))}`,
+            { method: "DELETE" },
+          );
+          const payload = (await response.json().catch(() => null)) as SystemMetadataResponse | null;
+          if (!response.ok || !payload?.success) {
+            throw new Error(payload?.message || "Không thể gỡ danh mục hệ thống.");
+          }
+
+          setSelectedCatId("");
+          await loadMetadata();
+          showToast("Đã cập nhật", "Danh mục lớn đã được gỡ bỏ.", "info");
+        } catch (error) {
+          showToast(
+            "Không thể gỡ danh mục",
+            error instanceof Error ? error.message : "Vui lòng thử lại.",
+            "error",
+          );
+        }
       },
     );
   };
@@ -211,7 +249,7 @@ export default function MetadataManagement() {
   };
 
   const handleSaveCategory = async () => {
-    if (!activeCategory) return;
+    if (!activeCategory || saving) return;
     if (isFallbackCategory) {
       showToast(
         "Cần tạo danh mục hệ thống",
@@ -220,16 +258,33 @@ export default function MetadataManagement() {
       );
       return;
     }
-    await supabase
-      .from("system_metadata")
-      .update({ data: activeCategory.data })
-      .eq("id", activeCategory.id);
-    // 🔥 ĐÃ VÁ: Chuyển sang Popup Toast
-    showToast(
-      "Đồng bộ thành công",
-      `✨ Đã cập nhật danh mục [${activeCategory.name}] lên Cloud!`,
-      "success",
-    );
+
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin/system-metadata", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activeCategory.id, data: activeCategory.data }),
+      });
+      const payload = (await response.json().catch(() => null)) as SystemMetadataResponse | null;
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.message || "Không thể cập nhật danh mục hệ thống.");
+      }
+
+      showToast(
+        "Đồng bộ thành công",
+        `✨ Đã cập nhật danh mục [${activeCategory.name}] lên Cloud!`,
+        "success",
+      );
+    } catch (error) {
+      showToast(
+        "Không thể lưu danh mục",
+        error instanceof Error ? error.message : "Dữ liệu đã nhập vẫn được giữ lại. Vui lòng thử lại.",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -255,12 +310,27 @@ export default function MetadataManagement() {
           />
           <button
             onClick={handleCreateCategory}
-            className="bg-purple-600 hover:bg-purple-700 font-bold px-3 py-1.5 rounded-lg text-white transition flex items-center gap-1"
+            disabled={saving}
+            className="bg-purple-600 hover:bg-purple-700 font-bold px-3 py-1.5 rounded-lg text-white transition flex items-center gap-1 disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" /> Tạo danh mục
           </button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-xs text-red-100">
+          <p className="font-bold text-red-300">Không thể tải danh mục hệ thống</p>
+          <p className="mt-1 text-red-100/80">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => void loadMetadata()}
+            className="mt-3 rounded-lg border border-red-400/30 bg-red-950/40 px-3 py-1.5 text-[11px] font-bold text-red-100 hover:bg-red-900/40"
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
 
       {/* CONTAINER BẢNG DỮ LIỆU CHUYÊN NGHIỆP */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between">
@@ -270,6 +340,7 @@ export default function MetadataManagement() {
               className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-purple-300 font-black focus:outline-none w-full md:w-64 cursor-pointer"
               value={selectedCatId}
               onChange={(e) => handleCategoryFilterChange(e.target.value)}
+              disabled={loading || categories.length === 0}
             >
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -280,7 +351,8 @@ export default function MetadataManagement() {
             {activeCategory && !isFallbackCategory && (
               <button
                 onClick={handleDeleteCategory}
-                className="p-2 bg-slate-950 border border-red-900/30 text-red-400 hover:bg-red-950/20 rounded-xl text-[10px] font-bold transition"
+                disabled={saving}
+                className="p-2 bg-slate-950 border border-red-900/30 text-red-400 hover:bg-red-950/20 rounded-xl text-[10px] font-bold transition disabled:opacity-50"
               >
                 Ngừng dùng danh mục
               </button>
@@ -310,15 +382,15 @@ export default function MetadataManagement() {
             </div>
             <button
               onClick={handleSaveCategory}
-              disabled={isFallbackCategory}
+              disabled={isFallbackCategory || saving || !activeCategory}
               title={
                 isFallbackCategory
                   ? "Danh mục mặc định chỉ hiển thị khi DB chưa có dữ liệu."
                   : undefined
               }
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center gap-1 transition shrink-0"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center gap-1 transition shrink-0 disabled:opacity-50"
             >
-              <Save className="w-3.5 h-3.5" /> Lưu bảng
+              <Save className="w-3.5 h-3.5" /> {saving ? "Đang lưu..." : "Lưu bảng"}
             </button>
           </div>
         </div>
@@ -342,7 +414,9 @@ export default function MetadataManagement() {
                     colSpan={tableHeaders.length + 1}
                     className="p-8 text-center text-slate-500 font-mono italic"
                   >
-                    Chưa có hàng dữ liệu con nào khớp bộ lọc tra cứu.
+                    {loading
+                      ? "Đang tải danh mục hệ thống..."
+                      : "Chưa có hàng dữ liệu con nào khớp bộ lọc tra cứu."}
                   </td>
                 </tr>
               ) : (
@@ -364,15 +438,15 @@ export default function MetadataManagement() {
                               e.target.value,
                             )
                           }
-                          disabled={isFallbackCategory}
+                          disabled={isFallbackCategory || saving}
                         />
                       </td>
                     ))}
                     <td className="p-3 text-center">
                       <button
                         onClick={() => handleRemoveRow(row.__globalIndex)}
-                        disabled={isFallbackCategory}
-                        className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                        disabled={isFallbackCategory || saving}
+                        className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition disabled:opacity-30"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -389,8 +463,8 @@ export default function MetadataManagement() {
           <div className="w-full md:w-auto flex justify-between md:justify-start items-center gap-4">
             <button
               onClick={handleAddRow}
-              disabled={isFallbackCategory}
-              className="text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 transition font-sans"
+              disabled={isFallbackCategory || saving || !activeCategory}
+              className="text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 transition font-sans disabled:opacity-30"
             >
               <Plus className="w-4 h-4" /> Thêm hàng con mới
             </button>
