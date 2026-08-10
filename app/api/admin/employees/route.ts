@@ -47,7 +47,6 @@ export async function GET() {
   } catch (error) {
     const correlationId = crypto.randomUUID();
     if (error instanceof AuthFlowError) {
-      const denied = error.status === 401 || error.status === 403;
       return toJsonResponse(
         {
           success: false,
