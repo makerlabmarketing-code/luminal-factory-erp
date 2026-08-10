@@ -5,8 +5,8 @@ import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import {
   AuthFlowError,
   hasPermission,
-  requirePermission,
   requireWorkspaceAccess,
+  type AuthContext,
 } from './auth';
 
 export const PAYROLL_SETTLEMENT_PERMISSION = 'PAYROLL_SETTLE';
@@ -86,6 +86,19 @@ function ensureEnabled() {
   if (!payrollEnabled()) throw new AuthFlowError({ status: 503, code: 'service_unavailable', message: 'Tính năng quyết toán lương chưa được kích hoạt.', failureStage: 'persistence' });
 }
 
+async function requireAdminPayrollPermission(permissionCode: string): Promise<AuthContext> {
+  const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
+  if (!(await hasPermission(auth, permissionCode))) {
+    throw new AuthFlowError({
+      status: 403,
+      code: 'permission_forbidden',
+      message: 'Bạn chưa có quyền thực hiện thao tác bảng lương này.',
+      failureStage: 'permission_check',
+    });
+  }
+  return auth;
+}
+
 export async function getAdminPayrollReadiness(): Promise<{ success: true; readiness: PayrollReadinessDTO }> {
   const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
   const [canView, canSettle, canAdjust, canConfigure] = await Promise.all([
@@ -134,10 +147,7 @@ export async function getAdminPayrollReadiness(): Promise<{ success: true; readi
 }
 
 export async function configurePayrollFirstMonth(month: unknown) {
-  const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
-  if (!(await hasPermission(auth, PAYROLL_CONFIGURE_PERMISSION))) {
-    throw new AuthFlowError({ status: 403, code: 'permission_forbidden', message: 'Bạn chưa có quyền cấu hình tháng quyết toán đầu tiên.', failureStage: 'permission_check' });
-  }
+  await requireAdminPayrollPermission(PAYROLL_CONFIGURE_PERMISSION);
 
   const normalizedMonth = validMonth(typeof month === 'string' ? month : null);
   const admin = createSupabaseAdminClient();
@@ -176,10 +186,11 @@ export async function getOwnPayroll(month: string) {
 
 export async function getAdminPayroll(month: string) {
   ensureEnabled();
-  const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
-  await requirePermission('PAYROLL_VIEW');
-  const canSettle = await hasPermission(auth, PAYROLL_SETTLEMENT_PERMISSION);
-  const canAdjust = await hasPermission(auth, PAYROLL_ADJUST_PERMISSION);
+  const auth = await requireAdminPayrollPermission('PAYROLL_VIEW');
+  const [canSettle, canAdjust] = await Promise.all([
+    hasPermission(auth, PAYROLL_SETTLEMENT_PERMISSION),
+    hasPermission(auth, PAYROLL_ADJUST_PERMISSION),
+  ]);
   const admin = createSupabaseAdminClient();
   const { data: config, error: configError } = await admin.from('payroll_configuration').select('first_settlement_month').eq('singleton', true).maybeSingle();
   if (configError) throw new AuthFlowError({ status: 503, code: 'service_unavailable', message: 'Gói dữ liệu quyết toán lương chưa sẵn sàng.', failureStage: 'persistence' });
@@ -192,7 +203,7 @@ export async function getAdminPayroll(month: string) {
 
 export async function settlePayroll(employeeId: unknown, month: unknown) {
   ensureEnabled();
-  await requirePermission(PAYROLL_SETTLEMENT_PERMISSION);
+  await requireAdminPayrollPermission(PAYROLL_SETTLEMENT_PERMISSION);
   if (!['string', 'number'].includes(typeof employeeId)) throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Nhân viên không hợp lệ.', failureStage: 'validation' });
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('settle_monthly_payroll', { p_employee_id: Number(employeeId), p_month: `${validMonth(String(month))}-01` });
@@ -205,7 +216,7 @@ export async function settlePayroll(employeeId: unknown, month: unknown) {
 
 export async function addPayrollAdjustment(settlementId: unknown, amount: unknown, reason: unknown) {
   ensureEnabled();
-  await requirePermission(PAYROLL_ADJUST_PERMISSION);
+  await requireAdminPayrollPermission(PAYROLL_ADJUST_PERMISSION);
   const numericAmount = Number(amount);
   const cleanReason = typeof reason === 'string' ? reason.trim() : '';
   if (!settlementId || !Number.isFinite(numericAmount) || numericAmount === 0 || cleanReason.length < 3) throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Số tiền và lý do điều chỉnh không hợp lệ.', failureStage: 'validation' });
