@@ -247,31 +247,43 @@ async function runAdminAttendanceMutation(params: {
   return Array.isArray(data) ? data[0] || null : data;
 }
 
+async function loadAttendanceAuditEvents(
+  employeeId: string | null,
+  enabled: boolean
+): Promise<Array<Record<string, unknown>>> {
+  if (!enabled) return [];
+
+  const supabase = await createClient();
+  let auditQuery = supabase
+    .from('attendance_operation_audit')
+    .select('id, attendance_id, employee_id, actor_employee_id, operation, reason, before_state, after_state, correlation_id, occurred_at')
+    .order('occurred_at', { ascending: false })
+    .limit(200);
+  if (employeeId) auditQuery = auditQuery.eq('employee_id', employeeId);
+
+  const { data, error } = await auditQuery;
+  if (error) throw error;
+  return (data || []) as Array<Record<string, unknown>>;
+}
+
 export async function GET(request: Request) {
   try {
     const authContext = await requireAttendanceView();
     const url = new URL(request.url);
     const monthInput = url.searchParams.get('month') || formatBusinessMonthInput(businessMonthFromInstant(new Date()));
     const employeeId = url.searchParams.get('employeeId') || null;
-    const payload = await loadAttendanceData({ monthInput, employeeId, includeDiagnostics: Boolean(employeeId) });
-    const canManage = await hasPermission(authContext, 'ATTENDANCE_MANAGE');
-    let auditEvents: Array<Record<string, unknown>> = [];
-    if (isAttendanceManualMutationEnabled()) {
-      const supabase = await createClient();
-      let auditQuery = supabase
-        .from('attendance_operation_audit')
-        .select('id, attendance_id, employee_id, actor_employee_id, operation, reason, before_state, after_state, correlation_id, occurred_at')
-        .order('occurred_at', { ascending: false })
-        .limit(200);
-      if (employeeId) auditQuery = auditQuery.eq('employee_id', employeeId);
-      const { data: auditData, error: auditError } = await auditQuery;
-      if (auditError) throw auditError;
-      auditEvents = (auditData || []) as Array<Record<string, unknown>>;
-    }
+    const manualMutationEnabled = isAttendanceManualMutationEnabled();
+
+    const [payload, canManage, auditEvents] = await Promise.all([
+      loadAttendanceData({ monthInput, employeeId, includeDiagnostics: Boolean(employeeId) }),
+      hasPermission(authContext, 'ATTENDANCE_MANAGE'),
+      loadAttendanceAuditEvents(employeeId, manualMutationEnabled),
+    ]);
+
     return NextResponse.json({
       ...payload,
       auditEvents,
-      permissions: { canAdjustAttendance: canManage && isAttendanceManualMutationEnabled() },
+      permissions: { canAdjustAttendance: canManage && manualMutationEnabled },
     });
   } catch (error) {
     return toErrorResponse(error, 'load');
