@@ -229,6 +229,14 @@ async function listAuthUsersById(): Promise<Map<string, AuthUserSummary>> {
   return users;
 }
 
+async function getAuthUserById(authUserId?: string | null): Promise<AuthUserSummary | null> {
+  if (!authUserId) return null;
+  const supabaseAdmin = createSupabaseAdminClient();
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(authUserId);
+  if (error) throw error;
+  return data.user ? data.user as AuthUserSummary : null;
+}
+
 export async function requireAdminEmployeePermission(
   permissionCode: 'EMPLOYEE_VIEW' | 'EMPLOYEE_MANAGE' | 'ACCOUNT_MANAGE'
 ): Promise<AuthContext> {
@@ -386,14 +394,14 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
     supabase.from('project_members').select('project_id, member_role, status, projects(name)').eq('employee_id', employeeId).limit(20).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('tasks').select('id, project_id, title, status, deadline').eq('assignee_employee_id', employeeId).neq('status', 'COMPLETED').order('deadline', { ascending: true }).limit(20).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     loadAttendanceData({ monthInput: formatBusinessDateInput(businessDateFromInstant(new Date())).slice(0, 7), employeeId, includeDirectory: false }).then((data) => ({ data: data.attendanceRecords.slice(0, 20), failed: false as const }), () => ({ data: [], failed: true as const })),
-    listAuthUsersById().then((data) => ({ data, failed: false as const }), () => ({ data: new Map<string, AuthUserSummary>(), failed: true as const })),
+    getAuthUserById(employeeRow.auth_user_id).then((data) => ({ data, failed: false as const }), () => ({ data: null as AuthUserSummary | null, failed: true as const })),
   ]);
   const facilities = facilityResult.data;
   const workspaceAccess = workspaceResult.data;
   const permissions = permissionResult.data;
   const projectMemberships = membershipResult.data;
   const workspaceRows = (workspaceAccess || []) as WorkspaceAccessRow[];
-  const authUser = employeeRow.auth_user_id ? authResult.data.get(employeeRow.auth_user_id) || null : null;
+  const authUser = authResult.data;
   const status = resolveAccountStatus(employeeRow, authUser, workspaceRows, { authLookupFailed: authResult.failed });
   const resolvedFacility = resolveEmployeeFacility(employeeRow.branch_code, facilities, !facilityResult.failed);
   const activeWorkspaceRows = workspaceRows.filter(
