@@ -88,11 +88,11 @@ function phaseAuthorizationError({
 function actorEmployeeId(authContext: AuthContext): number {
   const employeeId = Number(authContext.employee.id);
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
-      throw phaseAuthorizationError({
-        status: 403,
-        code: 'phase_permission_denied',
-        message: 'Không thể xác định nhân sự thao tác.',
-      });
+    throw phaseAuthorizationError({
+      status: 403,
+      code: 'phase_permission_denied',
+      message: 'Không thể xác định nhân sự thao tác.',
+    });
   }
 
   return employeeId;
@@ -279,7 +279,7 @@ async function assertAssignableProjectMember(
     throw phaseAuthorizationError({
       status: 422,
       code: 'phase_invalid_action',
-      message: 'NhÃ¢n sá»± Ä‘Æ°á»£c giao khÃ´ng há»£p lá»‡.',
+      message: 'Nhân sự được giao không hợp lệ.',
     });
   }
 
@@ -294,7 +294,7 @@ async function assertAssignableProjectMember(
     throw phaseAuthorizationError({
       status: 500,
       code: 'phase_authorization_failed',
-      message: 'KhÃ´ng thá»ƒ xÃ¡c minh nhÃ¢n sá»± Ä‘Æ°á»£c giao.',
+      message: 'Không thể xác minh nhân sự được giao.',
       safeDetails: {
         supabase_error_code: employeeError.code ?? 'unknown',
       },
@@ -305,7 +305,7 @@ async function assertAssignableProjectMember(
     throw phaseAuthorizationError({
       status: 403,
       code: 'phase_permission_denied',
-      message: 'NhÃ¢n sá»± Ä‘Æ°á»£c giao khÃ´ng cÃ³ quyá»n trong dá»± Ã¡n.',
+      message: 'Nhân sự được giao không có quyền trong dự án.',
       safeDetails: {
         assignee_active_project_member: false,
       },
@@ -323,7 +323,7 @@ async function assertAssignableProjectMember(
     throw phaseAuthorizationError({
       status: 500,
       code: 'phase_authorization_failed',
-      message: 'KhÃ´ng thá»ƒ xÃ¡c minh nhÃ¢n sá»± trong dá»± Ã¡n.',
+      message: 'Không thể xác minh nhân sự trong dự án.',
       safeDetails: {
         supabase_error_code: membershipError.code ?? 'unknown',
       },
@@ -347,7 +347,7 @@ async function assertAssignableProjectMember(
       throw phaseAuthorizationError({
         status: 500,
         code: 'phase_authorization_failed',
-        message: 'KhÃ´ng thá»ƒ xÃ¡c minh nhÃ¢n sá»± trong dá»± Ã¡n.',
+        message: 'Không thể xác minh nhân sự trong dự án.',
         safeDetails: {
           assignee_membership_model_error: true,
         },
@@ -360,7 +360,7 @@ async function assertAssignableProjectMember(
   throw phaseAuthorizationError({
     status: 403,
     code: 'phase_permission_denied',
-    message: 'NhÃ¢n sá»± Ä‘Æ°á»£c giao khÃ´ng cÃ³ quyá»n trong dá»± Ã¡n.',
+    message: 'Nhân sự được giao không có quyền trong dự án.',
     safeDetails: {
       assignee_active_project_member: false,
     },
