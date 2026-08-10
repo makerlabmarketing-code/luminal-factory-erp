@@ -1,13 +1,25 @@
 import { NextResponse } from 'next/server';
 import { EmailDeliveryError, sendTemplateEmail, sanitizeEmailCorrelationId } from '@/services/emailService';
-import { requireAdminEmployeePermission } from '@/services/server/adminEmployeeData';
-import { AuthFlowError } from '@/services/server/auth';
+import { AuthFlowError, hasPermission, requireWorkspaceAccess } from '@/services/server/auth';
 
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+async function requireEmailTemplateManage() {
+  const authContext = await requireWorkspaceAccess('ADMIN_WORKSPACE');
+  if (!(await hasPermission(authContext, 'EMAIL_TEMPLATE_MANAGE'))) {
+    throw new AuthFlowError({
+      status: 403,
+      code: 'permission_forbidden',
+      message: 'Bạn không có quyền quản lý mẫu email.',
+      failureStage: 'permission_check',
+    });
+  }
+}
+
 export async function POST(request: Request) {
   const correlationId = sanitizeEmailCorrelationId(request.headers.get('x-correlation-id') || undefined);
   try {
-    await requireAdminEmployeePermission('EMAIL_TEMPLATE_MANAGE');
+    await requireEmailTemplateManage();
     const payload = await request.json() as { templateId?: number; recipient?: string };
     const recipient = payload.recipient?.trim() || '';
     if (!Number.isInteger(payload.templateId) || !isValidEmail(recipient)) return NextResponse.json({ success: false, code: 'INVALID_REQUEST', message: 'Vui lòng chọn mẫu và nhập email nhận thử hợp lệ.', correlationId }, { status: 400 });
