@@ -74,6 +74,14 @@ function isMissingProjectDeadlineColumn(error: unknown): boolean {
   return (code === '42703' || code === 'PGRST204') && errorText.includes('project_deadline');
 }
 
+function currentProjectDetailId(): number | null {
+  if (typeof window === 'undefined') return null;
+  const match = window.location.pathname.match(/^\/admin\/projects\/(\d+)\/?$/);
+  if (!match) return null;
+  const projectId = Number(match[1]);
+  return Number.isInteger(projectId) && projectId > 0 ? projectId : null;
+}
+
 export function normalizeProjectRow(row: GenericRow): WorkflowProject | null {
   const id = pickFirstNumber(row, ['id']);
   if (id === null) return null;
@@ -253,12 +261,17 @@ async function requestProjectMutation<TResponse>(
 
 export class WorkflowRepository {
   async listProjects(): Promise<WorkflowProject[]> {
-    const withDeadline = await supabase.from('projects').select('id, project_name, drive_url, status, project_deadline, created_at')
-      .order('id', { ascending: false });
-    const result = withDeadline.error && isMissingProjectDeadlineColumn(withDeadline.error)
-      ? await supabase.from('projects').select('id, project_name, drive_url, status, created_at')
-        .order('id', { ascending: false })
-      : withDeadline;
+    const detailProjectId = currentProjectDetailId();
+    let withDeadlineQuery = supabase.from('projects').select('id, project_name, drive_url, status, project_deadline, created_at');
+    if (detailProjectId !== null) withDeadlineQuery = withDeadlineQuery.eq('id', detailProjectId);
+    const withDeadline = await withDeadlineQuery.order('id', { ascending: false });
+
+    let result = withDeadline;
+    if (withDeadline.error && isMissingProjectDeadlineColumn(withDeadline.error)) {
+      let fallbackQuery = supabase.from('projects').select('id, project_name, drive_url, status, created_at');
+      if (detailProjectId !== null) fallbackQuery = fallbackQuery.eq('id', detailProjectId);
+      result = await fallbackQuery.order('id', { ascending: false });
+    }
     if (result.error) throw result.error;
 
     return (result.data || [])
