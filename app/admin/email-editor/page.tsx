@@ -1,7 +1,6 @@
 // app/admin/email-editor/page.tsx
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '@/utils/supabase/client';
 import { useNotification } from '@/component/NotificationContext';
 import { Mail, Plus, Trash2, Edit2, X, Save, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RefreshCcw, Send, Sparkles } from 'lucide-react';
 
@@ -15,6 +14,13 @@ interface EmailTemplate {
 }
 
 interface EmailGroup { code: string; label: string }
+
+interface EmailTemplatesResponse {
+  success?: boolean;
+  templates?: EmailTemplate[];
+  emailGroups?: EmailGroup[];
+  message?: string;
+}
 
 const emptyForm = { groupType: 'WELCOME', scriptName: '', subject: '', body: '' };
 
@@ -59,26 +65,21 @@ export default function AdminEmailTemplates() {
     if (isInitial) setLoading(true);
     setDbError(null);
     try {
-      const { data: metaGroup } = await supabase.from('system_metadata').select('data').eq('name', 'Danh mục Nhóm Email').maybeSingle();
-      const dynamicGroups = (metaGroup?.data || [
-        { "code": "WELCOME", "label": "📧 Thư Chào Mừng Thành Viên" },
-        { "code": "ORDER_CONFIRM", "label": "📦 Xác Nhận Đơn Hàng Mới" },
-        { "code": "SHIPPING", "label": "🚚 Thông Báo Giao Hàng Xuất Kho" },
-        { "code": "ALERT_SYSTEM", "label": "⚠️ Cảnh Báo Nghẽn Dây Chuyền" }
-      ]) as EmailGroup[];
-      setEmailGroups(dynamicGroups);
-
-      const { data, error } = await supabase.from('email_templates').select('*').order('id', { ascending: false });
-      if (error) {
-        setDbError(error.message);
-      } else {
-        setTemplates(data || []);
-        if (data && data.length > 0) {
-          setSelectedPreview((currentPreview) => currentPreview ?? data[0]);
-        }
+      const response = await fetch('/api/admin/email-templates', { cache: 'no-store' });
+      const payload = (await response.json().catch(() => null)) as EmailTemplatesResponse | null;
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.message || 'Không thể tải danh sách mẫu email.');
       }
-    } catch {
-      setDbError('Không thể tải danh sách mẫu email.');
+
+      const nextTemplates = payload.templates || [];
+      setEmailGroups(payload.emailGroups || []);
+      setTemplates(nextTemplates);
+      setSelectedPreview((currentPreview) => {
+        if (!currentPreview) return nextTemplates[0] || null;
+        return nextTemplates.find((item) => item.id === currentPreview.id) || nextTemplates[0] || null;
+      });
+    } catch (error) {
+      setDbError(error instanceof Error ? error.message : 'Không thể tải danh sách mẫu email.');
     } finally {
       if (isInitial) setLoading(false);
     }
@@ -169,29 +170,38 @@ export default function AdminEmailTemplates() {
     try {
       if (!scriptName.trim() || !subject.trim()) return showToast('Thiếu số liệu', 'Vui lòng điền đủ Tên kịch bản và Tiêu đề thư!', 'error');
 
-      const payload = { group_type: groupType, template_name: scriptName.trim(), subject: subject.trim(), html_content: body.trim() };
-
-      if (isEditing && editingId) {
-        const { error } = await supabase.from('email_templates').update(payload).eq('id', editingId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('email_templates').insert([payload]);
-        if (error) throw error;
-      }
+      const response = await fetch('/api/admin/email-templates', {
+        method: isEditing && editingId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(isEditing && editingId ? { id: editingId } : {}),
+          groupType,
+          templateName: scriptName.trim(),
+          subject: subject.trim(),
+          htmlContent: body.trim(),
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+      if (!response.ok) throw new Error(payload?.message || 'Không thể lưu mẫu email.');
 
       setShowModal(false); setEditingId(null); await loadData(false);
       showToast('Đã lưu', 'Mẫu email đã được cập nhật.', 'success');
-    } catch { showToast('Không thể lưu', 'Dữ liệu đã nhập vẫn được giữ lại. Vui lòng thử lại.', 'error'); }
+    } catch (error) {
+      showToast('Không thể lưu', error instanceof Error ? error.message : 'Dữ liệu đã nhập vẫn được giữ lại. Vui lòng thử lại.', 'error');
+    }
     finally { setSaving(false); }
   };
 
   const handleDelete = (id: number) => {
     // 🔥 ĐÃ VÁ: Sử dụng hộp thoại Confirm Modal bo góc cao cấp đồng bộ
     showConfirm('Xác nhận xóa kịch bản', 'Sếp có chắc chắn muốn xóa vĩnh viễn mẫu Email Template này ra khỏi hệ thống điều hành không?', async () => {
-      const { error } = await supabase.from('email_templates').delete().eq('id', id);
-      if (error) return showToast('Không thể xóa', 'Vui lòng thử lại.', 'error');
+      const response = await fetch(`/api/admin/email-templates?id=${encodeURIComponent(String(id))}`, {
+        method: 'DELETE',
+      });
+      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+      if (!response.ok) return showToast('Không thể xóa', payload?.message || 'Vui lòng thử lại.', 'error');
       if (selectedPreview?.id === id) setSelectedPreview(null);
-      loadData(false);
+      await loadData(false);
       showToast('Đã xóa', 'Kịch bản đã được giải phóng khỏi danh mục tổng.', 'info');
     });
   };
