@@ -53,8 +53,8 @@ async function requireAttachmentBucket() {
 }
 
 export async function listOwnReimbursements() {
-  if (!enabled()) unavailable();
   await requireWorkspaceAccess('STAFF_WORKSPACE');
+  if (!enabled()) unavailable();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('list_my_reimbursements');
   if (error) throw new Error('Không thể tải danh sách hoàn ứng.');
@@ -93,8 +93,8 @@ export async function listOwnReimbursements() {
 }
 
 export async function submitOwnReimbursement(body: Record<string, unknown>) {
-  if (!enabled()) unavailable();
   await requireWorkspaceAccess('STAFF_WORKSPACE');
+  if (!enabled()) unavailable();
   const amount = Number(body.amount);
   const transactionDate = text(body.transactionDate, 'Ngày chi');
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -124,8 +124,8 @@ export async function submitOwnReimbursement(body: Record<string, unknown>) {
 }
 
 export async function uploadOwnReimbursementAttachment(ledgerId: number, file: File) {
-  if (!enabled()) unavailable();
   const auth = await requireWorkspaceAccess('STAFF_WORKSPACE');
+  if (!enabled()) unavailable();
   await requireAttachmentBucket();
 
   const validation = validateFinanceAttachment(file);
@@ -199,13 +199,13 @@ export async function uploadOwnReimbursementAttachment(ledgerId: number, file: F
 }
 
 export async function transitionReimbursement(body: Record<string, unknown>) {
-  if (!enabled()) unavailable();
   const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
   const status = typeof body.status === 'string' ? body.status : '';
   const permission = status === 'PAID' ? 'FINANCE_PAY' : 'FINANCE_APPROVE';
   if (!(await hasPermission(auth, permission))) {
     throw new AuthFlowError({ status: 403, code: 'permission_forbidden', message: 'Bạn không có quyền duyệt hoặc xác nhận thanh toán.', failureStage: 'permission_check' });
   }
+  if (!enabled()) unavailable();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('transition_reimbursement', {
     p_ledger_id: Number(body.ledgerId), p_status: status,
