@@ -176,8 +176,8 @@ export async function configurePayrollFirstMonth(month: unknown) {
 }
 
 export async function getOwnPayroll(month: string) {
-  ensureEnabled();
   const auth = await requireWorkspaceAccess('STAFF_WORKSPACE');
+  ensureEnabled();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('get_my_monthly_payroll', { p_month: `${validMonth(month)}-01` });
   if (error) throw new Error('Không thể tải bảng lương của bạn.');
@@ -185,8 +185,8 @@ export async function getOwnPayroll(month: string) {
 }
 
 export async function getAdminPayroll(month: string) {
-  ensureEnabled();
   const auth = await requireAdminPayrollPermission('PAYROLL_VIEW');
+  ensureEnabled();
   const [canSettle, canAdjust] = await Promise.all([
     hasPermission(auth, PAYROLL_SETTLEMENT_PERMISSION),
     hasPermission(auth, PAYROLL_ADJUST_PERMISSION),
@@ -202,8 +202,8 @@ export async function getAdminPayroll(month: string) {
 }
 
 export async function settlePayroll(employeeId: unknown, month: unknown) {
-  ensureEnabled();
   await requireAdminPayrollPermission(PAYROLL_SETTLEMENT_PERMISSION);
+  ensureEnabled();
   if (!['string', 'number'].includes(typeof employeeId)) throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Nhân viên không hợp lệ.', failureStage: 'validation' });
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('settle_monthly_payroll', { p_employee_id: Number(employeeId), p_month: `${validMonth(String(month))}-01` });
@@ -215,8 +215,8 @@ export async function settlePayroll(employeeId: unknown, month: unknown) {
 }
 
 export async function addPayrollAdjustment(settlementId: unknown, amount: unknown, reason: unknown) {
-  ensureEnabled();
   await requireAdminPayrollPermission(PAYROLL_ADJUST_PERMISSION);
+  ensureEnabled();
   const numericAmount = Number(amount);
   const cleanReason = typeof reason === 'string' ? reason.trim() : '';
   if (!settlementId || !Number.isFinite(numericAmount) || numericAmount === 0 || cleanReason.length < 3) throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Số tiền và lý do điều chỉnh không hợp lệ.', failureStage: 'validation' });
