@@ -218,11 +218,7 @@ export async function getStaffPortalLoadState(): Promise<StaffPortalLoadState> {
   }
 
   const warnings: StaffPortalWarning[] = [];
-  let branches: Facility[] = [];
-
-  try {
-    branches = await getMetadataBranches();
-  } catch (error) {
+  const branchesPromise = getMetadataBranches().catch((error) => {
     const facilityCorrelationId = crypto.randomUUID();
     logStaffPortalBoundary({
       correlationId: facilityCorrelationId,
@@ -241,9 +237,13 @@ export async function getStaffPortalLoadState(): Promise<StaffPortalLoadState> {
       retryable: true,
       correlationId: facilityCorrelationId,
     });
-  }
+    return [] as Facility[];
+  });
 
-  const adminAccess = await canAccessAdmin(authContext);
+  const [branches, adminAccess] = await Promise.all([
+    branchesPromise,
+    canAccessAdmin(authContext),
+  ]);
 
   return {
     ok: true,
@@ -259,17 +259,19 @@ export async function getStaffPortalLoadState(): Promise<StaffPortalLoadState> {
 
 export async function getAuthenticatedStaffPortalData() {
   const authContext = await requireWorkspaceAccess('STAFF_WORKSPACE');
-  let branches: Facility[] = [];
-  try {
-    branches = await getMetadataBranches();
-  } catch (error) {
+  const branchesPromise = getMetadataBranches().catch((error) => {
     logStaffPortalBoundary({
       correlationId: crypto.randomUUID(), route: '/staff', code: 'facility_lookup_failed',
       authStage: 'verified', employeeStage: 'resolved', workspaceStage: 'allowed',
       facilityStage: 'failed', retryable: true, error,
     });
-  }
-  const adminAccess = await canAccessAdmin(authContext);
+    return [] as Facility[];
+  });
+
+  const [branches, adminAccess] = await Promise.all([
+    branchesPromise,
+    canAccessAdmin(authContext),
+  ]);
 
   return {
     employee: toPublicStaffEmployee(authContext.employee),
