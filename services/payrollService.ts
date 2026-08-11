@@ -11,7 +11,7 @@ export function calculateHoursFromStrings(
 function parseTimeToMinutes(value: string | null): number | null {
   if (!value) return null;
 
-  const match = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  const match = value.match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/);
   if (!match) return null;
 
   const hour = Number(match[1]);
