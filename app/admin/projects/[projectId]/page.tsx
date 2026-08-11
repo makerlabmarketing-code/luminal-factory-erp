@@ -16,12 +16,17 @@ import {
   Pencil,
   Plus,
   Save,
-  UserPlus,
-  Users,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
+import { ProjectMembershipSection } from './ProjectMembershipSection';
 import { ProjectTimelineSection } from './ProjectTimelineSection';
 import { OperationalState } from '@/component/OperationalState';
+import type {
+  ProjectMemberDTO,
+  ProjectMembershipCapabilitiesDTO,
+  ProjectMembershipResponseDTO,
+  ProjectMembershipSummaryDTO,
+} from '@/lib/types/project-membership';
 import type { TaskAssignmentDTO, TaskAssignmentStatus } from '@/lib/types/task-assignment';
 import {
   allowedNextTaskStatuses,
@@ -64,28 +69,6 @@ interface PhaseRecord {
   isCompleted: boolean;
 }
 
-interface ProjectMemberDTO {
-  membershipId: number;
-  employeeId: number;
-  fullName: string;
-  title: string | null;
-  roleCode: 'PROJECT_OWNER' | 'PROJECT_MANAGER' | 'CREATIVE_LEAD' | 'CONTRIBUTOR';
-  roleLabel: string;
-  status: 'ACTIVE' | 'REVOKED';
-  joinedAt: string | null;
-  revokedAt: string | null;
-  isAssignable: boolean;
-}
-
-interface ProjectCapabilitiesDTO {
-  canViewProject: boolean;
-  canEditProject: boolean;
-  canManageMembers: boolean;
-  canManagePhases: boolean;
-  canManageTasks: boolean;
-  canCancelProject: boolean;
-}
-
 interface ProjectDetailDTO {
   id: number;
   projectCode: string;
@@ -94,7 +77,7 @@ interface ProjectDetailDTO {
   projectDeadline: string | null;
   progressPercent: number;
   currentPhaseId: number | null;
-  capabilities: ProjectCapabilitiesDTO;
+  capabilities: ProjectMembershipCapabilitiesDTO;
   members: ProjectMemberDTO[];
   phases: PhaseRecord[];
   unassignedTasks: DisplayTask[];
@@ -339,15 +322,6 @@ function TaskMobileField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MemberMobileField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-[10px] font-bold text-slate-500">{label}</dt>
-      <dd className="mt-0.5 break-words text-xs text-slate-300">{value}</dd>
-    </div>
-  );
-}
-
 async function fetchWithTimeout(url: string, timeoutMs = 10_000): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -383,7 +357,10 @@ export default function ProjectDetailPage() {
   const [driveLinkInput, setDriveLinkInput] = useState('');
   const [selectedPhaseId, setSelectedPhaseId] = useState<number | null>(null);
   const [members, setMembers] = useState<ProjectMemberDTO[]>([]);
-  const [membersLoading, setMembersLoading] = useState(false);
+  const [membershipSummary, setMembershipSummary] = useState<ProjectMembershipSummaryDTO | null>(null);
+  const [membershipInitialLoading, setMembershipInitialLoading] = useState(true);
+  const [membershipRefreshing, setMembershipRefreshing] = useState(false);
+  const [candidatesLoading, setCandidatesLoading] = useState(false);
   const [memberActionLoading, setMemberActionLoading] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [candidateEmployees, setCandidateEmployees] = useState<Array<{ employeeId: number; fullName: string; title: string | null }>>([]);
@@ -392,7 +369,7 @@ export default function ProjectDetailPage() {
   const memberMutationLockRef = useRef(false);
   const [memberEmployeeId, setMemberEmployeeId] = useState('');
   const [memberRoleCode, setMemberRoleCode] = useState<ProjectMemberDTO['roleCode']>('CONTRIBUTOR');
-  const [projectCapabilities, setProjectCapabilities] = useState<ProjectCapabilitiesDTO>({
+  const [projectCapabilities, setProjectCapabilities] = useState<ProjectMembershipCapabilitiesDTO>({
     canViewProject: false,
     canEditProject: false,
     canManageMembers: false,
@@ -433,6 +410,31 @@ export default function ProjectDetailPage() {
     }
   }, [projectId]);
 
+  const refreshMembers = useCallback(async (isInitialLoad = false) => {
+    if (isInitialLoad) setMembershipInitialLoading(true);
+    else setMembershipRefreshing(true);
+    setMemberLoadFailed(false);
+
+    try {
+      const response = await fetchWithTimeout(`/api/admin/projects/${projectId}/members`);
+      if (response.status === 401 || response.status === 403) {
+        setForbidden(true);
+        throw new Error('member_forbidden');
+      }
+      if (!response.ok) throw new Error('member_refresh_failed');
+      const payload = await response.json() as ProjectMembershipResponseDTO;
+      setMembers(payload.members || []);
+      setMembershipSummary(payload.summary || null);
+      if (payload.capabilities) setProjectCapabilities(payload.capabilities);
+      setCandidateEmployeesLoaded(false);
+    } catch {
+      setMemberLoadFailed(true);
+    } finally {
+      setMembershipInitialLoading(false);
+      setMembershipRefreshing(false);
+    }
+  }, [projectId]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadFailed(false);
@@ -440,7 +442,11 @@ export default function ProjectDetailPage() {
     setNotFoundConfirmed(false);
     setPhaseLoadFailed(false);
     setMemberLoadFailed(false);
+    setMembers([]);
+    setMembershipSummary(null);
+    setMembershipInitialLoading(true);
     if (!Number.isInteger(projectId) || projectId <= 0) {
+      setMembershipInitialLoading(false);
       setLoading(false);
       return;
     }
@@ -466,18 +472,8 @@ export default function ProjectDetailPage() {
       setItems([coreItem]);
       setLoading(false);
 
-      const membersRequest = fetchWithTimeout(`/api/admin/projects/${projectId}/members`);
       void refreshPhases();
-
-      void membersRequest.then(async (membersResponse) => {
-        if (membersResponse.ok) {
-        const payload = await membersResponse.json() as { members?: ProjectMemberDTO[]; capabilities?: ProjectCapabilitiesDTO };
-        setMembers(payload.members || []);
-        if (payload.capabilities) setProjectCapabilities(payload.capabilities);
-        } else if (membersResponse.status === 403) setForbidden(true);
-        else setMemberLoadFailed(true);
-      }).catch(() => setMemberLoadFailed(true));
-
+      void refreshMembers(true);
       void refreshTasks();
     } catch {
       setLoadFailed(true);
@@ -485,7 +481,7 @@ export default function ProjectDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, refreshPhases, refreshTasks, showToast]);
+  }, [projectId, refreshMembers, refreshPhases, refreshTasks, showToast]);
 
   useEffect(() => {
     loadData();
@@ -589,7 +585,7 @@ export default function ProjectDetailPage() {
   const nearestDeadline = [...phasesWithGates.flatMap((phase) => phase.tasks.map(getTaskDeadlineValue)), ...unassignedTasks.map(getTaskDeadlineValue)]
     .filter((value): value is string => Boolean(value))
     .sort()[0] || null;
-  const memberCount = members.filter((member) => member.status === 'ACTIVE').length;
+  const memberCount = membershipSummary?.activeMemberCount ?? members.filter((member) => member.status === 'ACTIVE').length;
   const activePhase = phasesWithGates.find((phase) => phase.status === 'ACTIVE' || phase.status === 'BLOCKED' || phase.status === 'REVIEW') || phases.find((phase) => phase.status === 'COMPLETED') || phases[0] || null;
   const selectedPhase = phasesWithGates.find((phase) => phase.item.phase_id === selectedPhaseId) || activePhase;
   const editingCurrentTask = editingTask ? projectTasks.find((task) => task.taskId === editingTask.taskId) || null : null;
@@ -648,7 +644,7 @@ export default function ProjectDetailPage() {
   const loadCandidateEmployees = async () => {
     if (candidateEmployeesLoaded) return;
     if (candidateLoadPromiseRef.current) return candidateLoadPromiseRef.current;
-    setMembersLoading(true);
+    setCandidatesLoading(true);
     const request = (async () => {
       try {
       const response = await fetch(`/api/admin/projects/${projectId}/members?scope=candidates`, { cache: 'no-store' });
@@ -659,7 +655,7 @@ export default function ProjectDetailPage() {
     } catch {
       showToast('Không thể tải danh sách nhân sự.', 'Vui lòng thử lại sau.', 'error');
     } finally {
-      setMembersLoading(false);
+      setCandidatesLoading(false);
       candidateLoadPromiseRef.current = null;
     }
     })();
@@ -671,16 +667,6 @@ export default function ProjectDetailPage() {
     if (!canManageMembers) return;
     setAddMemberOpen(true);
     await loadCandidateEmployees();
-  };
-
-  const refreshMembers = async () => {
-    const response = await fetch(`/api/admin/projects/${projectId}/members`, { cache: 'no-store' });
-    if (!response.ok) throw new Error('member_refresh_failed');
-    const payload = await response.json() as { members?: ProjectMemberDTO[]; capabilities?: ProjectCapabilitiesDTO };
-    setMembers(payload.members || []);
-    if (payload.capabilities) setProjectCapabilities(payload.capabilities);
-    setCandidateEmployeesLoaded(false);
-    setMemberLoadFailed(false);
   };
 
   const handleAddMember = async () => {
@@ -1093,13 +1079,6 @@ export default function ProjectDetailPage() {
           </section>
         )}
 
-        {memberLoadFailed && (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">
-            <span>Không thể tải thành viên dự án. Thông tin cốt lõi, giai đoạn và công việc khác vẫn có thể xem.</span>
-            <button type="button" onClick={() => void refreshMembers().catch(() => setMemberLoadFailed(true))} className="rounded border border-amber-700 px-3 py-1.5 font-bold">Thử tải lại thành viên</button>
-          </section>
-        )}
-
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-4">
             <section className="rounded-lg border border-slate-800 bg-slate-900">
@@ -1158,66 +1137,19 @@ export default function ProjectDetailPage() {
 
 
 
-            <section className="rounded-lg border border-slate-800 bg-slate-900">
-                  <div className="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-cyan-300" />
-                    <h2 className="text-sm font-black text-slate-100">Thành viên dự án</h2>
-                  </div>
-                  <p className="text-[11px] text-slate-500">{memberCount} thành viên đang hoạt động · Không xóa hẳn hồ sơ thành viên.</p>
-                </div>
-                <button type="button" disabled={!canManageMembers || memberActionLoading} onClick={openAddMemberModal} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
-                  <UserPlus className="h-4 w-4" /> Thêm thành viên
-                </button>
-              </div>
-              <div className="overflow-x-auto p-4">
-                {projectDetail.members.length === 0 ? (
-                  <OperationalState
-                    title="Chưa có thành viên dự án."
-                    description="Thêm thành viên đang hoạt động trước khi giao việc bằng mã nhân sự ổn định."
-                  />
-                ) : (
-                  <>
-                    <table className="hidden w-full min-w-[760px] text-left text-xs md:table">
-                      <thead className="text-slate-500"><tr className="border-b border-slate-800"><th className="py-2 pr-3">Nhân viên</th><th className="py-2 pr-3">Chức vụ</th><th className="py-2 pr-3">Vai trò</th><th className="py-2 pr-3">Trạng thái</th><th className="py-2 pr-3">Ngày tham gia</th><th className="py-2">Thao tác</th></tr></thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {projectDetail.members.map((member) => (
-                          <tr key={member.membershipId}>
-                            <td className="py-3 pr-3 font-bold text-slate-100">{member.fullName}</td>
-                            <td className="py-3 pr-3 text-slate-300">{member.title || 'Chưa có'}</td>
-                            <td className="py-3 pr-3 text-slate-300">{member.roleLabel}</td>
-                            <td className="py-3 pr-3"><span className={`rounded border px-2 py-1 ${member.status === 'ACTIVE' ? 'border-emerald-800 text-emerald-200' : 'border-slate-700 text-slate-400'}`}>{member.status === 'ACTIVE' ? 'Đang hoạt động' : 'Đã thu hồi'}</span></td>
-                            <td className="py-3 pr-3 text-slate-300">{formatDate(member.joinedAt)}</td>
-                            <td className="py-3"><div className="flex gap-2"><button type="button" disabled={!canManageMembers || member.status !== 'ACTIVE' || memberActionLoading} onClick={() => handleChangeRole(member)} className="rounded border border-slate-700 px-2 py-1 font-bold text-slate-300 disabled:opacity-40">Đổi vai trò</button><button type="button" disabled={!canManageMembers || member.status !== 'ACTIVE' || memberActionLoading} onClick={() => handleRevokeMember(member)} className="rounded border border-amber-800 px-2 py-1 font-bold text-amber-200 disabled:opacity-40">Thu hồi</button></div></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <div className="space-y-3 md:hidden">
-                      {projectDetail.members.map((member) => (
-                        <article key={member.membershipId} className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs">
-                          <div className="flex items-start justify-between gap-3">
-                            <h3 className="font-bold text-slate-100">{member.fullName}</h3>
-                            <span className={`shrink-0 rounded border px-2 py-0.5 text-[10px] ${member.status === 'ACTIVE' ? 'border-emerald-800 text-emerald-200' : 'border-slate-700 text-slate-400'}`}>{member.status === 'ACTIVE' ? 'Đang hoạt động' : 'Đã thu hồi'}</span>
-                          </div>
-                          <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <MemberMobileField label="Chức vụ" value={member.title || 'Chưa có'} />
-                            <MemberMobileField label="Vai trò" value={member.roleLabel} />
-                            <MemberMobileField label="Ngày tham gia" value={formatDate(member.joinedAt)} />
-                            <MemberMobileField label="Khả dụng giao việc" value={member.isAssignable ? 'Có thể giao việc' : 'Không khả dụng'} />
-                          </dl>
-                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <button type="button" disabled={!canManageMembers || member.status !== 'ACTIVE' || memberActionLoading} onClick={() => handleChangeRole(member)} className="w-full rounded border border-slate-700 px-2 py-2 font-bold text-slate-300 disabled:opacity-40">Đổi vai trò</button>
-                            <button type="button" disabled={!canManageMembers || member.status !== 'ACTIVE' || memberActionLoading} onClick={() => handleRevokeMember(member)} className="w-full rounded border border-amber-800 px-2 py-2 font-bold text-amber-200 disabled:opacity-40">Thu hồi</button>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </section>
+            <ProjectMembershipSection
+              members={projectDetail.members}
+              summary={membershipSummary}
+              isInitialLoading={membershipInitialLoading}
+              isRefreshing={membershipRefreshing}
+              loadFailed={memberLoadFailed}
+              canManageMembers={canManageMembers}
+              memberActionLoading={memberActionLoading}
+              onRetry={() => void refreshMembers(projectDetail.members.length === 0)}
+              onAddMember={() => void openAddMemberModal()}
+              onChangeRole={(member) => void handleChangeRole(member)}
+              onRevokeMember={handleRevokeMember}
+            />
 
             {selectedPhase && (
               <section className="rounded-lg border border-slate-800 bg-slate-900">
@@ -1482,7 +1414,7 @@ export default function ProjectDetailPage() {
               </div>
               <div className="space-y-3">
                 <label htmlFor="project-member-employee" className="block text-xs font-bold text-slate-300">Nhân sự</label>
-                <select id="project-member-employee" value={memberEmployeeId} onChange={(event) => setMemberEmployeeId(event.target.value)} disabled={membersLoading || memberActionLoading} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100">
+                <select id="project-member-employee" value={memberEmployeeId} onChange={(event) => setMemberEmployeeId(event.target.value)} disabled={candidatesLoading || memberActionLoading} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100">
                   <option value="">Chọn nhân sự</option>
                   {candidateEmployees.map((employee) => <option key={employee.employeeId} value={employee.employeeId}>{employee.fullName}{employee.title ? ` · ${employee.title}` : ''}</option>)}
                 </select>
@@ -1492,7 +1424,7 @@ export default function ProjectDetailPage() {
                   <option value="PROJECT_OWNER">Chủ dự án</option><option value="PROJECT_MANAGER">Quản lý dự án</option><option value="CREATIVE_LEAD">Lead sáng tạo</option><option value="CONTRIBUTOR">Thành viên</option>
                 </select>
               </div>
-              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setAddMemberOpen(false)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={!memberEmployeeId || memberActionLoading || membersLoading} onClick={handleAddMember} className="rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Thêm thành viên'}</button></div>
+              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setAddMemberOpen(false)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={!memberEmployeeId || memberActionLoading || candidatesLoading} onClick={handleAddMember} className="rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Thêm thành viên'}</button></div>
             </div>
           </div>
         )}

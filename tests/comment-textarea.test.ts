@@ -35,6 +35,7 @@ describe('task comment textarea', () => {
     expect(staffTasksView).toMatch(/setEditableTasks\(\(prev\) => \(\{/);
     expect(staffTasksView).toMatch(/note: ''/);
     expect(staffTasksView).toMatch(/catch \(error\)/);
-    expect(staffTasksService).toMatch(/note: params\.bufferedTask\.note\.trim\(\)/);
+    expect(staffTasksService).toMatch(/const note = params\.bufferedTask\.note\.trim\(\)/);
+    expect(staffTasksService).toMatch(/body: JSON\.stringify\(\{[\s\S]*note,/);
   });
 });

@@ -57,6 +57,7 @@ describe("system metadata dropdown fallbacks", () => {
   it("uses fallback metadata in the capital and metadata pages without writing seed data", () => {
     const capitalPage = source("app/admin/capital/page.tsx");
     const metadataPage = source("app/admin/metadata/page.tsx");
+    const metadataRoute = source("app/api/admin/system-metadata/route.ts");
 
     expect(capitalPage).toMatch(/DEFAULT_FINANCIAL_TRANSACTION_TYPES/);
     expect(capitalPage).toMatch(
@@ -65,11 +66,15 @@ describe("system metadata dropdown fallbacks", () => {
     expect(capitalPage).toMatch(
       /normalizeSystemMetadataOptions\(contribMeta\?\.data, DEFAULT_CAPITAL_CONTRIBUTION_TYPES\)/,
     );
-    expect(metadataPage).toMatch(/DEFAULT_SYSTEM_METADATA_CATEGORIES/);
+    expect(metadataRoute).toMatch(/DEFAULT_SYSTEM_METADATA_CATEGORIES/);
+    expect(metadataRoute).toMatch(
+      /data && data\.length > 0 \? data : DEFAULT_SYSTEM_METADATA_CATEGORIES/,
+    );
+    expect(metadataPage).toMatch(/payload\.categories \|\| \[\]/);
     expect(metadataPage).toMatch(
       /Danh mục mặc định chỉ dùng khi hệ thống chưa có cấu hình/,
     );
-    expect(metadataPage).not.toMatch(
+    expect(`${metadataPage}\n${metadataRoute}`).not.toMatch(
       /upsert\(|insert\(DEFAULT_SYSTEM_METADATA_CATEGORIES/,
     );
   });

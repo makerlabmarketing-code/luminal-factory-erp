@@ -92,18 +92,20 @@ describe('project creation UX, detail actions, and request cleanup', () => {
 
   it('keeps project detail operational guidance in Vietnamese copy', () => {
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
+    const membershipSection = source('app/admin/projects/[projectId]/ProjectMembershipSection.tsx');
+    const projectDetail = `${detailPage}\n${membershipSection}`;
 
-    expect(detailPage).toMatch(/Nền tảng giao việc chưa sẵn sàng/);
-    expect(detailPage).toMatch(/Dữ liệu công việc cũ/);
-    expect(detailPage).toMatch(/Thêm thành viên đang hoạt động/);
-    expect(detailPage).toMatch(/nền tảng giao việc trả về dữ liệu theo giai đoạn/);
-    expect(detailPage).toMatch(/Công việc cũ không có giai đoạn hiện tại/);
-    expect(detailPage).toMatch(/>Giai đoạn: \{/);
-    expect(detailPage).toMatch(/Quy trình tuần tự hiện chỉ cho xem/);
-    expect(detailPage).toMatch(/cổng dữ liệu trạng thái và phụ thuộc/);
-    expect(detailPage).toMatch(/hộp thoại/);
-    expect(detailPage).toMatch(/Người phụ trách phải là thành viên đang hoạt động/);
-    expect(detailPage).not.toMatch(/Task Assignment Foundation|Task legacy|Sequential workflow|membership ACTIVE|thành viên ACTIVE|cổng migration|read-only|derive read-only|hard delete membership|Server chưa có mutation|state machine/);
+    expect(projectDetail).toMatch(/Nền tảng giao việc chưa sẵn sàng/);
+    expect(projectDetail).toMatch(/Dữ liệu công việc cũ/);
+    expect(projectDetail).toMatch(/Thêm thành viên/);
+    expect(projectDetail).toMatch(/nền tảng giao việc trả về dữ liệu theo giai đoạn/);
+    expect(projectDetail).toMatch(/Công việc cũ không có giai đoạn hiện tại/);
+    expect(projectDetail).toMatch(/>Giai đoạn: \{/);
+    expect(projectDetail).toMatch(/Quy trình tuần tự hiện chỉ cho xem/);
+    expect(projectDetail).toMatch(/cổng dữ liệu trạng thái và phụ thuộc/);
+    expect(projectDetail).toMatch(/hộp thoại/);
+    expect(projectDetail).toMatch(/Người phụ trách phải là thành viên đang hoạt động/);
+    expect(projectDetail).not.toMatch(/Task Assignment Foundation|Task legacy|Sequential workflow|membership ACTIVE|thành viên ACTIVE|cổng migration|read-only|derive read-only|hard delete membership|Server chưa có mutation|state machine/);
   });
 
   it('redirects the legacy task list to the canonical project workspace', () => {

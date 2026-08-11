@@ -8,6 +8,10 @@ import {
   type ProjectMembershipCapabilities,
   type ProjectMembershipRoleCode,
 } from '@/services/server/projectMembershipAuthorizationCore';
+import type {
+  ProjectMemberDTO,
+  ProjectMembershipSummaryDTO,
+} from '@/lib/types/project-membership';
 
 interface EmployeeJoin {
   id?: number | string | null;
@@ -27,28 +31,9 @@ interface MembershipRow {
   employees?: EmployeeJoin | EmployeeJoin[] | null;
 }
 
-export interface ProjectMembershipReadMember {
-  membershipId: number;
-  employeeId: number;
-  fullName: string;
-  title: string | null;
-  roleCode: ProjectMembershipRoleCode;
-  roleLabel: string;
-  status: 'ACTIVE' | 'REVOKED';
-  joinedAt: string | null;
-  revokedAt: string | null;
-  isAssignable: boolean;
-}
+export type ProjectMembershipReadMember = ProjectMemberDTO;
 
-export interface ProjectMembershipReadSummary {
-  projectId: number;
-  projectCode: string;
-  activeMemberCount: number;
-  ownerCount: number;
-  managerCount: number;
-  creativeLeadCount: number;
-  contributorCount: number;
-  hasActiveOwner: boolean;
+export interface ProjectMembershipReadSummary extends ProjectMembershipSummaryDTO {
   capabilities: ProjectMembershipCapabilities;
   members: ProjectMembershipReadMember[];
 }

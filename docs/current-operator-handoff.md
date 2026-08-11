@@ -515,3 +515,25 @@ Manual next check after the operator returns the package output:
 Paste the redacted result sets back with table names, counts, policy/index
 definitions, function privilege booleans, and no tokens, cookies, connection
 strings, Employee PII, or raw database secrets.
+
+## 2026-08-11 Project Membership display completion
+
+Status: `APPLICATION_COMPLETE`; no operator action is required for the UI batch.
+The remaining Project Membership gate is still the existing production
+owner/manager/contributor/read-only/cancelled-project evidence package.
+
+Project Detail now renders the canonical server summary, including project code,
+active role counts, and the missing-owner condition. Active members and revoked
+history are separated, while initial loading, targeted background refresh,
+stale-data failure, retry, and empty states remain local to the membership
+section. Add, role-change, and revoke continue using the existing server
+authorization/mutation boundaries and refresh only membership data afterward.
+
+Validation: 49/49 focused Project Detail/Membership tests pass. Eight stale
+static assertions were aligned with the already-merged server boundaries they
+protect, so the full suite passes 734/734 tests. Lint, TypeScript, production
+build, and whitespace validation pass.
+
+No SQL, migration, RLS, RPC, backfill, runtime flag, production query, live data
+mutation, Commerce change, or deployment was performed. Rollback requires only
+reverting the application/test/document commit; there is no database rollback.

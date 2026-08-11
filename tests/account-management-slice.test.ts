@@ -139,7 +139,11 @@ describe("account and permission management slice", () => {
     );
 
     expect(listRoute).toMatch(/getAdminAccountManagementData/);
-    expect(detailRoute).toMatch(/getAdminAccountDetailData/);
+    expect(detailRoute).toMatch(/loadScopedAccountDetail/);
+    expect(detailRoute).toMatch(
+      /requireAdminEmployeePermission\(['"]ACCOUNT_MANAGE['"]\)/,
+    );
+    expect(detailRoute).toMatch(/\.eq\(['"]employee_id['"], employeeIdValue\)/);
     expect(workspaceRoute).toMatch(/updateAccountWorkspaces/);
     expect(permissionRoute).toMatch(/updateAccountPermissions/);
     expect(presetRoute).toMatch(/applyAccountPreset/);

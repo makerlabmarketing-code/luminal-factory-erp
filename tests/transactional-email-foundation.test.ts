@@ -20,7 +20,8 @@ describe('ERP transactional email foundation', () => {
     expect(service).toContain('Chưa cấu hình dịch vụ gửi email');
   });
   it('requires an authorized Admin and an explicit test recipient', () => {
-    expect(route).toContain("requireAdminEmployeePermission('EMPLOYEE_MANAGE')");
+    expect(route).toContain("requireWorkspaceAccess('ADMIN_WORKSPACE')");
+    expect(route).toContain("hasPermission(authContext, 'EMAIL_TEMPLATE_MANAGE')");
     expect(route).toContain('isValidEmail(recipient)');
     expect(route).toContain('error instanceof AuthFlowError');
   });

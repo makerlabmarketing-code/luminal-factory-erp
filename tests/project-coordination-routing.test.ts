@@ -25,12 +25,13 @@ describe('project coordination route contract', () => {
 
   it('distinguishes invalid, forbidden, missing and section-level failures', () => {
     const detail = source('app/admin/projects/[projectId]/page.tsx');
+    const membershipSection = source('app/admin/projects/[projectId]/ProjectMembershipSection.tsx');
     const notFound = source('app/admin/projects/[projectId]/not-found.tsx');
 
     expect(detail).toContain('Mã dự án không hợp lệ.');
     expect(detail).toContain('Bạn không có quyền xem dự án này');
     expect(detail).toMatch(/notFoundConfirmed[\s\S]{0,60}notFound\(\)/);
-    expect(detail).toContain('Không thể tải thành viên dự án.');
+    expect(membershipSection).toContain('Không thể tải thành viên dự án.');
     expect(notFound).toContain('Quay lại danh sách');
   });
 

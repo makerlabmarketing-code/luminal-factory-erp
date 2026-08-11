@@ -60,7 +60,7 @@ describe('streamlined project creation and loading', () => {
 
   it('renders project core before independent member and task requests settle', () => {
     expect(detail).toMatch(/setItems\(\[coreItem\]\);\s*setLoading\(false\)/);
-    expect(detail).toMatch(/void membersRequest\.then/);
+    expect(detail).toContain('void refreshMembers(true)');
     expect(detail).toMatch(/void refreshTasks\(\)/);
     expect(detail).toContain('project_core_timeout');
     expect(detail).toContain('Dự án chưa có giai đoạn.');
