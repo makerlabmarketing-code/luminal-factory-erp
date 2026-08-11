@@ -51,7 +51,8 @@ describe('attendance recovery contract', () => {
 
     expect(routeSource).toMatch(/isAttendanceManualMutationEnabled\(\)/);
     expect(routeSource).toMatch(/attendance_manual_mutation_disabled/);
-    expect(routeSource).toMatch(/canManage && isAttendanceManualMutationEnabled\(\)/);
+    expect(routeSource).toMatch(/const manualMutationEnabled = isAttendanceManualMutationEnabled\(\)/);
+    expect(routeSource).toMatch(/canManage && manualMutationEnabled/);
     expect(clientSource).toMatch(/Điều chỉnh chấm công đang chờ xác nhận/);
     expect(clientSource).not.toMatch(/t_mock/);
   });

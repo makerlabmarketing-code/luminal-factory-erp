@@ -9,8 +9,8 @@ describe('admin asynchronous loader stability', () => {
     const editor = read('app/admin/email-editor/page.tsx');
 
     expect(editor).toMatch(/const loadData = useCallback\(async/);
-    expect(editor).toContain(
-      'setSelectedPreview((currentPreview) => currentPreview ?? data[0])',
+    expect(editor).toMatch(
+      /setSelectedPreview\(\(currentPreview\) => \{[\s\S]*if \(!currentPreview\) return nextTemplates\[0\] \|\| null;[\s\S]*nextTemplates\.find\(\(item\) => item\.id === currentPreview\.id\)/,
     );
     expect(editor).toContain(
       'useEffect(() => { void loadData(true); }, [loadData])',

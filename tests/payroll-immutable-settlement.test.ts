@@ -68,7 +68,8 @@ describe('payroll runtime safeguards', () => {
     expect(adminPage).toContain('if (lock.current');
     expect(adminPage).toContain("'Đang xác nhận...'");
     expect(adminPage).toContain("'Đang điều chỉnh...'");
-    expect(adminPage).toContain("'Đang thử lại...'");
+    expect(adminPage).toContain("'Đang kiểm tra...'");
+    expect(adminPage).toContain("'Kiểm tra lại'");
     expect(staffPage).toContain("'Đang thử lại...'");
   });
 });

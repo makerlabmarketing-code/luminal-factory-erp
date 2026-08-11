@@ -123,7 +123,7 @@ This table is the scheduling authority for the current Cloud continuation. It cl
 
 | Roadmap item | Cloud classification | Reason |
 |---|---|---|
-| 1. Project Membership | `READY_FOR_OPERATOR` | Application and regression scope is complete; retained production role and cancelled-project fixtures remain operator evidence. |
+| 1. Project Membership | `READY_FOR_OPERATOR` | Application and regression scope is complete, including the canonical read-model summary and Project Detail membership display; retained production role and cancelled-project fixtures remain operator evidence. |
 | 2. Project authorization | `READY_FOR_OPERATOR` | Server authorization is implemented; production membership/RLS fixtures remain operator evidence. |
 | 3. Project Detail | `COMPLETE` | The approved core detail, state, retry, accessibility, copy, and responsive scope is complete; linked gated mutations remain classified separately. |
 | 4. Project atomic create | `READY_FOR_OPERATOR` | The application boundary and complete operator package exist; the runtime flag stays false. |
@@ -162,7 +162,7 @@ The order below preserves the functional roadmap sequence. Dependency correction
 
 | Roadmap item | Previous status | Verified status | Evidence | Remaining gate | Next action |
 |---|---|---|---|---|---|
-| 1. Project Membership | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Membership schema/backfill history and server management/authorization boundaries exist; stable-ID authorization is covered by `tests/project-membership-authorization.test.ts` and `tests/project-membership-management-static.test.ts`. | Production owner/manager/contributor/read-only/cancelled-project fixtures have not been retained as PASS evidence. | Operator runs the membership smoke fixtures in the [production runbook](production-runtime-gate-operator-runbook.md); do not recreate the completed application slice. |
+| 1. Project Membership | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Membership schema/backfill history and server management/authorization boundaries exist. Project Detail consumes the canonical membership summary through `ProjectMembershipSection.tsx`; stable-ID authorization and display behavior are covered by the membership authorization, management, read-model, and display tests. | Production owner/manager/contributor/read-only/cancelled-project fixtures have not been retained as PASS evidence. | Operator runs the membership smoke fixtures in the [production runbook](production-runtime-gate-operator-runbook.md); do not recreate the completed application slice. |
 | 2. Project authorization | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Server authorization distinguishes session, employee, membership, dependency, permission, and cancelled-project outcomes in `services/server/projectMembershipAuthorization.ts`; Project Read RLS was recorded as delivered, with some fixture denials deferred. | Verify the remaining production membership/RLS authorization fixtures read-only. | Record operator evidence through the [production runbook](production-runtime-gate-operator-runbook.md); no application reimplementation. |
 | 3. Project Detail | `APPLICATION_COMPLETE` | `APPLICATION_COMPLETE` | Core-first loading, server project code, phase metadata, targeted section retries, accessibility/copy slices, and operational-state tests are present in `app/admin/projects/[projectId]/page.tsx`, `tests/project-detail-operational-state.test.ts`, and `tests/project-detail-stepper.test.ts`. | Gated phase/task/comment mutations remain governed by their own linked roadmap items; they are not duplicate Project Detail work. | Preserve this slice; verify linked operator gates rather than scheduling Project Detail again. |
 | 4. Project atomic create | `APPLICATION_COMPLETE` | `RUNTIME_FLAG_DISABLED` | Server orchestration and compatibility tests exist; pre-run, forward, post-run, validation, rollback, and backfill artifacts are prepared under `supabase/drafts/20260728_project_creation_atomic_*` and `supabase/drafts/20260721_project_creation_atomic_*`. | Dependencies and RPC privileges/atomicity must pass operator delivery and smoke tests; `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED` remains false/unset. | Follow this gate's card in the [activation matrix](runtime-gate-activation-matrix.md) and [production runbook](production-runtime-gate-operator-runbook.md). |
@@ -589,3 +589,28 @@ Next approved application scope is **Slice 1 — membership read model and Proje
 Detail display**. Slice 2 must wait for the atomic mutation and owner/role
 semantics decision; Slice 3 owns Staff/task assignment-scoped visibility; Slice 4
 owns audit, performance, and completion hardening.
+
+## 2026-08-11 Project Membership — Project Detail display completion
+
+Status: `APPLICATION_COMPLETE`; production role and cancelled-project evidence
+remain `LIVE_OPERATOR_VERIFICATION_REQUIRED`.
+
+Project Detail now consumes the canonical membership response instead of dropping
+its summary. The membership section shows the authoritative project code, active
+Owner/Manager/Creative Lead/Contributor counts, a data-backed missing-owner
+warning, active-member empty state, and a separate collapsed revoked-history
+list. Initial loading, background refresh, failure, retry, and stale-data states
+are contained within the membership section. The same targeted refresh is used
+after add, role-change, and revoke operations; no full page refresh is introduced.
+
+The API, server read model, and client use the shared membership DTO contract in
+`lib/types/project-membership.ts`. Focused Project Detail/Membership validation
+passes 49/49 tests. Eight pre-existing static contract assertions that still
+targeted superseded owners on `main` were reconciled with the current protected
+server boundaries; the full suite now passes 734/734 tests. Lint, TypeScript,
+production build, and whitespace validation pass.
+
+No SQL, migration, RLS, RPC, backfill, runtime flag, production query, live data
+mutation, Commerce change, or production deployment is included. Rollback is the
+application/test/document diff only; no data rollback is required. Slice 1 and
+Slice 3 must not be rescheduled as unfinished work.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addProjectMember, listProjectMemberCandidates, projectMembershipErrorResponse } from '@/services/server/projectMembershipManagement';
 import { getProjectMembershipReadModel } from '@/services/server/projectMembershipReadModel';
+import type { ProjectMembershipResponseDTO } from '@/lib/types/project-membership';
 
 function jsonNoStore(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: { projectI
     }
 
     const readModel = await getProjectMembershipReadModel(params.projectId);
-    return jsonNoStore({
+    const response: ProjectMembershipResponseDTO = {
       success: true,
       members: readModel.members,
       capabilities: readModel.capabilities,
@@ -29,7 +30,8 @@ export async function GET(request: NextRequest, { params }: { params: { projectI
         contributorCount: readModel.contributorCount,
         hasActiveOwner: readModel.hasActiveOwner,
       },
-    });
+    };
+    return jsonNoStore(response);
   } catch (error) {
     const mapped = projectMembershipErrorResponse(error);
     return jsonNoStore(mapped.body, { status: mapped.status });

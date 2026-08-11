@@ -79,7 +79,7 @@ describe('static security boundaries', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('keeps sensitive staff mutations behind server-authenticated routes', () => {
+  it('keeps the retired staff mutation endpoint permanently disabled', () => {
     const routeFiles = [
       'app/api/attendance/check-out/route.ts',
     ];
@@ -87,7 +87,9 @@ describe('static security boundaries', () => {
     routeFiles.forEach((relativePath) => {
       const source = readFileSync(join(repositoryRoot, relativePath), 'utf8');
 
-      expect(source).toMatch(/requireAuthenticatedEmployee/);
+      expect(source).toMatch(/legacy_check_out_disabled/);
+      expect(source).toMatch(/status: 410/);
+      expect(source).not.toMatch(/createClient|createSupabaseAdminClient/);
       expect(source).not.toMatch(/const\s*\{[^}]*employeeId[^}]*\}\s*=\s*body/);
       expect(source).not.toMatch(/body\.(employeeId|userId|role)/);
     });
