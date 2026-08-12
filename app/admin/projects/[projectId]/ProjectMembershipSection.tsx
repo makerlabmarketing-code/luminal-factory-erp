@@ -11,6 +11,8 @@ interface ProjectMembershipSectionProps {
   isRefreshing: boolean;
   loadFailed: boolean;
   canManageMembers: boolean;
+  mutationsEnabled: boolean;
+  hasManagementPermission: boolean;
   memberActionLoading: boolean;
   onRetry: () => void;
   onAddMember: () => void;
@@ -73,6 +75,8 @@ export function ProjectMembershipSection({
   isRefreshing,
   loadFailed,
   canManageMembers,
+  mutationsEnabled,
+  hasManagementPermission,
   memberActionLoading,
   onRetry,
   onAddMember,
@@ -101,6 +105,12 @@ export function ProjectMembershipSection({
 
       {isInitialLoading ? <MembershipSkeleton /> : (
         <div className="space-y-4 p-4">
+          {hasManagementPermission && !mutationsEnabled && (
+            <div className="flex gap-3 rounded-lg border border-amber-900 bg-amber-950/25 p-3 text-xs text-amber-100" role="status">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <div><p className="font-bold">Cập nhật thành viên đang chờ kích hoạt.</p><p className="mt-1 text-amber-200/80">Bạn vẫn có thể xem danh sách và lịch sử. Thêm, đổi vai trò và thu hồi sẽ mở sau khi gói dữ liệu nguyên tử được xác minh.</p></div>
+            </div>
+          )}
           {loadFailed && (
             <div className="flex flex-col gap-3 rounded-lg border border-amber-900 bg-amber-950/25 p-3 text-xs text-amber-100 sm:flex-row sm:items-center sm:justify-between" role="alert">
               <span>{members.length > 0 ? 'Không thể cập nhật thành viên. Dữ liệu đã tải trước đó vẫn được giữ lại.' : 'Không thể tải thành viên dự án.'}</span>

@@ -164,3 +164,33 @@ live project/membership row was changed.
 
 The read-only operator package is
 `supabase/validation/20260805_project_membership_baseline_readonly.sql`.
+
+## 2026-08-12 — Slice 2 atomic mutation package
+
+Status: **READY_FOR_OPERATOR; runtime disabled**.
+
+- Add, role change, and revoke now share `mutate_project_membership(...)` instead
+  of separate browser-visible writes.
+- The transaction locks the project and target membership, revalidates the
+  server-derived actor, rejects cancelled projects, enforces one ACTIVE role per
+  Employee/project, and protects the final active owner.
+- Revoke rejects an Employee who still owns a task outside `COMPLETED` or
+  `CANCELLED`; work must be transferred or completed first.
+- Every accepted mutation requires a 10–500 character reason and writes immutable
+  before/after state, actor, timestamp, operation, and correlation ID.
+- Browser roles no longer receive INSERT/UPDATE/DELETE or RPC EXECUTE authority.
+  The privileged server client is the only caller and the RPC rechecks authority.
+- `PROJECT_MEMBERSHIP_ATOMIC_MUTATIONS_ENABLED` defaults closed. Authorized users
+  retain the read model while mutation controls explain the pending activation.
+- No SQL or live row mutation was executed from Codex Cloud.
+
+Delivery artifacts:
+
+- `supabase/migrations/20260812090000_project_membership_atomic_mutations.sql`
+- `supabase/validation/20260812090000_project_membership_atomic_mutations_validation.sql`
+- `supabase/rollbacks/20260812090000_project_membership_atomic_mutations_rollback.sql`
+- `docs/project-membership-atomic-mutations-handoff.md`
+
+The next application slice is Slice 3, the Staff task/subtask membership boundary.
+Slice 4 then completes audit pagination, integrity/timeline hardening, and operator
+verification for this workstream.

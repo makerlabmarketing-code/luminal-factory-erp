@@ -42,4 +42,5 @@ export interface ProjectMembershipResponseDTO {
   members: ProjectMemberDTO[];
   capabilities: ProjectMembershipCapabilitiesDTO;
   summary: ProjectMembershipSummaryDTO;
+  atomicMutationsEnabled: boolean;
 }

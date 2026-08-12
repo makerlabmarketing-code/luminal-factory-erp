@@ -38,17 +38,19 @@ describe('Project Membership Slice 0 baseline contracts', () => {
 
   it('keeps membership history soft-revoked and server-authorized', () => {
     const service = source('services/server/projectMembershipManagement.ts');
-    const migration = source('supabase/migrations/20260714045636_project_members_foundation.sql');
+    const migration = source('supabase/migrations/20260812090000_project_membership_atomic_mutations.sql');
     const routes = source('app/api/admin/projects/[projectId]/members/route.ts')
       + source('app/api/admin/projects/[projectId]/members/[membershipId]/route.ts')
       + source('app/api/admin/projects/[projectId]/members/[membershipId]/revoke/route.ts');
 
-    expect(service).toMatch(/status: 'REVOKED'/);
+    expect(service).toMatch(/operation: 'REVOKE'/);
+    expect(service).toMatch(/\.rpc\('mutate_project_membership'/);
     expect(service).not.toMatch(/\.delete\(/);
     expect(service).toMatch(/requireProjectMembershipAction/);
     expect(routes).toMatch(/export async function POST/);
-    expect(migration).toMatch(/project members admin manage update/);
-    expect(migration).not.toMatch(/project members admin manage delete/);
+    expect(migration).toMatch(/set status = 'REVOKED'/);
+    expect(migration).toMatch(/project_membership_audit/);
+    expect(migration).toMatch(/revoke insert, update, delete on public\.project_members from authenticated/);
   });
 
   it('preserves the compatibility create boundary and its partial-membership warning', () => {

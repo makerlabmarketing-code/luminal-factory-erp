@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { randomUUID } from 'node:crypto';
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import { AuthFlowError } from '@/services/server/auth';
 import { getProjectMembershipAuthorization, requireProjectMembershipAction, projectMembershipAuthError } from '@/services/server/projectMembershipAuthorization';
@@ -70,8 +71,15 @@ export interface ProjectMembersResponseDTO {
   members: ProjectMemberDTO[];
 }
 
-const ADD_KEYS = new Set(['employeeId', 'roleCode']);
-const UPDATE_KEYS = new Set(['roleCode']);
+const ADD_KEYS = new Set(['employeeId', 'roleCode', 'reason']);
+const UPDATE_KEYS = new Set(['roleCode', 'reason']);
+const REVOKE_KEYS = new Set(['reason']);
+
+export const PROJECT_MEMBERSHIP_ATOMIC_MUTATIONS_FLAG = 'PROJECT_MEMBERSHIP_ATOMIC_MUTATIONS_ENABLED';
+
+export function isProjectMembershipAtomicMutationEnabled(): boolean {
+  return process.env[PROJECT_MEMBERSHIP_ATOMIC_MUTATIONS_FLAG] === 'true';
+}
 
 function numericId(value: unknown, name: string): number {
   const id = Number(value);
@@ -87,6 +95,18 @@ function assertKnownFields(body: Body, allowed: Set<string>) {
 function roleFromBody(value: unknown): ProjectMembershipRoleCode {
   if (!isProjectMembershipRoleCode(value)) throw projectMembershipAuthError(422, 'payload_validation_failed', 'Vai trò dự án không hợp lệ.');
   return value;
+}
+
+function reasonFromBody(value: unknown): string {
+  const reason = typeof value === 'string' ? value.trim() : '';
+  if (reason.length < 10 || reason.length > 500) {
+    throw projectMembershipAuthError(
+      422,
+      'payload_validation_failed',
+      'Lý do phải có từ 10 đến 500 ký tự.'
+    );
+  }
+  return reason;
 }
 
 function joinedEmployee(row: ProjectMembershipRow): ProjectMemberEmployeeJoin {
@@ -132,36 +152,6 @@ export async function listProjectMembers(rawProjectId: string): Promise<ProjectM
   return { success: true, capabilities: authorization.capabilities, members: rows.map(mapMember) };
 }
 
-async function assertActiveEmployee(employeeId: number) {
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase.from('employees').select('id, status, is_active, full_name').eq('id', employeeId).maybeSingle();
-  if (error) throw projectMembershipAuthError(500, 'project_membership_employee_check_failed', 'Không thể xác minh nhân sự.', { supabase_error_code: error.code ?? 'unknown' });
-  if (!data) throw projectMembershipAuthError(404, 'employee_not_linked', 'Không tìm thấy nhân sự.');
-  if (!isActiveEmployeeRow(data as EmployeeCandidateRow)) throw projectMembershipAuthError(404, 'employee_inactive', 'Nhân sự không còn hoạt động.');
-}
-
-async function assertNoActiveMembership(projectId: number, employeeId: number, exceptMembershipId?: number) {
-  const supabase = createSupabaseAdminClient();
-  let query = supabase.from('project_members').select('id').eq('project_id', projectId).eq('employee_id', employeeId).eq('status', 'ACTIVE');
-  if (exceptMembershipId) query = query.neq('id', exceptMembershipId);
-  const { data, error } = await query.limit(1);
-  if (error) throw projectMembershipAuthError(500, 'project_membership_duplicate_check_failed', 'Không thể kiểm tra thành viên hiện có.', { supabase_error_code: error.code ?? 'unknown' });
-  if (data?.length) throw projectMembershipAuthError(409, 'project_membership_duplicate_active', 'Nhân sự đã có vai trò ACTIVE trong dự án.');
-}
-
-async function assertNotLastActiveOwner(projectId: number, membership: Pick<ProjectMembershipRow, 'role_code' | 'status'>) {
-  if (membership.status !== 'ACTIVE' || membership.role_code !== 'PROJECT_OWNER') return;
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from('project_members')
-    .select('id')
-    .eq('project_id', projectId)
-    .eq('role_code', 'PROJECT_OWNER')
-    .eq('status', 'ACTIVE');
-  if (error) throw projectMembershipAuthError(500, 'project_membership_owner_check_failed', 'Không thể kiểm tra chủ dự án.', { supabase_error_code: error.code ?? 'unknown' });
-  if ((data || []).length <= 1) throw projectMembershipAuthError(409, 'project_membership_last_owner', 'Không thể thu hồi hoặc đổi vai trò chủ dự án cuối cùng.');
-}
-
 export async function listProjectMemberCandidates(rawProjectId: string): Promise<{ success: true; candidates: ProjectMemberCandidateDTO[] }> {
   const projectId = numericId(rawProjectId, 'Mã dự án');
   await requireProjectMembershipAction(projectId, 'MEMBER_ADD');
@@ -184,82 +174,129 @@ export async function listProjectMemberCandidates(rawProjectId: string): Promise
   return { success: true, candidates };
 }
 
-export async function addProjectMember(rawProjectId: string, body: Body): Promise<{ success: true; member: ProjectMemberDTO }> {
+type AtomicMembershipOperation = 'ADD' | 'CHANGE_ROLE' | 'REVOKE';
+
+interface AtomicMembershipResult {
+  success?: unknown;
+  membership_id?: unknown;
+}
+
+function requireAtomicMutationGate() {
+  if (!isProjectMembershipAtomicMutationEnabled()) {
+    throw projectMembershipAuthError(
+      409,
+      'project_membership_atomic_mutation_required',
+      'Chức năng cập nhật thành viên đang chờ kích hoạt.'
+    );
+  }
+}
+
+function mapAtomicMutationFailure(error: { code?: string; message?: string } | null, correlationId: string): never {
+  const databaseMessage = String(error?.message || '');
+  if (databaseMessage.includes('project_membership_duplicate_active')) {
+    throw projectMembershipAuthError(409, 'project_membership_duplicate_active', 'Nhân sự đã có vai trò đang hoạt động trong dự án.');
+  }
+  if (databaseMessage.includes('project_membership_last_owner')) {
+    throw projectMembershipAuthError(409, 'project_membership_last_owner', 'Không thể thu hồi hoặc đổi vai trò Chủ dự án cuối cùng.');
+  }
+  if (databaseMessage.includes('project_membership_active_tasks')) {
+    throw projectMembershipAuthError(409, 'project_membership_active_tasks', 'Nhân sự còn công việc đang hoạt động. Hãy chuyển giao hoặc hoàn tất công việc trước.');
+  }
+  if (databaseMessage.includes('project_membership_not_found')) {
+    throw projectMembershipAuthError(404, 'project_membership_not_found', 'Không tìm thấy thành viên đang hoạt động trong dự án.');
+  }
+  if (databaseMessage.includes('project_membership_employee_inactive')) {
+    throw projectMembershipAuthError(409, 'employee_inactive', 'Nhân sự không còn hoạt động.');
+  }
+  if (databaseMessage.includes('project_membership_project_cancelled')) {
+    throw projectMembershipAuthError(409, 'project_cancelled', 'Dự án đã hủy nên không thể cập nhật thành viên.');
+  }
+  if (databaseMessage.includes('project_membership_permission_forbidden')) {
+    throw projectMembershipAuthError(403, 'project_forbidden', 'Bạn không có quyền cập nhật thành viên dự án.');
+  }
+  throw projectMembershipAuthError(
+    500,
+    'project_membership_atomic_mutation_failed',
+    'Không thể cập nhật thành viên dự án.',
+    { supabase_error_code: error?.code ?? 'unknown', correlation_id: correlationId }
+  );
+}
+
+async function mutateProjectMembership(input: {
+  operation: AtomicMembershipOperation;
+  projectId: number;
+  actorEmployeeId: number;
+  reason: string;
+  correlationId: string;
+  membershipId?: number;
+  employeeId?: number;
+  roleCode?: ProjectMembershipRoleCode;
+}): Promise<number> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc('mutate_project_membership', {
+    p_operation: input.operation,
+    p_project_id: input.projectId,
+    p_membership_id: input.membershipId ?? null,
+    p_employee_id: input.employeeId ?? null,
+    p_role_code: input.roleCode ?? null,
+    p_actor_employee_id: input.actorEmployeeId,
+    p_reason: input.reason,
+    p_correlation_id: input.correlationId,
+  });
+  if (error) mapAtomicMutationFailure(error, input.correlationId);
+  const result = data as AtomicMembershipResult | null;
+  const membershipId = Number(result?.membership_id);
+  if (result?.success !== true || !Number.isInteger(membershipId) || membershipId <= 0) {
+    throw projectMembershipAuthError(500, 'project_membership_atomic_mutation_failed', 'Không thể xác nhận thay đổi thành viên dự án.');
+  }
+  return membershipId;
+}
+
+export async function addProjectMember(rawProjectId: string, body: Body): Promise<{ success: true; member: ProjectMemberDTO; correlationId: string }> {
   assertKnownFields(body, ADD_KEYS);
   const projectId = numericId(rawProjectId, 'Mã dự án');
   const employeeId = numericId(body.employeeId, 'Mã nhân sự');
   const roleCode = roleFromBody(body.roleCode);
+  const reason = reasonFromBody(body.reason);
   const auth = await requireProjectMembershipAction(projectId, 'MEMBER_ADD');
-  await assertActiveEmployee(employeeId);
-  await assertNoActiveMembership(projectId, employeeId);
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase.from('project_members').insert([{ project_id: projectId, employee_id: employeeId, role_code: roleCode, status: 'ACTIVE', granted_by_employee_id: auth.actorEmployeeId }]).select('id').single();
-  if (error) throw projectMembershipAuthError(error.code === '23505' ? 409 : 500, error.code === '23505' ? 'project_membership_duplicate_active' : 'project_membership_create_failed', error.code === '23505' ? 'Nhân sự đã có vai trò ACTIVE trong dự án.' : 'Không thể thêm thành viên dự án.', { supabase_error_code: error.code ?? 'unknown' });
+  requireAtomicMutationGate();
+  const correlationId = randomUUID();
+  const membershipId = await mutateProjectMembership({ operation: 'ADD', projectId, employeeId, roleCode, actorEmployeeId: auth.actorEmployeeId, reason, correlationId });
   const rows = await loadProjectMemberRows(projectId);
-  const member = rows.map(mapMember).find((item) => item.membershipId === Number(data.id));
+  const member = rows.map(mapMember).find((item) => item.membershipId === membershipId);
   if (!member) throw projectMembershipAuthError(500, 'project_membership_create_failed', 'Không thể tải thành viên vừa tạo.');
-  return { success: true, member };
+  return { success: true, member, correlationId };
 }
 
-async function loadMembership(projectId: number, membershipId: number): Promise<ProjectMembershipRow> {
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase.from('project_members').select('id, project_id, employee_id, role_code, status').eq('id', membershipId).maybeSingle();
-  if (error) throw projectMembershipAuthError(500, 'project_membership_load_failed', 'Không thể tải thành viên dự án.', { supabase_error_code: error.code ?? 'unknown' });
-  const membership = data as ProjectMembershipRow | null;
-  if (!membership || Number(membership.project_id) !== projectId) throw projectMembershipAuthError(404, 'project_membership_not_found', 'Không tìm thấy thành viên trong dự án.');
-  return membership;
-}
-
-export async function updateProjectMember(rawProjectId: string, rawMembershipId: string, body: Body): Promise<{ success: true; member: ProjectMemberDTO }> {
+export async function updateProjectMember(rawProjectId: string, rawMembershipId: string, body: Body): Promise<{ success: true; member: ProjectMemberDTO; correlationId: string }> {
   assertKnownFields(body, UPDATE_KEYS);
   const projectId = numericId(rawProjectId, 'Mã dự án');
   const membershipId = numericId(rawMembershipId, 'Mã thành viên');
   const roleCode = roleFromBody(body.roleCode);
+  const reason = reasonFromBody(body.reason);
   const auth = await requireProjectMembershipAction(projectId, 'MEMBER_ROLE_CHANGE');
-  const membership = await loadMembership(projectId, membershipId);
-  if (membership.status !== 'ACTIVE') throw projectMembershipAuthError(409, 'project_membership_revoked', 'Thành viên đã bị thu hồi.');
-  if (membership.role_code === roleCode) {
-    const rows = await loadProjectMemberRows(projectId);
-    const current = rows.map(mapMember).find((item) => item.membershipId === membershipId);
-    if (current) return { success: true, member: current };
-  }
-  await assertNotLastActiveOwner(projectId, membership);
-  await assertNoActiveMembership(projectId, Number(membership.employee_id), membershipId);
-  const supabase = createSupabaseAdminClient();
-  const revokedAt = new Date().toISOString();
-  const revokeResult = await supabase
-    .from('project_members')
-    .update({ status: 'REVOKED', revoked_at: revokedAt, revoked_by_employee_id: auth.actorEmployeeId })
-    .eq('id', membershipId)
-    .eq('project_id', projectId)
-    .eq('status', 'ACTIVE');
-  if (revokeResult.error) throw projectMembershipAuthError(500, 'project_membership_update_failed', 'Không thể đổi vai trò thành viên.', { supabase_error_code: revokeResult.error.code ?? 'unknown' });
-  const insertResult = await supabase
-    .from('project_members')
-    .insert([{ project_id: projectId, employee_id: Number(membership.employee_id), role_code: roleCode, status: 'ACTIVE', granted_by_employee_id: auth.actorEmployeeId }])
-    .select('id')
-    .single();
-  if (insertResult.error) throw projectMembershipAuthError(insertResult.error.code === '23505' ? 409 : 500, insertResult.error.code === '23505' ? 'project_membership_duplicate_active' : 'project_membership_update_failed', insertResult.error.code === '23505' ? 'Nhân sự đã có vai trò ACTIVE trong dự án.' : 'Không thể tạo vai trò mới cho thành viên.', { supabase_error_code: insertResult.error.code ?? 'unknown' });
+  requireAtomicMutationGate();
+  const correlationId = randomUUID();
+  const nextMembershipId = await mutateProjectMembership({ operation: 'CHANGE_ROLE', projectId, membershipId, roleCode, actorEmployeeId: auth.actorEmployeeId, reason, correlationId });
   const rows = await loadProjectMemberRows(projectId);
-  const member = rows.map(mapMember).find((item) => item.membershipId === Number(insertResult.data.id));
+  const member = rows.map(mapMember).find((item) => item.membershipId === nextMembershipId);
   if (!member) throw projectMembershipAuthError(500, 'project_membership_update_failed', 'Không thể tải thành viên vừa cập nhật.');
-  return { success: true, member };
+  return { success: true, member, correlationId };
 }
 
-export async function revokeProjectMember(rawProjectId: string, rawMembershipId: string): Promise<{ success: true; revoked: true }> {
+export async function revokeProjectMember(rawProjectId: string, rawMembershipId: string, body: Body): Promise<{ success: true; revoked: true; correlationId: string }> {
+  assertKnownFields(body, REVOKE_KEYS);
   const projectId = numericId(rawProjectId, 'Mã dự án');
   const membershipId = numericId(rawMembershipId, 'Mã thành viên');
+  const reason = reasonFromBody(body.reason);
   const auth = await requireProjectMembershipAction(projectId, 'MEMBER_REVOKE');
-  const membership = await loadMembership(projectId, membershipId);
-  if (membership.status === 'REVOKED') throw projectMembershipAuthError(409, 'project_membership_already_revoked', 'Thành viên đã được thu hồi trước đó.');
-  await assertNotLastActiveOwner(projectId, membership);
-  const supabase = createSupabaseAdminClient();
-  const { error } = await supabase.from('project_members').update({ status: 'REVOKED', revoked_at: new Date().toISOString(), revoked_by_employee_id: auth.actorEmployeeId }).eq('id', membershipId).eq('project_id', projectId).eq('status', 'ACTIVE');
-  if (error) throw projectMembershipAuthError(500, 'project_membership_revoke_failed', 'Không thể thu hồi thành viên dự án.', { supabase_error_code: error.code ?? 'unknown' });
-  return { success: true, revoked: true };
+  requireAtomicMutationGate();
+  const correlationId = randomUUID();
+  await mutateProjectMembership({ operation: 'REVOKE', projectId, membershipId, actorEmployeeId: auth.actorEmployeeId, reason, correlationId });
+  return { success: true, revoked: true, correlationId };
 }
 
 export function projectMembershipErrorResponse(error: unknown) {
-  if (error instanceof AuthFlowError) return { body: { success: false, message: error.message, code: error.code, failure_stage: error.failureStage, supabase_error_code: error.safeDetails?.supabase_error_code ?? null }, status: error.status };
+  if (error instanceof AuthFlowError) return { body: { success: false, message: error.message, code: error.code, failure_stage: error.failureStage, correlationId: error.safeDetails?.correlation_id ?? null }, status: error.status };
   return { body: { success: false, message: 'Không thể xử lý thành viên dự án.', code: 'project_membership_failed', failure_stage: 'unknown' }, status: 500 };
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { projectMembershipErrorResponse, revokeProjectMember } from '@/services/server/projectMembershipManagement';
 
 function jsonNoStore(body: unknown, init?: ResponseInit) {
@@ -7,9 +7,10 @@ function jsonNoStore(body: unknown, init?: ResponseInit) {
   return response;
 }
 
-export async function POST(_request: Request, { params }: { params: { projectId: string; membershipId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: { projectId: string; membershipId: string } }) {
   try {
-    return jsonNoStore(await revokeProjectMember(params.projectId, params.membershipId));
+    const body = (await request.json().catch(() => null)) || {};
+    return jsonNoStore(await revokeProjectMember(params.projectId, params.membershipId, body));
   } catch (error) {
     const mapped = projectMembershipErrorResponse(error);
     return jsonNoStore(mapped.body, { status: mapped.status });
