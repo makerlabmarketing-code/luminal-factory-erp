@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 const root = process.cwd();
 const revealSource = fs.readFileSync(path.join(root, 'component/ScrollReveal.tsx'), 'utf8');
 const projectDetailSource = fs.readFileSync(path.join(root, 'app/admin/projects/[projectId]/page.tsx'), 'utf8');
+const projectListSource = fs.readFileSync(path.join(root, 'app/admin/projects/page.tsx'), 'utf8');
+const dashboardSource = fs.readFileSync(path.join(root, 'app/admin/dashboard/AdminDashboardCharts.tsx'), 'utf8');
 const globalStyles = fs.readFileSync(path.join(root, 'app/globals.css'), 'utf8');
 
 describe('Scroll reveal foundation', () => {
@@ -30,5 +32,16 @@ describe('Scroll reveal foundation', () => {
     expect(projectDetailSource).toMatch(/<ProjectMembershipSection/);
     expect(projectDetailSource).toMatch(/<ScrollReveal className="space-y-4" delayMs=\{40\}>/);
     expect(projectDetailSource).not.toMatch(/delayMs=\{(?:1[3-9]\d|[2-9]\d{2,})\}/);
+  });
+
+  it('reveals dashboard and project-list sections in restrained groups', () => {
+    const dashboardRevealCount = dashboardSource.match(/<ScrollReveal/g)?.length ?? 0;
+    const projectListRevealCount = projectListSource.match(/<ScrollReveal/g)?.length ?? 0;
+
+    expect(dashboardRevealCount).toBe(2);
+    expect(projectListRevealCount).toBe(2);
+    expect(dashboardSource).toMatch(/<ScrollReveal className="grid grid-cols-1 gap-6 lg:grid-cols-3" delayMs=\{40\}>/);
+    expect(projectListSource).toMatch(/<ScrollReveal className="grid grid-cols-1 items-start gap-5 xl:grid-cols-5" delayMs=\{40\}>/);
+    expect(`${dashboardSource}\n${projectListSource}`).not.toMatch(/delayMs=\{(?:1[3-9]\d|[2-9]\d{2,})\}/);
   });
 });
