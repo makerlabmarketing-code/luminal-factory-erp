@@ -614,3 +614,28 @@ No SQL, migration, RLS, RPC, backfill, runtime flag, production query, live data
 mutation, Commerce change, or production deployment is included. Rollback is the
 application/test/document diff only; no data rollback is required. Slice 1 and
 Slice 3 must not be rescheduled as unfinished work.
+
+## 2026-08-12 Project Membership — atomic mutation and audit delivery
+
+Status: `LIVE_OPERATOR_VERIFICATION_REQUIRED`; application delivery is complete
+and the runtime flag remains false/unset.
+
+PR #171 merged into protected `main` as `ef379b0765c4aa180a043e5bac596c6f9e794414`.
+Production `/api/system/version` reports that exact commit and the Vercel status
+for the merge commit is successful. The delivered boundary includes the
+service-role-only atomic membership RPC, one ACTIVE membership per
+Employee/project, final-owner and active-task guards, immutable before/after
+audit history, the paginated audit timeline, and the restrained Project Detail
+scroll-reveal foundation.
+
+Read-only Supabase migration history inspected after the production deployment
+does not yet contain `20260812090000_project_membership_atomic_mutations`.
+Therefore no database capability or runtime activation is claimed. Do not call
+the RPC, enable `PROJECT_MEMBERSHIP_ATOMIC_MUTATIONS_ENABLED`, or run direct SQL
+from Codex Cloud. The exact next Membership gate is canonical GitHub Integration
+delivery confirmation, followed by the reviewed validation, grants/RLS checks,
+non-production fixture matrix, and separate runtime-flag approval recorded in
+`docs/project-membership-atomic-mutations-handoff.md`.
+
+No direct SQL, backfill, RLS mutation, live membership mutation, or runtime-flag
+change was performed during this reconciliation.
