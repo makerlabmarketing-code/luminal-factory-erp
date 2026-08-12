@@ -537,3 +537,35 @@ build, and whitespace validation pass.
 No SQL, migration, RLS, RPC, backfill, runtime flag, production query, live data
 mutation, Commerce change, or deployment was performed. Rollback requires only
 reverting the application/test/document commit; there is no database rollback.
+
+## 2026-08-12 Project Membership atomic delivery boundary
+
+PR #171 is merged on protected `main` at
+`ef379b0765c4aa180a043e5bac596c6f9e794414`. The production version endpoint
+reports that exact commit and Vercel reports a successful deployment. This proves
+application delivery only.
+
+The read-only Supabase migration inventory does not yet list
+`20260812090000_project_membership_atomic_mutations`. Keep
+`PROJECT_MEMBERSHIP_ATOMIC_MUTATIONS_ENABLED=false` or unset and do not execute
+the RPC. Do not run direct production SQL from Codex Cloud as a substitute for
+the configured GitHub Integration.
+
+Exact next gate: confirm the canonical integration has delivered the migration,
+then follow `docs/project-membership-atomic-mutations-handoff.md` in order for
+validation, browser/RPC grants, RLS, immutable audit, non-production role and
+guard fixtures, timeline pagination, and separate flag activation approval. Stop
+on migration-history absence, validation drift, unexpected browser grants,
+fixture failure, or integrity-count mismatch.
+
+## 2026-08-12 Operational scroll-reveal continuation
+
+Status: `APPLICATION_COMPLETE`; this UI-only batch needs no operator action.
+Dashboard and Project Coordination reuse the existing one-shot `ScrollReveal`
+foundation in two meaningful groups per page. The implementation keeps reduced
+motion, loading/error/empty states, API behavior, permissions, and business rules
+unchanged. See `docs/operational-scroll-reveal-handoff.md` for scope and rollback.
+
+This completion does not advance the Project Membership production gate. Keep
+the membership runtime flag false/unset until the separate migration-history,
+validation, grants/RLS, fixture, audit and activation sequence passes.

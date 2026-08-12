@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
+import { ScrollReveal } from '@/component/ScrollReveal';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
 import { projectCodePreview } from '@/lib/project-code';
 import {
@@ -550,7 +551,7 @@ export default function AdminProjectManagement() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <ScrollReveal className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {metricCards.map(({ label, value, Icon, color }) => (
           <div key={label} className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
             <div>
@@ -560,9 +561,9 @@ export default function AdminProjectManagement() {
             <Icon className="w-5 h-5 text-slate-500" />
           </div>
         ))}
-      </div>
+      </ScrollReveal>
 
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 items-start">
+      <ScrollReveal className="grid grid-cols-1 items-start gap-5 xl:grid-cols-5" delayMs={40}>
         <div className="xl:col-span-3 bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-800 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
             <h2 className="text-xs font-black uppercase text-slate-300">Tổng quan dự án</h2>
@@ -706,7 +707,7 @@ export default function AdminProjectManagement() {
             {!activeProject && <div className="text-sm text-slate-500 text-center py-12">Tạo dự án để bắt đầu theo dõi colorway.</div>}
           </div>
         </div>
-      </div>
+      </ScrollReveal>
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">

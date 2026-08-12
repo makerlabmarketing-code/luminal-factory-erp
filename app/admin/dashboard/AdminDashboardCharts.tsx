@@ -17,6 +17,7 @@ import {
   YAxis,
 } from 'recharts';
 import type { AdminDashboardDto, DashboardCompositionDto } from '@/services/adminDashboardDto';
+import { ScrollReveal } from '@/component/ScrollReveal';
 
 const COLORS = {
   thu: '#34d399',
@@ -77,7 +78,7 @@ export default function AdminDashboardCharts({ dashboard }: AdminDashboardCharts
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 select-none">
+      <ScrollReveal className="grid grid-cols-2 gap-4 select-none md:grid-cols-4">
         <div className="admin-card flex flex-col justify-center p-4 transition hover:border-slate-700">
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
             <Wallet className="w-3.5 h-3.5 text-emerald-500" /> Vốn nạp ({dashboard.reportingYear})
@@ -116,9 +117,9 @@ export default function AdminDashboardCharts({ dashboard }: AdminDashboardCharts
             {dashboard.summary.currentBalance.toLocaleString()} đ
           </p>
         </div>
-      </div>
+      </ScrollReveal>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <ScrollReveal className="grid grid-cols-1 gap-6 lg:grid-cols-3" delayMs={40}>
         <div className="admin-card p-5 lg:col-span-2">
           <div className="mb-4">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Biến động dòng tiền qua các kỳ</h3>
@@ -188,7 +189,7 @@ export default function AdminDashboardCharts({ dashboard }: AdminDashboardCharts
             </div>
           )}
         </div>
-      </div>
+      </ScrollReveal>
     </div>
   );
 }
