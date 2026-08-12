@@ -18,6 +18,7 @@ import {
   Save,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
+import { ScrollReveal } from '@/component/ScrollReveal';
 import { ProjectMembershipSection } from './ProjectMembershipSection';
 import { ProjectTimelineSection } from './ProjectTimelineSection';
 import { OperationalState } from '@/component/OperationalState';
@@ -1155,27 +1156,27 @@ export default function ProjectDetailPage() {
                 )}
               </div>
             </section>
+            <ScrollReveal>
+              <ProjectMembershipSection
+                projectId={projectId}
+                members={projectDetail.members}
+                summary={membershipSummary}
+                isInitialLoading={membershipInitialLoading}
+                isRefreshing={membershipRefreshing}
+                loadFailed={memberLoadFailed}
+                canManageMembers={canManageMembers}
+                mutationsEnabled={membershipAtomicMutationsEnabled}
+                hasManagementPermission={hasMemberManagementPermission}
+                memberActionLoading={memberActionLoading}
+                onRetry={() => void refreshMembers(projectDetail.members.length === 0)}
+                onAddMember={() => void openAddMemberModal()}
+                onChangeRole={(member) => void handleChangeRole(member)}
+                onRevokeMember={handleRevokeMember}
+              />
+            </ScrollReveal>
 
-
-
-            <ProjectMembershipSection
-              projectId={projectId}
-              members={projectDetail.members}
-              summary={membershipSummary}
-              isInitialLoading={membershipInitialLoading}
-              isRefreshing={membershipRefreshing}
-              loadFailed={memberLoadFailed}
-              canManageMembers={canManageMembers}
-              mutationsEnabled={membershipAtomicMutationsEnabled}
-              hasManagementPermission={hasMemberManagementPermission}
-              memberActionLoading={memberActionLoading}
-              onRetry={() => void refreshMembers(projectDetail.members.length === 0)}
-              onAddMember={() => void openAddMemberModal()}
-              onChangeRole={(member) => void handleChangeRole(member)}
-              onRevokeMember={handleRevokeMember}
-            />
-
-            {selectedPhase && (
+            <ScrollReveal className="space-y-4" delayMs={40}>
+              {selectedPhase && (
               <section className="rounded-lg border border-slate-800 bg-slate-900">
                 {!phaseStatusPersistenceAvailable && (
                   <div className="border-b border-amber-900/60 bg-amber-950/30 px-4 py-3 text-xs text-amber-200" role="status">
@@ -1339,9 +1340,9 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
               </section>
-            )}
+              )}
 
-            {projectDetail.unassignedTasks.length > 0 && (
+              {projectDetail.unassignedTasks.length > 0 && (
               <section className="rounded-lg border border-slate-800 bg-slate-900">
                 <div className="border-b border-slate-800 px-4 py-3">
                   <h2 className="text-sm font-black text-slate-100">Công việc chưa phân giai đoạn</h2>
@@ -1366,7 +1367,8 @@ export default function ProjectDetailPage() {
                   ))}
                 </div>
               </section>
-            )}
+              )}
+            </ScrollReveal>
           </div>
 
           <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
