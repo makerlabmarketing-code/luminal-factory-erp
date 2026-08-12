@@ -11,6 +11,11 @@ import {
   isProjectMembershipRoleCode,
   projectRoleLabel,
 } from '@/services/server/projectMembershipAuthorizationCore';
+import type {
+  ProjectMembershipAuditDTO,
+  ProjectMembershipAuditOperation,
+  ProjectMembershipAuditResponseDTO,
+} from '@/lib/types/project-membership';
 
 type Body = Record<string, unknown>;
 
@@ -39,6 +44,19 @@ interface EmployeeCandidateRow {
   title?: string | null;
   status?: string | null;
   is_active?: boolean | null;
+}
+
+interface ProjectMembershipAuditRow {
+  id: number | string;
+  membership_id: number | string;
+  employee_id: number | string;
+  actor_employee_id: number | string;
+  operation: ProjectMembershipAuditOperation;
+  reason: string;
+  before_state: Record<string, unknown> | null;
+  after_state: Record<string, unknown> | null;
+  correlation_id: string;
+  occurred_at: string;
 }
 
 function isActiveEmployeeRow(employee: { status?: string | null; is_active?: boolean | null }): boolean {
@@ -95,6 +113,11 @@ function assertKnownFields(body: Body, allowed: Set<string>) {
 function roleFromBody(value: unknown): ProjectMembershipRoleCode {
   if (!isProjectMembershipRoleCode(value)) throw projectMembershipAuthError(422, 'payload_validation_failed', 'Vai trò dự án không hợp lệ.');
   return value;
+}
+
+function roleLabelFromAuditState(state: Record<string, unknown> | null): string | null {
+  const role = state?.role_code;
+  return isProjectMembershipRoleCode(role) ? projectRoleLabel(role) : null;
 }
 
 function reasonFromBody(value: unknown): string {
@@ -172,6 +195,84 @@ export async function listProjectMemberCandidates(rawProjectId: string): Promise
       title: employee.title ?? null,
     }));
   return { success: true, candidates };
+}
+
+export async function listProjectMembershipAudit(
+  rawProjectId: string,
+  options: { cursor?: string | null; limit?: string | null }
+): Promise<ProjectMembershipAuditResponseDTO> {
+  const projectId = numericId(rawProjectId, 'Mã dự án');
+  await requireProjectMembershipAction(projectId, 'MEMBER_ADD');
+  requireAtomicMutationGate();
+
+  const cursor = options.cursor ? numericId(options.cursor, 'Con trỏ lịch sử') : null;
+  const requestedLimit = options.limit ? Number(options.limit) : 20;
+  if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 50) {
+    throw projectMembershipAuthError(422, 'payload_validation_failed', 'Số bản ghi lịch sử phải từ 1 đến 50.');
+  }
+
+  const supabase = createSupabaseAdminClient();
+  let auditQuery = supabase
+    .from('project_membership_audit')
+    .select('id, membership_id, employee_id, actor_employee_id, operation, reason, before_state, after_state, correlation_id, occurred_at')
+    .eq('project_id', projectId)
+    .order('id', { ascending: false })
+    .limit(requestedLimit + 1);
+  if (cursor) auditQuery = auditQuery.lt('id', cursor);
+
+  const [auditResult, memberResult, taskResult] = await Promise.all([
+    auditQuery,
+    supabase.from('project_members').select('employee_id, role_code').eq('project_id', projectId).eq('status', 'ACTIVE'),
+    supabase.from('tasks').select('id, assignee_employee_id, status').eq('project_id', projectId).not('assignee_employee_id', 'is', null),
+  ]);
+  if (auditResult.error) throw projectMembershipAuthError(500, 'project_membership_audit_load_failed', 'Không thể tải lịch sử thành viên.', { supabase_error_code: auditResult.error.code ?? 'unknown' });
+  if (memberResult.error || taskResult.error) throw projectMembershipAuthError(500, 'project_membership_integrity_load_failed', 'Không thể kiểm tra tính toàn vẹn thành viên.', { supabase_error_code: memberResult.error?.code ?? taskResult.error?.code ?? 'unknown' });
+
+  const auditRows = (auditResult.data || []) as ProjectMembershipAuditRow[];
+  const visibleRows = auditRows.slice(0, requestedLimit);
+  const employeeIds = Array.from(new Set(visibleRows.flatMap((row) => [Number(row.employee_id), Number(row.actor_employee_id)])));
+  const employeeResult = employeeIds.length > 0
+    ? await supabase.from('employees').select('id, full_name').in('id', employeeIds)
+    : { data: [] as Array<{ id: number; full_name: string | null }>, error: null };
+  if (employeeResult.error) throw projectMembershipAuthError(500, 'project_membership_audit_load_failed', 'Không thể tải người thao tác lịch sử.', { supabase_error_code: employeeResult.error.code ?? 'unknown' });
+  const employeeNames = new Map((employeeResult.data || []).map((row) => [Number(row.id), row.full_name || `Nhân sự #${row.id}`]));
+
+  const activeMembers = (memberResult.data || []).map((row) => ({ employeeId: Number(row.employee_id), roleCode: String(row.role_code || '') }));
+  const activeEmployeeIds = new Set(activeMembers.map((member) => member.employeeId));
+  const duplicateActiveEmployeeCount = activeMembers.length - activeEmployeeIds.size;
+  const activeTaskWithoutMembershipCount = (taskResult.data || []).filter((task) => {
+    const status = String(task.status || '').toUpperCase();
+    return !['COMPLETED', 'CANCELLED'].includes(status) && !activeEmployeeIds.has(Number(task.assignee_employee_id));
+  }).length;
+  const activeOwnerCount = activeMembers.filter((member) => member.roleCode === 'PROJECT_OWNER').length;
+
+  const events: ProjectMembershipAuditDTO[] = visibleRows.map((row) => ({
+    auditId: Number(row.id),
+    membershipId: Number(row.membership_id),
+    employeeId: Number(row.employee_id),
+    employeeName: employeeNames.get(Number(row.employee_id)) || `Nhân sự #${row.employee_id}`,
+    actorEmployeeId: Number(row.actor_employee_id),
+    actorName: employeeNames.get(Number(row.actor_employee_id)) || `Nhân sự #${row.actor_employee_id}`,
+    operation: row.operation,
+    reason: row.reason,
+    beforeRoleLabel: roleLabelFromAuditState(row.before_state),
+    afterRoleLabel: roleLabelFromAuditState(row.after_state),
+    correlationId: row.correlation_id,
+    occurredAt: row.occurred_at,
+  }));
+
+  return {
+    success: true,
+    events,
+    integrity: {
+      activeMemberCount: activeMembers.length,
+      activeOwnerCount,
+      duplicateActiveEmployeeCount,
+      activeTaskWithoutMembershipCount,
+      healthy: activeOwnerCount > 0 && duplicateActiveEmployeeCount === 0 && activeTaskWithoutMembershipCount === 0,
+    },
+    nextCursor: auditRows.length > requestedLimit ? String(visibleRows[visibleRows.length - 1]?.id ?? '') || null : null,
+  };
 }
 
 type AtomicMembershipOperation = 'ADD' | 'CHANGE_ROLE' | 'REVOKE';

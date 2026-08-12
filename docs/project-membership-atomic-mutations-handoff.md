@@ -40,6 +40,11 @@ The approved rules are preserved:
    active-task fixtures in a non-production verification set.
 8. Enable the runtime flag only after every check passes.
 
+After activation, open Project Detail → Thành viên dự án → Kiểm toán thay đổi thành
+viên. Confirm the first page loads at most 20 rows, “Tải thêm lịch sử” advances the
+descending ID cursor without duplicates, integrity counts match the fixture, and
+the correlation ID joins the UI event to retained operator evidence.
+
 ## Rollback
 
 Disable the runtime flag first. Export and retain `project_membership_audit` before

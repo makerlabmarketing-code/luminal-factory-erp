@@ -3,8 +3,10 @@
 import { AlertTriangle, History, RefreshCw, UserPlus, Users } from 'lucide-react';
 import { OperationalState } from '@/component/OperationalState';
 import type { ProjectMemberDTO, ProjectMembershipSummaryDTO } from '@/lib/types/project-membership';
+import { ProjectMembershipAuditSection } from './ProjectMembershipAuditSection';
 
 interface ProjectMembershipSectionProps {
+  projectId: number;
   members: ProjectMemberDTO[];
   summary: ProjectMembershipSummaryDTO | null;
   isInitialLoading: boolean;
@@ -69,6 +71,7 @@ function MemberActions({
 }
 
 export function ProjectMembershipSection({
+  projectId,
   members,
   summary,
   isInitialLoading,
@@ -176,6 +179,12 @@ export function ProjectMembershipSection({
               </ul>
             </details>
           )}
+
+          <ProjectMembershipAuditSection
+            projectId={projectId}
+            enabled={mutationsEnabled}
+            canView={hasManagementPermission}
+          />
         </div>
       )}
     </section>

@@ -1159,6 +1159,7 @@ export default function ProjectDetailPage() {
 
 
             <ProjectMembershipSection
+              projectId={projectId}
               members={projectDetail.members}
               summary={membershipSummary}
               isInitialLoading={membershipInitialLoading}

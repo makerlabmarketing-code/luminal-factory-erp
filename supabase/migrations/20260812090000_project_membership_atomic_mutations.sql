@@ -67,6 +67,8 @@ for each row execute function public.reject_project_membership_audit_mutation();
 alter table public.project_membership_audit enable row level security;
 revoke all on public.project_membership_audit from public, anon, authenticated;
 revoke all on sequence public.project_membership_audit_id_seq from public, anon, authenticated;
+grant select, insert on public.project_membership_audit to service_role;
+grant usage on sequence public.project_membership_audit_id_seq to service_role;
 
 create or replace function public.mutate_project_membership(
   p_operation text,

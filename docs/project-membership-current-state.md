@@ -194,3 +194,29 @@ Delivery artifacts:
 The next application slice is Slice 3, the Staff task/subtask membership boundary.
 Slice 4 then completes audit pagination, integrity/timeline hardening, and operator
 verification for this workstream.
+
+## 2026-08-12 — Slice 3 verification and Slice 4 completion
+
+Slice 3 was already delivered by PR #138 (`1cea808`) and remains present on
+protected `main`: Staff task reads are assignment-scoped, require ACTIVE project
+membership, exclude cancelled projects, batch-load project/phase data, and recheck
+assignment plus membership on PATCH. No duplicate implementation was added.
+
+Slice 4 repository work is now complete:
+
+- a manager-only, no-store audit endpoint requires authenticated project mutation
+  authority before checking the runtime gate;
+- audit reads use descending ID cursor pagination with a maximum of 50 rows;
+- actor and target Employee names are batch loaded without per-row queries;
+- integrity summary reports active owners, duplicate ACTIVE Employee memberships,
+  and active tasks whose assignee is no longer an ACTIVE member;
+- Project Detail lazy-loads audit only when expanded, preserves loaded events after
+  a failed refresh, blocks duplicate requests synchronously, and exposes the full
+  correlation ID for support;
+- audit and integrity errors remain sanitized; no raw database row or error is
+  returned to the browser;
+- the operator migration, validation, rollback, fixture, and flag order remains in
+  `docs/project-membership-atomic-mutations-handoff.md`.
+
+Project Membership Slices 0–4 are complete at repository level. Production
+activation remains `READY_FOR_OPERATOR`; no SQL or runtime flag was applied here.
