@@ -37,7 +37,9 @@ describe('Project Membership display completion', () => {
   it('uses the same targeted refresh after initial load and mutations', () => {
     expect(pageSource).toContain('const refreshMembers = useCallback');
     expect(pageSource).toContain('void refreshMembers(true)');
-    expect(pageSource.match(/await refreshMembers\(\)/g)).toHaveLength(3);
+    expect(pageSource).toContain("action: 'CHANGE_ROLE' | 'REVOKE'");
+    expect(pageSource).toContain('const { action, member } = memberMutationIntent');
+    expect(pageSource.match(/await refreshMembers\(\)/g)).toHaveLength(2);
     expect(pageSource).not.toMatch(/router\.refresh\(\)|window\.location\.reload/);
   });
 

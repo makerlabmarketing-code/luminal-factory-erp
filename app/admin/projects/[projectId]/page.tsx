@@ -18,6 +18,7 @@ import {
   Save,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
+import { ScrollReveal } from '@/component/ScrollReveal';
 import { ProjectMembershipSection } from './ProjectMembershipSection';
 import { ProjectTimelineSection } from './ProjectTimelineSection';
 import { OperationalState } from '@/component/OperationalState';
@@ -100,6 +101,11 @@ interface TaskCreateState {
   assigneeEmployeeId: string;
   deadline: string;
   comment: string;
+}
+
+interface MemberMutationIntent {
+  action: 'CHANGE_ROLE' | 'REVOKE';
+  member: ProjectMemberDTO;
 }
 
 function parseDescription(raw?: string | null): WorkflowDescription {
@@ -362,7 +368,12 @@ export default function ProjectDetailPage() {
   const [membershipRefreshing, setMembershipRefreshing] = useState(false);
   const [candidatesLoading, setCandidatesLoading] = useState(false);
   const [memberActionLoading, setMemberActionLoading] = useState(false);
+  const [membershipAtomicMutationsEnabled, setMembershipAtomicMutationsEnabled] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [addMemberReason, setAddMemberReason] = useState('');
+  const [memberMutationIntent, setMemberMutationIntent] = useState<MemberMutationIntent | null>(null);
+  const [memberMutationReason, setMemberMutationReason] = useState('');
+  const [memberNextRoleCode, setMemberNextRoleCode] = useState<ProjectMemberDTO['roleCode']>('CONTRIBUTOR');
   const [candidateEmployees, setCandidateEmployees] = useState<Array<{ employeeId: number; fullName: string; title: string | null }>>([]);
   const [candidateEmployeesLoaded, setCandidateEmployeesLoaded] = useState(false);
   const candidateLoadPromiseRef = useRef<Promise<void> | null>(null);
@@ -425,6 +436,7 @@ export default function ProjectDetailPage() {
       const payload = await response.json() as ProjectMembershipResponseDTO;
       setMembers(payload.members || []);
       setMembershipSummary(payload.summary || null);
+      setMembershipAtomicMutationsEnabled(payload.atomicMutationsEnabled === true);
       if (payload.capabilities) setProjectCapabilities(payload.capabilities);
       setCandidateEmployeesLoaded(false);
     } catch {
@@ -618,7 +630,8 @@ export default function ProjectDetailPage() {
     phases: phasesWithGates,
     unassignedTasks,
   };
-  const canManageMembers = projectDetail.capabilities.canManageMembers && !isProjectCancelled;
+  const hasMemberManagementPermission = projectDetail.capabilities.canManageMembers && !isProjectCancelled;
+  const canManageMembers = hasMemberManagementPermission && membershipAtomicMutationsEnabled;
   const canManageTasks = projectDetail.capabilities.canManageTasks && !isProjectCancelled;
   const phaseStatusPersistenceAvailable = phases.some((phase) => phase.description.phase_status_persistence_available === true);
   const phaseStatusMutationAvailable = phases.some((phase) => phase.description.phase_status_mutation_available === true);
@@ -665,6 +678,7 @@ export default function ProjectDetailPage() {
 
   const openAddMemberModal = async () => {
     if (!canManageMembers) return;
+    setAddMemberReason('');
     setAddMemberOpen(true);
     await loadCandidateEmployees();
   };
@@ -677,13 +691,14 @@ export default function ProjectDetailPage() {
       const response = await fetch(`/api/admin/projects/${projectId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeId: Number(memberEmployeeId), roleCode: memberRoleCode }),
+        body: JSON.stringify({ employeeId: Number(memberEmployeeId), roleCode: memberRoleCode, reason: addMemberReason }),
       });
       const payload = await response.json().catch(() => null) as { message?: string } | null;
       if (!response.ok) throw new Error(payload?.message || 'member_add_failed');
       showToast('Đã thêm thành viên.', 'Thành viên dự án đã được cập nhật.', 'success');
       setAddMemberOpen(false);
       setMemberEmployeeId('');
+      setAddMemberReason('');
       await refreshMembers();
     } catch (error) {
       showToast('Không thể thêm thành viên.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
@@ -693,49 +708,56 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleChangeRole = async (member: ProjectMemberDTO) => {
+  const handleChangeRole = (member: ProjectMemberDTO) => {
     if (!canManageMembers || memberActionLoading || memberMutationLockRef.current) return;
-    const nextRole = window.prompt('Nhập role mới: PROJECT_OWNER, PROJECT_MANAGER, CREATIVE_LEAD hoặc CONTRIBUTOR', member.roleCode);
-    if (!nextRole) return;
-    memberMutationLockRef.current = true;
-    setMemberActionLoading(true);
-    try {
-      const response = await fetch(`/api/admin/projects/${projectId}/members/${member.membershipId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roleCode: nextRole }),
-      });
-      const payload = await response.json().catch(() => null) as { message?: string } | null;
-      if (!response.ok) throw new Error(payload?.message || 'member_update_failed');
-      showToast('Đã đổi vai trò.', 'Vai trò dự án đã được cập nhật.', 'success');
-      await refreshMembers();
-    } catch (error) {
-      showToast('Không thể đổi vai trò.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
-    } finally {
-      memberMutationLockRef.current = false;
-      setMemberActionLoading(false);
-    }
+    setMemberNextRoleCode(member.roleCode);
+    setMemberMutationReason('');
+    setMemberMutationIntent({ action: 'CHANGE_ROLE', member });
   };
 
   const handleRevokeMember = (member: ProjectMemberDTO) => {
     if (!canManageMembers || memberActionLoading || memberMutationLockRef.current) return;
-    showConfirm('Thu hồi thành viên', 'Thành viên sẽ không còn hoạt động trong dự án, lịch sử vẫn được giữ lại.', async () => {
-      if (memberMutationLockRef.current) return;
-      memberMutationLockRef.current = true;
-      setMemberActionLoading(true);
-      try {
-        const response = await fetch(`/api/admin/projects/${projectId}/members/${member.membershipId}/revoke`, { method: 'POST' });
-        const payload = await response.json().catch(() => null) as { message?: string } | null;
-        if (!response.ok) throw new Error(payload?.message || 'member_revoke_failed');
-        showToast('Đã thu hồi thành viên.', 'Lịch sử thành viên vẫn được giữ lại.', 'success');
-        await refreshMembers();
-      } catch (error) {
-        showToast('Không thể thu hồi thành viên.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
-      } finally {
-        memberMutationLockRef.current = false;
-        setMemberActionLoading(false);
-      }
-    });
+    setMemberMutationReason('');
+    setMemberMutationIntent({ action: 'REVOKE', member });
+  };
+
+  const handleConfirmMemberMutation = async () => {
+    if (!canManageMembers || !memberMutationIntent || memberActionLoading || memberMutationLockRef.current) return;
+    const { action, member } = memberMutationIntent;
+    memberMutationLockRef.current = true;
+    setMemberActionLoading(true);
+    try {
+      const response = await fetch(
+        action === 'CHANGE_ROLE'
+          ? `/api/admin/projects/${projectId}/members/${member.membershipId}`
+          : `/api/admin/projects/${projectId}/members/${member.membershipId}/revoke`,
+        {
+        method: action === 'CHANGE_ROLE' ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(action === 'CHANGE_ROLE'
+          ? { roleCode: memberNextRoleCode, reason: memberMutationReason }
+          : { reason: memberMutationReason }),
+      });
+      const payload = await response.json().catch(() => null) as { message?: string } | null;
+      if (!response.ok) throw new Error(payload?.message || 'member_mutation_failed');
+      showToast(
+        action === 'CHANGE_ROLE' ? 'Đã đổi vai trò.' : 'Đã thu hồi thành viên.',
+        action === 'CHANGE_ROLE' ? 'Vai trò dự án đã được cập nhật.' : 'Lịch sử thành viên vẫn được giữ lại.',
+        'success'
+      );
+      setMemberMutationIntent(null);
+      setMemberMutationReason('');
+      await refreshMembers();
+    } catch (error) {
+      showToast(
+        action === 'CHANGE_ROLE' ? 'Không thể đổi vai trò.' : 'Không thể thu hồi thành viên.',
+        error instanceof Error ? error.message : 'Vui lòng thử lại sau.',
+        'error'
+      );
+    } finally {
+      memberMutationLockRef.current = false;
+      setMemberActionLoading(false);
+    }
   };
 
   const handleStartEditPhase = (phase: PhaseRecord) => {
@@ -1134,24 +1156,27 @@ export default function ProjectDetailPage() {
                 )}
               </div>
             </section>
+            <ScrollReveal>
+              <ProjectMembershipSection
+                projectId={projectId}
+                members={projectDetail.members}
+                summary={membershipSummary}
+                isInitialLoading={membershipInitialLoading}
+                isRefreshing={membershipRefreshing}
+                loadFailed={memberLoadFailed}
+                canManageMembers={canManageMembers}
+                mutationsEnabled={membershipAtomicMutationsEnabled}
+                hasManagementPermission={hasMemberManagementPermission}
+                memberActionLoading={memberActionLoading}
+                onRetry={() => void refreshMembers(projectDetail.members.length === 0)}
+                onAddMember={() => void openAddMemberModal()}
+                onChangeRole={(member) => void handleChangeRole(member)}
+                onRevokeMember={handleRevokeMember}
+              />
+            </ScrollReveal>
 
-
-
-            <ProjectMembershipSection
-              members={projectDetail.members}
-              summary={membershipSummary}
-              isInitialLoading={membershipInitialLoading}
-              isRefreshing={membershipRefreshing}
-              loadFailed={memberLoadFailed}
-              canManageMembers={canManageMembers}
-              memberActionLoading={memberActionLoading}
-              onRetry={() => void refreshMembers(projectDetail.members.length === 0)}
-              onAddMember={() => void openAddMemberModal()}
-              onChangeRole={(member) => void handleChangeRole(member)}
-              onRevokeMember={handleRevokeMember}
-            />
-
-            {selectedPhase && (
+            <ScrollReveal className="space-y-4" delayMs={40}>
+              {selectedPhase && (
               <section className="rounded-lg border border-slate-800 bg-slate-900">
                 {!phaseStatusPersistenceAvailable && (
                   <div className="border-b border-amber-900/60 bg-amber-950/30 px-4 py-3 text-xs text-amber-200" role="status">
@@ -1315,9 +1340,9 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
               </section>
-            )}
+              )}
 
-            {projectDetail.unassignedTasks.length > 0 && (
+              {projectDetail.unassignedTasks.length > 0 && (
               <section className="rounded-lg border border-slate-800 bg-slate-900">
                 <div className="border-b border-slate-800 px-4 py-3">
                   <h2 className="text-sm font-black text-slate-100">Công việc chưa phân giai đoạn</h2>
@@ -1342,7 +1367,8 @@ export default function ProjectDetailPage() {
                   ))}
                 </div>
               </section>
-            )}
+              )}
+            </ScrollReveal>
           </div>
 
           <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
@@ -1423,8 +1449,25 @@ export default function ProjectDetailPage() {
                 <select id="project-member-role" value={memberRoleCode} onChange={(event) => setMemberRoleCode(event.target.value as ProjectMemberDTO['roleCode'])} disabled={memberActionLoading} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100">
                   <option value="PROJECT_OWNER">Chủ dự án</option><option value="PROJECT_MANAGER">Quản lý dự án</option><option value="CREATIVE_LEAD">Lead sáng tạo</option><option value="CONTRIBUTOR">Thành viên</option>
                 </select>
+                <label htmlFor="project-member-add-reason" className="block text-xs font-bold text-slate-300">Lý do thay đổi</label>
+                <textarea id="project-member-add-reason" value={addMemberReason} onChange={(event) => setAddMemberReason(event.target.value)} minLength={10} maxLength={500} disabled={memberActionLoading} className="min-h-24 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100" placeholder="Nhập ít nhất 10 ký tự để lưu vào lịch sử kiểm toán." />
               </div>
-              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setAddMemberOpen(false)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={!memberEmployeeId || memberActionLoading || candidatesLoading} onClick={handleAddMember} className="rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Thêm thành viên'}</button></div>
+              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setAddMemberOpen(false)} className="min-h-11 rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={!memberEmployeeId || addMemberReason.trim().length < 10 || memberActionLoading || candidatesLoading} onClick={handleAddMember} className="min-h-11 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Thêm thành viên'}</button></div>
+            </div>
+          </div>
+        )}
+
+        {memberMutationIntent && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-labelledby="member-mutation-title" aria-describedby="member-mutation-description">
+            <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
+              <h2 id="member-mutation-title" className="text-base font-black text-slate-100">{memberMutationIntent.action === 'CHANGE_ROLE' ? 'Đổi vai trò thành viên' : 'Thu hồi thành viên'}</h2>
+              <p id="member-mutation-description" className="mt-1 text-xs text-slate-500">Thao tác với {memberMutationIntent.member.fullName} sẽ được ghi vào lịch sử kiểm toán.</p>
+              <div className="mt-4 space-y-3">
+                {memberMutationIntent.action === 'CHANGE_ROLE' && <><label htmlFor="project-member-next-role" className="block text-xs font-bold text-slate-300">Vai trò mới</label><select id="project-member-next-role" value={memberNextRoleCode} onChange={(event) => setMemberNextRoleCode(event.target.value as ProjectMemberDTO['roleCode'])} disabled={memberActionLoading} className="min-h-11 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100"><option value="PROJECT_OWNER">Chủ dự án</option><option value="PROJECT_MANAGER">Quản lý dự án</option><option value="CREATIVE_LEAD">Lead sáng tạo</option><option value="CONTRIBUTOR">Thành viên</option></select></>}
+                <label htmlFor="project-member-mutation-reason" className="block text-xs font-bold text-slate-300">Lý do thay đổi</label>
+                <textarea id="project-member-mutation-reason" autoFocus value={memberMutationReason} onChange={(event) => setMemberMutationReason(event.target.value)} minLength={10} maxLength={500} disabled={memberActionLoading} className="min-h-24 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100" placeholder="Nhập ít nhất 10 ký tự." />
+              </div>
+              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setMemberMutationIntent(null)} className="min-h-11 rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={memberMutationReason.trim().length < 10 || memberActionLoading} onClick={handleConfirmMemberMutation} className="min-h-11 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Xác nhận'}</button></div>
             </div>
           </div>
         )}

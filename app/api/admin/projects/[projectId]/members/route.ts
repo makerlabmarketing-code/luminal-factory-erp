@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addProjectMember, listProjectMemberCandidates, projectMembershipErrorResponse } from '@/services/server/projectMembershipManagement';
+import { addProjectMember, isProjectMembershipAtomicMutationEnabled, listProjectMemberCandidates, projectMembershipErrorResponse } from '@/services/server/projectMembershipManagement';
 import { getProjectMembershipReadModel } from '@/services/server/projectMembershipReadModel';
 import type { ProjectMembershipResponseDTO } from '@/lib/types/project-membership';
 
@@ -30,6 +30,7 @@ export async function GET(request: NextRequest, { params }: { params: { projectI
         contributorCount: readModel.contributorCount,
         hasActiveOwner: readModel.hasActiveOwner,
       },
+      atomicMutationsEnabled: isProjectMembershipAtomicMutationEnabled(),
     };
     return jsonNoStore(response);
   } catch (error) {

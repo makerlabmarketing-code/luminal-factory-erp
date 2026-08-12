@@ -42,4 +42,37 @@ export interface ProjectMembershipResponseDTO {
   members: ProjectMemberDTO[];
   capabilities: ProjectMembershipCapabilitiesDTO;
   summary: ProjectMembershipSummaryDTO;
+  atomicMutationsEnabled: boolean;
+}
+
+export type ProjectMembershipAuditOperation = 'ADD' | 'CHANGE_ROLE' | 'REVOKE';
+
+export interface ProjectMembershipAuditDTO {
+  auditId: number;
+  membershipId: number;
+  employeeId: number;
+  employeeName: string;
+  actorEmployeeId: number;
+  actorName: string;
+  operation: ProjectMembershipAuditOperation;
+  reason: string;
+  beforeRoleLabel: string | null;
+  afterRoleLabel: string | null;
+  correlationId: string;
+  occurredAt: string;
+}
+
+export interface ProjectMembershipIntegrityDTO {
+  activeMemberCount: number;
+  activeOwnerCount: number;
+  duplicateActiveEmployeeCount: number;
+  activeTaskWithoutMembershipCount: number;
+  healthy: boolean;
+}
+
+export interface ProjectMembershipAuditResponseDTO {
+  success: true;
+  events: ProjectMembershipAuditDTO[];
+  integrity: ProjectMembershipIntegrityDTO;
+  nextCursor: string | null;
 }
