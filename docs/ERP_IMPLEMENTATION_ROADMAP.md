@@ -639,3 +639,23 @@ non-production fixture matrix, and separate runtime-flag approval recorded in
 
 No direct SQL, backfill, RLS mutation, live membership mutation, or runtime-flag
 change was performed during this reconciliation.
+
+## 2026-08-12 Operational UI — restrained scroll-reveal continuation
+
+Status: `APPLICATION_COMPLETE`; no operator or database action is required.
+
+The existing shared one-shot reveal foundation now covers three functional
+journeys without becoming a broad re-skin: Project Detail, Dashboard, and Project
+Coordination. Dashboard reveals only its KPI and chart groups. Project
+Coordination reveals only its KPI and primary table/colorway groups. Individual
+cards, rows, records, dialogs, and actions do not receive separate observers.
+
+The motion remains limited to opacity and transform for 250 ms with a maximum
+40 ms delay in current usage. Reduced-motion, unsupported-observer, server-rendered,
+loading, error, empty, permission, API, and business-workflow behavior remains
+unchanged. The regression contract is recorded in
+`tests/scroll-reveal-foundation.test.ts`; operator notes and rollback are in
+`docs/operational-scroll-reveal-handoff.md`.
+
+No dependency, API, schema, SQL, RLS, runtime flag, production data, or Commerce
+change belongs to this UI slice.

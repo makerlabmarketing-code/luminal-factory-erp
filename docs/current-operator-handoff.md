@@ -557,3 +557,15 @@ validation, browser/RPC grants, RLS, immutable audit, non-production role and
 guard fixtures, timeline pagination, and separate flag activation approval. Stop
 on migration-history absence, validation drift, unexpected browser grants,
 fixture failure, or integrity-count mismatch.
+
+## 2026-08-12 Operational scroll-reveal continuation
+
+Status: `APPLICATION_COMPLETE`; this UI-only batch needs no operator action.
+Dashboard and Project Coordination reuse the existing one-shot `ScrollReveal`
+foundation in two meaningful groups per page. The implementation keeps reduced
+motion, loading/error/empty states, API behavior, permissions, and business rules
+unchanged. See `docs/operational-scroll-reveal-handoff.md` for scope and rollback.
+
+This completion does not advance the Project Membership production gate. Keep
+the membership runtime flag false/unset until the separate migration-history,
+validation, grants/RLS, fixture, audit and activation sequence passes.
