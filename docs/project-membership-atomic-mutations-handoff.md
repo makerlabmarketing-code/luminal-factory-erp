@@ -1,6 +1,6 @@
 # Project Membership Slice 2 — Atomic Mutation Handoff
 
-Status: **READY_FOR_OPERATOR — runtime flag remains false/unset**  
+Status: **READY_FOR_OPERATOR — runtime flag remains false/unset**
 Date: 2026-08-12
 
 ## Delivered boundary
