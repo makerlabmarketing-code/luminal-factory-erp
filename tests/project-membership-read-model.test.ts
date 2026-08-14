@@ -9,6 +9,7 @@ describe('project membership Slice 1 read model', () => {
   it('uses project_members and employee stable IDs as authority', () => {
     expect(readModelSource).toContain(".from('project_members')");
     expect(readModelSource).toContain('employee_id');
+    expect(readModelSource).toContain('employees!project_members_employee_id_fkey');
     expect(readModelSource).toContain(".from('projects')");
     expect(readModelSource).toContain('project_code');
   });

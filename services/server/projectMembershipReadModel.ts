@@ -98,7 +98,7 @@ export async function getProjectMembershipReadModel(rawProjectId: string): Promi
     supabase.from('projects').select('id, project_code').eq('id', projectId).maybeSingle(),
     supabase
       .from('project_members')
-      .select('id, employee_id, role_code, status, granted_at, revoked_at, employees(id, full_name, title, status, is_active)')
+      .select('id, employee_id, role_code, status, granted_at, revoked_at, employees!project_members_employee_id_fkey(id, full_name, title, status, is_active)')
       .eq('project_id', projectId),
   ]);
 
