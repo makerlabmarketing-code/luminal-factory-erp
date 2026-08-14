@@ -157,7 +157,7 @@ async function loadProjectMemberRows(projectId: number): Promise<ProjectMembersh
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from('project_members')
-    .select('id, project_id, employee_id, role_code, status, granted_at, revoked_at, employees(id, full_name, title, status, is_active)')
+    .select('id, project_id, employee_id, role_code, status, granted_at, revoked_at, employees!project_members_employee_id_fkey(id, full_name, title, status, is_active)')
     .eq('project_id', projectId)
     .order('status', { ascending: true })
     .order('granted_at', { ascending: false });

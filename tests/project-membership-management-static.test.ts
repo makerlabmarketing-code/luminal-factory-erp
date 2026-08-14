@@ -81,7 +81,7 @@ it('marks listed project members assignable only when the joined employee remain
   const service = source('services/server/projectMembershipManagement.ts');
   const detailPage = source('app/admin/projects/[projectId]/page.tsx');
 
-  expect(service).toMatch(/employees\(id, full_name, title, status, is_active\)/);
+  expect(service).toMatch(/employees!project_members_employee_id_fkey\(id, full_name, title, status, is_active\)/);
   expect(service).toMatch(/isAssignable: row\.status === 'ACTIVE' && isActiveEmployeeRow\(employee\)/);
   expect(service).toMatch(/'DISABLED', 'DELETED'/);
   expect(detailPage).toMatch(/member\.status === 'ACTIVE' && member\.isAssignable/);
