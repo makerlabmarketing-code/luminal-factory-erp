@@ -69,7 +69,7 @@ describe('runtime gate server authority', () => {
 
   it('revokes direct browser execution from atomic RPC packages', () => {
     const projectRpc = source('supabase/drafts/20260721_project_creation_atomic_rpc_forward.sql');
-    const taskRpc = source('supabase/drafts/20260721_task_assignment_atomic_create_rpc.sql');
+    const taskRpc = source('supabase/migrations/20260815165046_task_assignment_atomic_create.sql');
     for (const sql of [projectRpc, taskRpc]) {
       expect(sql).toMatch(/revoke all on function[\s\S]*from public, anon, authenticated/i);
       expect(sql).toMatch(/grant execute on function[\s\S]*to service_role/i);

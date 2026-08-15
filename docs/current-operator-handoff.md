@@ -569,3 +569,19 @@ unchanged. See `docs/operational-scroll-reveal-handoff.md` for scope and rollbac
 This completion does not advance the Project Membership production gate. Keep
 the membership runtime flag false/unset until the separate migration-history,
 validation, grants/RLS, fixture, audit and activation sequence passes.
+## 2026-08-15 Task Assignment atomic create
+
+Status: `READY_FOR_PROTECTED_REVIEW`; production remains
+`LIVE_OPERATOR_VERIFICATION_REQUIRED`. Review
+`docs/task-assignment-atomic-create-handoff.md` for the sole package-specific
+sequence. Keep `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED=false` or unset.
+
+The protected migration, read-only pre/post validation, rollback, application
+error mapping, and focused regression contract are complete. No Vercel deploy,
+production SQL/RPC, runtime activation, RLS change, backfill, or live task write
+was performed. The next action is protected review/PR delivery, not direct SQL.
+After merge, confirm canonical GitHub Integration migration history, validate
+invoker/search-path/service-role-only privileges, run only the approved
+non-production fixture matrix, and request separate runtime-flag approval.
+Stop on missing migration history, privilege drift, cross-project acceptance,
+inactive/non-member assignment, authorization bypass, or any partial row.
