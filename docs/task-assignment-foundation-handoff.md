@@ -162,7 +162,7 @@ Completed application-only remediation for actionable task-assignment review deb
 - Status changes now load the persisted status and validate the requested transition through the canonical task transition map before writing.
 - Empty task updates now fail before writing audit fields or emitting `TASK_UPDATED` activity.
 - Task creation no longer performs a non-atomic partial-write sequence. The current application path stops with `task_assignment_atomic_create_required` until the reviewed transactional RPC is approved and deployed.
-- Draft-only RPC artifact prepared at `supabase/drafts/20260721_task_assignment_atomic_create_rpc.sql`; no SQL, migration, RLS, grant, backfill, or live data mutation was run.
+- Draft-only RPC artifact prepared at `supabase/migrations/20260815165046_task_assignment_atomic_create.sql`; no SQL, migration, RLS, grant, backfill, or live data mutation was run.
 
 Current gate: `LIVE_APPROVAL_REQUIRED` before creating/deploying the atomic task-create RPC or granting execute access.
 
@@ -318,3 +318,21 @@ Reviewed the latest PR diff/comment bundle for the current remediation commit. N
 ## 2026-07-27 Safe project creation compatibility handoff
 
 Project creation now has a server-owned capability boundary. With workflow creation unavailable, it creates the project and selected active PROJECT_MANAGER membership without phases or tasks, returns the created project ID plus warnings, and leaves workflow setup for Project Detail. The modal lazily loads all ACTIVE employee candidates and never treats a display name as membership authority. Full editable phase/task creation remains disabled until `PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED=true` is explicitly configured after transactional workflow rollout validation. No SQL or deployment was performed.
+
+
+## 2026-08-15 atomic create delivery completion
+
+Status: `READY_FOR_PROTECTED_REVIEW`; production remains
+`LIVE_OPERATOR_VERIFICATION_REQUIRED`. The former draft RPC is superseded by
+`supabase/migrations/20260815165046_task_assignment_atomic_create.sql` with
+separate read-only pre/post validation and non-destructive rollback artifacts.
+The RPC now owns actor authorization, closed-project, same-project
+phase/parent, and active-member assignee checks inside its transaction and uses
+a `timestamptz` deadline. The service maps known invariant failures without
+exposing raw database details.
+
+The exact protected delivery, fixture, activation, stop, and rollback sequence
+is owned by `docs/task-assignment-atomic-create-handoff.md`. No production SQL,
+Vercel deployment, RLS change, backfill, runtime activation, or live task write
+was performed. `REVIEW_SOURCE_UNAVAILABLE`; repository validation and diff
+review remain the available review evidence.

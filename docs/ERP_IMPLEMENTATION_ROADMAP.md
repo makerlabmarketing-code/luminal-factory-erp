@@ -1,5 +1,41 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-08-15 Task Assignment atomic create hardening
+
+Status: `READY_FOR_PROTECTED_REVIEW`; production remains
+`LIVE_OPERATOR_VERIFICATION_REQUIRED` and the runtime flag stays false/unset.
+
+The former draft-only Task Assignment create boundary is now a complete GitHub
+Integration delivery package. The service performs one atomic RPC call and
+returns controlled errors. The database function independently checks the
+active actor and project-scoped manage authority, rejects cancelled/archived
+projects, cross-project phase/parent relationships, and inactive or non-member
+assignees, while atomically writing the task, activity, optional comment, and
+optional notification. The deadline signature is `timestamptz`; the superseded
+date-only signature is removed during migration.
+
+Forward migration:
+`supabase/migrations/20260815165046_task_assignment_atomic_create.sql`.
+Read-only pre/post validation and non-destructive rollback are recorded in
+`docs/task-assignment-atomic-create-handoff.md`. No backfill, table/RLS change,
+production SQL, Vercel deployment, runtime activation, or live task mutation was
+performed. `REVIEW_SOURCE_UNAVAILABLE`; repository tests and diff review are the
+available review sources.
+
+Dependency audit classification: `npm audit --json` reports 9 vulnerable
+package nodes (1 critical, 7 high, 1 moderate). Next.js is the direct critical
+finding and PostCSS is a direct high finding; the other seven nodes are
+transitive. No automated fix or dependency change was made. Remediation must be
+handled as a separate framework/dependency review with full regression coverage
+and must not delay the atomic-create production gate by silently changing this
+slice.
+
+Exact next gate: protected review and PR delivery, followed by canonical
+Supabase GitHub Integration migration-history confirmation, read-only grant and
+invariant validation, the non-production authorization/atomicity fixture matrix,
+and separate server runtime-flag approval. Stop on any browser execute grant,
+relationship/authorization bypass, partial row, signature drift, or count drift.
+
 ## 2026-07-31 consolidated operator status authority
 
 This document is the sole roadmap/status authority. The exact command sequence is

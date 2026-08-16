@@ -84,6 +84,38 @@ function mapSupabaseError(
   });
 }
 
+function mapAtomicCreateError(error: {
+  code?: string | null;
+  message?: string | null;
+}): never {
+  const message = error.message ?? "";
+  const knownError = [
+    ["task_assignment_permission_forbidden", 403, "Bạn không có quyền tạo công việc cho dự án này."],
+    ["task_assignment_project_not_found", 404, "Không tìm thấy dự án."],
+    ["task_assignment_project_closed", 409, "Không thể thêm công việc vào dự án đã đóng."],
+    ["task_assignment_phase_invalid", 422, "Giai đoạn không thuộc dự án này."],
+    ["task_assignment_parent_invalid", 422, "Công việc cha không thuộc dự án này."],
+    ["task_assignment_assignee_invalid", 422, "Người được giao phải là thành viên đang hoạt động của dự án."],
+    ["task_assignment_invalid_input", 422, "Dữ liệu công việc không hợp lệ."],
+  ].find(([code]) => message.includes(String(code)));
+
+  if (knownError) {
+    const [code, status, safeMessage] = knownError;
+    throw taskAssignmentError(
+      Number(status),
+      String(safeMessage),
+      String(code),
+      "supabase_query",
+    );
+  }
+
+  mapSupabaseError(
+    "Không thể tạo công việc dự án.",
+    "task_assignment_create_failed",
+    error.code,
+  );
+}
+
 function mapValidationError(
   error: TaskAssignmentValidationError,
 ): AuthFlowError {
@@ -572,11 +604,7 @@ export async function createProjectTask(
     p_actor_employee_id: context.actorEmployeeId,
   });
   if (error) {
-    mapSupabaseError(
-      "Không thể tạo công việc dự án.",
-      "task_assignment_create_failed",
-      error.code,
-    );
+    mapAtomicCreateError(error);
   }
 
   const created = Array.isArray(data) ? data[0] : data;

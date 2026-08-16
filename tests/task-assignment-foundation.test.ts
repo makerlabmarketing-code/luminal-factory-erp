@@ -166,4 +166,36 @@ describe('Task Assignment Foundation contracts', () => {
     expect(backfill).toMatch(/Leave ambiguous values null and emit conflict rows/);
     expect(backfill).toMatch(/Do not infer comments, activity, or notifications automatically/);
   });
+
+  it('delivers a hardened service-role-only atomic task-create package', () => {
+    const migration = source('supabase/migrations/20260815165046_task_assignment_atomic_create.sql');
+    const preRun = source('supabase/validation/20260815165046_task_assignment_atomic_create_pre_run.sql');
+    const validation = source('supabase/validation/20260815165046_task_assignment_atomic_create_validation.sql');
+    const rollback = source('supabase/rollbacks/20260815165046_task_assignment_atomic_create_rollback.sql');
+    const serverService = source('services/server/taskAssignmentFoundation.ts');
+
+    expect(migration).toMatch(/security invoker/i);
+    expect(migration).toMatch(/set search_path = public, pg_temp/i);
+    expect(migration).toMatch(/p_deadline timestamptz/i);
+    expect(migration).toMatch(/for update/i);
+    expect(migration).toMatch(/task_assignment_permission_forbidden/);
+    expect(migration).toMatch(/task_assignment_project_closed/);
+    expect(migration).toMatch(/task_assignment_phase_invalid/);
+    expect(migration).toMatch(/task_assignment_parent_invalid/);
+    expect(migration).toMatch(/task_assignment_assignee_invalid/);
+    expect(migration).toMatch(/revoke all on function[\s\S]*from public, anon, authenticated/i);
+    expect(migration).toMatch(/grant execute on function[\s\S]*to service_role/i);
+    expect(migration).not.toMatch(/grant execute on function[\s\S]*to authenticated/i);
+    expect(preRun).toMatch(/begin transaction read only/i);
+    expect(preRun).toMatch(/superseded_date_rpc/);
+    expect(validation).toMatch(/public_can_execute/);
+    expect(validation).toMatch(/invalid_assigned_tasks/);
+    expect(validation).toMatch(/cross_project_phase_tasks/);
+    expect(validation).toMatch(/cross_project_parent_tasks/);
+    expect(validation).toMatch(/no partial rows/i);
+    expect(rollback).toMatch(/Existing tasks and side-effect rows[\s\S]*retained/i);
+    expect(serverService).toMatch(/mapAtomicCreateError/);
+    expect(serverService).toMatch(/task_assignment_project_closed/);
+    expect(serverService).toMatch(/task_assignment_assignee_invalid/);
+  });
 });

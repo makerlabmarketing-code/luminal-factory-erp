@@ -238,12 +238,12 @@ Expected: all dependency objects exist; unique project code; RPC is invoker and 
 ### 4.7 Task assignment atomic create
 
 ```bash
-psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/20260728_task_assignment_atomic_create_pre_run.sql
-psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/20260721_task_assignment_atomic_create_rpc.sql
-psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/20260728_task_assignment_atomic_create_post_run.sql
+psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/validation/20260815165046_task_assignment_atomic_create_pre_run.sql
+psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20260815165046_task_assignment_atomic_create.sql
+psql "$SUPABASE_SESSION_POOLER_URL" -v ON_ERROR_STOP=1 -f supabase/validation/20260815165046_task_assignment_atomic_create_validation.sql
 ```
 
-Expected: dependency objects exist and RPC is invoker/service-role only. Disabled smoke: exact waiting copy displays and POST returns a controlled capability error without a legacy write. Enabled smoke: one task/activity and at most one optional comment/notification; inactive member, cross-project phase/parent, contributor and cancelled project fail; RPC failure leaves no rows. Roll back on partial/duplicate write, cross-project acceptance, inactive assignee acceptance, or privilege failure using `supabase/drafts/20260728_task_assignment_atomic_create_rollback.sql` after disabling the flag.
+Expected: dependency objects exist and RPC is invoker/service-role only. Disabled smoke: exact waiting copy displays and POST returns a controlled capability error without a legacy write. Enabled smoke: one task/activity and at most one optional comment/notification; inactive member, cross-project phase/parent, contributor and cancelled project fail; RPC failure leaves no rows. Roll back on partial/duplicate write, cross-project acceptance, inactive assignee acceptance, or privilege failure using `supabase/rollbacks/20260815165046_task_assignment_atomic_create_rollback.sql` after disabling the flag.
 
 ## 5. Configuration and monitoring evidence
 
