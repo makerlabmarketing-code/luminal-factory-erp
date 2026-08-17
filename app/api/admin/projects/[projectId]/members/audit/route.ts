@@ -7,7 +7,8 @@ function jsonNoStore(body: unknown, init?: ResponseInit) {
   return response;
 }
 
-export async function GET(request: NextRequest, { params }: { params: { projectId: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ projectId: string }> }) {
+  const params = await props.params;
   try {
     return jsonNoStore(await listProjectMembershipAudit(params.projectId, {
       cursor: request.nextUrl.searchParams.get('cursor'),

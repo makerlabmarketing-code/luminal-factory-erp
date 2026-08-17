@@ -23,7 +23,8 @@ async function jsonBody(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { ledgerId: string } }) {
+export async function PUT(request: Request, props: { params: Promise<{ ledgerId: string }> }) {
+  const params = await props.params;
   try {
     return NextResponse.json(await updateAdminFinancialLedgerAtomicAware(id(params.ledgerId), await jsonBody(request)));
   } catch (error) {
@@ -31,7 +32,8 @@ export async function PUT(request: Request, { params }: { params: { ledgerId: st
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: { ledgerId: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ ledgerId: string }> }) {
+  const params = await props.params;
   try {
     const body = await jsonBody(request) as { isPaid?: unknown };
     if (typeof body.isPaid !== 'boolean') throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Trạng thái thanh toán không hợp lệ.', failureStage: 'validation' });

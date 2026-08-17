@@ -99,6 +99,8 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (requested || visible) hideGlobalLoading();
+    // Route transitions own this reset; loading-state changes must not retrigger it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   useEffect(() => () => clearTimers(), [clearTimers]);
@@ -128,7 +130,7 @@ function GlobalLoadingOverlay({
 }: {
   visible: boolean;
   message: GlobalLoadingMessage;
-  overlayRef: RefObject<HTMLDivElement>;
+  overlayRef: RefObject<HTMLDivElement | null>;
 }) {
   if (!visible) return null;
 

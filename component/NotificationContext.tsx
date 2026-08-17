@@ -88,7 +88,9 @@ export function NotificationProvider({
     setMounted(true);
 
     return () => {
+      // Cleanup intentionally reads the current timer registry at unmount.
       toastTimers.current.forEach((timer) => window.clearTimeout(timer));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       toastTimers.current.clear();
     };
   }, []);

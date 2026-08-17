@@ -2,14 +2,17 @@
 
 ## Delivery status
 
-`READY_FOR_PROTECTED_REVIEW`; production state remains
-`LIVE_OPERATOR_VERIFICATION_REQUIRED` and
+`LIVE_OPERATOR_VERIFICATION_REQUIRED`; production milestone is
+`PRODUCTION_MIGRATION_PASS / RUNTIME_FLAG_DISABLED` and
 `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED` must stay false or unset.
 
-The application and reviewed database package are complete on
-`codex/task-assignment-atomic-hardening`. No Vercel deployment, production SQL,
-RPC call, RLS mutation, runtime-flag activation, or live task mutation belongs
-to this delivery.
+PR #174 merged to protected `main` at
+`fd989138e53a09bda9c7907c2d7e3e234a387d6e`. Vercel reported a successful
+deployment, and the configured Supabase GitHub Integration applied migration
+`20260815165046_task_assignment_atomic_create` exactly once to production
+project `kwfmfmpgpbfewpiizesv`. The rollout changed only the RPC catalog and
+grants; no live task, comment, activity, notification, backfill, or RLS row was
+created or changed.
 
 ## Delivered boundary
 
@@ -47,20 +50,30 @@ remain unchanged.
 
 ## Operator gate
 
-After protected-main merge and canonical Supabase GitHub Integration delivery:
+Completed production gates:
 
-1. Confirm migration history contains `20260815165046` exactly once.
-2. Run the read-only validation and require invoker security, the pinned search
-   path, no `PUBLIC`/`anon`/`authenticated` execution, and `service_role` execute.
-3. Use non-production fixtures for Project Owner/Manager success, Contributor
+1. Migration history contains `20260815165046` exactly once.
+2. Read-only validation passed: `SECURITY INVOKER`, pinned `public, pg_temp`
+   search path, no `PUBLIC`/`anon`/`authenticated` execution, and
+   `service_role` execute only. The old date-only signature is absent.
+3. Invalid-assignee, cross-project phase, and cross-project parent integrity
+   counts are zero. Task/comment/activity/notification counts stayed zero before
+   and after validation.
+
+Remaining gates:
+
+1. Use non-production fixtures for Project Owner/Manager success, Contributor
    denial, inactive/non-member assignee, cross-project phase and parent,
    cancelled/archived project, optional comment/assignee, and forced side-effect
    failure.
-4. Compare task/comment/activity/notification counts around rejected and forced
+2. Compare task/comment/activity/notification counts around rejected and forced
    failures; every failure must leave zero partial rows.
-5. Request separate runtime configuration approval. Enable the server-only flag
+3. Request separate runtime configuration approval. Enable the server-only flag
    only after every preceding check passes, then run the Project Detail create
    smoke and duplicate-submit check.
+
+Do not create these fixtures in production. If no safe non-production database
+is available, leave the runtime flag disabled and keep this gate pending.
 
 Stop on migration-history absence, missing dependencies, unexpected function
 signature, browser execute privilege, authorization drift, relationship bypass,
@@ -77,18 +90,10 @@ approval.
 ## Review and validation state
 
 Repository review confirmed one authoritative forward migration, separate
-read-only pre/post artifacts, a non-destructive rollback, no dependency or
-lockfile change, and fail-closed application wiring. Current Codex GitHub review
-findings and unresolved PR conversations are unavailable in this checkout, so
-the delivery records `REVIEW_SOURCE_UNAVAILABLE` and relies on focused tests,
-the full repository gates, static SQL contract checks, and diff review. Focused tests pass 12/12; the full suite passes 746/746; lint, TypeScript, production build, and whitespace validation pass.
-
-`npm audit --json` reports 9 vulnerable package nodes: 1 critical, 7 high,
-and 1 moderate. The critical direct dependency is Next.js; PostCSS is also a
-direct high-severity dependency. The remaining findings are transitive
-(`@typescript-eslint/parser`, `@typescript-eslint/typescript-estree`,
-`brace-expansion`, `js-yaml`, `minimatch`, `nanoid`, and `zod`). npm reports a
-non-major Next.js remediation candidate, but dependency remediation is a
-separate reviewed slice because it changes the framework/lockfile and must run
-the full regression gates. No audit fix, dependency update, or lockfile change
-was performed here.
+read-only pre/post artifacts, a non-destructive rollback, and fail-closed
+application wiring. Production evidence confirms the intended signature and
+privilege boundary without creating a fixture row. The separate framework
+security remediation upgrades to patched Next.js 16.3.1 and records zero audit
+findings plus the full test/lint/type/build gates in
+`docs/ERP_IMPLEMENTATION_ROADMAP.md`; it does not change this RPC or its runtime
+state.

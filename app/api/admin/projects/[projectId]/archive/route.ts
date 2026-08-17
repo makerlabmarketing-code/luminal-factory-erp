@@ -33,10 +33,8 @@ function toErrorResponse(error: unknown) {
   );
 }
 
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: { projectId: string } }
-) {
+export async function POST(_request: NextRequest, props: { params: Promise<{ projectId: string }> }) {
+  const params = await props.params;
   try {
     return jsonNoStore(await cancelProject(params.projectId));
   } catch (error) {

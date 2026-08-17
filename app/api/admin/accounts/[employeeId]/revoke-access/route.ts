@@ -20,10 +20,8 @@ function toErrorResponse(error: unknown) {
   );
 }
 
-export async function POST(
-  _request: Request,
-  { params }: { params: { employeeId: string } }
-) {
+export async function POST(_request: Request, props: { params: Promise<{ employeeId: string }> }) {
+  const params = await props.params;
   try {
     return jsonNoStore(await revokeAccountAccess(params.employeeId));
   } catch (error) {

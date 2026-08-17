@@ -19,10 +19,8 @@ function toErrorResponse(error: unknown) {
   );
 }
 
-export async function POST(
-  _request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     return toJsonResponse(await deactivateEmployee(params.id));
   } catch (error) {

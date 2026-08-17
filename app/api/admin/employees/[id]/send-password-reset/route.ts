@@ -19,10 +19,8 @@ function toErrorResponse(error: unknown, correlationId: string) {
   );
 }
 
-export async function POST(
-  _request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const correlationId = crypto.randomUUID();
   try {
     return toJsonResponse(await sendEmployeePasswordReset(params.id, correlationId));

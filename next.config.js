@@ -20,10 +20,7 @@ const nextConfig = {
     ];
   },
 
-  webpack: (config, { isServer }) => {
-    config.module.exprContextCritical = false;
-    return config;
-  },
+  turbopack: {},
 };
 
 module.exports = nextConfig;

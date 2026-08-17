@@ -4,10 +4,11 @@ import { createClient } from '@/utils/supabase/server';
 import { isSafeInternalRedirectPath } from '@/utils/auth/flow';
 
 interface SharedLoginPageProps {
-  searchParams?: { next?: string | string[] };
+  searchParams?: Promise<{ next?: string | string[] }>;
 }
 
-export default async function SharedLoginPage({ searchParams }: SharedLoginPageProps) {
+export default async function SharedLoginPage(props: SharedLoginPageProps) {
+  const searchParams = await props.searchParams;
   const requestedPath = Array.isArray(searchParams?.next)
     ? searchParams?.next[0]
     : searchParams?.next;

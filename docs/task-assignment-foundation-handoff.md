@@ -322,8 +322,8 @@ Project creation now has a server-owned capability boundary. With workflow creat
 
 ## 2026-08-15 atomic create delivery completion
 
-Status: `READY_FOR_PROTECTED_REVIEW`; production remains
-`LIVE_OPERATOR_VERIFICATION_REQUIRED`. The former draft RPC is superseded by
+Status: `LIVE_OPERATOR_VERIFICATION_REQUIRED`; production milestone is
+`PRODUCTION_MIGRATION_PASS / RUNTIME_FLAG_DISABLED`. The former draft RPC is superseded by
 `supabase/migrations/20260815165046_task_assignment_atomic_create.sql` with
 separate read-only pre/post validation and non-destructive rollback artifacts.
 The RPC now owns actor authorization, closed-project, same-project
@@ -331,8 +331,10 @@ phase/parent, and active-member assignee checks inside its transaction and uses
 a `timestamptz` deadline. The service maps known invariant failures without
 exposing raw database details.
 
-The exact protected delivery, fixture, activation, stop, and rollback sequence
-is owned by `docs/task-assignment-atomic-create-handoff.md`. No production SQL,
-Vercel deployment, RLS change, backfill, runtime activation, or live task write
-was performed. `REVIEW_SOURCE_UNAVAILABLE`; repository validation and diff
-review remain the available review evidence.
+The exact fixture, activation, stop, and rollback sequence is owned by
+`docs/task-assignment-atomic-create-handoff.md`. PR #174 merged at
+`fd989138e53a09bda9c7907c2d7e3e234a387d6e`; Vercel succeeded and Supabase
+GitHub Integration applied migration `20260815165046` exactly once. Production
+signature, invoker/search-path/grant and zero-integrity-count checks passed with
+no live task write. The remaining non-production authorization/atomicity fixture
+matrix and separate runtime approval are pending; the flag stays false/unset.
