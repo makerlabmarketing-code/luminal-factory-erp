@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { AuthFlowError } from '@/services/server/auth';
 import { connectEmployeeAuthAccount } from '@/services/server/adminEmployeeActions';
 
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const correlationId = crypto.randomUUID();
   try {
     const result = await connectEmployeeAuthAccount(params.id, correlationId);

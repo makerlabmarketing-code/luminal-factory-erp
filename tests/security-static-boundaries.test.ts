@@ -216,7 +216,7 @@ describe('static security boundaries', () => {
   it('redirects the legacy staff portal path to the staff home without a loop', () => {
     const staffHome = readFileSync(join(repositoryRoot, 'app/staff/page.tsx'), 'utf8');
     const staffPortal = readFileSync(join(repositoryRoot, 'app/staff/portal/page.tsx'), 'utf8');
-    const middleware = readFileSync(join(repositoryRoot, 'middleware.ts'), 'utf8');
+    const middleware = readFileSync(join(repositoryRoot, 'proxy.ts'), 'utf8');
     const authFlow = readFileSync(join(repositoryRoot, 'utils/auth/flow.ts'), 'utf8');
 
     expect(staffHome).toMatch(/StaffPortalContent/);

@@ -10,7 +10,7 @@ describe('Staff logout', () => {
   const profileSource = source('app/staff/profile/ProfileView.tsx');
   const logoutSource = source('app/staff/profile/StaffLogoutButton.tsx');
   const portalSource = source('app/staff/portal/StaffPortalContent.tsx');
-  const middlewareSource = source('middleware.ts');
+  const middlewareSource = source('proxy.ts');
 
   it('exposes an explicit logout action in the reachable Staff profile', () => {
     expect(profileSource).toContain('<StaffLogoutButton />');

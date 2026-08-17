@@ -8,7 +8,8 @@ function failure(error: unknown) {
   return NextResponse.json({ success: false, message: error instanceof AuthFlowError ? error.message : 'Không thể tải chứng từ.' }, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
-export async function POST(request: Request, { params }: { params: { ledgerId: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ ledgerId: string }> }) {
+  const params = await props.params;
   try {
     const ledgerId = Number(params.ledgerId);
     if (!Number.isSafeInteger(ledgerId) || ledgerId <= 0) throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Mã giao dịch không hợp lệ.', failureStage: 'validation' });

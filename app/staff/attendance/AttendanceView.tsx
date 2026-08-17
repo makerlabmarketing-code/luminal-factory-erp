@@ -134,10 +134,10 @@ export function StaffAttendanceContent({
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [multiCheckEnabled, setMultiCheckEnabled] = useState(false);
   const [liveTime, setLiveTime] = useState(new Date());
-  const initialHistoryMonth = useRef(
+  const [initialHistoryMonth] = useState(() =>
     formatBusinessMonthInput(businessMonthFromInstant(new Date()))
   );
-  const [historyMonthInput, setHistoryMonthInput] = useState(initialHistoryMonth.current);
+  const [historyMonthInput, setHistoryMonthInput] = useState(initialHistoryMonth);
   const [historyPage, setHistoryPage] = useState(1);
   const [fetching, setFetching] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -212,10 +212,10 @@ export function StaffAttendanceContent({
   useEffect(() => {
     const timer = setInterval(() => setLiveTime(new Date()), 1000);
 
-    void loadAttendanceData(initialHistoryMonth.current, { resetHistoryPage: true });
+    void loadAttendanceData(initialHistoryMonth, { resetHistoryPage: true });
 
     return () => clearInterval(timer);
-  }, [loadAttendanceData]);
+  }, [initialHistoryMonth, loadAttendanceData]);
 
   const handleToggleShift = async () => {
     if (submitLockRef.current) return;

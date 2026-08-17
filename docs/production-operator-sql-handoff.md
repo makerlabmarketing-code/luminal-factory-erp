@@ -2,19 +2,32 @@
 
 ## Atomic normalized child-task creation
 
-- **Status:** `READY_FOR_OPERATOR`
+- **Status:** `LIVE_OPERATOR_VERIFICATION_REQUIRED`; production migration and
+  read-only privilege/invariant validation are `PASS`, runtime remains disabled.
 - **Affected objects:** `public.create_project_task_atomic(...)`; reads/writes existing `public.tasks`, `public.task_comments`, `public.project_activity`, and `public.task_notifications`.
 - **Expected row-count effect during rollout:** zero. The forward DDL only creates/replaces a function. Each later successful application call creates exactly one task, one activity row, zero-or-one comment, and zero-or-one assignment notification.
 - **Authorization/RLS impact:** the function is `SECURITY INVOKER`. Revoke `PUBLIC`, `anon`, and `authenticated`; grant execution only to `service_role`. Application authorization remains server-derived before the RPC call. Existing table RLS remains unchanged.
 
-### Exact order
+### Completed production evidence
+
+- PR #174 merged at `fd989138e53a09bda9c7907c2d7e3e234a387d6e` and Vercel reported success.
+- Supabase GitHub Integration applied migration `20260815165046` exactly once.
+- The current `timestamptz` signature, invoker security, pinned search path and
+  service-role-only execution passed; the old date-only signature is absent.
+- Integrity counts and task/comment/activity/notification before/after counts
+  were all zero. No fixture or business row was created.
+
+### Remaining exact order
 
 1. Keep `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED` unset or `false`.
-2. Run `supabase/validation/20260815165046_task_assignment_atomic_create_pre_run.sql` read-only and retain the output. Stop if any required table is missing or the existing signature is unexpected.
-3. Review and deliver `supabase/migrations/20260815165046_task_assignment_atomic_create.sql` through the protected migration workflow; the reviewed migration already contains the explicit EXECUTE revokes and service-role grant.
-4. Run `supabase/validation/20260815165046_task_assignment_atomic_create_validation.sql`. PASS requires invoker security, no anon/authenticated execute, and service-role execute.
-5. Enable `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED=true` only in the server runtime.
-6. Run the smoke tests below with an authorized fixture project, then an unauthorized/cross-project fixture.
+2. Run the smoke tests below only in a safe non-production database, first with
+   an authorized fixture project and then unauthorized/cross-project fixtures.
+3. Enable `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED=true` only in the server runtime
+   after fixture PASS and separate activation approval.
+4. Run the enabled Project Detail smoke and duplicate-submit check.
+
+If no safe non-production database exists, stop after step 1 and leave the flag
+disabled. Production is not an approved fixture environment.
 
 ### Smoke tests
 
@@ -49,7 +62,7 @@ This register is the operator order. A later package must not be activated befor
 |---:|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Facility compatibility/read audit | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | None | `supabase/validation/20260727_facility_employee_compatibility_audit.sql` | `supabase/migrations/20260723120000_facility_status_code.sql` (already tracked; do not rerun outside migration history) | `supabase/validation/20260723120000_facility_status_code_validation.sql` | `supabase/rollbacks/20260723120000_facility_status_code_rollback.sql` | `facilities.code`, `facilities.is_active`; validation 0, backfill count must equal reported missing-code rows | Existing facility server authorization; no browser write policy | Keep `FACILITY_ACTIVE_STATE_ENABLED=false` until PASS | Resolve assigned facility and inactive exclusion; rollback on duplicate/null codes or Attendance regression |
 | 2 | Phase Workflow | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Facility audit is independent but should be recorded first | `supabase/drafts/20260718_phase_workflow_foundation_pre_run_readonly_validation.sql` | `supabase/drafts/20260718_phase_workflow_foundation_final_forward.sql` | `supabase/drafts/20260718_phase_workflow_foundation_final_validation.sql` | `supabase/drafts/20260718_phase_workflow_foundation_final_rollback.sql` | `phases`, workflow constraints/functions; expected counts use the attached pre-run report | Project-member read, manager mutation, server-derived actor | Keep existing Phase Workflow flags false | Read project phases, reject cross-project/status bypass; rollback on count mismatch, RLS bypass, or legacy read regression |
-| 3 | Task Assignment atomic create | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Task Assignment tables and Phase Workflow objects PASS | `supabase/validation/20260815165046_task_assignment_atomic_create_pre_run.sql` | `supabase/migrations/20260815165046_task_assignment_atomic_create.sql` | `supabase/validation/20260815165046_task_assignment_atomic_create_validation.sql` | `supabase/rollbacks/20260815165046_task_assignment_atomic_create_rollback.sql` | Atomic RPC; rollout 0 rows, each successful call exactly 1 task/activity and 0–1 comment/notification | Security invoker; service-role execute only; app performs session authorization | Keep `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED=false` | Authorized create is atomic; reject inactive member/cross-project phase; rollback on partial write or execute grant failure |
+| 3 | Task Assignment atomic create | `LIVE_OPERATOR_VERIFICATION_REQUIRED`; production migration/validation PASS | Task Assignment tables and Phase Workflow objects PASS | Read-only pre-run retained | Migration `20260815165046` applied exactly once by GitHub Integration | Signature/invoker/search-path/grants/integrity counts PASS | `supabase/rollbacks/20260815165046_task_assignment_atomic_create_rollback.sql` | Catalog rollout changed 0 business rows; non-production fixture success must create exactly 1 task/activity and 0–1 comment/notification | Production service-role-only execute PASS; application authorization fixture still pending | Keep `TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED=false` | Run authorized/denied/forced-failure fixtures only outside production; rollback on partial write or execute-grant failure |
 | 4 | Task Comments and Project Activity | `READY_FOR_OPERATOR` | Task Assignment foundation tables PASS | `supabase/drafts/20260728_task_comments_activity_pre_run.sql` | `supabase/drafts/20260728_task_comments_activity_forward.sql` | `supabase/drafts/20260728_task_comments_activity_post_run.sql` | `supabase/drafts/20260728_task_comments_activity_rollback.sql` | `task_comments`, `project_activity`, immutable triggers; rollout 0 rows | Authenticated SELECT through project access; browser mutations revoked; actor server-derived | Keep `TASK_COMMENTS_ACTIVITY_ENABLED=false` | Add project/task comment, bounded read, reject cross-project/client actor/update/delete; rollback on privilege or immutability failure |
 | 5 | Phase Templates | `BLOCKED_BY_BUSINESS_DECISION` | Phase Workflow PASS and approved template-management permission code | Not yet approved | Not yet approved | Not yet approved | Not yet approved | Proposed template/header/item/default-task tables; row changes unknown until seed decision | Admin/project-management write; active-template staff read; server actor | Keep any template capability flag absent/false | Gate remains until seed ownership and permission decision are approved; do not run a draft |
 | 6 | Attendance recovery | `OPERATOR_PRODUCTION_VERIFICATION_REQUIRED` | Facility verification PASS | `supabase/drafts/20260728_attendance_recovery_pre_run.sql` | `supabase/migrations/20260715073600_attendance_recovery_rls.sql` (tracked; verify migration history and never replay when recorded) | `supabase/validation/20260715073600_attendance_recovery_rls_validation.sql` | `supabase/rollbacks/20260715073600_attendance_recovery_rls_rollback.sql` | Attendance recovery RLS boundary; rollout 0 rows | Server route requires Admin Workspace + `ATTENDANCE_MANAGE`; own attendance remains independent of membership | Keep `FACILITY_ACTIVE_STATE_ENABLED=false` and `ATTENDANCE_RECOVERY_ENABLED=false` until migration-history, retained pre/post, authorization/RLS, and authenticated smoke evidence passes | Own check-in/out, current/stale open-shift state, history, facility label, failure/retry, and submission locking remain usable; test authorized and denied production fixtures; admin UI stays read-only while disabled; rollback on own-row access regression or authorization bypass |

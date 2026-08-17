@@ -9,8 +9,9 @@ function jsonNoStore(body: unknown, init?: ResponseInit) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { projectId: string; taskId: string } }
+  props: { params: Promise<{ projectId: string; taskId: string }> }
 ) {
+  const params = await props.params;
   try {
     const body = (await request.json().catch(() => null)) || {};
     return jsonNoStore(await updateProjectTask(params.projectId, params.taskId, body));
