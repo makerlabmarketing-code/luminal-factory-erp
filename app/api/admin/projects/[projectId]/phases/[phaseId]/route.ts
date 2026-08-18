@@ -35,8 +35,9 @@ function toErrorResponse(error: unknown) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { projectId: string; phaseId: string } }
+  props: { params: Promise<{ projectId: string; phaseId: string }> }
 ) {
+  const params = await props.params;
   try {
     const body = (await request.json().catch(() => null)) || {};
     return jsonNoStore(await updatePhase(params.projectId, params.phaseId, body));

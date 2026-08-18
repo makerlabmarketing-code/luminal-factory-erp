@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation';
 
-export default function WorkerPortal({
-  searchParams,
-}: {
-  searchParams?: Record<string, string | string[] | undefined>;
-}) {
+export default async function WorkerPortal(
+  props: {
+    searchParams?: Promise<Record<string, string | string[] | undefined>>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const params = new URLSearchParams();
 
   Object.entries(searchParams || {}).forEach(([key, value]) => {

@@ -259,10 +259,8 @@ async function loadScopedAccountDetail(
   };
 }
 
-export async function GET(
-  _request: Request,
-  { params }: { params: { employeeId: string } }
-) {
+export async function GET(_request: Request, props: { params: Promise<{ employeeId: string }> }) {
+  const params = await props.params;
   try {
     const authContext = await requireAdminEmployeePermission('ACCOUNT_MANAGE');
     return jsonNoStore(await loadScopedAccountDetail(params.employeeId, authContext));

@@ -8,11 +8,12 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
-export default async function AdminEmployeeDetailPage({
-  params,
-}: {
-  params: { employeeId: string };
-}) {
+export default async function AdminEmployeeDetailPage(
+  props: {
+    params: Promise<{ employeeId: string }>;
+  }
+) {
+  const params = await props.params;
   try {
     const employee = await getAdminEmployeeDetailData(params.employeeId);
 

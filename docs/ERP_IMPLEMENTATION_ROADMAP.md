@@ -1,40 +1,47 @@
 # Luminal Factory ERP Implementation Roadmap
 
-## 2026-08-15 Task Assignment atomic create hardening
+## 2026-08-17 framework security remediation
 
-Status: `READY_FOR_PROTECTED_REVIEW`; production remains
-`LIVE_OPERATOR_VERIFICATION_REQUIRED` and the runtime flag stays false/unset.
+Status: `APPLICATION_COMPLETE / READY_FOR_PROTECTED_REVIEW`.
 
-The former draft-only Task Assignment create boundary is now a complete GitHub
-Integration delivery package. The service performs one atomic RPC call and
-returns controlled errors. The database function independently checks the
-active actor and project-scoped manage authority, rejects cancelled/archived
-projects, cross-project phase/parent relationships, and inactive or non-member
-assignees, while atomically writing the task, activity, optional comment, and
-optional notification. The deadline signature is `timestamptz`; the superseded
-date-only signature is removed during migration.
+The repository has been upgraded from Next.js 13.5.1 / React 18 to the patched
+Next.js 16.3.1 / React 19.2.8 stack, with ESLint 9 flat configuration, Recharts
+3.10.1, PostCSS 8.5.26, current React/Node types, Turbopack configuration, the
+Next 16 `proxy.ts` convention, and async route/page request APIs. The lockfile
+pins the patched `brace-expansion` line used by ESLint's minimatch 3 dependency.
 
-Forward migration:
-`supabase/migrations/20260815165046_task_assignment_atomic_create.sql`.
-Read-only pre/post validation and non-destructive rollback are recorded in
-`docs/task-assignment-atomic-create-handoff.md`. No backfill, table/RLS change,
-production SQL, Vercel deployment, runtime activation, or live task mutation was
-performed. `REVIEW_SOURCE_UNAVAILABLE`; repository tests and diff review are the
-available review sources.
+Validation on the clean post-PR #174 baseline: `npm audit --json` reports zero
+vulnerabilities; 97 test files / 746 tests pass; lint has zero errors or
+warnings; TypeScript passes; and the Next.js production build completes with
+build-only placeholder public environment values. This slice changes no
+database object, production data, runtime flag, or Vercel environment value.
+Exact next gate: one protected dependency-review PR and its CI checks; do not
+merge if framework, authentication, chart, proxy, or production-build regression
+appears.
 
-Dependency audit classification: `npm audit --json` reports 9 vulnerable
-package nodes (1 critical, 7 high, 1 moderate). Next.js is the direct critical
-finding and PostCSS is a direct high finding; the other seven nodes are
-transitive. No automated fix or dependency change was made. Remediation must be
-handled as a separate framework/dependency review with full regression coverage
-and must not delay the atomic-create production gate by silently changing this
-slice.
+## 2026-08-16 Task Assignment atomic create production evidence
 
-Exact next gate: protected review and PR delivery, followed by canonical
-Supabase GitHub Integration migration-history confirmation, read-only grant and
-invariant validation, the non-production authorization/atomicity fixture matrix,
-and separate server runtime-flag approval. Stop on any browser execute grant,
-relationship/authorization bypass, partial row, signature drift, or count drift.
+Status: `LIVE_OPERATOR_VERIFICATION_REQUIRED`; milestone
+`PRODUCTION_MIGRATION_PASS / RUNTIME_FLAG_DISABLED`.
+
+PR #174 merged to protected `main` as
+`fd989138e53a09bda9c7907c2d7e3e234a387d6e`, and Vercel reported success. The
+configured Supabase GitHub Integration applied migration
+`20260815165046_task_assignment_atomic_create` exactly once to production
+project `kwfmfmpgpbfewpiizesv`. Read-only post-validation confirmed the
+`timestamptz` RPC signature, absence of the superseded date-only signature,
+`SECURITY INVOKER`, pinned `public, pg_temp` search path, no
+PUBLIC/anon/authenticated execute privilege, and service-role-only execution.
+Invalid-assignee, cross-project phase, and cross-project parent integrity counts
+were zero. Task/comment/activity/notification counts remained zero before and
+after validation; no live task or fixture row was created.
+
+`TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED` remains false/unset. Exact next gate is
+the authorization and atomicity fixture matrix in a safe non-production
+environment, followed by separate runtime activation approval. Production must
+not be used as a substitute fixture environment. Stop on any browser execute
+grant, relationship/authorization bypass, partial row, signature drift, or
+count drift.
 
 ## 2026-07-31 consolidated operator status authority
 

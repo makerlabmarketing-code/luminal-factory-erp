@@ -7,7 +7,8 @@ function jsonNoStore(body: unknown, init?: ResponseInit) {
   return response;
 }
 
-export async function GET(_request: NextRequest, { params }: { params: { projectId: string } }) {
+export async function GET(_request: NextRequest, props: { params: Promise<{ projectId: string }> }) {
+  const params = await props.params;
   try {
     return jsonNoStore(await listProjectTasks(params.projectId));
   } catch (error) {
@@ -16,7 +17,8 @@ export async function GET(_request: NextRequest, { params }: { params: { project
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { projectId: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ projectId: string }> }) {
+  const params = await props.params;
   try {
     const body = (await request.json().catch(() => null)) || {};
     return jsonNoStore(await createProjectTask(params.projectId, body), { status: 201 });

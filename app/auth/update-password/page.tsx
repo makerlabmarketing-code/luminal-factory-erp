@@ -1,14 +1,15 @@
 import UpdatePasswordForm from './UpdatePasswordForm';
 
 interface UpdatePasswordPageProps {
-  searchParams?: {
+  searchParams?: Promise<{
     error?: string;
     error_code?: string;
     mode?: 'invite' | 'recovery';
-  };
+  }>;
 }
 
-export default function UpdatePasswordPage({ searchParams }: UpdatePasswordPageProps) {
+export default async function UpdatePasswordPage(props: UpdatePasswordPageProps) {
+  const searchParams = await props.searchParams;
   return (
     <UpdatePasswordForm
       initialUrlState={{

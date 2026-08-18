@@ -20,10 +20,8 @@ function toErrorResponse(error: unknown) {
   );
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { employeeId: string } }
-) {
+export async function PUT(request: NextRequest, props: { params: Promise<{ employeeId: string }> }) {
+  const params = await props.params;
   try {
     const body = (await request.json().catch(() => null)) || {};
     return jsonNoStore(await updateAccountWorkspaces(params.employeeId, body));

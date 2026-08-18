@@ -33,10 +33,8 @@ function toErrorResponse(error: unknown) {
   );
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { projectId: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ projectId: string }> }) {
+  const params = await props.params;
   try {
     const body = (await request.json().catch(() => null)) || {};
     return jsonNoStore(await updateProject(params.projectId, body));
@@ -45,10 +43,8 @@ export async function PATCH(
   }
 }
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: { projectId: string } }
-) {
+export async function GET(_request: NextRequest, props: { params: Promise<{ projectId: string }> }) {
+  const params = await props.params;
   try {
     return jsonNoStore(await getProjectDetail(params.projectId));
   } catch (error) {

@@ -18,7 +18,8 @@ function failure(error: unknown) {
   );
 }
 
-export async function POST(request: Request, { params }: { params: { ledgerId: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ ledgerId: string }> }) {
+  const params = await props.params;
   try {
     const ledgerId = Number(params.ledgerId);
     if (!Number.isSafeInteger(ledgerId) || ledgerId <= 0) {

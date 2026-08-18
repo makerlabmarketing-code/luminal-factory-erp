@@ -17,7 +17,11 @@ function failure(error: unknown) {
   return NextResponse.json({ success: false, message: error instanceof AuthFlowError ? error.message : 'Không thể cập nhật chứng từ.' }, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
-export async function PUT(request: Request, { params }: { params: { ledgerId: string; attachmentId: string } }) {
+export async function PUT(
+  request: Request,
+  props: { params: Promise<{ ledgerId: string; attachmentId: string }> }
+) {
+  const params = await props.params;
   try {
     const parsed = ids(params);
     const file = (await request.formData()).get('file');
@@ -29,7 +33,11 @@ export async function PUT(request: Request, { params }: { params: { ledgerId: st
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: { ledgerId: string; attachmentId: string } }) {
+export async function DELETE(
+  _request: Request,
+  props: { params: Promise<{ ledgerId: string; attachmentId: string }> }
+) {
+  const params = await props.params;
   try {
     const parsed = ids(params);
     const result = await removeAdminLedgerAttachment(parsed.ledgerId, parsed.attachmentId);

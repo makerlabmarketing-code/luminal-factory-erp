@@ -6,7 +6,7 @@ const repositoryRoot = join(__dirname, '..');
 const source = (path: string) => readFileSync(join(repositoryRoot, path), 'utf8');
 
 describe('shared Staff authentication entry', () => {
-  const middleware = source('middleware.ts');
+  const middleware = source('proxy.ts');
   const loginPage = source('app/login/page.tsx');
   const workspaceRoute = source('app/api/auth/workspaces/route.ts');
   const adminLayout = source('app/admin/layout.tsx');

@@ -9,7 +9,8 @@ function jsonNoStore(body: unknown, init?: ResponseInit) {
   return response;
 }
 
-export async function GET(request: NextRequest, { params }: { params: { projectId: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ projectId: string }> }) {
+  const params = await props.params;
   try {
     if (request.nextUrl.searchParams.get('scope') === 'candidates') {
       return jsonNoStore(await listProjectMemberCandidates(params.projectId));
@@ -39,7 +40,8 @@ export async function GET(request: NextRequest, { params }: { params: { projectI
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { projectId: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ projectId: string }> }) {
+  const params = await props.params;
   try {
     const body = (await request.json().catch(() => null)) || {};
     return jsonNoStore(await addProjectMember(params.projectId, body), { status: 201 });

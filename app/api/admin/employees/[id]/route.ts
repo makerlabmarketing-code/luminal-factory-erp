@@ -31,10 +31,8 @@ function toErrorResponse(correlationId: string, error: unknown) {
   );
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const correlationId = crypto.randomUUID();
   try {
     const body = (await request.json().catch(() => null)) || {};
