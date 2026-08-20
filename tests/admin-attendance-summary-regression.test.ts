@@ -22,12 +22,13 @@ describe('Admin attendance summary regression', () => {
     expect(client).toContain('Nguồn trong phạm vi');
   });
 
-  it('shows open, stale, excluded, and outside-month diagnostics explicitly', () => {
-    expect(client).toContain('Bản ghi trong tháng');
+  it('shows actionable open, stale, and excluded diagnostics without redundant record totals', () => {
     expect(client).toContain('chưa kết thúc');
     expect(client).toContain('bản ghi bị loại khỏi tổng hợp');
-    expect(client).toContain('ca từ ngày trước');
-    expect(client).toContain('bản ghi ngoài tháng đang chọn');
+    expect(client).toContain('ca từ tháng khác chưa kết thúc');
+    expect(client).toContain('ca đã tồn tại từ ngày trước và cần kiểm tra');
+    expect(client).not.toContain('Bản ghi trong tháng');
+    expect(client).not.toContain('bản ghi ngoài tháng đang chọn');
   });
 
   it('counts one completed attendance record as one visible work shift', () => {
@@ -45,10 +46,8 @@ describe('Admin attendance summary regression', () => {
     expect(client).not.toContain('absolute bottom-full');
   });
 
-  it('explains an empty selected-month calendar when outside records exist', () => {
-    expect(client).toContain(
-      'Không có bản ghi trong tháng đang chọn. Các bản ghi ngoài tháng đã được loại khỏi lịch và tổng hợp.'
-    );
+  it('uses a concise empty selected-month message', () => {
+    expect(client).toContain('Không có bản ghi chấm công trong tháng đang chọn.');
   });
 
   it('keeps stale recovery disabled and staff stale state controlled', () => {

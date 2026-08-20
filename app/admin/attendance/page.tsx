@@ -342,7 +342,7 @@ export default function AdminAttendanceManagement() {
       )}
 
       {/* STATS & SETTLEMENT BAR */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-center">
           <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1.5"><LayoutGrid className="w-4 h-4 text-purple-400"/> Công ca hoàn tất</span>
           <span className="text-2xl font-black font-mono text-purple-400 mt-1">{selectedMonthSummary.completed} <span className="text-sm font-sans text-slate-500">Công ca</span></span>
@@ -354,13 +354,6 @@ export default function AdminAttendanceManagement() {
           <span className="text-2xl font-black font-mono text-amber-400 mt-1">{payrollSummary.totalHours} <span className="text-sm font-sans text-slate-500">Giờ</span></span>
         </div>
         
-        <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-center">
-          <span className="text-[10px] text-slate-500 uppercase font-bold">Bản ghi trong tháng</span>
-          <span className="text-2xl font-black font-mono text-slate-200 mt-1">
-            {selectedMonthSummary.records}
-          </span>
-        </div>
-
         <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-center">
           <span className="text-[10px] text-slate-500 uppercase font-bold">Phân loại</span>
           <span className="text-sm font-black font-mono text-slate-200 mt-1">
@@ -376,15 +369,15 @@ export default function AdminAttendanceManagement() {
         Nguồn trong phạm vi: {sourceCounts.attendance} attendance · {sourceCounts.attendanceLogs} log cũ
       </p>
 
-      {filterEmployeeId && outsideMonthSummary.records > 0 && (
+      {filterEmployeeId && outsideMonthSummary.open > 0 && (
         <div className="bg-sky-950/20 border border-sky-500/20 rounded-2xl px-4 py-3 text-xs text-sky-100">
           <p className="font-bold text-sky-300">
-            Có {outsideMonthSummary.records} bản ghi ngoài tháng đang chọn.
+            Có {outsideMonthSummary.open} ca từ tháng khác chưa kết thúc.
           </p>
           <p className="mt-1 text-sky-100/80">
-            Các bản ghi này không hiển thị trên lịch và không được tính vào tổng tháng.
-            {outsideMonthSummary.open > 0
-              ? ` Có ${outsideMonthSummary.open} ca chưa kết thúc, trong đó ${outsideMonthSummary.stale} ca từ ngày trước.`
+            Các ca này không được tính vào tháng đang xem.
+            {outsideMonthSummary.stale > 0
+              ? ` Có ${outsideMonthSummary.stale} ca đã tồn tại từ ngày trước và cần kiểm tra.`
               : ''}
           </p>
         </div>
@@ -417,9 +410,7 @@ export default function AdminAttendanceManagement() {
 
         {selectedMonthSummary.records === 0 && (
           <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-300">
-            {outsideMonthSummary.records > 0
-              ? 'Không có bản ghi trong tháng đang chọn. Các bản ghi ngoài tháng đã được loại khỏi lịch và tổng hợp.'
-              : 'Không có bản ghi chấm công trong tháng đang chọn.'}
+            Không có bản ghi chấm công trong tháng đang chọn.
           </div>
         )}
 
