@@ -22,18 +22,32 @@ describe('Admin attendance summary regression', () => {
     expect(client).toContain('Nguồn trong phạm vi');
   });
 
-  it('shows open, stale, excluded, and outside-month diagnostics explicitly', () => {
-    expect(client).toContain('Bản ghi trong tháng');
+  it('shows actionable open, stale, and excluded diagnostics without redundant record totals', () => {
     expect(client).toContain('chưa kết thúc');
     expect(client).toContain('bản ghi bị loại khỏi tổng hợp');
-    expect(client).toContain('ca từ ngày trước');
-    expect(client).toContain('bản ghi ngoài tháng đang chọn');
+    expect(client).toContain('ca từ tháng khác chưa kết thúc');
+    expect(client).toContain('ca đã tồn tại từ ngày trước và cần kiểm tra');
+    expect(client).not.toContain('Bản ghi trong tháng');
+    expect(client).not.toContain('bản ghi ngoài tháng đang chọn');
   });
 
-  it('explains an empty selected-month calendar when outside records exist', () => {
-    expect(client).toContain(
-      'Không có bản ghi trong tháng đang chọn. Các bản ghi ngoài tháng đã được loại khỏi lịch và tổng hợp.'
-    );
+  it('counts one completed attendance record as one visible work shift', () => {
+    expect(client).toContain('Công ca hoàn tất');
+    expect(client).toContain('{selectedMonthSummary.completed}');
+    expect(client).toContain('Mỗi bản ghi hoàn tất = 1 công ca');
+    expect(client).not.toContain('Tổng ca quy đổi');
+  });
+
+  it('renders a larger day-detail overlay outside the table clipping boundary', () => {
+    expect(client).toContain("import { createPortal } from 'react-dom'");
+    expect(client).toContain('z-[999999]');
+    expect(client).toContain('md:w-[30rem]');
+    expect(client).toContain('1 công ca');
+    expect(client).not.toContain('absolute bottom-full');
+  });
+
+  it('uses a concise empty selected-month message', () => {
+    expect(client).toContain('Không có bản ghi chấm công trong tháng đang chọn.');
   });
 
   it('keeps stale recovery disabled and staff stale state controlled', () => {
