@@ -30,6 +30,21 @@ describe('Admin attendance summary regression', () => {
     expect(client).toContain('bản ghi ngoài tháng đang chọn');
   });
 
+  it('counts one completed attendance record as one visible work shift', () => {
+    expect(client).toContain('Công ca hoàn tất');
+    expect(client).toContain('{selectedMonthSummary.completed}');
+    expect(client).toContain('Mỗi bản ghi hoàn tất = 1 công ca');
+    expect(client).not.toContain('Tổng ca quy đổi');
+  });
+
+  it('renders a larger day-detail overlay outside the table clipping boundary', () => {
+    expect(client).toContain("import { createPortal } from 'react-dom'");
+    expect(client).toContain('z-[999999]');
+    expect(client).toContain('md:w-[30rem]');
+    expect(client).toContain('1 công ca');
+    expect(client).not.toContain('absolute bottom-full');
+  });
+
   it('explains an empty selected-month calendar when outside records exist', () => {
     expect(client).toContain(
       'Không có bản ghi trong tháng đang chọn. Các bản ghi ngoài tháng đã được loại khỏi lịch và tổng hợp.'

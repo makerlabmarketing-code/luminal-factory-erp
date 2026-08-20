@@ -1,6 +1,7 @@
 // app/admin/attendance/page.tsx
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
 import { DataTableError, DataTableShell, DataTableSkeleton } from '@/component/data-table/DataTable';
@@ -20,7 +21,6 @@ import {
   calculateFinalizedAttendanceSummary,
   formatWorkedDuration,
   getWorkedMinutesForRecord,
-  getFinalizedShiftUnitsForRecord,
   isAttendanceRecordComplete,
   isAttendanceRecordOverdue,
   isMissingCheckoutRecord,
@@ -31,6 +31,11 @@ import {
 interface PayrollSummary {
   totalShifts: number;
   totalHours: number;
+}
+
+interface AttendanceDayDetailsState {
+  day: number;
+  records: AttendanceRecord[];
 }
 
 interface AttendanceAuditEvent {
@@ -81,6 +86,76 @@ function messageForAttendanceLoadError(payload: AdminAttendancePayload | null): 
   return payload?.error || 'Không thể tải dữ liệu chấm công.';
 }
 
+function AttendanceDayDetailsPanel({
+  day,
+  month,
+  records,
+  employees,
+}: AttendanceDayDetailsState & { month: number; employees: Employee[] }) {
+  return (
+    <aside
+      id="attendance-day-details"
+      role="tooltip"
+      className="pointer-events-none fixed inset-x-4 bottom-4 z-[999999] max-h-[72vh] overflow-hidden rounded-2xl border border-purple-400/50 bg-slate-900/95 p-4 text-left font-sans shadow-[0_24px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl md:left-auto md:right-6 md:w-[30rem] md:p-5"
+    >
+      <div className="flex items-center justify-between gap-4 border-b border-slate-700 pb-3">
+        <div>
+          <p className="text-base font-black text-purple-300">Chi tiết ngày {day}/{month}</p>
+          <p className="mt-1 text-xs text-slate-400">{records.length} bản ghi chấm công</p>
+        </div>
+        <span className="rounded-lg border border-purple-400/30 bg-purple-500/10 px-2.5 py-1 text-xs font-bold text-purple-200">
+          {records.filter(isAttendanceRecordComplete).length} công ca
+        </span>
+      </div>
+
+      <div className="mt-3 max-h-[calc(72vh-5.5rem)] space-y-3 overflow-y-auto pr-1">
+        {records.map((record, recordIndex) => {
+          const isCompleted = isAttendanceRecordComplete(record);
+          const employee = employees.find(
+            (candidate) => String(candidate.id) === String(record.employee_id)
+          );
+          const workedMinutes = getWorkedMinutesForRecord(record);
+
+          return (
+            <div
+              key={record.id || recordIndex}
+              className="rounded-xl border border-slate-700/80 bg-slate-950/80 p-3.5"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 break-words text-sm font-black leading-5 text-slate-100">
+                  {record.employee_name || employee?.full_name || 'Nhân sự'}
+                </p>
+                <span className="shrink-0 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-bold text-purple-300">
+                  {employee?.title || 'Chưa gán chức danh'}
+                </span>
+              </div>
+
+              <p className="mt-2 text-xs font-semibold text-slate-300">Khung làm việc: {record.shift_name}</p>
+              <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-xs">
+                <span className="rounded-lg bg-emerald-500/10 px-2.5 py-2 font-bold text-emerald-300">
+                  Vào: {record.check_in ? record.check_in.slice(0, 5) : '--:--'}
+                </span>
+                <span className="rounded-lg bg-rose-500/10 px-2.5 py-2 font-bold text-rose-300">
+                  Ra: {record.check_out ? record.check_out.slice(0, 5) : '--:--'}
+                </span>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                <span className="text-slate-400">Thời gian thực tế: {formatWorkedDuration(workedMinutes)}</span>
+                {isCompleted ? (
+                  <span className="font-black text-emerald-300">1 công ca</span>
+                ) : (
+                  <span className="font-bold italic text-amber-400">Chưa tính công · thiếu giờ ra</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
 export default function AdminAttendanceManagement() {
   const { showToast, showConfirm } = useNotification();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -108,6 +183,7 @@ export default function AdminAttendanceManagement() {
 
   // Trạng thái quản lý Modal chỉnh sửa chi tiết ngày
   const [editDateStr, setEditDateStr] = useState<string | null>(null);
+  const [attendanceDayDetails, setAttendanceDayDetails] = useState<AttendanceDayDetailsState | null>(null);
 
   const loadData = useCallback(async () => {
     const requestId = ++loadRequestIdRef.current;
@@ -212,7 +288,7 @@ export default function AdminAttendanceManagement() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-4 gap-4">
         <div>
           <h1 className="text-base font-bold flex items-center gap-2"><CalendarIcon className="w-5 h-5 text-purple-500" /> Bảng chấm công</h1>
-          <p className="text-[11px] text-slate-400 mt-0.5">Theo dõi thời gian thực tế và số ca quy đổi</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Theo dõi thời gian thực tế và công ca hoàn tất</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
@@ -268,8 +344,9 @@ export default function AdminAttendanceManagement() {
       {/* STATS & SETTLEMENT BAR */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-center">
-          <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1.5"><LayoutGrid className="w-4 h-4 text-purple-400"/> Tổng ca quy đổi</span>
-          <span className="text-2xl font-black font-mono text-purple-400 mt-1">{payrollSummary.totalShifts} <span className="text-sm font-sans text-slate-500">Ca</span></span>
+          <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1.5"><LayoutGrid className="w-4 h-4 text-purple-400"/> Công ca hoàn tất</span>
+          <span className="text-2xl font-black font-mono text-purple-400 mt-1">{selectedMonthSummary.completed} <span className="text-sm font-sans text-slate-500">Công ca</span></span>
+          <span className="mt-1 text-[10px] text-slate-500">Mỗi bản ghi hoàn tất = 1 công ca</span>
         </div>
         
         <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-center">
@@ -351,7 +428,7 @@ export default function AdminAttendanceManagement() {
         </div>
 
         <div className="grid grid-cols-7 gap-2 md:gap-3">
-          {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} className="bg-slate-950/20 border border-transparent min-h-[90px] rounded-xl opacity-20"></div>)}
+          {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} className="min-h-[112px] rounded-xl border border-transparent bg-slate-950/20 opacity-20"></div>)}
 
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
@@ -362,59 +439,35 @@ export default function AdminAttendanceManagement() {
               rawDayRecords = rawDayRecords.filter((record) => String(record.employee_id) === String(filterEmployeeId));
             }
             const processedDayRecords = mergeAttendanceRecords(rawDayRecords);
+            const completedDayRecords = processedDayRecords.filter(isAttendanceRecordComplete).length;
 
             return (
-              <div 
+              <button
+                type="button"
                 key={`day-${day}`} 
                 onClick={() => handleGridDayClick(currentLoopDateStr)} 
-                className={`group relative min-h-[90px] p-2.5 rounded-xl bg-slate-950 border transition-all flex flex-col justify-between cursor-pointer hover:bg-slate-900 ${processedDayRecords.length > 0 ? 'border-purple-900/40 bg-gradient-to-b from-slate-950 to-purple-950/10 shadow-md hover:border-purple-500' : 'border-slate-850 hover:border-purple-500/50'}`}
+                onMouseEnter={() => processedDayRecords.length > 0 && setAttendanceDayDetails({ day, records: processedDayRecords })}
+                onMouseLeave={() => setAttendanceDayDetails(null)}
+                onFocus={() => processedDayRecords.length > 0 && setAttendanceDayDetails({ day, records: processedDayRecords })}
+                onBlur={() => setAttendanceDayDetails(null)}
+                aria-label={`Xem chi tiết chấm công ngày ${day}/${currentMonth + 1}`}
+                aria-describedby={attendanceDayDetails?.day === day ? 'attendance-day-details' : undefined}
+                className={`relative flex min-h-[112px] flex-col justify-between rounded-xl border bg-slate-950 p-3 text-left transition-all hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400 ${processedDayRecords.length > 0 ? 'border-purple-900/40 bg-gradient-to-b from-slate-950 to-purple-950/10 shadow-md hover:border-purple-500' : 'border-slate-850 hover:border-purple-500/50'}`}
               >
-                <span className={`text-xs font-mono font-black ${processedDayRecords.length > 0 ? 'text-purple-400' : 'text-slate-400'}`}>{day}</span>
-                <div>{processedDayRecords.length > 0 && <span className="block text-[9px] bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded md:px-1.5 py-0.5 font-bold uppercase truncate shadow-inner text-center md:text-left mt-1">👥 {processedDayRecords.length} Ca</span>}</div>
-
-                {processedDayRecords.length > 0 && (
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-900 border border-purple-500/40 p-3 rounded-xl shadow-2xl text-[10px] w-60 z-50 text-left space-y-1.5 font-sans pointer-events-none">
-                    <p className="font-black text-purple-400 border-b border-slate-800 pb-1 font-mono uppercase tracking-wider flex items-center justify-between">
-                      <span>📅 Ngày {day}/{currentMonth + 1}:</span>
-                    </p>
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {processedDayRecords.map((rec, rIdx) => {
-                        const isSuccessShift = isAttendanceRecordComplete(rec);
-                        const currentEmp = employees.find((employee) => String(employee.id) === String(rec.employee_id));
-                        const empTitle = currentEmp?.title || 'Chưa gán';
-                        const workedMinutes = getWorkedMinutesForRecord(rec);
-                        const shiftUnits = getFinalizedShiftUnitsForRecord(rec);
-                        
-                        return (
-                          <div key={rec.id || rIdx} className="border-b border-slate-850/50 pb-1.5 last:border-none last:pb-0">
-                            <div className="flex justify-between items-center">
-                              <p className="font-black text-slate-200 truncate pr-2">👤 {rec.employee_name || currentEmp?.full_name || 'Nhân sự'}</p>
-                              <span className="text-[8px] px-1 bg-slate-950 border border-slate-800 rounded font-mono text-purple-400 font-bold shrink-0">{empTitle}</span>
-                            </div>
-                            <p className="text-[9px] text-slate-400 font-medium font-mono mt-0.5">⏱️ Khung: {rec.shift_name}</p>
-                            <div className="grid grid-cols-2 gap-1 font-mono text-[9px] mt-0.5">
-                              <span className="text-emerald-400 font-bold">Vào: {rec.check_in ? rec.check_in.slice(0,5) : '--:--'}</span>
-                              <span className="text-red-400 font-bold">Ra: {rec.check_out ? rec.check_out.slice(0,5) : '--:--'}</span>
-                            </div>
-                            <div className="text-[8px] font-mono mt-1 text-right">
-                              {isSuccessShift ? (
-                                <span className="text-emerald-400 font-bold">
-                                  {formatWorkedDuration(workedMinutes)} · {shiftUnits} ca
-                                </span>
-                              ) : (
-                                <span className="text-amber-500 italic">Thiếu lượt Check-out</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
+                <span className={`font-mono text-sm font-black ${processedDayRecords.length > 0 ? 'text-purple-300' : 'text-slate-400'}`}>{day}</span>
+                <div>{processedDayRecords.length > 0 && <span className="mt-2 block truncate rounded-md border border-purple-500/25 bg-purple-500/10 px-2 py-1 text-center text-[10px] font-bold uppercase text-purple-300 shadow-inner md:text-left">{completedDayRecords} công ca</span>}</div>
+              </button>
             );
           })}
         </div>
+        {attendanceDayDetails && createPortal(
+          <AttendanceDayDetailsPanel
+            {...attendanceDayDetails}
+            month={currentMonth + 1}
+            employees={employees}
+          />,
+          document.body
+        )}
           </>
         )}
         </DataTableShell>
