@@ -104,9 +104,11 @@ export interface WorkflowProjectInsertInput {
   projectName: string;
   colorwayName: string;
   projectDeadline: string;
+  startDate?: string;
   managerEmployeeId?: number;
   phases: WorkflowPhaseFormInput[];
   createTemplateTasks?: boolean;
+  templateVersionId?: number;
 }
 
 export interface WorkflowPhaseFormInput {

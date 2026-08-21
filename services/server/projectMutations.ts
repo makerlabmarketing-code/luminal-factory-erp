@@ -10,6 +10,10 @@ import {
 } from '@/services/server/auth';
 import { requireProjectMembershipAction } from '@/services/server/projectMembershipAuthorization';
 import { nextProjectCode, projectCodePrefix } from '@/lib/project-code';
+import {
+  getPublishedPhaseTemplateOptions,
+  phaseTemplatesEnabled,
+} from '@/services/server/phaseTemplates';
 
 type ProjectMutationBody = Record<string, unknown>;
 type ProjectRoleCode = 'PROJECT_OWNER' | 'PROJECT_MANAGER' | 'CREATIVE_LEAD' | 'CONTRIBUTOR';
@@ -66,6 +70,7 @@ const CREATE_PROJECT_KEYS = new Set([
   'tasks',
   'memberEmployeeIds',
   'managerEmployeeId',
+  'templateVersionId',
 ]);
 
 export function projectWorkflowCreationAvailable(): boolean {
@@ -86,7 +91,17 @@ export async function getProjectCreationOptions() {
     const status = String(employee.status || '').trim().toUpperCase();
     return employee.is_active !== false && !['INACTIVE', 'LOCKED', 'DISABLED', 'DELETED'].includes(status);
   }).map((employee) => ({ employeeId: Number(employee.id), fullName: employee.full_name || `Nhân sự #${employee.id}`, title: employee.title ?? null }));
-  return { success: true, workflowCreationAvailable: projectWorkflowCreationAvailable(), employees };
+  const phaseTemplateCreationAvailable = projectWorkflowCreationAvailable() && phaseTemplatesEnabled();
+  const phaseTemplateOptions = phaseTemplateCreationAvailable
+    ? await getPublishedPhaseTemplateOptions()
+    : [];
+  return {
+    success: true,
+    workflowCreationAvailable: projectWorkflowCreationAvailable(),
+    phaseTemplatesEnabled: phaseTemplateCreationAvailable,
+    phaseTemplateOptions,
+    employees,
+  };
 }
 
 const UPDATE_PROJECT_KEYS = new Set([
@@ -626,9 +641,32 @@ export async function createProject(body: ProjectMutationBody): Promise<ProjectM
   validateStatus(body.status);
   optionalIsoDate(body.projectDeadline, 'projectDeadline');
   const projectName = requiredProjectName(body);
+  const templateVersionId = body.templateVersionId == null || body.templateVersionId === ''
+    ? null
+    : Number(body.templateVersionId);
+
+  if (templateVersionId !== null && (!Number.isInteger(templateVersionId) || templateVersionId <= 0)) {
+    throw mutationError({ status: 422, message: 'Mẫu giai đoạn không hợp lệ.', failureStage: 'payload_validation', code: 'payload_validation_failed' });
+  }
+  if (templateVersionId !== null && (!phaseTemplatesEnabled() || !projectWorkflowCreationAvailable())) {
+    throw mutationError({ status: 422, message: 'Mẫu giai đoạn đang chờ kích hoạt.', failureStage: 'payload_validation', code: 'payload_validation_failed' });
+  }
+  if (templateVersionId !== null && !optionalIsoDate(body.startDate, 'startDate')) {
+    throw mutationError({ status: 422, message: 'Vui lòng chọn ngày bắt đầu khi dùng mẫu giai đoạn.', failureStage: 'payload_validation', code: 'payload_validation_failed' });
+  }
+  if (templateVersionId !== null && (
+    (Array.isArray(body.phases) && body.phases.length > 0)
+    || (Array.isArray(body.tasks) && body.tasks.length > 0)
+  )) {
+    throw mutationError({ status: 422, message: 'Không thể dùng đồng thời mẫu giai đoạn và dữ liệu quy trình tùy chỉnh.', failureStage: 'payload_validation', code: 'payload_validation_failed' });
+  }
 
   // Duplicate project names are allowed; stable project IDs remain the project identity.
-  if (projectWorkflowCreationAvailable() && (Array.isArray(body.phases) && body.phases.length > 0 || Array.isArray(body.tasks) && body.tasks.length > 0)) {
+  if (projectWorkflowCreationAvailable() && (
+    templateVersionId !== null
+    || (Array.isArray(body.phases) && body.phases.length > 0)
+    || (Array.isArray(body.tasks) && body.tasks.length > 0)
+  )) {
     return createProjectViaAtomicRpc(body);
   }
 

@@ -6,6 +6,18 @@ const phaseTemplateDecision = readFileSync(
   "docs/phase-template-business-decision.md",
   "utf8",
 );
+const phaseTemplateSpecification = readFileSync(
+  "docs/phase-template-approved-specification.md",
+  "utf8",
+);
+const phaseTemplatePreflightResult = readFileSync(
+  "docs/phase-template-schema-preflight-result.md",
+  "utf8",
+);
+const phaseTemplatePreflight = readFileSync(
+  "supabase/drafts/20260820_phase_template_schema_preflight.sql",
+  "utf8",
+);
 const operatorHandoff = readFileSync(
   "docs/production-operator-sql-handoff.md",
   "utf8",
@@ -30,19 +42,42 @@ describe("roadmap Cloud-work reconciliation", () => {
     );
 
     expect(classificationRows).toHaveLength(20);
-    expect(roadmap).toContain("No item is currently `SAFE_CLOUD_WORK_AVAILABLE`");
+    expect(roadmap).toContain(
+      "Item 17 Phase Templates is `SAFE_CLOUD_WORK_AVAILABLE` for the approved",
+    );
   });
 
-  it("preserves the Phase Template decision gate and twelve questions", () => {
-    const decisionQuestions = phaseTemplateDecision.match(/^\d+\. /gm);
+  it("records the approved Phase Template contract and bounded preflight", () => {
+    const decisionSection = phaseTemplateDecision.slice(
+      phaseTemplateDecision.indexOf("## Exact decisions required from the business owner"),
+      phaseTemplateDecision.indexOf("## Exact next action"),
+    );
+    const decisionQuestions = decisionSection.match(/^\d+\. /gm);
 
     expect(phaseTemplateDecision).toContain(
-      "**Status:** `BLOCKED_BY_BUSINESS_DECISION`",
+      "**Status:** `BUSINESS_CONTRACT_APPROVED`",
     );
     expect(decisionQuestions).toHaveLength(12);
     expect(roadmap).toContain(
-      "| 17. Phase Templates | `BLOCKED_BY_BUSINESS_DECISION` |",
+      "| 17. Phase Templates | `SAFE_CLOUD_WORK_AVAILABLE` |",
     );
+    expect(phaseTemplateSpecification).toContain(
+      "**Status:** `PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN`",
+    );
+    expect(phaseTemplateSpecification).toContain("`PHASE_TEMPLATE_MANAGE`");
+    expect(phaseTemplateSpecification).toContain("retained for seven years");
+    expect(phaseTemplateSpecification).toContain("launch seed catalog is intentionally empty");
+    expect(phaseTemplatePreflight).toContain("begin transaction read only;");
+    expect(phaseTemplatePreflight).toContain("rollback;");
+    expect(phaseTemplatePreflight).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate)\b/i);
+    expect(phaseTemplatePreflightResult).toContain(
+      "**Status:** `PASS_WITH_EXISTING_SECURITY_DEBT_RECORDED`",
+    );
+    expect(phaseTemplatePreflightResult).toContain("**Mutation count:** 0");
+    expect(phaseTemplatePreflightResult).toContain("| Phase Template object collisions | 0");
+    expect(roadmap).toContain("PR #177 is Ready for review");
+    expect(roadmap).toContain("20260821_phase_template_nonproduction_fixture.sql");
+    expect(roadmap).toContain("20260821065313_phase_template_release_one.sql");
   });
 
   it("preserves Attendance as operator-only and keeps UI work blocked", () => {

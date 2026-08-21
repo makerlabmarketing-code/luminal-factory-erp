@@ -332,9 +332,11 @@ export class WorkflowRepository {
     projectName: string;
     colorwayName: string;
     projectDeadline: string;
+    startDate?: string;
     managerEmployeeId: number;
     phases?: unknown[];
     createTemplateTasks?: boolean;
+    templateVersionId?: number;
   }): Promise<{ project: { id: number; projectCode: string; name: string; colorway: string | null; projectDeadline: string | null; status: string | null }; projectId: number; projectCode: string; projectCreated: boolean; managerMembershipCreated: boolean; workflowCreated: boolean; phasesCreated: number; tasksCreated: number; warnings: string[] }> {
     return requestProjectMutation(
       '/api/admin/projects',
@@ -344,10 +346,12 @@ export class WorkflowRepository {
           projectName: params.projectName.trim(),
           colorwayName: params.colorwayName.trim(),
           projectDeadline: params.projectDeadline,
+          ...(params.startDate ? { startDate: params.startDate } : {}),
           managerEmployeeId: params.managerEmployeeId,
           phases: params.phases || [],
           tasks: params.createTemplateTasks ? (params.phases || []).flatMap((phase) => typeof phase === 'object' && phase && 'tasks' in phase && Array.isArray(phase.tasks) ? phase.tasks : []) : [],
           status: 'PROCESSING',
+          ...(params.templateVersionId ? { templateVersionId: params.templateVersionId } : {}),
         }),
       }
     );

@@ -89,7 +89,16 @@ interface ProjectRecord {
   owner: string;
 }
 
-type ProjectFormErrors = Partial<Record<'projectName' | 'colorwayName' | 'targetDate' | 'managerEmployeeId', string>>;
+interface PhaseTemplateOption {
+  templateId: number;
+  versionId: number;
+  versionNumber: number;
+  name: string;
+  description: string | null;
+  stageCount: number;
+}
+
+type ProjectFormErrors = Partial<Record<'projectName' | 'colorwayName' | 'startDate' | 'targetDate' | 'managerEmployeeId', string>>;
 
 function projectCreateErrorMessage(error: unknown): string {
   const status = typeof error === 'object' && error !== null && 'status' in error
@@ -302,16 +311,21 @@ export default function AdminProjectManagement() {
   const [projectCode, setProjectCode] = useState('');
   const [colorwayName, setColorwayName] = useState('');
   const [targetDate, setTargetDate] = useState('');
+  const [projectStartDate, setProjectStartDate] = useState('');
   const [managerEmployeeId, setManagerEmployeeId] = useState('');
   const [employeeCandidates, setEmployeeCandidates] = useState<Array<{ employeeId: number; fullName: string; title: string | null }>>([]);
   const [employeeLoadState, setEmployeeLoadState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [workflowCreationAvailable, setWorkflowCreationAvailable] = useState(false);
+  const [phaseTemplatesEnabled, setPhaseTemplatesEnabled] = useState(false);
+  const [phaseTemplateOptions, setPhaseTemplateOptions] = useState<PhaseTemplateOption[]>([]);
+  const [templateVersionId, setTemplateVersionId] = useState('');
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [formErrors, setFormErrors] = useState<ProjectFormErrors>({});
   const projectNameRef = useRef<HTMLInputElement>(null);
   const colorwayNameRef = useRef<HTMLInputElement>(null);
   const targetDateRef = useRef<HTMLInputElement>(null);
+  const startDateRef = useRef<HTMLInputElement>(null);
   const managerRef = useRef<HTMLSelectElement>(null);
   const loadPromiseRef = useRef<Promise<void> | null>(null);
   const creationOptionsPromiseRef = useRef<Promise<void> | null>(null);
@@ -332,10 +346,18 @@ export default function AdminProjectManagement() {
       const timeout = setTimeout(() => controller.abort(), 10_000);
       try {
         const response = await fetch('/api/admin/projects', { cache: 'no-store', signal: controller.signal });
-        const payload = await response.json().catch(() => null) as { employees?: Array<{ employeeId: number; fullName: string; title: string | null }>; workflowCreationAvailable?: boolean; message?: string } | null;
+        const payload = await response.json().catch(() => null) as {
+          employees?: Array<{ employeeId: number; fullName: string; title: string | null }>;
+          workflowCreationAvailable?: boolean;
+          phaseTemplatesEnabled?: boolean;
+          phaseTemplateOptions?: PhaseTemplateOption[];
+          message?: string;
+        } | null;
         if (!response.ok) throw new Error(payload?.message || 'employee_candidates_failed');
         setEmployeeCandidates(payload?.employees || []);
         setWorkflowCreationAvailable(payload?.workflowCreationAvailable === true);
+        setPhaseTemplatesEnabled(payload?.phaseTemplatesEnabled === true);
+        setPhaseTemplateOptions(payload?.phaseTemplateOptions || []);
         creationOptionsLoadedRef.current = true;
         setEmployeeLoadState('success');
       } catch (error) {
@@ -421,11 +443,13 @@ export default function AdminProjectManagement() {
     if (!colorwayName.trim()) errors.colorwayName = 'Vui lòng chọn colorway.';
     if (!targetDate) errors.targetDate = 'Vui lòng chọn hạn hoàn thành.';
     else if (new Date(`${targetDate}T00:00:00`) < today) errors.targetDate = 'Hạn hoàn thành không được nhỏ hơn ngày hiện tại.';
+    if (templateVersionId && !projectStartDate) errors.startDate = 'Vui lòng chọn ngày bắt đầu.';
+    else if (templateVersionId && targetDate && new Date(`${projectStartDate}T00:00:00`) > new Date(`${targetDate}T00:00:00`)) errors.startDate = 'Ngày bắt đầu không được sau hạn hoàn thành.';
     if (!managerEmployeeId) errors.managerEmployeeId = 'Vui lòng chọn người phụ trách dự án.';
     setFormErrors(errors);
-    const firstInvalid = (['projectName', 'colorwayName', 'targetDate', 'managerEmployeeId'] as const).find((field) => errors[field]);
+    const firstInvalid = (['projectName', 'colorwayName', 'startDate', 'targetDate', 'managerEmployeeId'] as const).find((field) => errors[field]);
     if (firstInvalid) {
-      ({ projectName: projectNameRef, colorwayName: colorwayNameRef, targetDate: targetDateRef, managerEmployeeId: managerRef }[firstInvalid].current)?.focus();
+      ({ projectName: projectNameRef, colorwayName: colorwayNameRef, startDate: startDateRef, targetDate: targetDateRef, managerEmployeeId: managerRef }[firstInvalid].current)?.focus();
       showToast('Không thể tạo dự án.', 'Vui lòng kiểm tra lại các trường được đánh dấu.', 'error');
       return;
     }
@@ -434,7 +458,7 @@ export default function AdminProjectManagement() {
     setIsCreatingProject(true);
     setCreationStage('Đang tạo dự án...');
     try {
-      const stages = (workflowCreationAvailable ? draftStages : []).map((stage, index, allStages) => ({
+      const stages = (workflowCreationAvailable && !templateVersionId ? draftStages : []).map((stage, index, allStages) => ({
         name: stage.name,
         colorway_name: colorwayName.trim(),
         stage_type: stage.type,
@@ -462,9 +486,11 @@ export default function AdminProjectManagement() {
         projectName: projectName.trim(),
         colorwayName: colorwayName.trim(),
         projectDeadline: targetDate,
+        startDate: templateVersionId ? projectStartDate : undefined,
         phases: stages,
         managerEmployeeId: Number(managerEmployeeId),
         createTemplateTasks: workflowCreationAvailable,
+        templateVersionId: templateVersionId ? Number(templateVersionId) : undefined,
       });
 
       setCreationStage('Đang hoàn tất...');
@@ -472,7 +498,9 @@ export default function AdminProjectManagement() {
       setProjectName('');
       setColorwayName('');
       setTargetDate('');
+      setProjectStartDate('');
       setManagerEmployeeId('');
+      setTemplateVersionId('');
       setFormErrors({});
       setItems((currentItems) => [
         {
@@ -750,6 +778,47 @@ export default function AdminProjectManagement() {
                 </select>
                 {formErrors.managerEmployeeId && <p id="project-manager-error" className="text-xs text-red-300">{formErrors.managerEmployeeId}</p>}
               </label>
+              {phaseTemplatesEnabled && (
+                <label className="space-y-1 md:col-span-2" htmlFor="phase-template-version">
+                  <span className="text-[11px] font-bold text-slate-400">Mẫu giai đoạn</span>
+                  <select
+                    id="phase-template-version"
+                    value={templateVersionId}
+                    onChange={(event) => setTemplateVersionId(event.target.value)}
+                    className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-sm text-slate-100 outline-none"
+                  >
+                    <option value="">Tự thiết lập quy trình</option>
+                    {phaseTemplateOptions.map((template) => (
+                      <option key={template.versionId} value={template.versionId}>
+                        {template.name} — bản {template.versionNumber} ({template.stageCount} giai đoạn)
+                      </option>
+                    ))}
+                  </select>
+                  {phaseTemplateOptions.length === 0 && (
+                    <span className="block text-[10px] text-slate-500">Chưa có mẫu đã xuất bản.</span>
+                  )}
+                </label>
+              )}
+              {phaseTemplatesEnabled && templateVersionId && (
+                <label className="space-y-1 md:col-span-2" htmlFor="project-start-date">
+                  <span className="text-[11px] font-bold text-slate-400">Ngày bắt đầu dự án *</span>
+                  <input
+                    ref={startDateRef}
+                    id="project-start-date"
+                    type="date"
+                    value={projectStartDate}
+                    aria-invalid={Boolean(formErrors.startDate)}
+                    aria-describedby={formErrors.startDate ? 'project-start-date-error' : undefined}
+                    onChange={(event) => {
+                      setProjectStartDate(event.target.value);
+                      setFormErrors((current) => ({ ...current, startDate: undefined }));
+                    }}
+                    className={`w-full rounded-lg border bg-slate-950 p-2 text-sm text-cyan-200 outline-none ${formErrors.startDate ? 'border-red-500' : 'border-slate-800'}`}
+                  />
+                  {formErrors.startDate && <p id="project-start-date-error" className="text-xs text-red-300">{formErrors.startDate}</p>}
+                  <span className="block text-[10px] text-slate-500">Mốc tính lịch cho các giai đoạn và công việc trong mẫu.</span>
+                </label>
+              )}
             </div>
 
             {!workflowCreationAvailable ? (
@@ -757,6 +826,11 @@ export default function AdminProjectManagement() {
                 <p className="text-xs font-black text-amber-200">Quy trình dự án chưa được kích hoạt</p>
                 <p className="mt-1 text-xs text-slate-300">Dự án sẽ được tạo trước. Bạn có thể thiết lập giai đoạn và công việc sau khi quy trình dự án được kích hoạt.</p>
                 <button type="button" disabled className="mt-2 text-xs font-bold text-slate-500">Thiết lập sau tại chi tiết dự án</button>
+              </div>
+            ) : templateVersionId ? (
+              <div className="rounded-lg border border-violet-800/70 bg-violet-950/20 p-3">
+                <p className="text-xs font-black text-violet-200">Sẽ áp dụng mẫu giai đoạn đã chọn</p>
+                <p className="mt-1 text-xs text-slate-300">Các giai đoạn và công việc sẽ được sao chép nguyên tử khi tạo dự án.</p>
               </div>
             ) : (
               <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-950 p-3">

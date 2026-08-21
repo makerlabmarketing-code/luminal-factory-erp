@@ -10,6 +10,7 @@ const gates = [
   'PHASE_WORKFLOW_FOUNDATION_ENABLED',
   'PHASE_STATUS_MUTATION_ENABLED',
   'PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED',
+  'PHASE_TEMPLATES_ENABLED',
   'TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED',
   'TASK_COMMENTS_ACTIVITY_ENABLED',
   'ATTENDANCE_RECOVERY_ENABLED',
@@ -21,6 +22,7 @@ describe('runtime gate server authority', () => {
       'services/server/adminFacilities.ts',
       'services/server/phaseMutations.ts',
       'services/server/projectMutations.ts',
+      'services/server/phaseTemplates.ts',
       'services/server/taskAssignmentFoundation.ts',
       'services/server/projectActivity.ts',
       'app/api/admin/attendance/route.ts',
@@ -35,6 +37,7 @@ describe('runtime gate server authority', () => {
     const facility = source('services/server/adminFacilities.ts');
     const phases = source('services/server/phaseMutations.ts');
     const projects = source('services/server/projectMutations.ts');
+    const phaseTemplates = source('services/server/phaseTemplates.ts');
     const tasks = source('services/server/taskAssignmentFoundation.ts');
     const timeline = source('services/server/projectActivity.ts');
     const attendance = source('app/api/admin/attendance/route.ts');
@@ -44,6 +47,9 @@ describe('runtime gate server authority', () => {
     expect(phases).toMatch(/process\.env\.PHASE_WORKFLOW_FOUNDATION_ENABLED === 'true'/);
     expect(phases).toMatch(/process\.env\.PHASE_STATUS_MUTATION_ENABLED !== 'true'[\s\S]*live_approval_required/);
     expect(projects).toMatch(/process\.env\.PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED === 'true'/);
+    expect(phaseTemplates).toMatch(/process\.env\.PHASE_TEMPLATES_ENABLED === 'true'/);
+    expect(phaseTemplates).toMatch(/if \(!phaseTemplatesEnabled\(\)\) return \[\]/);
+    expect(projects).toMatch(/Mẫu giai đoạn đang chờ kích hoạt\./);
     expect(projects).toMatch(/workflowCreated:\s*false[\s\S]*phasesCreated:\s*0[\s\S]*tasksCreated:\s*0/);
     expect(tasks).toMatch(/process\.env\.TASK_ASSIGNMENT_ATOMIC_CREATE_ENABLED !== "true"[\s\S]*Chức năng thêm công việc đang chờ kích hoạt\./);
     expect(timeline).toMatch(/process\.env\.TASK_COMMENTS_ACTIVITY_ENABLED === 'true'/);
@@ -60,7 +66,7 @@ describe('runtime gate server authority', () => {
     const attendancePage = source('app/admin/attendance/page.tsx');
 
     expect(facilityPage).toContain('Chức năng cập nhật cơ sở đang chờ kích hoạt.');
-    expect(projectPage).toMatch(/workflowCreationAvailable \? draftStages : \[\]/);
+    expect(projectPage).toMatch(/workflowCreationAvailable && !templateVersionId \? draftStages : \[\]/);
     expect(projectPage).toMatch(/Thiết lập sau tại chi tiết dự án/);
     expect(projectDetail).toContain('Chức năng thêm công việc đang chờ kích hoạt.');
     expect(timeline).toContain('Bình luận và lịch sử hoạt động đang chờ kích hoạt.');

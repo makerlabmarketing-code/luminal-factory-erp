@@ -256,9 +256,11 @@ export async function createWorkflowProject(
     projectName: params.projectName,
     colorwayName: params.colorwayName,
     projectDeadline: params.projectDeadline,
+    startDate: params.startDate,
     managerEmployeeId: params.managerEmployeeId || 0,
     phases: params.phases,
     createTemplateTasks: params.createTemplateTasks,
+    templateVersionId: params.templateVersionId,
   });
   const projectId = creation.projectId;
   const phasesCreated = creation.phasesCreated;

@@ -12,6 +12,7 @@ export type PermissionCode =
   | "FINANCE_PAY"
   | "PROJECT_VIEW"
   | "PROJECT_MANAGE"
+  | "PHASE_TEMPLATE_MANAGE"
   | "PROJECT_ASSIGN"
   | "PROJECT_REVIEW"
   | "TASK_VIEW"
@@ -67,6 +68,7 @@ export const ALL_PERMISSION_CODES: PermissionCode[] = [
   "FINANCE_DELETE",
   "PROJECT_VIEW",
   "PROJECT_MANAGE",
+  "PHASE_TEMPLATE_MANAGE",
   "PROJECT_ASSIGN",
   "PROJECT_REVIEW",
   "TASK_VIEW",
@@ -111,6 +113,12 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { code: "PROJECT_MANAGE", label: "Quản lý dự án" },
       { code: "PROJECT_ASSIGN", label: "Giao việc dự án" },
       { code: "PROJECT_REVIEW", label: "Duyệt công việc dự án" },
+    ],
+  },
+  {
+    label: "Mẫu giai đoạn",
+    permissions: [
+      { code: "PHASE_TEMPLATE_MANAGE", label: "Quản lý mẫu giai đoạn dự án" },
     ],
   },
   {

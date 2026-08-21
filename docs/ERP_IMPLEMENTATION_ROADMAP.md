@@ -1,8 +1,102 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-08-21 Phase Templates repository foundation
+
+Status: `PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN`.
+
+The business owner approved Option A and all twelve recommended decisions. The
+release-one contract uses governed `GENERAL` project-type templates, dedicated
+`PHASE_TEMPLATE_MANAGE`, immutable published versions, clone-on-apply,
+contiguous linear stages, approved project-role placeholders, calendar-day
+offsets, archive-first retention, seven-year audit retention, an explicitly
+empty seed catalog, and no legacy backfill/reapply/upgrade.
+
+The approved specification is
+[phase-template-approved-specification.md](phase-template-approved-specification.md).
+The read-only metadata/aggregate preflight at
+`supabase/drafts/20260820_phase_template_schema_preflight.sql` passed production
+with 12 projects, 8 phases, 0 tasks, 0 duplicate phase-order groups, 10 active
+project roles, 0 unsupported roles, and 0 Phase Template object collisions. The
+retained result is
+[phase-template-schema-preflight-result.md](phase-template-schema-preflight-result.md).
+Existing source-table grants/RLS-no-policy state and the authenticated
+`SECURITY DEFINER` project-create boundary are recorded as pre-existing security
+debt and must not be inherited without explicit authorization checks. The
+2026-08-21 repeat preflight confirmed the same counts, zero collisions, zero
+unsupported roles, and exact live RPC checksum before promotion.
+
+The reviewed schema foundation remains at
+`supabase/drafts/20260821_phase_template_forward.sql`, with a retention-safe
+rollback at `supabase/rollbacks/20260821_phase_template_rollback.sql` and
+read-only post-validation at
+`supabase/validation/20260821_phase_template_validation.sql`. It defines the six
+approved relations, dedicated permission catalog entry, required indexes,
+RLS/select-only browser access, immutable published content/provenance/audit,
+seven-year retention metadata, and an empty initial catalog. The application
+boundary adds the exact server-only `PHASE_TEMPLATES_ENABLED=true` gate,
+default-empty reads, disabled-payload rejection, a dedicated permission that is
+not included in the Project Manager preset, and a hidden-until-enabled project
+creation selector. Full repository validation passed 98 test files / 756 tests,
+lint, TypeScript, production build with build-only public placeholders, and
+`git diff --check`.
+
+The retained security review is
+[phase-template-security-review.md](phase-template-security-review.md).
+Read-only production reconciliation confirmed checksum
+`f893db4f9c021120ea697badda853cb9`, its authenticated `SECURITY DEFINER`
+contract, and zero mutations. The business owner then approved Option 1: a
+nullable canonical `projects.start_date`, required only during template apply,
+with no legacy backfill. The checksum-guarded exact project-create replacement
+and authorized draft/version lifecycle RPC are prepared under
+`supabase/drafts/20260821_phase_template_{create_project_atomic_replacement,management_atomic}.sql`.
+The rollback-only authorization/atomicity matrix is now packaged at
+`supabase/validation/20260821_phase_template_nonproduction_fixture.sql`, with
+its no-cost environment, placeholder, evidence, stop, and rollback boundary in
+`docs/phase-template-nonproduction-fixture-runbook.md`. It has not been
+executed. PR #177 is Ready for review at head `e791c9e`; its Vercel preview is
+successful, and no review thread or submitted review was present at the latest
+check. Because no no-cost ERP non-production database exists, the business owner
+explicitly approved direct production delivery on 2026-08-21. The exact reviewed
+package is promoted as one atomic migration at
+`supabase/migrations/20260821065313_phase_template_release_one.sql`, with no
+seed or legacy backfill. Exact next gate: update and merge PR #177 through
+protected `main`, allow the configured Supabase GitHub Integration to apply the
+migration, then run read-only post-validation. Keep
+`PHASE_TEMPLATES_ENABLED=false` or unset; runtime activation remains separately
+approval-gated.
+
+## 2026-08-20 Attendance summary and detail readability
+
+Status: `COMPLETE_ON_MAIN / PRODUCTION_DEPLOYMENT_PASS`.
+
+PR #176 merged to protected `main` as
+`ac2a2d117841f5179789578ea3cac635cf51456a`, and the Vercel production
+deployment completed successfully. The Attendance month overview now reports
+one completed attendance record as one completed work shift, while payroll
+conversion logic remains unchanged. The day-detail overlay is larger, rendered
+outside the calendar clipping boundary, and keeps its full content visible.
+Completed records from other months no longer produce the misleading
+outside-month warning; that warning is retained only for unfinished shifts that
+need operator attention.
+
+Repository validation passed: 97 test files / 748 tests, lint, TypeScript, and
+the production build. Preview verification used authenticated real application
+data and confirmed the completed-shift count matched the visible completed
+records and that the detail overlay remained within the viewport. This slice
+changed no database object, production data, runtime flag, or Vercel environment
+value.
+
+Exact next gate: do not create Attendance fixtures in production and do not
+enable `ATTENDANCE_RECOVERY_ENABLED`. The remaining Attendance operator smoke
+requires separately approved fixture provisioning. Task Assignment atomicity
+fixtures require a safe non-production Supabase environment; production must
+not be substituted. The repository-safe roadmap action is now the approved Phase
+Template specification and schema preflight; Attendance and Task Assignment
+production/runtime gates remain unchanged.
+
 ## 2026-08-17 framework security remediation
 
-Status: `APPLICATION_COMPLETE / READY_FOR_PROTECTED_REVIEW`.
+Status: `COMPLETE_ON_MAIN / PRODUCTION_DEPLOYMENT_PASS`.
 
 The repository has been upgraded from Next.js 13.5.1 / React 18 to the patched
 Next.js 16.3.1 / React 19.2.8 stack, with ESLint 9 flat configuration, Recharts
@@ -10,14 +104,17 @@ Next.js 16.3.1 / React 19.2.8 stack, with ESLint 9 flat configuration, Recharts
 Next 16 `proxy.ts` convention, and async route/page request APIs. The lockfile
 pins the patched `brace-expansion` line used by ESLint's minimatch 3 dependency.
 
-Validation on the clean post-PR #174 baseline: `npm audit --json` reports zero
+PR #175 merged to protected `main` as
+`f20fe19fc57853ea72add5ea141ae5ced00858c4`, and the Vercel production
+deployment completed successfully. Validation on the clean post-PR #174
+baseline: `npm audit --json` reports zero
 vulnerabilities; 97 test files / 746 tests pass; lint has zero errors or
 warnings; TypeScript passes; and the Next.js production build completes with
 build-only placeholder public environment values. This slice changes no
 database object, production data, runtime flag, or Vercel environment value.
-Exact next gate: one protected dependency-review PR and its CI checks; do not
-merge if framework, authentication, chart, proxy, or production-build regression
-appears.
+The protected dependency-review and deployment gates are complete; reopen only
+if a framework, authentication, chart, proxy, or production-build regression is
+observed.
 
 ## 2026-08-16 Task Assignment atomic create production evidence
 
@@ -56,7 +153,7 @@ production `PASS` unless retained evidence is added here after execution.
 | Attendance stale-row cancellation | `PRODUCTION_LOGOUT_LOGIN_RETEST_REQUIRED` | PR #100, `b8a8bfb`; the approved forward committed exactly once, post-run passed, and package-wide validation passed. Exactly one Attendance row is cancelled and immutable audit event ID `1` is retained. | Runbook: `docs/attendance-stale-row-cancellation-operator-runbook.md`; migration `supabase/migrations/20260730024246_attendance_cancellation_audit.sql`; Staff display evidence: `docs/attendance-current-shift-state-regression.md`. | Keep `ATTENDANCE_RECOVERY_ENABLED=false`; runtime activation remains separately approval-gated. | Deploy the bounded Staff logout slice, then manually verify logout, protected-route rejection, clean Staff-only login, and the unchanged Maker Lab completed shift; expected Attendance rows affected: 0. | Stop on any session-clear failure, redirect crossover, protected-content restoration, Attendance display regression, duplicate write, Admin denial/bypass, or count drift. | Maker Lab check-in/check-out, duplicate prevention, 16:18–16:18 display, raw zero minutes, one converted shift, hidden Start action, and zero payable are `PASS`. Admin Attendance remains read-only. Retain the logout/clean-login result before marking Attendance fully production-complete. Rollback remains separately approval-gated through `supabase/rollbacks/20260730_attendance_stale_cancellation_rollback.sql` using audit ID `1`. |
 | Finance linked-ledger atomic edit | `READY_FOR_LOCAL_OPERATOR` | PR #103, `e82b873`; compensation-safe application fix is on `main`. Sequential compensation is failure-safe but **not true atomicity**. | `docs/finance-linked-ledger-atomic-edit-operator-package.md`; pre-run/forward/rollback `supabase/drafts/20260731_finance_linked_ledger_edit_{pre_run,forward,rollback}.sql`; validation `supabase/validation/20260731_finance_linked_ledger_edit_validation.sql`. Confirm the package on latest `main`; the RPC is prepared and **not executed**. | No new runtime flag; do not wire/use the RPC until validation passes. | Read-only pre-run (0 rows mutated) → approval → `SECURITY INVOKER` RPC DDL (0 business rows) → validation/grants/RLS → wire RPC → CREATE/UPDATE/CANCEL/NONE and forced-failure smoke (counts per runbook; forced failure must persist 0 partial rows). | Stop on any table, column, RLS, policy, ownership, grant, or function invariant failure; stop before wiring on validation failure; stop and roll back on partial persistence or authorization broadening. | Retain pre-run, approval, DDL/post-run, authenticated-only EXECUTE, `security_definer=false`, RLS, four-mode smoke, forced-failure and zero-partial-persistence evidence. Rollback: `supabase/drafts/20260731_finance_linked_ledger_edit_rollback.sql`. |
 | Employee Profile extension / salary-field contract | `BLOCKED_BY_BUSINESS_DECISION` | Employee Detail PR #93; decision record PR #94. | `supabase/drafts/20260729_employee_profile_extension_{pre_run,forward,post_run,rollback}.sql`; `supabase/validation/20260729_employee_profile_extension_validation.sql`. | No capability flag may be introduced or enabled. | Approve all eight decisions before promotion: exact field semantics/nullability; Admin per-field read/edit; Staff own-profile per-field read/edit; sensitive visibility; audit allowlist; audit retention; whether old/new sensitive values may be stored; hard deletion versus archive-only. | Stop on any unresolved field, permission, sensitive-data, audit, retention, or deletion decision. Draft review is not mutation approval. | Draft rollback above; destructive promotion/execution is prohibited while blocked. |
-| Phase Templates | `BLOCKED_BY_BUSINESS_DECISION` | PR #91, `bb3f431`. | `docs/phase-template-business-decision.md` (the authority for the exact twelve decisions); no executable package is approved. | Keep any template capability absent/false. | Business owner answers decisions 1–12 exactly as recorded, including ownership/permission, scope/viewers, immutable versions, stage/dependency model, role placeholders, dates, deletion, audit/retention, seeds, and legacy behavior. | Stop while any of the twelve decisions or seed ownership remains unresolved; do not execute the old sketch. | No SQL rollback exists because no executable package is approved; preserve existing project phases/tasks. |
+| Phase Templates | `PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN` | PR #177 Ready for review at `e791c9e`; production-direct delivery approved 2026-08-21 after repeat preflight PASS. | Atomic migration `20260821065313_phase_template_release_one`; checksum-guarded project-create replacement, lifecycle RPC, rollback, post-validation, fixture/runbook, security review, and live reconciliation. | Keep `PHASE_TEMPLATES_ENABLED=false` or unset. | Merge through protected main, allow Supabase GitHub Integration to apply once, then run read-only post-validation; no runtime activation. | Stop on checksum drift, browser table write, second apply RPC, unchecked privileged function, RLS bypass, unapproved seed, existing-project rewrite, partial clone, migration failure, or source-count drift. | Retain migration-history, schema/RLS/grant/function, empty-catalog, and source-count PASS evidence. Non-production fixture remains NOT_EXECUTED under the accepted production-direct exception. Rollback preserves project schedule, cloned rows, provenance, and audit. |
 | Ledger/Reimbursement | `READY_FOR_LOCAL_OPERATOR` | PR #81, `362cc68d`; package `20260728153000`. | Pre-run `supabase/drafts/20260728153000_ledger_reimbursement_pre_run.sql`; tracked migration `supabase/migrations/20260728153000_ledger_reimbursement_workflow.sql`; matching validation, smoke, storage, and rollback artifacts. Confirm migration-history absence before delivery. | Keep `FINANCE_REIMBURSEMENT_ENABLED=false` or unset. | After Attendance and finance: read-only pre-run (0 rows mutated), then explicit approval before the package's first mutation; forward counts must equal the package pre-run expectations. | Stop on count drift, public storage, RLS/grant failure, legacy salary mutation, hard delete, idempotency failure, or payroll-source regression. | Retain migration history, pre/post-run, private Storage/RLS, authorization, count and smoke PASS. Rollback: `supabase/rollbacks/20260728153000_ledger_reimbursement_workflow_rollback.sql`; export and separate approval required. |
 | Payroll | `READY_FOR_LOCAL_OPERATOR` | PR #80, `6090ace`; package `20260728100414`. | `supabase/drafts/payroll/20260728100414_pre_run.sql`, tracked migration `supabase/migrations/20260728100414_immutable_monthly_payroll_settlement.sql`, matching validation, smoke, and rollback. Confirm migration-history absence before delivery. | Keep `PAYROLL_SETTLEMENT_ENABLED=false` or unset. | Attendance and Facility PASS → read-only pre-run (0 rows mutated) → explicit mutation approval → protected delivery → validation/RLS/authorization → explicit first official month → smoke. Forward counts must equal package expectations. | Stop on legacy-row drift, own-row isolation failure, unauthorized execution, duplicates, mutable originals, missing audit provenance, or unspecified first month. | Retain migration history, pre/post validation, RLS/grants, first-month decision, authorization, immutable/audit, and smoke PASS. Rollback: `supabase/rollbacks/20260728100414_immutable_monthly_payroll_settlement_rollback.sql`; export and destructive-rollback approval required. |
 | Email-history safe UI/read slice | `READY_FOR_PROTECTED_REVIEW` | Preparation commit supplied as `da8db344611d33635d94154e034ee3971a93cd71`; merged repository equivalent is PR #104, `8787e21`. No hosted PR URL is claimed. | `docs/email-history-business-decision-package.md`; no migration prerequisite for this bounded read/UI slice. | Keep `EMAIL_DELIVERY_ENABLED=false` or unset. | Protected review of field projection, exact-count pagination, bounded search, stale-response/detail handling, controlled errors, and duplicate-delete protection; expected production rows affected: 0. | Stop on actionable review findings, validation failure, or any attempt to infer approval for schema, RLS, archive, deletion, or retry behavior. | Retain protected checks/review outcome. Code rollback is the reviewed commit revert; no database rollback applies. |
@@ -182,12 +279,14 @@ This table is the scheduling authority for the current Cloud continuation. It cl
 | 14. Dashboard | `READY_FOR_OPERATOR` | Approved error/retry behavior is complete; empty/populated/denied production fixtures remain operator evidence. |
 | 15. Functional stabilization | `COMPLETE` | All approved safe application defect, loading, retry, submission, targeted-refresh, and regression work is complete. |
 | 16. Runtime gate readiness | `READY_FOR_OPERATOR` | All seven packages are inventoried and default-disabled; live evidence and activation remain operator-only. |
-| 17. Phase Templates | `BLOCKED_BY_BUSINESS_DECISION` | The decision package preserves twelve unanswered questions; no implementation or executable package is approved. |
+| 17. Phase Templates | `SAFE_CLOUD_WORK_AVAILABLE` | Production-direct delivery is approved; the exact reviewed package is promoted to one protected-main migration. The safe action is PR update/merge, integration execution, and read-only post-validation with the runtime flag disabled. |
 | 18. SaaS UI foundation | `BLOCKED_BY_DEPENDENCY` | The bounded affected journeys and prerequisite operator gates are unresolved; no broad foundation implementation is safe. |
 | 19. Broad SaaS UI re-skin | `BLOCKED_BY_DEPENDENCY` | Operational boundaries and runtime evidence remain unresolved. |
 | 20. Production hardening | `BLOCKED_BY_DEPENDENCY` | Stabilized production capabilities and an approved UI scope must precede release hardening. |
 
-No item is currently `SAFE_CLOUD_WORK_AVAILABLE`. The exact next safe Cloud item selected for this continuation was this repository reconciliation and operator-handoff correction; it is now `COMPLETE`. No application defect or approved UI/RPC/RLS package gap remained after inspection, so no application code, SQL, runtime flag, deployment, or completed Employee persistence scope was reopened.
+Item 17 Phase Templates is `SAFE_CLOUD_WORK_AVAILABLE` for the approved
+protected-main production delivery and read-only post-validation only. Runtime
+activation remains outside this gate.
 
 ### Employee Detail and Employee Profile disposition
 
@@ -197,7 +296,13 @@ No item is currently `SAFE_CLOUD_WORK_AVAILABLE`. The exact next safe Cloud item
 - Required decisions: final field semantics/nullability; per-field Admin read/edit; per-field Staff own-profile read/edit; sensitive-field visibility; audit field allowlist; audit retention period; storage of old/new sensitive values; and hard-delete versus archive-only audit retention.
 - No production SQL, authenticated production smoke, runtime flag activation, deployment, or merge occurred in this continuation.
 
-After applying the required skips, there is **no exact next `SAFE_CLOUD_WORK_AVAILABLE` item**. The next incomplete operational item is Item 16, Gate 2 Attendance recovery, but it is operator-only. Employee Profile can become the next safe repository slice only after all eight business/security decisions are approved; Phase Templates and the SaaS UI phases retain their existing blockers. This classification prevents Employee Profile from stopping the roadmap while also preventing speculative work.
+The 2026-08-21 production-direct exception makes only the Phase Template
+protected-main migration delivery safe. The non-production fixture remains
+unexecuted and every other operator/fixture boundary remains unchanged.
+Attendance Gate 2 remains operator-only, Task Assignment fixtures still require
+a safe non-production database, Employee Profile still requires its eight
+business/security decisions, and the SaaS UI phases retain their dependency
+blockers.
 
 ## Reconciled roadmap
 
@@ -221,7 +326,7 @@ The order below preserves the functional roadmap sequence. Dependency correction
 | 14. Dashboard | `APPLICATION_COMPLETE` | `LIVE_OPERATOR_VERIFICATION_REQUIRED` | Server-owned paid-ledger DTO, visible failure, and in-app retry are implemented and covered by `tests/admin-dashboard-dto.test.ts`. | Authorized production fixtures for empty, populated, denied, and error ledger states have not been retained as PASS evidence. | Operator performs the Dashboard read-only smoke checks in the [production runbook](production-runtime-gate-operator-runbook.md); do not redesign it in this task. |
 | 15. Functional stabilization | `BLOCKED_BY_DEPENDENCY` | `APPLICATION_COMPLETE` | The current journey matrix and safe application fixes are recorded in [the functional stabilization report](core-erp-functional-stabilization-report.md). Payroll request ordering, duplicate-submit feedback, and Retry state are covered by `tests/payroll-immutable-settlement.test.ts`. | Live operator verification/runtime activation remains for Account, Facility, Attendance, Project Workflow, Child Task create, Comments/Activity, Ledger/Reimbursement, Payroll, and Dashboard. | Safe repository work is complete. Continue with item 16 operator evidence; do not infer any gate active. |
 | 16. Runtime gate readiness | `READY_FOR_OPERATOR` | `READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL` | All seven server-owned gates, artifacts, dependencies, smoke tests, activation prerequisites, rollback triggers, and default-false tests are owned by the [activation matrix](runtime-gate-activation-matrix.md) and [production runbook](production-runtime-gate-operator-runbook.md). Attendance stale-row correction, post-run, and package validation are `PASS`; read-only production runtime verification passed for commit `e2090766cd6d9193f43ed2006657859b9251647e` with recovery `disabled`; audit event ID `1` is retained. Employee persistence separately records `EMPLOYEE_PROFILE_PERSISTENCE_PASS`. | Attendance requires a dedicated zero-rate test fixture before authenticated Staff/Admin smoke. | **Exact next Attendance gate:** obtain `READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`, then perform production Staff/Admin smoke. Keep `ATTENDANCE_RECOVERY_ENABLED=false`; forward replay and rollback are not authorized. |
-| 17. Phase Templates | `BLOCKED_BY_BUSINESS_DECISION` | `BLOCKED_BY_BUSINESS_DECISION` | The preserved [business-decision package](phase-template-business-decision.md) defines bounded options and twelve unanswered business questions without creating application code or executable SQL. | The business owner must answer all twelve questions and approve the seed catalog or an empty catalog. | Preserve the package. Do not implement, infer rules, promote draft SQL, or silently approve a contract. |
+| 17. Phase Templates | `SAFE_CLOUD_WORK_AVAILABLE` | `PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN` | Option A, all twelve decisions, Option 1, and direct production delivery are approved. The exact schema/RPC package is promoted atomically at `supabase/migrations/20260821065313_phase_template_release_one.sql`; rollback/post-validation, fixture/runbook, security/application boundary, and live reconciliation remain retained. | Protected-main merge, integration migration execution, and read-only post-validation remain; `PHASE_TEMPLATES_ENABLED` stays false/unset. The non-production fixture is `NOT_EXECUTED`. | Update PR #177, merge through protected main, validate migration history/schema/RLS/grants/functions/empty catalog/source counts, and stop without activation. |
 | 18. SaaS UI foundation | `NOT_STARTED` | `BLOCKED_BY_DEPENDENCY` | `SETUP-CODEX-ERP.md` defines the future shared shell/design-system scope; the stabilization report classifies only a subset of journeys as safe for scoped planning. | Operational gates are unresolved and the approved bounded foundation scope is not isolated from them. | Do not implement yet. Reassess only after the affected journeys and prerequisite operator evidence are explicit. |
 | 19. Broad SaaS UI re-skin | `BLOCKED_BY_DEPENDENCY` | `BLOCKED_BY_DEPENDENCY` | The stabilization report explicitly blocks broad redesign while operational boundaries remain unresolved. | Every affected stabilization journey and runtime gate must have the required retained evidence, and the foundation scope must be approved. | Keep broad re-skin blocked; do not reinterpret completed functional polish as a new re-skin slice. |
 | 20. Production hardening | `NOT_STARTED` | `BLOCKED_BY_DEPENDENCY` | `SETUP-CODEX-ERP.md` defines performance, accessibility, production build, monitoring, and release-readiness criteria. Existing application slices have local regression/build coverage but no completed release-hardening phase. | Depends on stabilized production capabilities and the approved UI scope; deployment remains a separate approval gate. | Begin only after stabilization and the approved UI phase; do not deploy or merge as part of roadmap reconciliation. |
@@ -288,7 +393,7 @@ Facility/Attendance and Project Workflow are independent roots. Within Project W
 
 ## Historical status normalization
 
-Earlier batch numbers, corrective slices, and “Phase 1–5 Project Workflow Completion” entries are commit/history labels, not parallel roadmap items. Their delivered application work is incorporated into items 1–16 above and must not be reopened or scheduled independently. The old Phase Template SQL proposal is `DEFERRED` and non-executable; the [current business-decision package](phase-template-business-decision.md) owns approval of scope, permissions, lifecycle, seeds, and compatibility. Phase Templates remain `BLOCKED_BY_BUSINESS_DECISION`. The earlier broad UI-polish phase is `SUPERSEDED` by items 17 and 18. Commit history remains the immutable implementation narrative; this document is the current scheduling authority.
+Earlier batch numbers, corrective slices, and “Phase 1–5 Project Workflow Completion” entries are commit/history labels, not parallel roadmap items. Their delivered application work is incorporated into items 1–16 above and must not be reopened or scheduled independently. The old Phase Template SQL proposal is `DEFERRED` and non-executable; the [approved specification](phase-template-approved-specification.md) now owns scope, permissions, lifecycle, seeds, and compatibility. Phase Templates are ready only for read-only schema preflight. The earlier broad UI-polish phase is `SUPERSEDED` by items 17 and 18. Commit history remains the immutable implementation narrative; this document is the current scheduling authority.
 
 ## Rollback
 
