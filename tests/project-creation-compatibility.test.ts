@@ -32,8 +32,15 @@ describe('safe project creation compatibility mode', () => {
   it('uses the server capability and creates no compatibility phases or tasks', () => {
     expect(server).toMatch(/PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED/);
     expect(page).toMatch(/setWorkflowCreationAvailable\(payload\?\.workflowCreationAvailable === true\)/);
-    expect(page).toMatch(/workflowCreationAvailable \? draftStages : \[\]/);
+    expect(page).toMatch(/workflowCreationAvailable && !templateVersionId \? draftStages : \[\]/);
     expect(server).toMatch(/workflowCreated: false[\s\S]*phasesCreated: 0[\s\S]*tasksCreated: 0/);
+  });
+
+  it('requires a canonical start date only when a Phase Template is selected', () => {
+    expect(page).toMatch(/templateVersionId && !projectStartDate/);
+    expect(page).toMatch(/id="project-start-date"/);
+    expect(page).toMatch(/startDate: templateVersionId \? projectStartDate : undefined/);
+    expect(server).toMatch(/templateVersionId !== null && !optionalIsoDate\(body\.startDate, 'startDate'\)/);
   });
 
   it('keeps product copy free from technical rollout language', () => {

@@ -1,8 +1,40 @@
 # Phase Template Business-Decision Package
 
-**Prepared:** 2026-07-29  
-**Status:** `BLOCKED_BY_BUSINESS_DECISION`
-**Boundary:** contract proposal only; no Phase Template application code, SQL, migration, RPC, RLS, seed data, runtime flag, deployment, or merge is authorized by this document.
+**Prepared:** 2026-07-29
+**Approved:** 2026-08-20
+**Status:** `BUSINESS_CONTRACT_APPROVED`
+**Boundary:** Option A and all twelve recommended decisions are approved for
+formal specification and read-only schema preflight. This approval does not
+authorize migration execution, production data changes, runtime activation,
+deployment, or merge.
+
+## Approval record
+
+The business owner approved **Option A and all twelve recommended decisions**
+on 2026-08-20. The selected release-one contract is:
+
+1. governed, project-type-scoped immutable versions;
+2. Operations/System Owner accountability and dedicated
+   `PHASE_TEMPLATE_MANAGE` permission;
+3. project-type scoping with `GENERAL` as the only release-one catalog value;
+4. eligible project creators/managers may view and apply active published
+   versions; template managers alone may view drafts, archives, version history,
+   and audit history;
+5. immutable publication, clone-on-apply, and no effect on existing projects;
+6. contiguous linear stages only;
+7. role placeholders limited to `PROJECT_OWNER`, `PROJECT_MANAGER`,
+   `CREATIVE_LEAD`, and `CONTRIBUTOR`, with a visible unassigned fallback;
+8. non-negative calendar-day offsets and rejection beyond the project deadline;
+9. archive-only retention, except an audited hard delete for an unused,
+   never-published draft;
+10. actor, timestamp, action, reason, and structured before/after audit data,
+    retained for seven years;
+11. an explicitly empty release-one seed catalog; and
+12. no legacy backfill, reapply, replace, merge, or upgrade in release one.
+
+The implementation authority is now
+[the approved Phase Template specification](phase-template-approved-specification.md).
+The old SQL sketch remains non-executable and is not promoted by this approval.
 
 ## Current repository boundary
 
@@ -103,4 +135,16 @@ Required artifacts: read-only pre-run, reviewed forward migration, validation, r
 
 ## Exact next action
 
-The business owner returns these twelve decisions and the seed catalog (or explicit empty-catalog decision). Engineering then prepares a formal specification and schema preflight for only the selected contract. Until approval, keep Phase Templates `BLOCKED_BY_BUSINESS_DECISION`, do not implement them, and do not begin SaaS UI foundation.
+### 2026-08-21 follow-up source-schema decision
+
+Option 1 is approved: template apply requires payload `startDate` and persists
+it in a new nullable canonical `projects.start_date date`. Existing projects are
+not backfilled; compatibility creation may leave the column null. The other
+options—payload-only date or implicit transaction date—are rejected.
+
+The formal specification, read-only production preflight, bounded schema/RPC
+forward package, rollback/validation, and default-off application boundary are
+prepared. Exact next gate: protected review, then the authorization/atomicity
+matrix on a safe non-production database. Stop before migration promotion or
+execution, production mutation, runtime activation, deployment, or merge until
+those gates receive their own approval.

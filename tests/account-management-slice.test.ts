@@ -82,6 +82,7 @@ describe("account and permission management slice", () => {
       "Nhân sự",
       "Tài chính",
       "Dự án & công việc",
+      "Mẫu giai đoạn",
       "Dự án & công việc",
       "Hoàn trả",
       "Chấm công",
@@ -104,6 +105,11 @@ describe("account and permission management slice", () => {
     ];
 
     expect(ALL_PERMISSION_CODES).toEqual(expect.arrayContaining(approvedKeys));
+    expect(ALL_PERMISSION_CODES).toContain("PHASE_TEMPLATE_MANAGE");
+    expect(
+      ACCOUNT_PRESETS.find((preset) => preset.code === "PROJECT_MANAGER")
+        ?.permissions,
+    ).not.toContain("PHASE_TEMPLATE_MANAGE");
     expect(new Set(ALL_PERMISSION_CODES).size).toBe(
       ALL_PERMISSION_CODES.length,
     );
