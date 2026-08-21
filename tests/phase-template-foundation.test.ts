@@ -59,7 +59,7 @@ describe('phase template release-one foundation', () => {
 
   it('retains the exact atomic-apply stop condition', () => {
     const review = source('docs/phase-template-security-review.md');
-    expect(review).toMatch(/PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN/);
+    expect(review).toMatch(/PRODUCTION_MIGRATION_PASS \/ RUNTIME_FLAG_DISABLED/);
     expect(review).toMatch(/No second browser-executable apply RPC is allowed/);
     expect(review).toMatch(/zero project, phase, task, provenance, or audit/);
   });

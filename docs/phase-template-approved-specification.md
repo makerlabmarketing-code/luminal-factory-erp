@@ -1,7 +1,7 @@
 # Phase Template Approved Specification
 
 **Approved:** 2026-08-20
-**Status:** `PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN`
+**Status:** `PRODUCTION_MIGRATION_PASS / RUNTIME_FLAG_DISABLED`
 **Decision authority:**
 [Phase Template Business-Decision Package](phase-template-business-decision.md)
 
@@ -198,9 +198,11 @@ project rewrite, or production count drift.
 
 ## Exact next gate
 
-Merge PR #177 through protected `main`, let the configured Supabase GitHub
-Integration apply migration `20260821065313_phase_template_release_one`, then
-run the read-only post-validation and compare source counts. The non-production
-fixture remains `NOT_EXECUTED` because no no-cost ERP test database exists; the
-business owner explicitly accepted direct production delivery. Keep
-`PHASE_TEMPLATES_ENABLED=false` or unset after validation.
+PR #177 merged through protected `main` as `0f3fe87`; the configured Supabase
+GitHub Integration applied migration `20260821065313_phase_template_release_one`
+exactly once. Read-only post-validation and source-count comparison passed, and
+the Vercel production deployment is `READY`. The retained evidence is
+[phase-template-production-delivery-result.md](phase-template-production-delivery-result.md).
+The non-production fixture remains `NOT_EXECUTED`. Keep
+`PHASE_TEMPLATES_ENABLED=false` or unset until separately approved activation
+and bounded live smoke.
