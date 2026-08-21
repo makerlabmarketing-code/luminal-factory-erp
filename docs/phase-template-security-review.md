@@ -1,6 +1,6 @@
 # Phase Template Security Review
 
-**Status:** `PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN`
+**Status:** `PRODUCTION_MIGRATION_PASS / RUNTIME_FLAG_DISABLED`
 
 ## Trust boundaries
 
@@ -62,3 +62,11 @@ No second browser-executable apply RPC is allowed. The non-production fixture
 remains `NOT_EXECUTED` because no no-cost ERP test database exists. Production
 delivery therefore remains default-disabled: `PHASE_TEMPLATES_ENABLED` must stay
 absent/false through migration, post-validation, and application deployment.
+
+PR #177 merged as `0f3fe87`; the migration applied exactly once and retained
+read-only validation passed. The expected Supabase Advisor warning remains for
+`manage_phase_template_atomic(jsonb)` because it is an authenticated
+`SECURITY DEFINER` RPC; the reviewed body derives `auth.uid()`, validates the
+active employee, Admin Workspace, and `PHASE_TEMPLATE_MANAGE`, rejects client
+actor fields, and exposes no direct browser table mutation. Runtime activation
+remains disabled.

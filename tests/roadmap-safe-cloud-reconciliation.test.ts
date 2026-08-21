@@ -43,7 +43,7 @@ describe("roadmap Cloud-work reconciliation", () => {
 
     expect(classificationRows).toHaveLength(20);
     expect(roadmap).toContain(
-      "Item 17 Phase Templates is `SAFE_CLOUD_WORK_AVAILABLE` for the approved",
+      "Item 17 Phase Templates has no remaining safe Cloud implementation work",
     );
   });
 
@@ -59,10 +59,10 @@ describe("roadmap Cloud-work reconciliation", () => {
     );
     expect(decisionQuestions).toHaveLength(12);
     expect(roadmap).toContain(
-      "| 17. Phase Templates | `SAFE_CLOUD_WORK_AVAILABLE` |",
+      "| 17. Phase Templates | `READY_FOR_OPERATOR` |",
     );
     expect(phaseTemplateSpecification).toContain(
-      "**Status:** `PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN`",
+      "**Status:** `PRODUCTION_MIGRATION_PASS / RUNTIME_FLAG_DISABLED`",
     );
     expect(phaseTemplateSpecification).toContain("`PHASE_TEMPLATE_MANAGE`");
     expect(phaseTemplateSpecification).toContain("retained for seven years");
@@ -75,9 +75,10 @@ describe("roadmap Cloud-work reconciliation", () => {
     );
     expect(phaseTemplatePreflightResult).toContain("**Mutation count:** 0");
     expect(phaseTemplatePreflightResult).toContain("| Phase Template object collisions | 0");
-    expect(roadmap).toContain("PR #177 is Ready for review");
+    expect(roadmap).toContain("PR #177 merged through protected `main` as `0f3fe87`");
     expect(roadmap).toContain("20260821_phase_template_nonproduction_fixture.sql");
     expect(roadmap).toContain("20260821065313_phase_template_release_one.sql");
+    expect(roadmap).toContain("phase-template-production-delivery-result.md");
   });
 
   it("preserves Attendance as operator-only and keeps UI work blocked", () => {

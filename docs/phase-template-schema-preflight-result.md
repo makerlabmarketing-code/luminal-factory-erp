@@ -99,6 +99,8 @@ columns, and management RPC were absent; the live
 `create_project_atomic(jsonb)` checksum remained
 `f893db4f9c021120ea697badda853cb9`; and source counts remained 12 projects, 8
 phases, and 0 tasks. The business owner then approved direct production
-delivery. Exact next gate: protected-main merge of PR #177, Supabase GitHub
-Integration execution, and read-only post-validation while
+delivery. PR #177 subsequently merged as `0f3fe87`; Supabase GitHub Integration
+applied the migration exactly once, and read-only post-validation preserved the
+same 12/8/0 source counts. See
+[phase-template-production-delivery-result.md](phase-template-production-delivery-result.md).
 `PHASE_TEMPLATES_ENABLED` remains false/unset.
