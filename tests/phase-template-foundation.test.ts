@@ -101,4 +101,29 @@ describe('phase template release-one foundation', () => {
     expect(management).toMatch(/revoke all on function public\.manage_phase_template_atomic\(jsonb\) from public, anon/);
     expect(management).toMatch(/grant execute on function public\.manage_phase_template_atomic\(jsonb\) to authenticated, service_role/);
   });
+
+  it('fails closed on SQL NULL and packages the complete rollback-only non-production matrix', () => {
+    const replacement = source('supabase/drafts/20260821_phase_template_create_project_atomic_replacement.sql');
+    const management = source('supabase/drafts/20260821_phase_template_management_atomic.sql');
+    const fixture = source('supabase/validation/20260821_phase_template_nonproduction_fixture.sql');
+    const runbook = source('docs/phase-template-nonproduction-fixture-runbook.md');
+
+    expect(replacement).toMatch(/p_payload is null or jsonb_typeof\(p_payload\) <> 'object'/);
+    expect(management).toMatch(/p_payload is null or jsonb_typeof\(p_payload\) <> 'object'/);
+    expect(fixture).toMatch(/NON-PRODUCTION ONLY/);
+    expect(fixture).toMatch(/<CONFIRMED_NON_PRODUCTION_ENVIRONMENT>/);
+    expect(fixture).toMatch(/<AUTHORIZED_AUTH_UUID>/);
+    expect(fixture).toMatch(/<DENIED_AUTH_UUID>/);
+    expect(fixture).toMatch(/<MANAGER_EMPLOYEE_ID>/);
+    expect(fixture).toMatch(/request\.jwt\.claim\.sub/);
+    expect(fixture).toMatch(/template_version_not_current/);
+    expect(fixture).toMatch(/template_deadline_overflow/);
+    expect(fixture).toMatch(/template_custom_workflow_conflict/);
+    expect(fixture).toMatch(/phase_template_fixture_forced_failure/);
+    expect(fixture).toMatch(/left partial data/i);
+    expect(fixture.trimEnd()).toMatch(/rollback;$/);
+    expect(runbook).toMatch(/PACKAGE_READY \/ NOT_EXECUTED/);
+    expect(runbook).toMatch(/Do\s+not create a paid Supabase branch/);
+    expect(runbook).toMatch(/PHASE_TEMPLATE_NONPRODUCTION_FIXTURE_PASS/);
+  });
 });

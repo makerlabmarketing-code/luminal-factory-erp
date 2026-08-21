@@ -178,6 +178,12 @@ If preflight finds no blocker, the next bounded repository slice must include:
 6. focused tests plus full repository validation; and
 7. a separate protected review before production delivery or activation.
 
+All seven repository artifacts are now prepared for protected review. The
+authorization/atomicity fixture is packaged at
+`supabase/validation/20260821_phase_template_nonproduction_fixture.sql` and is
+explicitly `NOT_EXECUTED`; its no-cost/non-production boundary is owned by
+[phase-template-nonproduction-fixture-runbook.md](phase-template-nonproduction-fixture-runbook.md).
+
 ## Stop conditions
 
 Stop on any legacy object collision, unknown project/phase/task column contract,
@@ -188,6 +194,6 @@ project rewrite, or production count drift.
 
 ## Exact next gate
 
-Prepare, but do not execute, the bounded forward/rollback/validation package and
-default-off application boundary. Migration execution and runtime activation
-remain separately approval-gated.
+Complete protected review of PR #177, then run the rollback-only fixture matrix
+on an existing no-cost non-production database. Migration promotion,
+production execution, and runtime activation remain separately approval-gated.

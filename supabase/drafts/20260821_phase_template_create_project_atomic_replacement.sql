@@ -59,7 +59,7 @@ begin
     return jsonb_build_object('success', false, 'code', 'session_not_verified', 'message', 'Phiên đăng nhập không hợp lệ.');
   end if;
 
-  if jsonb_typeof(p_payload) <> 'object' then
+  if p_payload is null or jsonb_typeof(p_payload) <> 'object' then
     return jsonb_build_object('success', false, 'code', 'payload_validation_failed', 'message', 'Dữ liệu dự án không hợp lệ.');
   end if;
 

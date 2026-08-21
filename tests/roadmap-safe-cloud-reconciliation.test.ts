@@ -75,6 +75,9 @@ describe("roadmap Cloud-work reconciliation", () => {
     );
     expect(phaseTemplatePreflightResult).toContain("**Mutation count:** 0");
     expect(phaseTemplatePreflightResult).toContain("| Phase Template object collisions | 0");
+    expect(roadmap).toContain("Draft PR #177");
+    expect(roadmap).toContain("20260821_phase_template_nonproduction_fixture.sql");
+    expect(roadmap).toContain("do not create a paid branch");
   });
 
   it("preserves Attendance as operator-only and keeps UI work blocked", () => {

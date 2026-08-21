@@ -33,6 +33,15 @@ The review package now includes the checksum-guarded exact RPC replacement at
 and the authorized lifecycle RPC at
 `supabase/drafts/20260821_phase_template_management_atomic.sql`.
 
+The remaining authorization/atomicity matrix is now packaged, but not executed,
+at `supabase/validation/20260821_phase_template_nonproduction_fixture.sql`, with
+the operator boundary in
+[phase-template-nonproduction-fixture-runbook.md](phase-template-nonproduction-fixture-runbook.md).
+The fixture requires an explicitly confirmed existing non-production database,
+uses placeholder-only identities, forces a failure after partial writes, checks
+zero partial persistence, and rolls its transaction back. It must not trigger a
+paid Supabase branch or be substituted with production.
+
 Before the forward SQL can be promoted to `supabase/migrations`, protected
 review and a safe non-production database must prove:
 
@@ -47,5 +56,6 @@ review and a safe non-production database must prove:
 7. every forced failure leaves zero project, phase, task, provenance, or audit
    rows.
 
-No second browser-executable apply RPC is allowed. Until this review is complete,
+No second browser-executable apply RPC is allowed. Until protected review and
+the retained non-production fixture matrix are complete,
 `PHASE_TEMPLATES_ENABLED` must remain absent/false and the SQL stays review-only.
