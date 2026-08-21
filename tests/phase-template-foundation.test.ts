@@ -26,12 +26,18 @@ describe('phase template release-one foundation', () => {
       .not.toContain('PHASE_TEMPLATE_MANAGE');
   });
 
-  it('keeps the SQL package review-only, empty-seeded, RLS protected, and immutable', () => {
+  it('keeps the SQL package empty-seeded, RLS protected, immutable, and atomically promoted', () => {
     const forward = source('supabase/drafts/20260821_phase_template_forward.sql');
+    const migration = source('supabase/migrations/20260821065313_phase_template_release_one.sql');
     const rollback = source('supabase/rollbacks/20260821_phase_template_rollback.sql');
     const validation = source('supabase/validation/20260821_phase_template_validation.sql');
 
     expect(forward).toMatch(/REVIEW ONLY/);
+    expect(migration.match(/^begin;$/gm)).toHaveLength(1);
+    expect(migration.match(/^commit;$/gm)).toHaveLength(1);
+    expect(migration).toMatch(/f893db4f9c021120ea697badda853cb9/);
+    expect(migration).toMatch(/manage_phase_template_atomic/);
+    expect(migration.match(/insert into public\.phase_templates\s*\(/gi)).toHaveLength(1);
     expect(forward).toMatch(/PHASE_TEMPLATE_MANAGE/);
     expect(forward.match(/enable row level security/g)).toHaveLength(6);
     expect(forward).toMatch(/revoke all on table[\s\S]*from public, anon, authenticated/i);
@@ -53,7 +59,7 @@ describe('phase template release-one foundation', () => {
 
   it('retains the exact atomic-apply stop condition', () => {
     const review = source('docs/phase-template-security-review.md');
-    expect(review).toMatch(/ATOMIC_PACKAGE_READY_FOR_PROTECTED_REVIEW/);
+    expect(review).toMatch(/PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN/);
     expect(review).toMatch(/No second browser-executable apply RPC is allowed/);
     expect(review).toMatch(/zero project, phase, task, provenance, or audit/);
   });

@@ -1,7 +1,7 @@
 # Phase Template Approved Specification
 
 **Approved:** 2026-08-20
-**Status:** `ATOMIC_PACKAGE_READY_FOR_PROTECTED_REVIEW`
+**Status:** `PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN`
 **Decision authority:**
 [Phase Template Business-Decision Package](phase-template-business-decision.md)
 
@@ -13,8 +13,11 @@ release-one design. The read-only production preflight at
 result recorded in
 [phase-template-schema-preflight-result.md](phase-template-schema-preflight-result.md).
 
-It does not authorize a forward migration, production mutation, seed insertion,
-runtime flag, UI implementation, deployment, or merge. The superseded
+The business owner explicitly approved direct production delivery on 2026-08-21
+after the repeated read-only preflight matched the retained checksum and source
+counts. The approved SQL is promoted atomically at
+`supabase/migrations/20260821065313_phase_template_release_one.sql`. This
+approval does not authorize seed insertion or runtime activation. The superseded
 `20260716_project_detail_phase_workflow_template_proposal.sql` remains a
 non-executable historical sketch.
 
@@ -178,7 +181,8 @@ If preflight finds no blocker, the next bounded repository slice must include:
 6. focused tests plus full repository validation; and
 7. a separate protected review before production delivery or activation.
 
-All seven repository artifacts are now prepared for protected review. The
+All seven repository artifacts are prepared, and the approved forward package
+is promoted to one protected-main migration. The
 authorization/atomicity fixture is packaged at
 `supabase/validation/20260821_phase_template_nonproduction_fixture.sql` and is
 explicitly `NOT_EXECUTED`; its no-cost/non-production boundary is owned by
@@ -194,6 +198,9 @@ project rewrite, or production count drift.
 
 ## Exact next gate
 
-Complete protected review of PR #177, then run the rollback-only fixture matrix
-on an existing no-cost non-production database. Migration promotion,
-production execution, and runtime activation remain separately approval-gated.
+Merge PR #177 through protected `main`, let the configured Supabase GitHub
+Integration apply migration `20260821065313_phase_template_release_one`, then
+run the read-only post-validation and compare source counts. The non-production
+fixture remains `NOT_EXECUTED` because no no-cost ERP test database exists; the
+business owner explicitly accepted direct production delivery. Keep
+`PHASE_TEMPLATES_ENABLED=false` or unset after validation.

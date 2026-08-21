@@ -1,6 +1,6 @@
 # Phase Template Security Review
 
-**Status:** `ATOMIC_PACKAGE_READY_FOR_PROTECTED_REVIEW`
+**Status:** `PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN`
 
 ## Trust boundaries
 
@@ -42,8 +42,10 @@ uses placeholder-only identities, forces a failure after partial writes, checks
 zero partial persistence, and rolls its transaction back. It must not trigger a
 paid Supabase branch or be substituted with production.
 
-Before the forward SQL can be promoted to `supabase/migrations`, protected
-review and a safe non-production database must prove:
+The production-direct exception approved by the business owner on 2026-08-21
+promotes the exact reviewed package to
+`supabase/migrations/20260821065313_phase_template_release_one.sql`. The
+following matrix remains the required retained verification contract:
 
 1. actor derivation from `auth.uid()` and internal permission checks remain;
 2. the selected version is the locked current `PUBLISHED` version;
@@ -56,6 +58,7 @@ review and a safe non-production database must prove:
 7. every forced failure leaves zero project, phase, task, provenance, or audit
    rows.
 
-No second browser-executable apply RPC is allowed. Until protected review and
-the retained non-production fixture matrix are complete,
-`PHASE_TEMPLATES_ENABLED` must remain absent/false and the SQL stays review-only.
+No second browser-executable apply RPC is allowed. The non-production fixture
+remains `NOT_EXECUTED` because no no-cost ERP test database exists. Production
+delivery therefore remains default-disabled: `PHASE_TEMPLATES_ENABLED` must stay
+absent/false through migration, post-validation, and application deployment.

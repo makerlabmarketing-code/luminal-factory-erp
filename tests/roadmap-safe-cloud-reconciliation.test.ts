@@ -43,7 +43,7 @@ describe("roadmap Cloud-work reconciliation", () => {
 
     expect(classificationRows).toHaveLength(20);
     expect(roadmap).toContain(
-      "Item 17 Phase Templates is `SAFE_CLOUD_WORK_AVAILABLE` only for protected review",
+      "Item 17 Phase Templates is `SAFE_CLOUD_WORK_AVAILABLE` for the approved",
     );
   });
 
@@ -62,7 +62,7 @@ describe("roadmap Cloud-work reconciliation", () => {
       "| 17. Phase Templates | `SAFE_CLOUD_WORK_AVAILABLE` |",
     );
     expect(phaseTemplateSpecification).toContain(
-      "**Status:** `ATOMIC_PACKAGE_READY_FOR_PROTECTED_REVIEW`",
+      "**Status:** `PRODUCTION_MIGRATION_PROMOTED_AWAITING_PROTECTED_MAIN`",
     );
     expect(phaseTemplateSpecification).toContain("`PHASE_TEMPLATE_MANAGE`");
     expect(phaseTemplateSpecification).toContain("retained for seven years");
@@ -75,9 +75,9 @@ describe("roadmap Cloud-work reconciliation", () => {
     );
     expect(phaseTemplatePreflightResult).toContain("**Mutation count:** 0");
     expect(phaseTemplatePreflightResult).toContain("| Phase Template object collisions | 0");
-    expect(roadmap).toContain("Draft PR #177");
+    expect(roadmap).toContain("PR #177 is Ready for review");
     expect(roadmap).toContain("20260821_phase_template_nonproduction_fixture.sql");
-    expect(roadmap).toContain("do not create a paid branch");
+    expect(roadmap).toContain("20260821065313_phase_template_release_one.sql");
   });
 
   it("preserves Attendance as operator-only and keeps UI work blocked", () => {

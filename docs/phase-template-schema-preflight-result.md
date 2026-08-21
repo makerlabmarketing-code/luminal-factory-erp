@@ -1,6 +1,6 @@
 # Phase Template Production Schema Preflight Result
 
-**Executed:** 2026-08-20
+**Executed:** 2026-08-20; repeated 2026-08-21 before migration promotion
 **Project:** Luminal Factory (`kwfmfmpgpbfewpiizesv`)
 **Status:** `PASS_WITH_EXISTING_SECURITY_DEBT_RECORDED`
 **Mutation count:** 0
@@ -94,7 +94,11 @@ The final post-check repeated the production aggregates at 12 projects, 8
 phases, 0 tasks, and 10 active project-member roles, matching the preflight
 values. Migration history contained 0 Phase Template rows.
 
-Exact next gate: prepare, but do not execute, the forward migration, rollback,
-post-run validation, security threat model, RPC contract tests, and default-off
-application boundary. Production migration delivery and runtime activation each
-remain separately approval-gated.
+The 2026-08-21 repeat also confirmed that the Phase Template relations, source
+columns, and management RPC were absent; the live
+`create_project_atomic(jsonb)` checksum remained
+`f893db4f9c021120ea697badda853cb9`; and source counts remained 12 projects, 8
+phases, and 0 tasks. The business owner then approved direct production
+delivery. Exact next gate: protected-main merge of PR #177, Supabase GitHub
+Integration execution, and read-only post-validation while
+`PHASE_TEMPLATES_ENABLED` remains false/unset.
