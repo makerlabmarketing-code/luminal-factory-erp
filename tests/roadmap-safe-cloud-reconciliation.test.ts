@@ -43,7 +43,7 @@ describe("roadmap Cloud-work reconciliation", () => {
 
     expect(classificationRows).toHaveLength(20);
     expect(roadmap).toContain(
-      "Item 17 Phase Templates has no remaining safe Cloud implementation work",
+      "Items 17 and 18 have no remaining safe Cloud implementation work",
     );
   });
 
@@ -91,6 +91,10 @@ describe("roadmap Cloud-work reconciliation", () => {
     expect(roadmap).toContain(
       "| 19. Broad SaaS UI re-skin | `BLOCKED_BY_DEPENDENCY` |",
     );
+    expect(roadmap).toContain(
+      "| 18. SaaS UI foundation | `COMPLETE` |",
+    );
+    expect(roadmap).toContain("saas-ui-foundation-result.md");
   });
 });
 

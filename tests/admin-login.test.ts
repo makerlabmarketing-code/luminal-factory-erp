@@ -521,7 +521,7 @@ describe('admin login flow', () => {
 
   it('keeps admin logout as a real local Supabase sign-out flow', () => {
     const shellSource = readFileSync(
-      join(__dirname, '../app/admin/AdminShell.tsx'),
+      join(__dirname, '../component/app-shell/AdminAppShell.tsx'),
       'utf8'
     );
     const logoutSource = readFileSync(
@@ -540,7 +540,11 @@ describe('admin login flow', () => {
 
   it('keeps dual-workspace default navigation on admin while allowing staff switch links', () => {
     const adminShell = readFileSync(
-      join(__dirname, '../app/admin/AdminShell.tsx'),
+      join(__dirname, '../component/app-shell/AdminAppShell.tsx'),
+      'utf8'
+    );
+    const vocabulary = readFileSync(
+      join(__dirname, '../lib/i18n/vi.ts'),
       'utf8'
     );
 
@@ -551,7 +555,7 @@ describe('admin login flow', () => {
       })
     ).toBe('/admin/dashboard');
     expect(adminShell).toMatch(/href="\/staff"/);
-    expect(adminShell).toMatch(/Chuyển sang khu vực nhân viên/);
+    expect(vocabulary).toMatch(/Chuyển sang khu vực nhân viên/);
   });
 
   it('does not render the admin login form for a valid admin context', () => {

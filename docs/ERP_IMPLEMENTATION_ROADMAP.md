@@ -1,5 +1,34 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-08-22 bounded SaaS UI foundation
+
+Status: `APPLICATION_FOUNDATION_COMPLETE / BROAD_RESKIN_BLOCKED`.
+
+The business owner approved Item 18 Option A as a bounded application-shell
+slice. Admin navigation labels now have one Vietnamese vocabulary owner;
+navigation structure and permission requirements have one shared definition;
+the server resolves effective navigation permissions in one read with explicit
+`DENY` precedence; and the client receives only the resulting permission-code
+list. Dashboard remains the safe workspace fallback. All other links, including
+the local command menu, are derived from the same authorized navigation result.
+
+The existing Admin layout is now composed from shared sidebar, header,
+breadcrumb, main-content, responsive drawer, workspace switch, and command-menu
+patterns. The Tailwind scanner now includes the repository's canonical
+`component/` directory, and semantic dark-shell tokens own canvas, sidebar,
+header, surface, border, and accent values. Shadcn is not introduced because
+the repository already has compatible shared primitives and adding a second
+component system would create unnecessary dependency and styling risk.
+
+This slice changes no page workflow, API contract, business calculation,
+database object, RLS policy, runtime flag, environment value, fixture, or live
+data. It does not claim a light theme, broad page re-skin, or redesign of a
+journey still awaiting operator evidence. The retained result is
+[saas-ui-foundation-result.md](saas-ui-foundation-result.md). Item 18 is complete
+for the approved Option A boundary. Repository validation passed 99 test files /
+760 tests, lint, TypeScript, the production build with build-only public
+placeholders, and `git diff --check`. Item 19 remains blocked.
+
 ## 2026-08-21 Phase Templates repository foundation
 
 Status: `PRODUCTION_MIGRATION_PASS / RUNTIME_FLAG_DISABLED`.
@@ -286,14 +315,14 @@ This table is the scheduling authority for the current Cloud continuation. It cl
 | 15. Functional stabilization | `COMPLETE` | All approved safe application defect, loading, retry, submission, targeted-refresh, and regression work is complete. |
 | 16. Runtime gate readiness | `READY_FOR_OPERATOR` | All seven packages are inventoried and default-disabled; live evidence and activation remain operator-only. |
 | 17. Phase Templates | `READY_FOR_OPERATOR` | Production migration, post-validation, and deployment passed. Runtime activation and any bounded live smoke require separate approval; the flag remains false/unset. |
-| 18. SaaS UI foundation | `BLOCKED_BY_DEPENDENCY` | The bounded affected journeys and prerequisite operator gates are unresolved; no broad foundation implementation is safe. |
+| 18. SaaS UI foundation | `COMPLETE` | Approved Option A is complete: shared Admin shell, semantic shell tokens, Vietnamese vocabulary, responsive navigation, breadcrumbs, command menu, and server-derived permission-aware links. |
 | 19. Broad SaaS UI re-skin | `BLOCKED_BY_DEPENDENCY` | Operational boundaries and runtime evidence remain unresolved. |
 | 20. Production hardening | `BLOCKED_BY_DEPENDENCY` | Stabilized production capabilities and an approved UI scope must precede release hardening. |
 
-Item 17 Phase Templates has no remaining safe Cloud implementation work. It is
-`READY_FOR_OPERATOR` only for a separately approved runtime activation and
-bounded live smoke. Item 18 remains blocked by unresolved operational gates and
-an unapproved bounded shell/design-system scope.
+Items 17 and 18 have no remaining safe Cloud implementation work. Phase
+Templates is `READY_FOR_OPERATOR` only for separately approved runtime
+activation and bounded live smoke. The approved Item 18 Option A foundation is
+complete; Item 19 broad re-skin remains blocked by unresolved operational gates.
 
 ### Employee Detail and Employee Profile disposition
 
@@ -334,7 +363,7 @@ The order below preserves the functional roadmap sequence. Dependency correction
 | 15. Functional stabilization | `BLOCKED_BY_DEPENDENCY` | `APPLICATION_COMPLETE` | The current journey matrix and safe application fixes are recorded in [the functional stabilization report](core-erp-functional-stabilization-report.md). Payroll request ordering, duplicate-submit feedback, and Retry state are covered by `tests/payroll-immutable-settlement.test.ts`. | Live operator verification/runtime activation remains for Account, Facility, Attendance, Project Workflow, Child Task create, Comments/Activity, Ledger/Reimbursement, Payroll, and Dashboard. | Safe repository work is complete. Continue with item 16 operator evidence; do not infer any gate active. |
 | 16. Runtime gate readiness | `READY_FOR_OPERATOR` | `READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL` | All seven server-owned gates, artifacts, dependencies, smoke tests, activation prerequisites, rollback triggers, and default-false tests are owned by the [activation matrix](runtime-gate-activation-matrix.md) and [production runbook](production-runtime-gate-operator-runbook.md). Attendance stale-row correction, post-run, and package validation are `PASS`; read-only production runtime verification passed for commit `e2090766cd6d9193f43ed2006657859b9251647e` with recovery `disabled`; audit event ID `1` is retained. Employee persistence separately records `EMPLOYEE_PROFILE_PERSISTENCE_PASS`. | Attendance requires a dedicated zero-rate test fixture before authenticated Staff/Admin smoke. | **Exact next Attendance gate:** obtain `READY_FOR_TEST_FIXTURE_PROVISIONING_APPROVAL`, then perform production Staff/Admin smoke. Keep `ATTENDANCE_RECOVERY_ENABLED=false`; forward replay and rollback are not authorized. |
 | 17. Phase Templates | `SAFE_CLOUD_WORK_AVAILABLE` | `PRODUCTION_MIGRATION_PASS / RUNTIME_FLAG_DISABLED` | PR #177 merged as `0f3fe87`; the migration applied exactly once; post-validation, source-count preservation, Vercel production deployment, and runtime-error scan passed. | `PHASE_TEMPLATES_ENABLED` stays false/unset. Non-production fixture remains `NOT_EXECUTED`; runtime activation and live smoke require separate approval. | Preserve the production foundation and stop at `READY_FOR_OPERATOR`; do not seed, create a production fixture, or activate the flag without a new approval. |
-| 18. SaaS UI foundation | `NOT_STARTED` | `BLOCKED_BY_DEPENDENCY` | `SETUP-CODEX-ERP.md` defines the future shared shell/design-system scope; the stabilization report classifies only a subset of journeys as safe for scoped planning. | Operational gates are unresolved and the approved bounded foundation scope is not isolated from them. | Do not implement yet. Reassess only after the affected journeys and prerequisite operator evidence are explicit. |
+| 18. SaaS UI foundation | `NOT_STARTED` | `APPLICATION_FOUNDATION_COMPLETE` | Approved Option A extracts the shared Admin shell, centralizes reusable Vietnamese shell labels and navigation definitions, resolves navigation permissions server-side with explicit DENY precedence, adds responsive authorized quick navigation, and records semantic shell tokens. Evidence: [SaaS UI foundation result](saas-ui-foundation-result.md). | No Item 18 runtime or database gate remains. Light-theme rollout and page-level visual migration were not approved in this bounded slice. | Preserve the foundation. Continue only after Item 19 broad re-skin receives an explicit affected-journey scope and its operator dependencies pass. |
 | 19. Broad SaaS UI re-skin | `BLOCKED_BY_DEPENDENCY` | `BLOCKED_BY_DEPENDENCY` | The stabilization report explicitly blocks broad redesign while operational boundaries remain unresolved. | Every affected stabilization journey and runtime gate must have the required retained evidence, and the foundation scope must be approved. | Keep broad re-skin blocked; do not reinterpret completed functional polish as a new re-skin slice. |
 | 20. Production hardening | `NOT_STARTED` | `BLOCKED_BY_DEPENDENCY` | `SETUP-CODEX-ERP.md` defines performance, accessibility, production build, monitoring, and release-readiness criteria. Existing application slices have local regression/build coverage but no completed release-hardening phase. | Depends on stabilized production capabilities and the approved UI scope; deployment remains a separate approval gate. | Begin only after stabilization and the approved UI phase; do not deploy or merge as part of roadmap reconciliation. |
 

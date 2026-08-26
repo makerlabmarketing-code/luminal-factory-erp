@@ -8,12 +8,14 @@ const source = (path: string) => readFileSync(join(root, path), 'utf8');
 describe('project coordination route contract', () => {
   it('uses one canonical admin workspace and preserves legacy query parameters', () => {
     const legacyPage = source('app/admin/tasks/page.tsx');
-    const shell = source('app/admin/AdminShell.tsx');
+    const navigation = source('lib/navigation/admin.ts');
+    const vocabulary = source('lib/i18n/vi.ts');
 
     expect(legacyPage).toMatch(/redirect\(`\/admin\/projects/);
     expect(legacyPage).toMatch(/URLSearchParams/);
-    expect(shell).toContain('Dự án & công việc');
-    expect(shell).not.toContain('Công việc & tiến độ');
+    expect(navigation).toContain('ERP_UI_TEXT.navigation.items.projects');
+    expect(vocabulary).toContain('Dự án & công việc');
+    expect(`${navigation}\n${vocabulary}`).not.toContain('Công việc & tiến độ');
   });
 
   it('generates the canonical URL for both project-list navigation actions', () => {

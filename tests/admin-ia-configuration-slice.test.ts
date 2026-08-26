@@ -10,24 +10,26 @@ function source(relativePath: string): string {
 
 describe("administration information architecture correction slice", () => {
   it("renames and regroups admin navigation by business domain without changing routes", () => {
-    const shell = source("app/admin/AdminShell.tsx");
+    const shell = source("component/app-shell/AdminAppShell.tsx");
+    const navigation = source("lib/navigation/admin.ts");
+    const vocabulary = source("lib/i18n/vi.ts");
 
-    expect(shell).toMatch(/groupTitle: "Tổng quan"/);
-    expect(shell).toMatch(/groupTitle: "Dự án & sản xuất"/);
-    expect(shell).toMatch(/groupTitle: "Nhân sự"/);
-    expect(shell).toMatch(/groupTitle: "Tài chính"/);
-    expect(shell).toMatch(/groupTitle: "Cấu hình hệ thống"/);
-    expect(shell).toMatch(
-      /name: "Cơ sở làm việc",\s*path: "\/admin\/facilities"/,
+    expect(vocabulary).toMatch(/overview: "Tổng quan"/);
+    expect(vocabulary).toMatch(/projects: "Dự án & sản xuất"/);
+    expect(vocabulary).toMatch(/people: "Nhân sự"/);
+    expect(vocabulary).toMatch(/finance: "Tài chính"/);
+    expect(vocabulary).toMatch(/system: "Cấu hình hệ thống"/);
+    expect(navigation).toMatch(
+      /name: ERP_UI_TEXT\.navigation\.items\.facilities,\s*path: "\/admin\/facilities"/,
     );
-    expect(shell).toMatch(
-      /name: "Danh mục hệ thống",\s*path: "\/admin\/metadata"/,
+    expect(navigation).toMatch(
+      /name: ERP_UI_TEXT\.navigation\.items\.metadata,\s*path: "\/admin\/metadata"/,
     );
-    expect(shell).toMatch(
-      /name: "Tài khoản & quyền truy cập",\s*path: "\/admin\/accounts"/,
+    expect(navigation).toMatch(
+      /name: ERP_UI_TEXT\.navigation\.items\.accounts,\s*path: "\/admin\/accounts"/,
     );
-    expect(shell).toMatch(/pathname\.startsWith\(`\$\{item\.path\}\/`\)/);
-    expect(shell).not.toMatch(
+    expect(navigation).toMatch(/pathname\.startsWith\(`\$\{path\}\/`\)/);
+    expect(`${shell}\n${navigation}\n${vocabulary}`).not.toMatch(
       /Danh Sách Cơ Sở & GPS|Quản Lý Danh Mục DB|Gán Việc & Tiến Độ Phase|Sổ Cái Vốn & Chi Tiêu|Lịch Chấm Công Ca/,
     );
   });

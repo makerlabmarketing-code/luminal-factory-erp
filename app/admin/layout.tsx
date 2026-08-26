@@ -2,7 +2,13 @@
 import AdminLoginForm from './AdminLoginForm';
 import AdminShell from './AdminShell';
 import { NotificationProvider } from '@/component/NotificationContext';
-import { canAccessAdmin, canAccessStaff, getServerAdminAuthContext } from '@/services/server/auth';
+import { ADMIN_NAVIGATION_PERMISSION_CODES } from '@/lib/navigation/admin';
+import {
+  canAccessAdmin,
+  canAccessStaff,
+  getServerAdminAuthContext,
+  listGrantedPermissions,
+} from '@/services/server/auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,11 +39,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     );
   }
 
+  const navigationPermissionResult = await listGrantedPermissions(
+    authContext,
+    ADMIN_NAVIGATION_PERMISSION_CODES,
+  );
+  const permissionCodes = navigationPermissionResult.ok
+    ? navigationPermissionResult.permissionCodes
+    : [];
+
   return (
     <NotificationProvider workspace="admin">
       <AdminShell
         canAccessAdmin={adminAccess.allowed}
         canAccessStaff={staffAccess.allowed}
+        permissionCodes={permissionCodes}
       >
         {children}
       </AdminShell>

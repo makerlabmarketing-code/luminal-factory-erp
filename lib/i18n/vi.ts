@@ -1,0 +1,50 @@
+export const ERP_UI_TEXT = {
+  brand: {
+    name: "LUMINAL HQ",
+    description: "Vận hành xưởng",
+    product: "Luminal Factory ERP",
+  },
+  workspace: {
+    admin: "Quản trị",
+    staff: "Khu vực nhân viên",
+    switchLabel: "Chuyển khu vực",
+    switchToStaff: "Chuyển sang khu vực nhân viên",
+  },
+  navigation: {
+    ariaLabel: "Điều hướng quản trị",
+    open: "Mở điều hướng",
+    close: "Đóng điều hướng",
+    groups: {
+      overview: "Tổng quan",
+      projects: "Dự án & sản xuất",
+      people: "Nhân sự",
+      finance: "Tài chính",
+      system: "Cấu hình hệ thống",
+    },
+    items: {
+      dashboard: "Tổng quan vận hành",
+      projects: "Dự án & công việc",
+      employees: "Hồ sơ nhân sự",
+      attendance: "Chấm công",
+      facilities: "Cơ sở làm việc",
+      accounts: "Tài khoản & quyền truy cập",
+      capital: "Sổ thu chi",
+      payroll: "Quyết toán lương",
+      metadata: "Danh mục hệ thống",
+      emailTemplates: "Mẫu email",
+    },
+  },
+  commandMenu: {
+    open: "Tìm nhanh",
+    shortcut: "Ctrl K",
+    title: "Đi đến trang",
+    description: "Tìm trong các trang bạn được phép truy cập.",
+    placeholder: "Nhập tên trang...",
+    empty: "Không tìm thấy trang phù hợp.",
+    close: "Đóng tìm nhanh",
+  },
+  breadcrumb: {
+    root: "Quản trị",
+    currentFallback: "Khu vực quản trị",
+  },
+} as const;
