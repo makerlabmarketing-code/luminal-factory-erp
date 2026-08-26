@@ -40,7 +40,7 @@ describe('Scroll reveal foundation', () => {
 
     expect(dashboardRevealCount).toBe(2);
     expect(projectListRevealCount).toBe(2);
-    expect(dashboardSource).toMatch(/<ScrollReveal className="grid grid-cols-1 gap-6 lg:grid-cols-3" delayMs=\{40\}>/);
+    expect(dashboardSource).toMatch(/<ScrollReveal className="grid grid-cols-1 gap-5 xl:grid-cols-\[minmax\(0,2fr\)_minmax\(320px,1fr\)\]" delayMs=\{40\}>/);
     expect(projectListSource).toMatch(/<ScrollReveal className="grid grid-cols-1 items-start gap-5 xl:grid-cols-5" delayMs=\{40\}>/);
     expect(`${dashboardSource}\n${projectListSource}`).not.toMatch(/delayMs=\{(?:1[3-9]\d|[2-9]\d{2,})\}/);
   });
