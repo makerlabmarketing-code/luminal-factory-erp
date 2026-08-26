@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
 import { ScrollReveal } from '@/component/ScrollReveal';
+import { CenteredPageLoading, LuminalLoadingMark } from '@/component/LuminalLoader';
+import { ProjectMetricCard, ProjectPageHeader, ProjectPanel } from '@/component/project/ProjectPagePatterns';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
 import { projectCodePreview } from '@/lib/project-code';
 import {
@@ -146,6 +148,16 @@ const healthStyles: Record<HealthState, string> = {
   WAITING: 'bg-slate-800 text-slate-300 border-slate-700',
   PLANNING: 'bg-cyan-950/50 text-cyan-300 border-cyan-800',
   COMPLETED: 'bg-emerald-950/60 text-emerald-300 border-emerald-800',
+};
+
+const healthLabels: Record<HealthState, string> = {
+  BLOCKED: 'Bị vướng',
+  AT_RISK: 'Có rủi ro',
+  IN_REVIEW: 'Đang duyệt',
+  ACTIVE: 'Đang thực hiện',
+  WAITING: 'Đang chờ',
+  PLANNING: 'Đang lên kế hoạch',
+  COMPLETED: 'Hoàn tất',
 };
 
 function parseDescription(raw?: string | null): WorkflowDescription {
@@ -552,49 +564,40 @@ export default function AdminProjectManagement() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-400 flex items-center justify-center text-xs font-mono gap-2">
-        <RefreshCcw className="w-4 h-4 animate-spin" /> Đang tải workflow dự án...
-      </div>
-    );
+    return <CenteredPageLoading message="Đang tải danh sách dự án..." />;
   }
 
   return (
     <div className="admin-page text-slate-100">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-slate-800 pb-4">
-        <div className="flex items-center gap-3">
-          <Layers className="w-5 h-5 text-cyan-400" />
-          <div>
-            <h1 className="text-base font-bold">Điều phối dự án</h1>
-            <p className="text-[11px] text-slate-400">Dự án - Colorway - Giai đoạn - Công việc</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+      <ProjectPageHeader
+        icon={<Layers className="h-5 w-5" />}
+        title="Điều phối dự án"
+        description="Theo dõi dự án, colorway, giai đoạn và công việc trong cùng một không gian điều phối."
+        actions={(
+          <>
           <button disabled={isRefreshing} onClick={() => void loadData(false)} className="bg-slate-900 border border-slate-800 text-slate-300 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 disabled:opacity-50">
             <RefreshCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Tải lại
           </button>
           <button onClick={openCreateModal} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
             <Plus className="w-4 h-4" /> Tạo dự án
           </button>
-        </div>
-      </div>
+          </>
+        )}
+      />
 
       <ScrollReveal className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {metricCards.map(({ label, value, Icon, color }) => (
-          <div key={label} className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-slate-400 font-bold">{label}</p>
-              <p className={`text-2xl font-black font-mono ${color}`}>{value}</p>
-            </div>
-            <Icon className="w-5 h-5 text-slate-500" />
-          </div>
+          <ProjectMetricCard key={label} label={label} value={value} valueClassName={color} icon={<Icon className="h-5 w-5" />} />
         ))}
       </ScrollReveal>
 
       <ScrollReveal className="grid grid-cols-1 items-start gap-5 xl:grid-cols-5" delayMs={40}>
-        <div className="xl:col-span-3 bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-800 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-            <h2 className="text-xs font-black uppercase text-slate-300">Tổng quan dự án</h2>
+        <ProjectPanel className="xl:col-span-3">
+          <div className="flex flex-col gap-3 border-b border-slate-800 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div>
+              <h2 className="text-sm font-black text-slate-100">Danh sách dự án</h2>
+              <p className="mt-1 text-[11px] text-slate-500">Chọn một dự án để xem nhanh colorway và tiến độ.</p>
+            </div>
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
               <input
@@ -606,7 +609,7 @@ export default function AdminProjectManagement() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-950 text-slate-400 uppercase text-[10px]">
                 <tr>
@@ -657,13 +660,42 @@ export default function AdminProjectManagement() {
               </tbody>
             </table>
           </div>
-        </div>
 
-        <div className="xl:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-4">
+          <div className="divide-y divide-slate-800 md:hidden">
+            {filteredProjects.map((project) => {
+              const blockedCount = project.colorways.filter((colorway) => colorway.health === 'BLOCKED').length;
+              return (
+                <button
+                  type="button"
+                  key={project.recordKey}
+                  onClick={() => setSelectedProjectKey(project.recordKey)}
+                  className={`w-full space-y-3 p-4 text-left transition-colors ${activeProject?.recordKey === project.recordKey ? 'bg-cyan-950/25' : 'hover:bg-slate-950/50'}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="font-bold text-slate-100">{project.name}</span>
+                    <span className="shrink-0 font-mono text-xs text-cyan-300">{project.progress}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                    <div className="h-full rounded-full bg-cyan-500" style={{ width: `${project.progress}%` }} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-[11px]">
+                    <span className="text-slate-500">Colorway <strong className="block text-slate-200">{project.colorways.length}</strong></span>
+                    <span className="text-slate-500">Bị vướng <strong className="block text-red-300">{blockedCount}</strong></span>
+                    <span className="text-slate-500">Mục tiêu <strong className="block text-amber-300">{project.targetDate || '-'}</strong></span>
+                  </div>
+                  <p className="line-clamp-2 text-xs leading-5 text-slate-400">Tiếp theo: {project.nextAction}</p>
+                </button>
+              );
+            })}
+            {filteredProjects.length === 0 && <div className="p-8 text-center text-xs text-slate-500">Chưa có workflow dự án.</div>}
+          </div>
+        </ProjectPanel>
+
+        <ProjectPanel className="space-y-4 p-4 sm:p-5 xl:col-span-2">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-black text-slate-100">{activeProject?.name || 'Chọn dự án'}</h2>
-              <p className="text-[11px] text-slate-400">Bảng colorway</p>
+              <h2 className="text-base font-black text-slate-100">{activeProject?.name || 'Chọn dự án'}</h2>
+              <p className="mt-1 text-xs text-slate-400">Chi tiết colorway và việc tiếp theo</p>
             </div>
             <span className="text-[10px] border border-slate-700 rounded px-2 py-1 text-slate-400">
               {activeProject?.progress || 0}%
@@ -672,19 +704,19 @@ export default function AdminProjectManagement() {
 
           <div className="space-y-3">
             {activeProject?.colorways.map((colorway) => (
-              <div key={colorway.name} className="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3">
+              <div key={colorway.name} className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/80 p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-black text-slate-100">{colorway.name}</h3>
+                      <h3 className="text-sm font-black text-slate-100">{colorway.name}</h3>
                       {colorway.code && <span className="text-[10px] text-slate-500 font-mono">{colorway.code}</span>}
                     </div>
                     <p className="text-[11px] text-slate-400">
                       Hiện tại: {colorway.currentStage?.description.stage_name || 'Đã hoàn thành'}
                     </p>
                   </div>
-                  <span className={`text-[10px] font-black border rounded px-2 py-1 ${healthStyles[colorway.health]}`}>
-                    {colorway.health}
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${healthStyles[colorway.health]}`}>
+                    {healthLabels[colorway.health]}
                   </span>
                 </div>
 
@@ -734,7 +766,7 @@ export default function AdminProjectManagement() {
 
             {!activeProject && <div className="text-sm text-slate-500 text-center py-12">Tạo dự án để bắt đầu theo dõi colorway.</div>}
           </div>
-        </div>
+        </ProjectPanel>
       </ScrollReveal>
 
       {showAddModal && (
@@ -858,7 +890,7 @@ export default function AdminProjectManagement() {
           role="dialog"
         >
           <div className="w-full max-w-sm rounded-xl border border-slate-700 bg-slate-900 p-5 text-center shadow-2xl">
-            <RefreshCcw className="mx-auto h-6 w-6 animate-spin text-cyan-300" />
+            <div className="flex justify-center"><LuminalLoadingMark compact /></div>
             <h3 className="mt-3 text-sm font-black text-slate-100">Đang khởi tạo dự án</h3>
             <p className="mt-1 text-xs text-slate-400">{creationStage || 'Đang hoàn tất...'}</p>
           </div>

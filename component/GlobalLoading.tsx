@@ -13,6 +13,7 @@ import type { MouseEventHandler, RefObject } from 'react';
 import Link, { type LinkProps } from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { CenteredPageLoading, LuminalLoadingMark } from '@/component/LuminalLoader';
 
 export type GlobalLoadingMessage =
   | 'Đang đăng nhập...'
@@ -147,11 +148,8 @@ function GlobalLoadingOverlay({
         if (event.key === 'Tab') event.preventDefault();
       }}
     >
-      <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-lg border border-slate-800 bg-slate-900 px-6 py-7 text-center shadow-2xl">
-        <div className="flex h-12 w-12 items-center justify-center rounded-md border border-blue-500/30 bg-blue-500/10 text-blue-300">
-          <span className="text-sm font-black tracking-tight">LF</span>
-        </div>
-        <Loader2 className="h-5 w-5 animate-spin text-blue-300" aria-hidden="true" />
+      <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-2xl border border-blue-400/20 bg-slate-900/95 px-6 py-8 text-center shadow-2xl shadow-blue-950/40">
+        <LuminalLoadingMark />
         <p className="text-sm font-bold text-white">{message}</p>
       </div>
     </div>
@@ -183,23 +181,7 @@ export function ButtonLoadingState({
 }
 
 export function PageLoadingState({ message = 'Đang tải dữ liệu...' }: { message?: GlobalLoadingMessage }) {
-  return (
-    <div className="min-h-screen bg-slate-950 p-6 text-slate-100" aria-live="polite" aria-busy="true">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="space-y-3 border-b border-slate-800 pb-4">
-          <div className="h-5 w-48 animate-pulse rounded bg-slate-800" />
-          <div className="h-3 w-72 max-w-full animate-pulse rounded bg-slate-900" />
-        </div>
-        <div className="grid gap-3 md:grid-cols-4">
-          {[0, 1, 2, 3].map((item) => (
-            <div key={item} className="h-24 animate-pulse rounded-lg border border-slate-800 bg-slate-900" />
-          ))}
-        </div>
-        <div className="h-80 animate-pulse rounded-lg border border-slate-800 bg-slate-900" />
-        <p className="text-center text-xs font-bold text-slate-500">{message}</p>
-      </div>
-    </div>
-  );
+  return <CenteredPageLoading message={message} />;
 }
 
 export function LoadingLink({
