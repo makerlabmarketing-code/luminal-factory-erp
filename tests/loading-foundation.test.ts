@@ -87,17 +87,34 @@ describe('global loading foundation', () => {
     expect(capitalSource).toMatch(/: loadError \? \(/);
   });
 
+  it('centers the shared loader across nested route loading boundaries', () => {
+    const sharedLoading = source('component/GlobalLoading.tsx');
+    const accountsLoading = source('app/admin/accounts/loading.tsx');
+    const employeeLoading = source('app/admin/employees/[employeeId]/loading.tsx');
 
-  it('uses a layout-matching loading state for project detail route and refreshes', () => {
+    expect(sharedLoading).toMatch(/return <CenteredPageLoading message=\{message\}/);
+    expect(accountsLoading).toMatch(/CenteredPageLoading/);
+    expect(employeeLoading).toMatch(/CenteredPageLoading/);
+  });
+
+
+  it('uses the centered Luminal loader for root and project routes', () => {
+    const rootLoadingSource = source('app/loading.tsx');
     const projectLoadingSource = source('app/admin/projects/[projectId]/loading.tsx');
     const projectDetailSource = source('app/admin/projects/[projectId]/page.tsx');
+    const projectListSource = source('app/admin/projects/page.tsx');
+    const loaderSource = source('component/LuminalLoader.tsx');
+    const globalStyles = source('app/globals.css');
 
+    expect(rootLoadingSource).toMatch(/CenteredPageLoading/);
     expect(projectLoadingSource).toMatch(/Đang tải chi tiết dự án/);
-    expect(projectLoadingSource).toMatch(/lg:grid-cols-\[1fr_320px\]/);
-    expect(projectLoadingSource).toMatch(/animate-pulse/);
-    expect(projectDetailSource).toMatch(/aria-busy="true"/);
+    expect(projectListSource).toMatch(/Đang tải danh sách dự án/);
     expect(projectDetailSource).toMatch(/Đang tải chi tiết dự án\.\.\./);
-    expect(projectDetailSource).toMatch(/xl:grid-cols-\[minmax\(0,1fr\)_360px\]/);
+    expect(loaderSource).toMatch(/LuminalLoadingMark/);
+    expect(loaderSource).toMatch(/role="status"/);
+    expect(loaderSource).toMatch(/aria-busy="true"/);
+    expect(globalStyles).toMatch(/luminal-loader__orbit/);
+    expect(globalStyles).toMatch(/prefers-reduced-motion: reduce/);
   });
 
   it('uses button/action loading for employee account actions', () => {

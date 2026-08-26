@@ -122,7 +122,7 @@ describe('employee admin list and account actions slice', () => {
     expect(detailClient).toMatch(/Dự án được phân công/);
     expect(detailClient).toMatch(/Chấm công tháng hiện tại/);
     expect(detailClient).toMatch(/Chưa có nguồn audit nhân sự được triển khai/);
-    expect(loadingSource).toMatch(/animate-pulse/);
+    expect(loadingSource).toMatch(/CenteredPageLoading/);
     expect(serviceSource).toMatch(/EmployeeDetailDto/);
     expect(serviceSource).toMatch(/requireAdminEmployeePermission\('EMPLOYEE_VIEW'\)/);
     expect(serviceSource).toMatch(/hasPermission\(authContext, 'EMPLOYEE_MANAGE'\)/);

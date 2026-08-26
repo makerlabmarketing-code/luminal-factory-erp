@@ -22,6 +22,8 @@ import { ScrollReveal } from '@/component/ScrollReveal';
 import { ProjectMembershipSection } from './ProjectMembershipSection';
 import { ProjectTimelineSection } from './ProjectTimelineSection';
 import { OperationalState } from '@/component/OperationalState';
+import { CenteredPageLoading } from '@/component/LuminalLoader';
+import { ProjectPageHeader, ProjectPanel } from '@/component/project/ProjectPagePatterns';
 import type {
   ProjectMemberDTO,
   ProjectMembershipCapabilitiesDTO,
@@ -954,34 +956,7 @@ export default function ProjectDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="admin-page text-slate-100">
-        <div className="mx-auto max-w-7xl space-y-5" aria-busy="true" aria-label="Đang tải chi tiết dự án">
-          <div className="flex flex-col gap-3 border-b border-slate-800 pb-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-3">
-              <div className="h-4 w-36 animate-pulse rounded bg-slate-800" />
-              <div className="h-7 w-72 animate-pulse rounded bg-slate-800" />
-              <div className="h-4 w-56 animate-pulse rounded bg-slate-900" />
-            </div>
-            <div className="flex gap-2">
-              <div className="h-9 w-32 animate-pulse rounded-lg border border-slate-800 bg-slate-900" />
-              <div className="h-9 w-28 animate-pulse rounded-lg border border-slate-800 bg-slate-900" />
-            </div>
-          </div>
-          <div className="h-28 animate-pulse rounded-lg border border-slate-800 bg-slate-900" />
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="space-y-4">
-              <div className="h-44 animate-pulse rounded-lg border border-slate-800 bg-slate-900" />
-              <div className="h-56 animate-pulse rounded-lg border border-slate-800 bg-slate-900" />
-            </div>
-            <div className="h-64 animate-pulse rounded-lg border border-slate-800 bg-slate-900" />
-          </div>
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-            <Clock className="h-4 w-4 animate-spin" /> Đang tải chi tiết dự án...
-          </div>
-        </div>
-      </div>
-    );
+    return <CenteredPageLoading message="Đang tải chi tiết dự án..." />;
   }
 
   if (loadFailed) {
@@ -1010,17 +985,17 @@ export default function ProjectDetailPage() {
   return (
     <div className="admin-page text-slate-100">
       <div className="mx-auto max-w-7xl space-y-5">
-        <div className="flex flex-col gap-3 border-b border-slate-800 pb-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-2">
-            <Link href="/admin/projects" className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-white">
+        <ProjectPageHeader
+          icon={<Layers className="h-5 w-5" />}
+          eyebrow={(
+            <Link href="/admin/projects" className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 transition-colors hover:text-white">
               <ArrowLeft className="h-3.5 w-3.5" /> Quay lại danh sách
             </Link>
-            <div>
-              <h1 className="text-xl font-black text-slate-50">{projectDetail.name}</h1>
-              <p className="mt-1 text-xs text-slate-400">Mã dự án {projectDetail.projectCode || `#${projectDetail.id}`} · Tạo lúc {formatDateTime(firstDescription.project_created_at)}</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
+          )}
+          title={projectDetail.name}
+          description={<>Mã dự án {projectDetail.projectCode || `#${projectDetail.id}`} · Tạo lúc {formatDateTime(firstDescription.project_created_at)}</>}
+          actions={(
+            <>
             <span className={`rounded-lg border px-3 py-2 text-xs ${isProjectCancelled ? 'border-red-800 bg-red-950/40 text-red-200' : 'border-slate-700 text-slate-300'}`}>
               Trạng thái: {projectDetail.status || 'Chưa có dữ liệu'}
             </span>
@@ -1033,10 +1008,11 @@ export default function ProjectDetailPage() {
             <button type="button" onClick={() => selectedPhase && handleStartCreateTask(selectedPhase)} disabled={!projectCapabilities.canManageTasks || !canCreateTasks || !selectedPhase || isProjectCancelled || taskLoadBlocked} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500" title={canCreateTasks ? 'Công việc luôn được tạo trong dự án và giai đoạn đã chọn' : 'Chức năng thêm công việc đang chờ kích hoạt.'}>
               <Plus className="h-4 w-4" /> Thêm công việc
             </button>
-          </div>
-        </div>
+            </>
+          )}
+        />
 
-        <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+        <ProjectPanel className="p-4 sm:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-[10px] font-bold text-slate-500">Tiến độ dự án</p>
@@ -1052,34 +1028,34 @@ export default function ProjectDetailPage() {
                 <div className="h-full rounded-full bg-cyan-400" style={{ width: `${projectDetail.progressPercent}%` }} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-3 lg:grid-cols-6">
-              <div>
+            <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
                 <p className="text-slate-500">Giai đoạn</p>
                 <p className="font-bold text-slate-100">{completedPhaseCount}/{projectDetail.phases.length}</p>
               </div>
-              <div>
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
                 <p className="text-slate-500">Trạng thái</p>
                 <p className="font-bold text-slate-100">{projectDetail.status || 'Đang theo dõi'}</p>
               </div>
-              <div>
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
                 <p className="text-slate-500">Hạn tổng</p>
                 <p className="font-bold text-slate-100">{formatDate(firstDescription.project_deadline)}</p>
               </div>
-              <div>
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
                 <p className="text-slate-500">Hiện tại</p>
                 <p className="font-bold text-slate-100">{activePhase?.phaseName || 'Chưa có'}</p>
               </div>
-              <div>
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
                 <p className="text-slate-500">Bị vướng</p>
                 <p className="font-bold text-slate-100">{executionMetrics.blockedTasks}</p>
               </div>
-              <div>
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
                 <p className="text-slate-500">Quá hạn</p>
                 <p className="font-bold text-slate-100">{executionMetrics.overdueTasks}</p>
               </div>
             </div>
           </div>
-        </section>
+        </ProjectPanel>
 
         {isProjectCancelled && (
           <section className="rounded-lg border border-red-900 bg-red-950/25 p-4 text-xs text-red-100">
@@ -1101,7 +1077,7 @@ export default function ProjectDetailPage() {
           </section>
         )}
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-4">
             <section className="rounded-lg border border-slate-800 bg-slate-900">
               <div className="border-b border-slate-800 px-4 py-3">
@@ -1371,7 +1347,7 @@ export default function ProjectDetailPage() {
             </ScrollReveal>
           </div>
 
-          <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+          <aside className="space-y-4 2xl:sticky 2xl:top-4 2xl:self-start">
             <ProjectTimelineSection projectId={projectId} cancelled={isProjectCancelled} />
             <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
               <h2 className="text-sm font-black text-slate-100">Thông tin dự án</h2>
