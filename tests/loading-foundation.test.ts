@@ -63,7 +63,7 @@ describe('global loading foundation', () => {
 
   it('uses loading links for landing and workspace switching', () => {
     const landingSource = source('app/page.tsx');
-    const adminShellSource = source('app/admin/AdminShell.tsx');
+    const adminShellSource = source('component/app-shell/AdminAppShell.tsx');
     const staffPortalSource = source('app/staff/portal/StaffPortalContent.tsx');
 
     expect(landingSource).toMatch(/LoadingLink/);

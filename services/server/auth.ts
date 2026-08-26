@@ -315,6 +315,58 @@ export async function checkPermissionAccess(
   return lookupPermissionAccess(authContext, permissionCode);
 }
 
+export async function listGrantedPermissions(
+  authContext: AuthContext,
+  permissionCodes: readonly string[],
+): Promise<
+  | { ok: true; permissionCodes: string[] }
+  | { ok: false; permissionCodes: []; safeDetails: Record<string, string | null> }
+> {
+  const requestedCodes = Array.from(new Set(permissionCodes.filter(Boolean)));
+  if (requestedCodes.length === 0) return { ok: true, permissionCodes: [] };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('employee_permissions')
+    .select('permission_code, effect, status, revoked_at')
+    .eq('employee_id', employeeIdValue(authContext.employee))
+    .in('permission_code', requestedCodes)
+    .eq('status', 'ACTIVE')
+    .is('revoked_at', null);
+
+  if (error) {
+    return {
+      ok: false,
+      permissionCodes: [],
+      safeDetails: {
+        supabase_error_code: error.code ?? 'unknown',
+        supabase_error_message: redactSafeDatabaseText(error.message),
+        supabase_error_hint: redactSafeDatabaseText(error.hint),
+        supabase_error_details: redactSafeDatabaseText(error.details),
+      },
+    };
+  }
+
+  const rows = (data || []) as Array<{
+    permission_code?: string | null;
+    effect?: string | null;
+    status?: string | null;
+    revoked_at?: string | null;
+  }>;
+
+  const grantedCodes = requestedCodes.filter((permissionCode) => {
+    const activeRows = rows.filter(
+      (row) =>
+        row.permission_code === permissionCode && isActivePermissionRow(row),
+    );
+    const denied = activeRows.some((row) => row.effect === 'DENY');
+    const allowed = activeRows.some((row) => row.effect === 'ALLOW');
+    return !denied && allowed;
+  });
+
+  return { ok: true, permissionCodes: grantedCodes };
+}
+
 export async function hasWorkspaceAccess(
   authContext: AuthContext,
   workspaceCode: WorkspaceCode
