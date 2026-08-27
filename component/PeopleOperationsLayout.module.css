@@ -1,0 +1,71 @@
+.surface {
+  min-width: 0;
+}
+
+.surface > :global(.admin-page) {
+  max-width: 1440px;
+}
+
+.surface > :global(div:not(.admin-page)) {
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.surface :global(.admin-table-shell),
+.surface :global(.admin-panel) {
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+}
+
+.surface :global(table) {
+  min-width: 760px;
+}
+
+.surface :global(input),
+.surface :global(select),
+.surface :global(button) {
+  min-height: 40px;
+}
+
+.surface :global(input),
+.surface :global(select) {
+  font-size: 0.75rem;
+}
+
+.surface :global([aria-label='Mở thao tác nhân sự']) {
+  min-width: 40px;
+}
+
+.surface :global([role='tooltip']) {
+  max-width: min(30rem, calc(100vw - 2rem));
+}
+
+@media (max-width: 767px) {
+  .surface > :global(div:not(.admin-page)) {
+    padding: 1.25rem 1rem;
+  }
+
+  .surface :global(.admin-table-shell) {
+    overflow-x: auto;
+  }
+
+  .surface :global(div:has(> button[aria-label^='Xem chi tiết chấm công ngày'])) {
+    min-width: 700px;
+  }
+
+  .surface :global(div:has(> button[aria-label^='Xem chi tiết chấm công ngày'])) > button {
+    min-height: 104px;
+  }
+
+  .surface :global([role='tooltip']) {
+    inset-inline: 1rem;
+    bottom: 1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .surface > :global(div:not(.admin-page)) {
+    padding: 1.5rem;
+  }
+}
