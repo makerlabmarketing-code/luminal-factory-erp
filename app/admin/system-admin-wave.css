@@ -1,0 +1,53 @@
+.admin-shell {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-shell :is(main, section, article, form) {
+  min-width: 0;
+}
+
+.admin-shell :is(input, select, textarea, button) {
+  min-height: 42px;
+}
+
+.admin-shell table {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-shell :is(.overflow-x-auto, [class*='overflow-x']) {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+.admin-shell :is(th, td) {
+  vertical-align: middle;
+}
+
+.admin-shell :is(button, a) {
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 1024px) {
+  .admin-shell :is(.overflow-x-auto, [class*='overflow-x']) table {
+    min-width: 720px;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-shell {
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+
+  .admin-shell :is(input, select, textarea, button) {
+    font-size: 16px;
+  }
+
+  .admin-shell :is(button, [role='button']) {
+    min-height: 44px;
+  }
+
+  .admin-shell :is(.overflow-x-auto, [class*='overflow-x']) table {
+    min-width: 680px;
+  }
+}
