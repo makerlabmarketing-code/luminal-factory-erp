@@ -1,0 +1,45 @@
+.task-workspace {
+  min-width: 0;
+}
+
+.task-workspace :where(input, select, textarea) {
+  min-height: 42px;
+  font-size: 0.875rem;
+}
+
+.task-workspace :where(button:not(:disabled), a[href]) {
+  touch-action: manipulation;
+}
+
+.task-workspace :where(.font-mono) {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1023px) {
+  .task-workspace :where([class*='h-[65vh]']) {
+    height: auto;
+  }
+
+  .task-workspace :where([class*='h-full']) {
+    max-height: min(60vh, 34rem);
+  }
+}
+
+@media (max-width: 767px) {
+  .task-workspace :where(button) {
+    min-height: 40px;
+  }
+
+  .task-workspace :where(.grid) {
+    min-width: 0;
+  }
+
+  .task-workspace :where([class*='rounded-2xl']) {
+    border-radius: 0.875rem;
+  }
+
+  .task-workspace :where(input, textarea) {
+    width: 100%;
+    min-width: 0;
+  }
+}
