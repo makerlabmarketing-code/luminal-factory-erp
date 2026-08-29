@@ -1,0 +1,59 @@
+.payroll-workspace {
+  min-width: 0;
+}
+
+.payroll-workspace :where(input, select, textarea) {
+  min-height: 42px;
+  font-size: 0.875rem;
+}
+
+.payroll-workspace :where(button:not(:disabled), a[href]) {
+  touch-action: manipulation;
+}
+
+.payroll-workspace :where(table) {
+  font-variant-numeric: tabular-nums;
+}
+
+.payroll-workspace :where(th) {
+  white-space: nowrap;
+}
+
+.payroll-workspace :where(td) {
+  vertical-align: middle;
+}
+
+.payroll-workspace :where([class*='overflow-x-auto']) {
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 767px) {
+  .payroll-workspace > section {
+    padding: 1rem 0.75rem;
+  }
+
+  .payroll-workspace :where(h1) {
+    font-size: clamp(1.35rem, 7vw, 1.75rem);
+    line-height: 1.15;
+  }
+
+  .payroll-workspace :where(button) {
+    min-height: 40px;
+  }
+
+  .payroll-workspace :where(table button) {
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  .payroll-workspace :where([class*='rounded-xl'][class*='p-4']) {
+    padding: 0.875rem;
+  }
+}
+
+@media (max-width: 479px) {
+  .payroll-workspace :where([class*='sm:grid-cols-2']) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
