@@ -1,3 +1,4 @@
+@import './admin/system-admin-wave.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
