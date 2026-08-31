@@ -21,6 +21,8 @@ export type GlobalLoadingMessage =
   | 'Đang mở khu vực nhân viên...'
   | 'Đang đăng xuất...'
   | 'Đang tải dữ liệu...'
+  | 'Đang tải lệnh sản xuất...'
+  | 'Đang tải chi tiết lệnh sản xuất...'
   | 'Đang lưu thay đổi...'
   | 'Đang gửi lời mời...'
   | 'Đang ghi nhận vào ca...'

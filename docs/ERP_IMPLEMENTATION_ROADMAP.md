@@ -1,5 +1,25 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-08-31 Phase 7 Production Orders read model
+
+Status: `APPLICATION_READ_MODEL_COMPLETE / MUTATIONS_DISABLED`.
+
+The Production Order persistence prerequisite is now proven: production migration
+`20260722110928` is present and the reviewed read-only package passed all 15
+object, grant/RLS, integrity, dependency, and no-inventory-mutation checks. The
+first Phase 7 slice adds one server-owned, permission-aware Production Orders
+read model plus responsive list/detail UI. It reuses the shared Admin shell,
+canonical Vietnamese production vocabulary, request-scoped authenticated client,
+`security_invoker` views, and existing project RLS.
+
+No create/transition/inventory mutation, RPC call, SQL, schema/RLS/grant change,
+runtime flag, fixture, Storage operation, production-row mutation, or Commerce
+change belongs to this slice. The retained boundary and rollback are recorded in
+[the Phase 7 Production Orders read-model handoff](phase-7-production-orders-read-model-handoff.md).
+The next safe Phase 7 action is a bounded write-readiness audit; Production Order
+mutations remain disabled until RPC authorization/atomicity/audit and
+non-production fixture evidence are reviewed and the mutation scope is approved.
+
 ## 2026-08-22 bounded SaaS UI foundation
 
 Status: `APPLICATION_FOUNDATION_COMPLETE / BROAD_RESKIN_BLOCKED`.

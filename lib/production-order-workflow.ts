@@ -46,6 +46,13 @@ export const PRODUCTION_STAGE_STATUS_LABELS: Record<ProductionStageStatus, strin
   SKIPPED_WITH_APPROVAL: 'Bỏ qua có duyệt',
 };
 
+export const PRODUCTION_PRIORITY_LABELS: Record<ProductionPriority, string> = {
+  LOW: 'Thấp',
+  NORMAL: 'Bình thường',
+  HIGH: 'Cao',
+  URGENT: 'Khẩn cấp',
+};
+
 export interface ProductionTemplateTask {
   id: string;
   name: string;

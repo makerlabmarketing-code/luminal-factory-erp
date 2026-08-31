@@ -24,6 +24,7 @@ export const ERP_UI_TEXT = {
     items: {
       dashboard: "Tổng quan vận hành",
       projects: "Dự án & công việc",
+      productionOrders: "Lệnh sản xuất",
       employees: "Hồ sơ nhân sự",
       attendance: "Chấm công",
       facilities: "Cơ sở làm việc",

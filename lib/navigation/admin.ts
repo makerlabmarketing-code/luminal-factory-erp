@@ -3,6 +3,7 @@ import { ERP_UI_TEXT } from "../i18n/vi";
 export type AdminNavigationIcon =
   | "dashboard"
   | "projects"
+  | "production"
   | "employees"
   | "attendance"
   | "facilities"
@@ -42,6 +43,12 @@ export const ADMIN_NAVIGATION_GROUPS: readonly AdminNavigationGroup[] = [
         name: ERP_UI_TEXT.navigation.items.projects,
         path: "/admin/projects",
         icon: "projects",
+        anyPermission: ["PROJECT_VIEW", "PROJECT_MANAGE"],
+      },
+      {
+        name: ERP_UI_TEXT.navigation.items.productionOrders,
+        path: "/admin/production-orders",
+        icon: "production",
         anyPermission: ["PROJECT_VIEW", "PROJECT_MANAGE"],
       },
     ],
