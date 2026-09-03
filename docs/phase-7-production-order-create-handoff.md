@@ -4,7 +4,7 @@ Date: 2026-09-03
 
 ## Completed boundary
 
-Status: `APPLICATION_CREATE_SLICE_COMPLETE / HARDENING_DRAFT / RUNTIME_DISABLED`.
+Status: `APPLICATION_CREATE_SLICE_COMPLETE / HARDENING_APPLIED / ROLLBACK_FIXTURE_PASS / RUNTIME_DISABLED`.
 
 This slice prepares one create-only Production Order journey. The application:
 
@@ -31,8 +31,7 @@ inventory, completed-quantity, Production data, or Commerce behavior is added.
 - `nonproduction-fixture.sql`: rollback-only operator fixture checklist;
 - `REVIEW.md`: scope, security, delivery gate, and rollback notes.
 
-The package is draft-only. It is not under `supabase/migrations`, has not been
-executed, and does not authorize a production change.
+The hardened RPC is applied on Supabase ERP Production. Migration-history reconciliation files are under `supabase/migrations`. The rollback-only fixture passed and persisted zero fixture rows. Runtime activation is still not authorized.
 
 ## Repository validation
 
@@ -45,13 +44,10 @@ executed, and does not authorize a production change.
 
 ## Activation prerequisites
 
-1. Review the exact forward/rollback SQL and approve promotion through the protected PR path.
-2. Apply the approved migration through the configured Supabase delivery workflow; do not run it manually from this slice.
-3. Run and retain the read-only validation results.
-4. Run the rollback-only authorization/atomicity fixture in a non-production environment with dedicated test identities.
-5. Confirm duplicate-code, forbidden-field, inactive-role, non-canonical workflow, and partial-write cases fail as documented.
-6. Obtain separate approval before setting `PRODUCTION_ORDER_MUTATIONS_ENABLED=true` in any Production environment.
-7. Perform one controlled create smoke test and verify the order, 12 stages, 11 dependencies, 12 tasks, activity, and unchanged inventory counts.
+1. Keep the read-only validation result and rollback reference available.
+2. Keep `PRODUCTION_ORDER_MUTATIONS_ENABLED` false or unset.
+3. Obtain separate approval before enabling the Production runtime flag.
+4. After activation approval, perform exactly one controlled application-level create smoke and verify the order, 12 stages, 11 dependencies, 12 tasks, activity, and unchanged inventory counts.
 
 ## Rollback
 
@@ -63,6 +59,4 @@ not deleted; reverting application code alone has no data-loss risk.
 
 ## Next safe slice
 
-The current stop is `LIVE_APPROVAL_REQUIRED` for promotion/execution of the RPC
-hardening package and later runtime activation. Stage transitions remain a
-separate future slice and must not be combined with this approval.
+The current stop is `RUNTIME_ACTIVATION_APPROVAL_REQUIRED`. SQL hardening and the rollback-only fixture are complete. Stage transitions remain a separate future slice and must not be combined with runtime activation.

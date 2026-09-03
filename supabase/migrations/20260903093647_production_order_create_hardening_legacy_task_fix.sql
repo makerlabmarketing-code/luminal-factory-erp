@@ -1,6 +1,5 @@
--- APPLIED REFERENCE COPY. Production SQL applied and rollback fixture passed on 2026-09-03.
+-- Final production migration definition applied on 2026-09-03.
 -- Runtime activation remains separately approval-gated and disabled.
--- Replaces only public.create_production_order_atomic(jsonb).
 
 begin;
 

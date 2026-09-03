@@ -1,6 +1,6 @@
 # Production Order Create RPC Hardening — Draft Review
 
-Status: `DRAFT_ONLY / NOT_EXECUTED / RUNTIME_DISABLED`
+Status: `PRODUCTION_APPLIED / ROLLBACK_FIXTURE_PASS / RUNTIME_DISABLED`
 Date: 2026-09-03
 
 ## Scope
@@ -19,9 +19,14 @@ The RPC continues to use the request-scoped authenticated session so `auth.uid()
 - Creates the order, stages, dependencies, tasks, and activity inside one PostgreSQL transaction/function call.
 - Contains no inventory or material quantity mutation.
 
-## Delivery gate
+## Delivery result
 
-Do not move `forward.sql` into `supabase/migrations`, execute the fixture, run production SQL, or enable `PRODUCTION_ORDER_MUTATIONS_ENABLED` until the forward SQL, rollback, read-only validation, and non-production fixture have been reviewed and explicitly approved.
+The hardening RPC and two compatibility corrections were applied to Supabase ERP Production on 2026-09-03. The rollback-only fixture passed the valid 1/12/11/12 order-stage-dependency-task matrix, forbidden-field rejection, canonical workflow rejection, duplicate-code atomicity, and zero persisted fixture rows. Runtime activation remains separately approval-gated; keep `PRODUCTION_ORDER_MUTATIONS_ENABLED` false or unset.
+
+Production compatibility corrections retained in the reference SQL:
+
+- phase rows use `ACTIVE` for the first phase and `LOCKED` for later phases;
+- task rows populate required legacy columns `project_name`, `assigned_to`, and `current_phase`.
 
 ## Rollback
 
