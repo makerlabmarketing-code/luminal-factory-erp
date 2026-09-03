@@ -6,6 +6,7 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   Database,
+  Factory,
   FolderKanban,
   LayoutDashboard,
   Mail,
@@ -33,6 +34,7 @@ import AdminLogoutButton from "@/app/admin/AdminLogoutButton";
 const ICONS: Record<AdminNavigationIcon, ElementType> = {
   dashboard: LayoutDashboard,
   projects: FolderKanban,
+  production: Factory,
   employees: Users,
   attendance: CalendarDays,
   facilities: MapPin,

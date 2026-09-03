@@ -1,5 +1,23 @@
 # Current Operator Handoff
 
+## Phase 7 Production Orders read model (2026-08-31)
+
+Status: `APPLICATION_READ_MODEL_COMPLETE / MUTATIONS_DISABLED`.
+
+Production migration `20260722110928` is present and all 15 checks in the
+reviewed Production Order validation package passed through a read-only query.
+The new Admin workspace is read-only: it requires `ADMIN_WORKSPACE` plus
+`PROJECT_VIEW` or `PROJECT_MANAGE`, uses the authenticated request client, and
+continues to rely on project RLS through `security_invoker` views. It exposes no
+create, stage transition, assignment, attachment, material, inventory, or
+quantity mutation.
+
+The next safe repository action is the bounded Production Order write-readiness
+audit described in
+[the Phase 7 handoff](phase-7-production-orders-read-model-handoff.md). Do not
+enable Production mutations, call their RPCs, create fixtures in Production, or
+introduce Inventory writes without the separately approved evidence gate.
+
 ## Employee Auth lifecycle delivery reconciliation (2026-08-03)
 
 The previously prepared Employee Auth lifecycle change is already published on
