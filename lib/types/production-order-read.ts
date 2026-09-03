@@ -44,10 +44,37 @@ export interface ProductionOrderDetail extends ProductionOrderSummary {
 export interface ProductionOrderListResponse {
   success: true;
   orders: ProductionOrderSummary[];
+  capabilities: {
+    canCreate: boolean;
+  };
   generatedAt: string;
 }
 
 export interface ProductionOrderDetailResponse {
   success: true;
   order: ProductionOrderDetail;
+}
+
+export interface ProductionOrderCreateMemberOption {
+  employeeId: number;
+  fullName: string;
+  title: string | null;
+  roleCode: 'PROJECT_OWNER' | 'PROJECT_MANAGER' | 'CREATIVE_LEAD' | 'CONTRIBUTOR';
+}
+
+export interface ProductionOrderCreateProjectOption {
+  projectId: number;
+  projectCode: string;
+  projectName: string;
+  status: string;
+  members: ProductionOrderCreateMemberOption[];
+}
+
+export interface ProductionOrderCreateContextResponse {
+  success: true;
+  workflow: {
+    name: string;
+    stageCount: number;
+  };
+  projects: ProductionOrderCreateProjectOption[];
 }

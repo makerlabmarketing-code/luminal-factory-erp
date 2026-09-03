@@ -1,5 +1,28 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-09-03 Phase 7 Production Order create slice
+
+Status: `APPLICATION_CREATE_SLICE_COMPLETE / HARDENING_DRAFT / RUNTIME_DISABLED`.
+
+The approved first write slice adds one server-owned Production Order create
+flow. It requires `ADMIN_WORKSPACE`, `PROJECT_MANAGE`, and `TASK_MANAGE`; accepts
+only bounded business input; rechecks active Project Manager and Creative Lead
+membership; derives the complete artisan keycap workflow, member roles, initial
+state, tasks, and activity payload on the server; and uses the request-scoped
+authenticated Supabase client for the existing atomic RPC. The responsive
+Vietnamese form prevents same-client duplicate submission and is only linked
+when the server-owned `PRODUCTION_ORDER_MUTATIONS_ENABLED` flag is exactly
+`true`.
+
+The RPC hardening package remains under
+`supabase/drafts/20260903_production_order_create_hardening/` with forward,
+rollback, read-only validation, non-production fixture instructions, and review
+notes. It has not been promoted to `supabase/migrations` or executed. The runtime
+flag remains false/unset. Stage transitions, assignment, attachments, materials,
+inventory, notifications, completed quantity, and Commerce remain out of scope.
+The approval boundary and rollback are recorded in
+[the create-slice handoff](phase-7-production-order-create-handoff.md).
+
 ## 2026-08-31 Phase 7 Production Orders read model
 
 Status: `APPLICATION_READ_MODEL_COMPLETE / MUTATIONS_DISABLED`.
@@ -16,9 +39,9 @@ No create/transition/inventory mutation, RPC call, SQL, schema/RLS/grant change,
 runtime flag, fixture, Storage operation, production-row mutation, or Commerce
 change belongs to this slice. The retained boundary and rollback are recorded in
 [the Phase 7 Production Orders read-model handoff](phase-7-production-orders-read-model-handoff.md).
-The next safe Phase 7 action is a bounded write-readiness audit; Production Order
-mutations remain disabled until RPC authorization/atomicity/audit and
-non-production fixture evidence are reviewed and the mutation scope is approved.
+The bounded write-readiness audit is complete and informed the separately gated
+create slice above. The original read-only behavior remains the production
+behavior while its runtime flag is disabled.
 
 ## 2026-08-22 bounded SaaS UI foundation
 

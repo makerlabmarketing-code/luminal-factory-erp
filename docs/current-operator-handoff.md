@@ -1,5 +1,25 @@
 # Current Operator Handoff
 
+## Phase 7 Production Order create slice (2026-09-03)
+
+Status: `APPLICATION_CREATE_SLICE_COMPLETE / HARDENING_DRAFT / RUNTIME_DISABLED`.
+
+The approved application slice is prepared on a feature branch. It adds a
+server-only create gate, bounded POST contract, canonical 12-stage payload
+builder, active project-role rechecks, Vietnamese create form, duplicate-submit
+lock, and safe response mapping. The list exposes the create link only when the
+authenticated user has both required permissions and the runtime flag is exactly
+`true`.
+
+The hardening SQL is a draft package at
+`supabase/drafts/20260903_production_order_create_hardening/`; it is not a
+migration and has not been executed. Keep
+`PRODUCTION_ORDER_MUTATIONS_ENABLED=false` or unset. Do not call the create RPC,
+run the fixture, promote/apply SQL, enable the flag, or perform a Production
+create until the package has been reviewed, delivered, validated, and separately
+approved. See
+[the Phase 7 create handoff](phase-7-production-order-create-handoff.md).
+
 ## Phase 7 Production Orders read model (2026-08-31)
 
 Status: `APPLICATION_READ_MODEL_COMPLETE / MUTATIONS_DISABLED`.
@@ -12,11 +32,9 @@ continues to rely on project RLS through `security_invoker` views. It exposes no
 create, stage transition, assignment, attachment, material, inventory, or
 quantity mutation.
 
-The next safe repository action is the bounded Production Order write-readiness
-audit described in
-[the Phase 7 handoff](phase-7-production-orders-read-model-handoff.md). Do not
-enable Production mutations, call their RPCs, create fixtures in Production, or
-introduce Inventory writes without the separately approved evidence gate.
+The bounded write-readiness audit is complete. The read model remains the live
+Production behavior until the newer create slice clears its separate migration,
+fixture, validation, and runtime-activation gates.
 
 ## Employee Auth lifecycle delivery reconciliation (2026-08-03)
 

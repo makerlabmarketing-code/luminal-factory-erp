@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Factory,
+  Plus,
   RefreshCcw,
   Search,
   ShieldAlert,
@@ -57,6 +58,7 @@ function ProductionStatusBadge({ status }: { status: ProductionOrderStatus }) {
 
 export default function ProductionOrdersPage() {
   const [orders, setOrders] = useState<ProductionOrderSummary[]>([]);
+  const [canCreate, setCanCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -72,6 +74,7 @@ export default function ProductionOrdersPage() {
       const payload = await response.json().catch(() => null) as (ProductionOrderListResponse & { message?: string }) | null;
       if (!response.ok || !payload?.success) throw new Error(payload?.message || 'Không thể tải lệnh sản xuất.');
       setOrders(payload.orders);
+      setCanCreate(payload.capabilities.canCreate);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Không thể tải lệnh sản xuất.');
     } finally {
@@ -117,10 +120,18 @@ export default function ProductionOrdersPage() {
         description="Theo dõi lệnh theo dự án, mẫu màu, giai đoạn hiện tại và sản lượng đã hoàn thành."
         icon={Factory}
         actions={(
-          <button type="button" className="admin-button-secondary" onClick={() => void loadOrders()} disabled={loading}>
-            <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-            Làm mới
-          </button>
+          <>
+            {canCreate ? (
+              <LoadingLink href="/admin/production-orders/new" loadingMessage="Đang tải lệnh sản xuất..." className="admin-button-primary">
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Tạo lệnh sản xuất
+              </LoadingLink>
+            ) : null}
+            <button type="button" className="admin-button-secondary" onClick={() => void loadOrders()} disabled={loading}>
+              <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+              Làm mới
+            </button>
+          </>
         )}
       />
 
