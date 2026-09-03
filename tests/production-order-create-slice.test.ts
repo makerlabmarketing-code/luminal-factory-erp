@@ -78,7 +78,7 @@ describe('production order create slice', () => {
     expect(page).not.toMatch(/completedQuantity|materialRequirements|createdByEmployeeId|status:/);
   });
 
-  it('ships hardening as an unexecuted draft with rollback and read-only validation', () => {
+  it('ships applied hardening references with rollback and read-only validation', () => {
     const base = 'supabase/drafts/20260903_production_order_create_hardening';
     const forward = source(`${base}/forward.sql`);
     const rollback = source(`${base}/rollback.sql`);
@@ -86,7 +86,9 @@ describe('production order create slice', () => {
     const fixture = source(`${base}/nonproduction-fixture.sql`);
     const review = source(`${base}/REVIEW.md`);
     const canonicalStages = forward.match(/v_expected_stages constant jsonb := '(\[[\s\S]*?\])'::jsonb;/)?.[1];
-    expect(forward).toMatch(/DRAFT ONLY/);
+    expect(forward).toMatch(/APPLIED REFERENCE COPY/);
+    expect(forward).toMatch(/then 'ACTIVE' else 'LOCKED'/);
+    expect(forward).toMatch(/project_name, assigned_to, current_phase/);
     expect(forward).toMatch(/p_payload->'stages' <> v_expected_stages/);
     expect(forward).toMatch(/0, v_priority, 'NOT_STARTED'/);
     expect(forward).toMatch(/v_creative_lead_id[\s\S]*role_code = 'CREATIVE_LEAD'/);
@@ -98,7 +100,7 @@ describe('production order create slice', () => {
     expect(rollback).toMatch(/create or replace function public\.create_production_order_atomic/);
     expect(validation).toMatch(/READ-ONLY/);
     expect(fixture).toMatch(/rollback;/i);
-    expect(review).toMatch(/NOT_EXECUTED \/ RUNTIME_DISABLED/);
+    expect(review).toMatch(/PRODUCTION_APPLIED \/ ROLLBACK_FIXTURE_PASS \/ RUNTIME_DISABLED/);
   });
 
   it('keeps rollback identical to the currently shipped create RPC', () => {

@@ -1,0 +1,4 @@
+-- Migration-history reconciliation marker.
+-- Applied directly to Supabase ERP Production on 2026-09-03.
+-- The initial RPC definition was superseded in the same rollout by
+-- 20260903093515 and 20260903093647 before runtime activation.
