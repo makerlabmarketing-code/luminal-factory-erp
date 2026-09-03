@@ -17,6 +17,7 @@ import type {
   ProductionOrderStageReadModel,
   ProductionOrderSummary,
 } from '@/lib/types/production-order-read';
+import { PRODUCTION_ORDER_MUTATIONS_FLAG } from '@/lib/production-order-create';
 
 const ORDER_STATUSES = new Set<ProductionOrderStatus>([
   'DRAFT',
@@ -81,11 +82,12 @@ interface ProductionStageRow {
   reviewStatus?: unknown;
 }
 
-async function requireProductionOrderView() {
+async function productionOrderCapabilities() {
   const authContext = await requireWorkspaceAccess('ADMIN_WORKSPACE');
-  const [canViewProjects, canManageProjects] = await Promise.all([
+  const [canViewProjects, canManageProjects, canManageTasks] = await Promise.all([
     hasPermission(authContext, 'PROJECT_VIEW'),
     hasPermission(authContext, 'PROJECT_MANAGE'),
+    hasPermission(authContext, 'TASK_MANAGE'),
   ]);
 
   if (!canViewProjects && !canManageProjects) {
@@ -97,6 +99,9 @@ async function requireProductionOrderView() {
       safeDetails: { permission_check_result: 'denied' },
     });
   }
+  return {
+    canCreate: canManageProjects && canManageTasks && process.env[PRODUCTION_ORDER_MUTATIONS_FLAG] === 'true',
+  };
 }
 
 function stringValue(value: unknown): string {
@@ -185,8 +190,7 @@ function mapStages(value: unknown): ProductionOrderStageReadModel[] {
     .sort((left, right) => left.sequence - right.sequence);
 }
 
-export async function getProductionOrders(): Promise<ProductionOrderSummary[]> {
-  await requireProductionOrderView();
+async function loadProductionOrders(): Promise<ProductionOrderSummary[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from('production_order_list_view')
@@ -198,8 +202,18 @@ export async function getProductionOrders(): Promise<ProductionOrderSummary[]> {
   return ((data || []) as ProductionOrderListRow[]).map(mapSummary);
 }
 
+export async function getProductionOrders(): Promise<ProductionOrderSummary[]> {
+  await productionOrderCapabilities();
+  return loadProductionOrders();
+}
+
+export async function getProductionOrderList(): Promise<{ orders: ProductionOrderSummary[]; capabilities: { canCreate: boolean } }> {
+  const capabilities = await productionOrderCapabilities();
+  return { orders: await loadProductionOrders(), capabilities };
+}
+
 export async function getProductionOrderDetail(productionOrderId: string): Promise<ProductionOrderDetail> {
-  await requireProductionOrderView();
+  await productionOrderCapabilities();
   const supabase = await createSupabaseServerClient();
   const [detailResult, listResult] = await Promise.all([
     supabase

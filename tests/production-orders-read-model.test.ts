@@ -34,16 +34,17 @@ describe('Phase 7 production order read model', () => {
     expect(service).not.toMatch(/createSupabaseAdminClient|service_role|\.rpc\(|\.insert\(|\.update\(|\.delete\(/);
   });
 
-  it('exposes GET-only routes with no-store responses and safe UUID validation', () => {
+  it('keeps detail read-only while list and detail responses stay no-store', () => {
     const listRoute = source('app/api/admin/production-orders/route.ts');
     const detailRoute = source('app/api/admin/production-orders/[productionOrderId]/route.ts');
     const routes = `${listRoute}\n${detailRoute}`;
 
     expect(listRoute).toMatch(/export async function GET/);
+    expect(listRoute).toMatch(/export async function POST/);
     expect(detailRoute).toMatch(/export async function GET/);
     expect(detailRoute).toMatch(/UUID_PATTERN/);
     expect(routes).toMatch(/Cache-Control', 'no-store'/);
-    expect(routes).not.toMatch(/export async function (POST|PATCH|PUT|DELETE)/);
+    expect(detailRoute).not.toMatch(/export async function (POST|PATCH|PUT|DELETE)/);
   });
 
   it('uses canonical Vietnamese status and priority labels', () => {
@@ -53,7 +54,7 @@ describe('Phase 7 production order read model', () => {
     expect(PRODUCTION_PRIORITY_LABELS.URGENT).toBe('Khẩn cấp');
   });
 
-  it('provides responsive list/detail states without enabling mutations', () => {
+  it('provides responsive list/detail states without exposing stage mutations', () => {
     const listPage = source('app/admin/production-orders/page.tsx');
     const detailPage = source('app/admin/production-orders/[productionOrderId]/page.tsx');
     const loading = source('app/admin/production-orders/loading.tsx');
@@ -66,6 +67,7 @@ describe('Phase 7 production order read model', () => {
     expect(detailPage).toContain('Tiến trình sản xuất');
     expect(detailPage).toContain('Thông tin tham chiếu ở chế độ chỉ xem.');
     expect(loading).toContain('CenteredPageLoading');
-    expect(pages).not.toMatch(/Tạo lệnh|Chuyển trạng thái|fetch\([^\n]+method:\s*['"](POST|PATCH|PUT|DELETE)/);
+    expect(detailPage).not.toMatch(/Chuyển trạng thái|fetch\([^\n]+method:\s*['"](POST|PATCH|PUT|DELETE)/);
+    expect(pages).not.toContain('Cập nhật tồn kho');
   });
 });
