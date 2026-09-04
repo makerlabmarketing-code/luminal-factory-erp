@@ -18,6 +18,7 @@ export interface FinancialLedgerEntry {
   beneficiary_external_name?: string | null;
   payer_employee_id?: number | string | null;
   payer_name?: string | null;
+  reimbursement_requester_employee_id?: number | string | null;
   reimbursement_status?: import('../financeExpenseWorkflow').ReimbursementRequestStatus | null;
   rejection_reason?: string | null;
   source_type?: string | null;

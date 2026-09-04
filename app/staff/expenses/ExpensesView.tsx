@@ -37,6 +37,7 @@ export function StaffExpensesContent({
   const [expenses, setExpenses] = useState<FinancialLedgerEntry[]>([]);
   const [worker, setWorker] = useState<Employee | null>(workerData || null);
   const [loading, setLoading] = useState(!workerData);
+  const [loadError, setLoadError] = useState('');
 
   const [expCategory, setExpCategory] = useState('');
   const [expAmount, setExpAmount] = useState('');
@@ -60,6 +61,8 @@ export function StaffExpensesContent({
       return;
     }
 
+    setLoading(true);
+    setLoadError('');
     try {
       const expensesData = await getStaffExpensesData({
         workerData,
@@ -69,6 +72,7 @@ export function StaffExpensesContent({
       setExpenses(expensesData.expenses);
     } catch (error) {
       console.error(error);
+      setLoadError(error instanceof Error ? error.message : 'Không thể tải danh sách hoàn ứng.');
     } finally {
       setLoading(false);
     }
@@ -172,6 +176,17 @@ export function StaffExpensesContent({
     return (
       <div className="text-center p-6 text-xs text-slate-500 font-mono">
         <RefreshCcw className="w-4 h-4 animate-spin text-emerald-500 mx-auto mb-2" /> Đang tải dữ liệu chi tiêu...
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div role="alert" className="rounded-2xl border border-red-500/30 bg-red-950/20 p-6 text-center text-sm text-red-200">
+        <p>{loadError}</p>
+        <button type="button" onClick={() => void loadExpensesData()} className="mt-3 rounded-lg border border-red-500/40 px-3 py-2 text-xs font-bold hover:bg-red-950/40">
+          Thử lại
+        </button>
       </div>
     );
   }

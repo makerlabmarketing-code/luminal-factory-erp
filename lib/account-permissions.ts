@@ -10,6 +10,10 @@ export type PermissionCode =
   | "FINANCE_DELETE"
   | "FINANCE_APPROVE"
   | "FINANCE_PAY"
+  | "PAYROLL_VIEW"
+  | "PAYROLL_SETTLE"
+  | "PAYROLL_ADJUST"
+  | "PAYROLL_CONFIGURE"
   | "PROJECT_VIEW"
   | "PROJECT_MANAGE"
   | "PHASE_TEMPLATE_MANAGE"
@@ -66,6 +70,12 @@ export const ALL_PERMISSION_CODES: PermissionCode[] = [
   "FINANCE_CREATE",
   "FINANCE_UPDATE",
   "FINANCE_DELETE",
+  "FINANCE_APPROVE",
+  "FINANCE_PAY",
+  "PAYROLL_VIEW",
+  "PAYROLL_SETTLE",
+  "PAYROLL_ADJUST",
+  "PAYROLL_CONFIGURE",
   "PROJECT_VIEW",
   "PROJECT_MANAGE",
   "PHASE_TEMPLATE_MANAGE",
@@ -104,6 +114,15 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { code: "FINANCE_DELETE", label: "Hủy hoặc xóa khoản thu chi theo chính sách" },
       { code: "FINANCE_APPROVE", label: "Duyệt hoàn ứng" },
       { code: "FINANCE_PAY", label: "Xác nhận thanh toán hoàn ứng" },
+    ],
+  },
+  {
+    label: "Bảng lương",
+    permissions: [
+      { code: "PAYROLL_VIEW", label: "Xem bảng lương" },
+      { code: "PAYROLL_SETTLE", label: "Xác nhận quyết toán lương" },
+      { code: "PAYROLL_ADJUST", label: "Tạo điều chỉnh lương" },
+      { code: "PAYROLL_CONFIGURE", label: "Cấu hình tháng quyết toán đầu tiên" },
     ],
   },
   {
