@@ -258,14 +258,14 @@ async function attachmentDtos(ledgerIds: Array<number | string>): Promise<Map<st
 }
 
 export async function listAdminFinancialLedger(monthPeriod: string) {
-  await requireFinance('FINANCE_VIEW');
+  const auth = await requireFinance('FINANCE_VIEW');
   if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(monthPeriod)) {
     throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Kỳ báo cáo không hợp lệ.', failureStage: 'validation' });
   }
   await requireExtendedLedgerSchema();
   const admin = createSupabaseAdminClient();
   const baseColumns = 'id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at';
-  const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, reimbursement_status, rejection_reason, source_type, source_reference';
+  const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference';
   const { data, error } = await admin
     .from('financial_ledger')
     .select(baseColumns + (extendedLedgerEnabled() ? extendedColumns : ''))
@@ -294,6 +294,11 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     extendedSchemaEnabled: extendedLedgerEnabled(),
     attachmentsEnabled: await attachmentStorageReady(),
     projects,
+    reimbursementCapabilities: {
+      currentEmployeeId: String(auth.employee.id),
+      canApprove: await hasPermission(auth, 'FINANCE_APPROVE'),
+      canPay: await hasPermission(auth, 'FINANCE_PAY'),
+    },
     ledger: rows.map((row) => ({
       ...resolveLedgerPeople(row, employeeNames),
       attachments: attachments.get(String(row.id)) || (row.bill_url ? [{ id: `legacy:${row.id}`, originalFilename: 'Chứng từ cũ', mimeType: 'application/octet-stream', sizeBytes: 0, legacyUrl: row.bill_url }] : []),
@@ -337,6 +342,7 @@ export async function updateAdminFinancialLedger(ledgerId: number, body: Record<
   const original = originalData as unknown as LedgerMutationSnapshot | null;
   if (originalError) persistenceError('Không thể tải giao dịch cần cập nhật.');
   if (!original) resourceNotFound('Không tìm thấy giao dịch cần cập nhật.');
+  if (original.type === 'HOAN_UNG') resourceConflict('Phiếu hoàn ứng chỉ được thay đổi bằng thao tác duyệt, từ chối hoặc xác nhận thanh toán.');
   if (isManagedCounterRow(original.type, original.category)) resourceConflict('Dòng đối ứng chỉ do hệ thống quản lý.');
   const requestedBy = await requestedByForMutation(input, original.requested_by);
   const nextInput = { ...input, requestedBy };
@@ -375,6 +381,7 @@ export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: bool
   const { data: target, error: targetError } = await admin.from('financial_ledger').select('id, type, category').eq('id', ledgerId).maybeSingle();
   if (targetError) persistenceError('Không thể tải giao dịch cần cập nhật trạng thái.');
   if (!target) resourceNotFound('Không tìm thấy giao dịch cần cập nhật trạng thái.');
+  if (target.type === 'HOAN_UNG') resourceConflict('Phiếu hoàn ứng chỉ được xác nhận thanh toán qua quy trình hoàn ứng.');
   if (isManagedCounterRow(target.type, target.category)) resourceConflict('Dòng đối ứng chỉ do hệ thống quản lý.');
   const values = extendedLedgerEnabled() ? { is_paid: isPaid, payment_status: isPaid ? 'PAID' : 'UNPAID', updated_at: new Date().toISOString() } : { is_paid: isPaid };
   const { data, error } = await admin.from('financial_ledger').update(values).eq('id', ledgerId).select('id').maybeSingle();

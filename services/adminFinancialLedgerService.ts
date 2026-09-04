@@ -5,7 +5,25 @@ interface LedgerResponse {
   extendedSchemaEnabled: boolean;
   attachmentsEnabled: boolean;
   projects: Array<{ id: number | string; name: string }>;
+  reimbursementCapabilities: {
+    currentEmployeeId: string;
+    canApprove: boolean;
+    canPay: boolean;
+  };
   message?: string;
+}
+
+export async function transitionAdminReimbursement(
+  ledgerId: number | string,
+  status: 'APPROVED' | 'REJECTED' | 'PAID',
+  reason: string | null = null,
+) {
+  await payload(await fetch('/api/admin/finance/reimbursements', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ledgerId, status, reason, idempotencyKey: crypto.randomUUID() }),
+  }));
 }
 
 async function payload(response: Response) {

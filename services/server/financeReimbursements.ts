@@ -201,6 +201,17 @@ export async function uploadOwnReimbursementAttachment(ledgerId: number, file: F
 export async function transitionReimbursement(body: Record<string, unknown>) {
   const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
   const status = typeof body.status === 'string' ? body.status : '';
+  if (!['APPROVED', 'REJECTED', 'PAID'].includes(status)) {
+    throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Trạng thái hoàn ứng không hợp lệ.', failureStage: 'validation' });
+  }
+  const ledgerId = Number(body.ledgerId);
+  if (!Number.isSafeInteger(ledgerId) || ledgerId <= 0) {
+    throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Phiếu hoàn ứng không hợp lệ.', failureStage: 'validation' });
+  }
+  const reason = text(body.reason, 'Lý do', false);
+  if (status === 'REJECTED' && (!reason || reason.length < 3)) {
+    throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Lý do từ chối phải có ít nhất 3 ký tự.', failureStage: 'validation' });
+  }
   const permission = status === 'PAID' ? 'FINANCE_PAY' : 'FINANCE_APPROVE';
   if (!(await hasPermission(auth, permission))) {
     throw new AuthFlowError({ status: 403, code: 'permission_forbidden', message: 'Bạn không có quyền duyệt hoặc xác nhận thanh toán.', failureStage: 'permission_check' });
@@ -208,9 +219,17 @@ export async function transitionReimbursement(body: Record<string, unknown>) {
   if (!enabled()) unavailable();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('transition_reimbursement', {
-    p_ledger_id: Number(body.ledgerId), p_status: status,
-    p_reason: text(body.reason, 'Lý do', false), p_idempotency_key: text(body.idempotencyKey, 'Mã chống gửi trùng'),
+    p_ledger_id: ledgerId, p_status: status,
+    p_reason: reason, p_idempotency_key: text(body.idempotencyKey, 'Mã chống gửi trùng'),
   });
-  if (error) throw new Error('Không thể cập nhật trạng thái hoàn ứng.');
+  if (error) {
+    if (error.code === '42501') {
+      throw new AuthFlowError({ status: 403, code: 'permission_forbidden', message: 'Bạn không đủ quyền hoặc không thể tự duyệt phiếu của chính mình.', failureStage: 'permission_check' });
+    }
+    if (error.code === '23505') {
+      throw new AuthFlowError({ status: 409, code: 'payload_validation_failed', message: 'Thao tác này đã được xử lý trước đó.', failureStage: 'persistence' });
+    }
+    throw new AuthFlowError({ status: 409, code: 'payload_validation_failed', message: 'Phiếu đã đổi trạng thái hoặc không còn phù hợp với thao tác này.', failureStage: 'persistence' });
+  }
   return { success: true as const, status: data };
 }

@@ -1,6 +1,6 @@
 'use client';
 import { Fragment, useState } from 'react';
-import { Edit2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon } from 'lucide-react';
+import { Check, Edit2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon, X } from 'lucide-react';
 import type { FinancialLedgerEntry } from '@/lib/types/finance';
 
 type LedgerRow = FinancialLedgerEntry & { linkedChild?: FinancialLedgerEntry | null };
@@ -10,13 +10,23 @@ interface LedgerTableProps {
   onTogglePaid: (id: number | string, currentStatus: boolean) => void;
   onOpenEdit: (item: LedgerRow) => void;
   onGenerateQr: (item: LedgerRow) => void;
+  reimbursementCapabilities: {
+    currentEmployeeId: string;
+    canApprove: boolean;
+    canPay: boolean;
+  };
+  activeReimbursementActionId: number | string | null;
+  onTransitionReimbursement: (item: LedgerRow, status: 'APPROVED' | 'REJECTED' | 'PAID') => void;
 }
 
 export default function LedgerTable({
   data,
   onTogglePaid,
   onOpenEdit,
-  onGenerateQr
+  onGenerateQr,
+  reimbursementCapabilities,
+  activeReimbursementActionId,
+  onTransitionReimbursement,
 }: LedgerTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<number | string>>(new Set());
 
@@ -67,6 +77,9 @@ export default function LedgerTable({
           const isExpanded = expandedRows.has(l.id);
 
           const isOrphanedCounterEntry = l.type === 'VON_GOP' && /^\[(Đối ứng|Hủy đối ứng)\]/.test(l.category || '');
+          const isReimbursement = l.type === 'HOAN_UNG';
+          const isOwnReimbursement = String(l.reimbursement_requester_employee_id) === reimbursementCapabilities.currentEmployeeId;
+          const reimbursementBusy = String(activeReimbursementActionId) === String(l.id);
 
           return (
             <Fragment key={l.id}>
@@ -92,17 +105,41 @@ export default function LedgerTable({
                 <td className="max-w-[180px] break-words p-4 text-slate-400">{l.payer_name || l.requested_by || 'Chưa xác định'}</td>
                 <td className="max-w-[180px] break-words p-4 text-slate-300">{l.beneficiary_name || 'Chưa xác định'}</td>
                 <td className="p-4">
-                  <button
-                    disabled={isOrphanedCounterEntry}
-                    onClick={() => onTogglePaid(l.id, Boolean(l.is_paid))}
-                    className={`px-2 py-1 rounded text-[9px] border font-black ${isOrphanedCounterEntry ? 'opacity-60 cursor-not-allowed' : ''} ${l.is_paid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}
-                  >
-                    {l.is_paid ? 'Đã Trả' : 'Treo nợ'}
-                  </button>
+                  {isReimbursement ? (
+                    <span className={`inline-flex rounded border px-2 py-1 text-[9px] font-black ${l.reimbursement_status === 'PAID' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : l.reimbursement_status === 'APPROVED' ? 'border-blue-500/20 bg-blue-500/10 text-blue-300' : l.reimbursement_status === 'REJECTED' ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-400'}`}>
+                      {l.reimbursement_status === 'PAID' ? 'Đã thanh toán' : l.reimbursement_status === 'APPROVED' ? 'Đã duyệt' : l.reimbursement_status === 'REJECTED' ? 'Đã từ chối' : 'Chờ duyệt'}
+                    </span>
+                  ) : (
+                    <button
+                      disabled={isOrphanedCounterEntry}
+                      onClick={() => onTogglePaid(l.id, Boolean(l.is_paid))}
+                      className={`px-2 py-1 rounded text-[9px] border font-black ${isOrphanedCounterEntry ? 'opacity-60 cursor-not-allowed' : ''} ${l.is_paid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}
+                    >
+                      {l.is_paid ? 'Đã trả' : 'Treo nợ'}
+                    </button>
+                  )}
                 </td>
                 <td className="p-4 text-right font-mono font-bold text-slate-200">{Number(l.amount).toLocaleString()} đ</td>
                 <td className="p-4 text-center space-x-1 flex justify-center">
-                  {isOrphanedCounterEntry ? (
+                  {isReimbursement ? (
+                    <div className="flex flex-wrap items-center justify-center gap-1">
+                      {isOwnReimbursement ? (
+                        <span className="text-[9px] text-slate-500">Không tự duyệt</span>
+                      ) : l.reimbursement_status === 'SUBMITTED' ? (
+                        <>
+                          <button disabled={!reimbursementCapabilities.canApprove || reimbursementBusy} aria-label="Duyệt hoàn ứng" onClick={() => onTransitionReimbursement(l, 'APPROVED')} className="rounded-lg border border-emerald-700 bg-emerald-950 p-1.5 text-emerald-300 disabled:opacity-40"><Check className="h-3.5 w-3.5" /></button>
+                          <button disabled={!reimbursementCapabilities.canApprove || reimbursementBusy} aria-label="Từ chối hoàn ứng" onClick={() => onTransitionReimbursement(l, 'REJECTED')} className="rounded-lg border border-red-800 bg-red-950 p-1.5 text-red-300 disabled:opacity-40"><X className="h-3.5 w-3.5" /></button>
+                        </>
+                      ) : l.reimbursement_status === 'APPROVED' ? (
+                        <>
+                          <button disabled={!reimbursementCapabilities.canPay || reimbursementBusy} aria-label="Tạo mã QR thanh toán hoàn ứng" onClick={() => onGenerateQr(l)} className="rounded-lg border border-cyan-800 bg-cyan-950 p-1.5 text-cyan-400 disabled:opacity-40"><QrCode className="h-3.5 w-3.5" /></button>
+                          <button disabled={!reimbursementCapabilities.canPay || reimbursementBusy} onClick={() => onTransitionReimbursement(l, 'PAID')} className="rounded-lg border border-emerald-700 bg-emerald-950 px-2 py-1.5 text-[9px] font-bold text-emerald-300 disabled:opacity-40">Xác nhận đã trả</button>
+                        </>
+                      ) : (
+                        <span className="text-[9px] text-slate-500">Đã hoàn tất</span>
+                      )}
+                    </div>
+                  ) : isOrphanedCounterEntry ? (
                     <div className="flex items-center justify-center gap-1 text-slate-500 text-[10px] italic select-none">
                       <Lock className="w-3 h-3 text-slate-600" /> Auto
                     </div>

@@ -36,6 +36,7 @@ import {
   removeAdminLedgerAttachment,
   replaceAdminLedgerAttachment,
   setAdminFinancialLedgerPaid,
+  transitionAdminReimbursement,
   updateAdminFinancialLedger,
   uploadAdminLedgerAttachment,
 } from '@/services/adminFinancialLedgerService';
@@ -171,6 +172,9 @@ export default function AdminFinancialLedger() {
   const [extendedSchemaEnabled, setExtendedSchemaEnabled] = useState(false);
   const [attachmentsEnabled, setAttachmentsEnabled] = useState(false);
   const [projects, setProjects] = useState<Array<{ id: number | string; name: string }>>([]);
+  const [reimbursementCapabilities, setReimbursementCapabilities] = useState({ currentEmployeeId: '', canApprove: false, canPay: false });
+  const [activeReimbursementActionId, setActiveReimbursementActionId] = useState<number | string | null>(null);
+  const reimbursementActionLock = useRef(false);
 
   const [monthInput, setMonthInput] = useState(() => {
     const d = new Date();
@@ -229,6 +233,7 @@ export default function AdminFinancialLedger() {
     accountNo: string;
     amount: number;
     category: string;
+    type: string;
   } | null>(null);
 
   // Pagination & Search
@@ -305,6 +310,7 @@ export default function AdminFinancialLedger() {
       setExtendedSchemaEnabled(ledgerResult.extendedSchemaEnabled);
       setAttachmentsEnabled(ledgerResult.attachmentsEnabled);
       setProjects(ledgerResult.projects);
+      setReimbursementCapabilities(ledgerResult.reimbursementCapabilities);
     } catch (e) {
       console.error(e);
       setLoadError('Không tải được dữ liệu.');
@@ -540,14 +546,47 @@ export default function AdminFinancialLedger() {
     }
   };
 
+  const handleTransitionReimbursement = async (
+    item: FinancialLedgerEntry,
+    status: 'APPROVED' | 'REJECTED' | 'PAID',
+  ) => {
+    if (reimbursementActionLock.current) return;
+    let reason: string | null = null;
+    if (status === 'REJECTED') {
+      reason = prompt('Nhập lý do từ chối (ít nhất 3 ký tự):')?.trim() || null;
+      if (!reason || reason.length < 3) return showToast('Thiếu lý do', 'Vui lòng nhập lý do từ chối ít nhất 3 ký tự.', 'error');
+    } else if (!confirm(status === 'APPROVED' ? 'Xác nhận duyệt phiếu hoàn ứng này?' : 'Xác nhận đã thanh toán phiếu hoàn ứng này?')) {
+      return;
+    }
+    reimbursementActionLock.current = true;
+    setActiveReimbursementActionId(item.id);
+    showGlobalLoading('Đang lưu thay đổi...');
+    try {
+      await transitionAdminReimbursement(item.id, status, reason);
+      await loadData();
+      showToast('Đã cập nhật hoàn ứng', status === 'APPROVED' ? 'Phiếu đã được duyệt.' : status === 'REJECTED' ? 'Phiếu đã bị từ chối.' : 'Phiếu đã được xác nhận thanh toán.', 'success');
+    } catch (error) {
+      showToast('Không thể cập nhật hoàn ứng', error instanceof Error ? error.message : 'Vui lòng thử lại.', 'error');
+    } finally {
+      reimbursementActionLock.current = false;
+      setActiveReimbursementActionId(null);
+      hideGlobalLoading();
+    }
+  };
+
   const handleInstantPaymentSuccess = async () => {
     if (!activeQrTarget?.id || paymentActionLock.current) return;
     const targetId = activeQrTarget.id;
     paymentActionLock.current = true;
     showGlobalLoading('Đang lưu thay đổi...');
     try {
-      await setAdminFinancialLedgerPaid(targetId, true);
-      setLedger(prev => prev.map(l => l.id === targetId ? { ...l, is_paid: true } : l));
+      if (activeQrTarget.type === 'HOAN_UNG') {
+        await transitionAdminReimbursement(targetId, 'PAID');
+        await loadData();
+      } else {
+        await setAdminFinancialLedgerPaid(targetId, true);
+        setLedger(prev => prev.map(l => l.id === targetId ? { ...l, is_paid: true } : l));
+      }
       setShowQrModal(false); setActiveQrUrl('');
       showToast('Thanh toán xong', 'Đã chuyển khoản thành công!', 'success');
     } catch (error) {
@@ -575,7 +614,7 @@ export default function AdminFinancialLedger() {
       });
       if (!qrResult.ok) return showToast('Thiếu thông tin nhận tiền', MISSING_EMPLOYEE_PAYMENT_INFO_MESSAGE, 'error');
       setActiveQrUrl(qrResult.url);
-      setActiveQrTarget({ id: item.id, title: item.type === 'HOAN_UNG' ? 'QR thanh toán hoàn ứng' : 'QR thanh toán cho Người hưởng lợi', bankName: matchedBeneficiary?.bank_name || '', accountNo: matchedBeneficiary?.bank_account_number || '', amount: Number(item.amount || 0), category: item.category || '' });
+      setActiveQrTarget({ id: item.id, type: item.type || '', title: item.type === 'HOAN_UNG' ? 'QR thanh toán hoàn ứng' : 'QR thanh toán cho Người hưởng lợi', bankName: matchedBeneficiary?.bank_name || '', accountNo: matchedBeneficiary?.bank_account_number || '', amount: Number(item.amount || 0), category: item.category || '' });
       setShowQrModal(true);
     } else {
       if (!companyBankAccount) return showToast('Thiếu cấu hình', 'Chưa cấu hình tài khoản công ty nhận tiền!', 'error');
@@ -583,7 +622,7 @@ export default function AdminFinancialLedger() {
       const cleanCategory = encodeURIComponent(`${prefix}: ${item.requested_by}`);
       const qrUrl = `https://img.vietqr.io/image/${companyBankCode}-${companyBankAccount}-compact2.png?amount=${item.amount}&addInfo=${cleanCategory}`;
       setActiveQrUrl(qrUrl);
-      setActiveQrTarget({ id: item.id, title: item.type === 'DOANH_THU' ? '💰 QUÉT MÃ THU TIỀN KHÁCH HÀNG' : '🟢 QUÉT MÃ NỘP VỐN CÔNG TY', bankName: companyBankCode, accountNo: companyBankAccount, amount: Number(item.amount || 0), category: item.category || '' });
+      setActiveQrTarget({ id: item.id, type: item.type || '', title: item.type === 'DOANH_THU' ? '💰 QUÉT MÃ THU TIỀN KHÁCH HÀNG' : '🟢 QUÉT MÃ NỘP VỐN CÔNG TY', bankName: companyBankCode, accountNo: companyBankAccount, amount: Number(item.amount || 0), category: item.category || '' });
       setShowQrModal(true);
     }
   };
@@ -693,6 +732,9 @@ export default function AdminFinancialLedger() {
             onTogglePaid={handleTogglePaid}
             onOpenEdit={handleOpenEdit}
             onGenerateQr={handleGenerateVietQR}
+            reimbursementCapabilities={reimbursementCapabilities}
+            activeReimbursementActionId={activeReimbursementActionId}
+            onTransitionReimbursement={handleTransitionReimbursement}
           />
         )}
 
