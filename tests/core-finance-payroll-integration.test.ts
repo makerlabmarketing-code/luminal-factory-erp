@@ -28,6 +28,17 @@ describe('core finance and payroll integration', () => {
     expect(client).toContain("fetch('/api/admin/finance/reimbursements'");
   });
 
+  it('keeps finance row actions readable on one line', () => {
+    const table = read('app/admin/capital/components/LedgerTable.tsx');
+    expect(table).toContain('min-w-[1180px]');
+    expect(table).toContain('flex flex-nowrap items-center justify-center gap-2');
+    expect(table).not.toContain('flex flex-wrap items-center justify-center');
+    expect(table).toContain('<Check className="h-3.5 w-3.5" /> Duyệt');
+    expect(table).toContain('<X className="h-3.5 w-3.5" /> Từ chối');
+    expect(table).toContain('<QrCode className="h-3.5 w-3.5" /> Mã QR');
+    expect(table).toContain('<Edit2 className="h-3.5 w-3.5"/> Chỉnh sửa');
+  });
+
   it('does not let generic ledger edits bypass the reimbursement workflow', () => {
     const server = read('services/server/adminFinancialLedger.ts');
     expect(server).toContain("original.type === 'HOAN_UNG'");
