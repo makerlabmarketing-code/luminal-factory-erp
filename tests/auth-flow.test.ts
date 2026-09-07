@@ -12,7 +12,10 @@ import {
   resolveSafeRedirectPath,
   validateNewPassword,
 } from '../utils/auth/flow';
-import { sendPasswordRecoveryEmail } from '../utils/auth/password-recovery';
+import {
+  PASSWORD_RECOVERY_UNAVAILABLE_MESSAGE,
+  sendPasswordRecoveryEmail,
+} from '../utils/auth/password-recovery';
 import {
   cleanUpdatePasswordUrl,
   INVALID_RECOVERY_LINK_MESSAGE,
@@ -191,7 +194,7 @@ describe('auth flow helpers', () => {
   it('passes the ERP update-password URL to resetPasswordForEmail', async () => {
     const resetPasswordForEmail = vi.fn().mockResolvedValue({ error: null });
 
-    await sendPasswordRecoveryEmail(
+    const outcome = await sendPasswordRecoveryEmail(
       { resetPasswordForEmail },
       '  nhanvien@luminalfactory.com  ',
       'https://erp.luminalfactory.com'
@@ -201,6 +204,36 @@ describe('auth flow helpers', () => {
       redirectTo:
         'https://erp.luminalfactory.com/auth/callback?mode=recovery&next=%2Fauth%2Fupdate-password%3Fmode%3Drecovery',
     });
+    expect(outcome).toEqual({ ok: true });
+  });
+
+  it('does not report success when the recovery provider rejects the email', async () => {
+    const resetPasswordForEmail = vi.fn().mockResolvedValue({
+      error: { code: 'email_address_not_authorized', status: 403 },
+    });
+
+    const outcome = await sendPasswordRecoveryEmail(
+      { resetPasswordForEmail },
+      'nhanvien@luminalfactory.com',
+      'https://erp.luminalfactory.com'
+    );
+
+    expect(outcome).toEqual({ ok: false, reason: 'unavailable' });
+    expect(PASSWORD_RECOVERY_UNAVAILABLE_MESSAGE).not.toContain('nhanvien@luminalfactory.com');
+  });
+
+  it('maps password recovery rate limits to a retryable outcome', async () => {
+    const resetPasswordForEmail = vi.fn().mockResolvedValue({
+      error: { code: 'over_email_send_rate_limit', status: 429 },
+    });
+
+    await expect(
+      sendPasswordRecoveryEmail(
+        { resetPasswordForEmail },
+        'nhanvien@luminalfactory.com',
+        'https://erp.luminalfactory.com'
+      )
+    ).resolves.toEqual({ ok: false, reason: 'rate_limited' });
   });
 
   it('validates mismatched passwords', () => {
