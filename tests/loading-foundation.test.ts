@@ -83,8 +83,9 @@ describe('global loading foundation', () => {
     expect(capitalSource).toMatch(/LedgerLoadingSkeleton/);
     expect(capitalSource).toMatch(/Không tải được dữ liệu\./);
     expect(capitalSource).toMatch(/Không có giao dịch trong kỳ đã chọn\./);
-    expect(capitalSource).toMatch(/loading \? \(/);
-    expect(capitalSource).toMatch(/: loadError \? \(/);
+    expect(capitalSource).toMatch(/loading && !hasLoadedData \? \(/);
+    expect(capitalSource).toMatch(/: loadError && !hasLoadedData \? \(/);
+    expect(capitalSource).toMatch(/<LedgerTableLoadingState \/>/);
   });
 
   it('centers the shared loader across nested route loading boundaries', () => {

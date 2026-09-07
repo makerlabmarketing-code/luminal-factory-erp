@@ -284,9 +284,22 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
   const attachments = await attachmentDtos(rows.map((row) => row.id));
   let projects: Array<{ id: number | string; name: string }> = [];
   if (extendedLedgerEnabled()) {
-    const { data: projectRows, error: projectError } = await admin.from('projects').select('id, name').order('name', { ascending: true });
-    if (projectError) persistenceError('Không thể tải danh sách dự án liên quan.');
-    projects = (projectRows || []) as Array<{ id: number | string; name: string }>;
+    const { data: projectRows, error: projectError } = await admin
+      .from('projects')
+      .select('id, project_name')
+      .order('project_name', { ascending: true });
+    if (projectError) {
+      console.warn('[admin-finance-project-options]', {
+        message: 'Không thể tải danh sách dự án liên quan.',
+        code: projectError.code,
+      });
+    } else {
+      projects = (projectRows || [])
+        .flatMap((project) => {
+          const name = project.project_name?.trim();
+          return name ? [{ id: project.id, name }] : [];
+        });
+    }
   }
 
   return {
