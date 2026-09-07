@@ -113,4 +113,20 @@ describe('Admin financial ledger repair', () => {
     expect(page).toMatch(/submitLock\.current = true/);
     expect(page).toMatch(/submitLock\.current = false/);
   });
+
+  it('loads project options from the real schema without blocking the ledger', () => {
+    const server = source('services/server/adminFinancialLedger.ts');
+    expect(server).toContain("select('id, project_name')");
+    expect(server).toContain("order('project_name'");
+    expect(server).toContain("console.warn('[admin-finance-project-options]'");
+    expect(server).not.toContain("select('id, name').order('name'");
+  });
+
+  it('refreshes only the ledger table after the first successful load', () => {
+    const page = source('app/admin/capital/page.tsx');
+    expect(page).toContain('loading && !hasLoadedData');
+    expect(page).toContain('<LedgerTableLoadingState />');
+    expect(page).toContain("showToast('Không tải được sổ thu chi'");
+    expect(page).toContain('Bạn vẫn có thể xem sổ thu chi và dùng quỹ tiền mặt chung.');
+  });
 });

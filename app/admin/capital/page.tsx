@@ -151,6 +151,23 @@ function LedgerLoadingSkeleton() {
   );
 }
 
+function LedgerTableLoadingState() {
+  return (
+    <div className="space-y-3 p-5" role="status" aria-live="polite" aria-busy="true">
+      {[0, 1, 2, 3, 4].map((row) => (
+        <div key={row} className="grid grid-cols-5 gap-3">
+          <div className="h-4 animate-pulse rounded bg-slate-800" />
+          <div className="h-4 animate-pulse rounded bg-slate-800" />
+          <div className="h-4 animate-pulse rounded bg-slate-800" />
+          <div className="h-4 animate-pulse rounded bg-slate-800" />
+          <div className="h-4 animate-pulse rounded bg-slate-800" />
+        </div>
+      ))}
+      <p className="text-center text-xs font-bold text-slate-500">Đang tải sổ thu chi...</p>
+    </div>
+  );
+}
+
 export default function AdminFinancialLedger() {
   const { showToast } = useNotification();
   const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
@@ -164,6 +181,7 @@ export default function AdminFinancialLedger() {
   const [companyBankCode, setCompanyBankCode] = useState<string>('MB');
   const [companyBankAccount, setCompanyBankAccount] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitLock = useRef(false);
@@ -261,10 +279,16 @@ export default function AdminFinancialLedger() {
         .from('shareholders')
         .select('id, name, status')
         .order('id', { ascending: true });
-      if (paymentSourceError) throw paymentSourceError;
-      setExpensePaymentSources(
-        getExpensePaymentSourceOptions((paymentSourceRows || []) as ShareholderPaymentSourceRow[])
-      );
+      if (paymentSourceError) {
+        console.error(paymentSourceError);
+        setExpensePaymentSources(getExpensePaymentSourceOptions([]));
+        setExpenseSourcesError('Không tải được danh sách nguồn chi trả.');
+        showToast('Không tải được nguồn chi trả', 'Bạn vẫn có thể xem sổ thu chi và dùng quỹ tiền mặt chung.', 'error');
+      } else {
+        setExpensePaymentSources(
+          getExpensePaymentSourceOptions((paymentSourceRows || []) as ShareholderPaymentSourceRow[])
+        );
+      }
       setExpenseSourcesLoading(false);
 
       const { data: meta, error: metadataError } = await supabase.from('system_metadata').select('data').eq('name', FINANCIAL_TRANSACTION_TYPE_METADATA_NAME).maybeSingle();
@@ -311,13 +335,13 @@ export default function AdminFinancialLedger() {
       setAttachmentsEnabled(ledgerResult.attachmentsEnabled);
       setProjects(ledgerResult.projects);
       setReimbursementCapabilities(ledgerResult.reimbursementCapabilities);
+      setHasLoadedData(true);
     } catch (e) {
       console.error(e);
       setLoadError('Không tải được dữ liệu.');
-      setExpenseSourcesLoading(false);
-      setExpenseSourcesError('Không tải được danh sách nguồn chi trả.');
-      showToast('Không tải được nguồn chi trả', 'Vui lòng thử lại sau.', 'error');
+      showToast('Không tải được sổ thu chi', 'Vui lòng thử lại sau.', 'error');
     } finally {
+      setExpenseSourcesLoading(false);
       setLoading(false);
     }
   }, [selectedMonth, showToast]);
@@ -696,9 +720,9 @@ export default function AdminFinancialLedger() {
         </div>
       </div>
 
-      {loading ? (
+      {loading && !hasLoadedData ? (
         <LedgerLoadingSkeleton />
-      ) : loadError ? (
+      ) : loadError && !hasLoadedData ? (
         <div className="rounded-2xl border border-red-900/40 bg-red-950/20 p-8 text-center text-sm font-bold text-red-300">
           <p>Không tải được dữ liệu.</p>
           <button type="button" onClick={() => void loadData()} className="mt-3 rounded-lg border border-red-500/40 px-3 py-2 text-xs hover:bg-red-950/40">Thử lại</button>
@@ -722,7 +746,14 @@ export default function AdminFinancialLedger() {
           <input type="text" placeholder="Tìm kiếm nội dung..." className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none w-full sm:w-64" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
 
-        {filteredLedger.length === 0 ? (
+        {loading ? (
+          <LedgerTableLoadingState />
+        ) : loadError ? (
+          <div className="p-8 text-center text-sm font-bold text-red-300">
+            <p>Không tải được dữ liệu của kỳ này.</p>
+            <button type="button" onClick={() => void loadData()} className="mt-3 rounded-lg border border-red-500/40 px-3 py-2 text-xs hover:bg-red-950/40">Thử lại</button>
+          </div>
+        ) : filteredLedger.length === 0 ? (
           <div className="p-8 text-center text-sm text-slate-500">
             Không có giao dịch trong kỳ đã chọn.
           </div>
@@ -738,7 +769,7 @@ export default function AdminFinancialLedger() {
           />
         )}
 
-        {filteredLedger.length > 0 && (
+        {!loading && !loadError && filteredLedger.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-3 bg-slate-950 border-t border-slate-800">
             <span className="text-xs text-slate-500 mb-3 sm:mb-0">Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredLedger.length)} trong tổng số {filteredLedger.length} bản ghi</span>
             <div className="flex items-center gap-1.5">
