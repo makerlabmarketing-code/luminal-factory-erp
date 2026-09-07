@@ -6,6 +6,8 @@ import { Mail, RefreshCcw } from 'lucide-react';
 import { supabase } from '@/utils/supabase/client';
 import {
   getPasswordRecoveryConfigurationError,
+  PASSWORD_RECOVERY_RATE_LIMIT_MESSAGE,
+  PASSWORD_RECOVERY_UNAVAILABLE_MESSAGE,
   sendPasswordRecoveryEmail,
 } from '@/utils/auth/password-recovery';
 
@@ -15,23 +17,35 @@ const neutralMessage =
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
+  const [feedback, setFeedback] = useState<{ message: string; tone: 'error' | 'success' } | null>(
+    null
+  );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
-    setMessage('');
+    setFeedback(null);
 
     const configurationError = getPasswordRecoveryConfigurationError();
     if (configurationError) {
-      setMessage(configurationError);
+      setFeedback({ message: configurationError, tone: 'error' });
       setSubmitting(false);
       return;
     }
 
-    await sendPasswordRecoveryEmail(supabase.auth, email);
+    const outcome = await sendPasswordRecoveryEmail(supabase.auth, email);
 
-    setMessage(neutralMessage);
+    if (outcome.ok) {
+      setFeedback({ message: neutralMessage, tone: 'success' });
+    } else {
+      setFeedback({
+        message:
+          outcome.reason === 'rate_limited'
+            ? PASSWORD_RECOVERY_RATE_LIMIT_MESSAGE
+            : PASSWORD_RECOVERY_UNAVAILABLE_MESSAGE,
+        tone: 'error',
+      });
+    }
     setSubmitting(false);
   };
 
@@ -65,7 +79,17 @@ export default function ForgotPasswordForm() {
           />
         </div>
 
-        {message && <p className="text-[11px] text-emerald-400 text-center font-bold">{message}</p>}
+        {feedback && (
+          <p
+            role={feedback.tone === 'error' ? 'alert' : 'status'}
+            aria-live="polite"
+            className={`text-[11px] text-center font-bold ${
+              feedback.tone === 'error' ? 'text-red-400' : 'text-emerald-400'
+            }`}
+          >
+            {feedback.message}
+          </p>
+        )}
 
         <button
           type="submit"
