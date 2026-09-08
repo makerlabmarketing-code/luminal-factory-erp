@@ -14,6 +14,7 @@ import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 
 const SHIFT_MINUTES = 180;
+const MINIMUM_CREDITED_MINUTES = 30;
 
 /**
  * Default Attendance business configuration used by the shift resolver.
@@ -98,11 +99,9 @@ export function calculateShiftUnitsFromHours(hours: number): number {
 }
 
 export function calculateShiftUnitsFromMinutes(workedMinutes: number): number {
-  if (!Number.isFinite(workedMinutes) || workedMinutes <= 0) return 0;
-  if (workedMinutes <= SHIFT_MINUTES) return 1;
-  if (workedMinutes <= SHIFT_MINUTES * 2) return 2;
+  if (!Number.isFinite(workedMinutes) || workedMinutes < MINIMUM_CREDITED_MINUTES) return 0;
 
-  return 3;
+  return Math.min(3, 1 + Math.floor((workedMinutes - MINIMUM_CREDITED_MINUTES) / SHIFT_MINUTES));
 }
 
 function normalizeHoursValue(value: number | string | null | undefined): number | null {
@@ -285,7 +284,7 @@ export function resolveAttendanceShiftState(
 
 export function getFinalizedShiftUnitsForRecord(record: AttendanceRecord): number {
   if (!isAttendanceRecordComplete(record)) return 0;
-  return Math.max(1, calculateShiftUnitsFromMinutes(getWorkedMinutesForRecord(record)));
+  return calculateShiftUnitsFromMinutes(getWorkedMinutesForRecord(record));
 }
 
 export function canContinueAttendanceShift(params: {

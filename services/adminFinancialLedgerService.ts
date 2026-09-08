@@ -2,6 +2,8 @@ import type { AdminLedgerMutationInput, FinancialLedgerEntry } from '@/lib/types
 
 interface LedgerResponse {
   ledger: FinancialLedgerEntry[];
+  companyBankCode: string;
+  companyBankAccount: string;
   extendedSchemaEnabled: boolean;
   attachmentsEnabled: boolean;
   projects: Array<{ id: number | string; name: string }>;

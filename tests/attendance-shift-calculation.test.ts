@@ -17,18 +17,22 @@ describe('attendance shift calculation', () => {
     expect(getEmployeeHourlyRate({ id: 1, full_name: 'Nhân sự thử', hourly_rate: 0 })).toBe(0);
   });
   it.each([
-    { minutes: 1, shifts: 1 },
+    { minutes: 0, shifts: 0 },
+    { minutes: 29, shifts: 0 },
+    { minutes: 30, shifts: 1 },
     { minutes: 120, shifts: 1 },
     { minutes: 180, shifts: 1 },
-    { minutes: 181, shifts: 2 },
+    { minutes: 209, shifts: 1 },
+    { minutes: 210, shifts: 2 },
     { minutes: 360, shifts: 2 },
-    { minutes: 361, shifts: 3 },
+    { minutes: 389, shifts: 2 },
+    { minutes: 390, shifts: 3 },
   ])('$minutes phút = $shifts ca', ({ minutes, shifts }) => {
     expect(calculateShiftUnitsFromMinutes(minutes)).toBe(shifts);
   });
 
   it('caps shift calculation at three shifts when worked time is over six hours', () => {
-    expect(calculateShiftUnitsFromMinutes(361)).toBe(3);
+    expect(calculateShiftUnitsFromMinutes(390)).toBe(3);
     expect(calculateShiftUnitsFromMinutes(540)).toBe(3);
     expect(calculateShiftUnitsFromMinutes(720)).toBe(3);
   });
@@ -56,7 +60,7 @@ describe('attendance shift calculation', () => {
     expect(record.check_in).toBe('09:00:00');
     expect(record.check_out).toBe('12:01:00');
     expect(record.total_worked_minutes).toBe(181);
-    expect(record.calculated_shifts).toBe(2);
+    expect(record.calculated_shifts).toBe(1);
   });
 
   it('warns only when an unfinished shift is from an earlier local date', () => {
@@ -133,10 +137,11 @@ describe('attendance shift calculation', () => {
     expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: null })).toBe(0);
     expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: '10:00:00' })).toBe(1);
     expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: '13:01:00' })).toBe(2);
-    expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: '14:01:00' })).toBe(3);
+    expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: '14:29:00' })).toBe(2);
+    expect(getFinalizedShiftUnitsForRecord({ ...baseRecord, check_out: '14:30:00' })).toBe(3);
   });
 
-  it('counts a same-minute valid completed record as one shift without changing raw duration', () => {
+  it('does not credit a completed record below the 30-minute minimum', () => {
     const record = {
       id: 2,
       employee_id: 10,
@@ -149,12 +154,12 @@ describe('attendance shift calculation', () => {
     };
 
     expect(getWorkedMinutesForRecord(record)).toBe(0);
-    expect(getFinalizedShiftUnitsForRecord(record)).toBe(1);
+    expect(getFinalizedShiftUnitsForRecord(record)).toBe(0);
     expect(calculateFinalizedAttendanceSummary([record])).toEqual({
-      totalShifts: 1,
+      totalShifts: 0,
       totalHours: 0,
     });
-    expect(mergeAttendanceRecords([record])[0].calculated_shifts).toBe(1);
+    expect(mergeAttendanceRecords([record])[0].calculated_shifts).toBe(0);
   });
 
   it.each(['CANCELLED', 'INVALID', 'REJECTED', 'RECOVERY_ONLY'])(

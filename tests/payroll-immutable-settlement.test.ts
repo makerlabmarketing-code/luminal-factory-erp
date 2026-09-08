@@ -10,7 +10,7 @@ const adminPage = readFileSync('app/admin/payroll/page.tsx', 'utf8');
 const staffPage = readFileSync('app/staff/payroll/PayrollView.tsx', 'utf8');
 
 describe('approved payroll calculation contract', () => {
-  it.each([[1,1],[179,1],[180,1],[181,2],[360,2],[361,3],[900,3]])('%i minutes is %i shift units', (minutes, shifts) => expect(calculateShiftUnitsFromMinutes(minutes)).toBe(shifts));
+  it.each([[0,0],[29,0],[30,1],[209,1],[210,2],[389,2],[390,3],[900,3]])('%i minutes is %i shift units', (minutes, shifts) => expect(calculateShiftUnitsFromMinutes(minutes)).toBe(shifts));
   it('calculates salary and approved adjustments without mutating the base', () => {
     const result = calculateMonthlyPayroll(360, 30_000, 50_000);
     expect(result).toMatchObject({ workedHours: 6, baseSalary: 180_000, approvedAdjustmentAmount: 50_000, finalPayableAmount: 230_000 });

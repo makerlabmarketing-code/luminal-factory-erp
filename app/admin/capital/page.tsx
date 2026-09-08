@@ -265,6 +265,8 @@ export default function AdminFinancialLedger() {
     setAttachmentsEnabled(ledgerResult.attachmentsEnabled);
     setProjects(ledgerResult.projects);
     setReimbursementCapabilities(ledgerResult.reimbursementCapabilities);
+    setCompanyBankCode(ledgerResult.companyBankCode || 'MB');
+    setCompanyBankAccount(ledgerResult.companyBankAccount || '');
     setHasLoadedData(true);
   }, []);
 
@@ -283,19 +285,12 @@ export default function AdminFinancialLedger() {
         { data: paymentSourceRows, error: paymentSourceError },
         { data: meta, error: metadataError },
         { data: contribMeta, error: contributionMetadataError },
-        financeConfigResponse,
         ledgerResult,
       ] = await Promise.all([
         supabase.from('employees').select('id, full_name, bank_name, bank_account_number'),
         supabase.from('shareholders').select('id, name, status').order('id', { ascending: true }),
         supabase.from('system_metadata').select('data').eq('name', FINANCIAL_TRANSACTION_TYPE_METADATA_NAME).maybeSingle(),
         supabase.from('system_metadata').select('data').eq('name', CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME).maybeSingle(),
-        fetch('/api/admin/finance/config', {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          credentials: 'include',
-          cache: 'no-store',
-        }),
         loadAdminFinancialLedger(selectedMonth),
       ]);
 
@@ -331,19 +326,6 @@ export default function AdminFinancialLedger() {
       setSubType((current) => normalizedContributionTypes.some((option) => option.code === current)
         ? current
         : (normalizedContributionTypes[0]?.code as 'TIEN_MAT' | 'HIEN_VAT' | undefined) || 'TIEN_MAT');
-
-      if (financeConfigResponse.ok) {
-        const financeConfig = (await financeConfigResponse.json()) as {
-          companyBankCode?: string;
-          companyBankAccount?: string;
-        };
-
-        setCompanyBankCode(financeConfig.companyBankCode || 'MB');
-        setCompanyBankAccount(financeConfig.companyBankAccount || '');
-      } else {
-        setCompanyBankCode('MB');
-        setCompanyBankAccount('');
-      }
 
       applyLedgerResult(ledgerResult);
     } catch (e) {

@@ -129,4 +129,26 @@ describe('Admin financial ledger repair', () => {
     expect(page).toContain("showToast('Không tải được sổ thu chi'");
     expect(page).toContain('Bạn vẫn có thể xem sổ thu chi và dùng quỹ tiền mặt chung.');
   });
+
+  it('loads the ledger with one batched permission query and no duplicate config request', () => {
+    const page = source('app/admin/capital/page.tsx');
+    const server = source('services/server/adminFinancialLedger.ts');
+
+    expect(page).not.toContain("fetch('/api/admin/finance/config'");
+    expect(server).toContain("listGrantedPermissions(auth, [");
+    expect(server).toContain("'FINANCE_VIEW'");
+    expect(server).toContain('companyBankAccount: process.env.COMPANY_BANK_ACCOUNT');
+    expect(server).toContain("console.info('[admin-finance-ledger-read]'");
+  });
+
+  it('packages indexes for the month ledger and attachment lookup paths', () => {
+    const forward = source('supabase/drafts/20260908_finance_ledger_read_indexes_forward.sql');
+    const validation = source('supabase/drafts/20260908_finance_ledger_read_indexes_validation.sql');
+    const rollback = source('supabase/drafts/20260908_finance_ledger_read_indexes_rollback.sql');
+
+    expect(forward).toContain('financial_ledger (month_period, id desc)');
+    expect(forward).toContain('finance_expense_attachments (financial_ledger_id, verification_state, id)');
+    expect(validation.split('\n')[0]).toBe('-- READ-ONLY POST-FORWARD VALIDATION');
+    expect(rollback).not.toMatch(/\b(update|delete|truncate)\b/i);
+  });
 });
