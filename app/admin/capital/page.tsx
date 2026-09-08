@@ -259,15 +259,46 @@ export default function AdminFinancialLedger() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(8);
 
+  const applyLedgerResult = useCallback((ledgerResult: Awaited<ReturnType<typeof loadAdminFinancialLedger>>) => {
+    setLedger(ledgerResult.ledger);
+    setExtendedSchemaEnabled(ledgerResult.extendedSchemaEnabled);
+    setAttachmentsEnabled(ledgerResult.attachmentsEnabled);
+    setProjects(ledgerResult.projects);
+    setReimbursementCapabilities(ledgerResult.reimbursementCapabilities);
+    setHasLoadedData(true);
+  }, []);
+
+  const refreshLedger = useCallback(async () => {
+    applyLedgerResult(await loadAdminFinancialLedger(selectedMonth));
+  }, [applyLedgerResult, selectedMonth]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadError('');
     setExpenseSourcesLoading(true);
     setExpenseSourcesError('');
     try {
-      const { data: emps, error: employeesError } = await supabase
-        .from('employees')
-        .select('id, full_name, bank_name, bank_account_number');
+      const [
+        { data: emps, error: employeesError },
+        { data: paymentSourceRows, error: paymentSourceError },
+        { data: meta, error: metadataError },
+        { data: contribMeta, error: contributionMetadataError },
+        financeConfigResponse,
+        ledgerResult,
+      ] = await Promise.all([
+        supabase.from('employees').select('id, full_name, bank_name, bank_account_number'),
+        supabase.from('shareholders').select('id, name, status').order('id', { ascending: true }),
+        supabase.from('system_metadata').select('data').eq('name', FINANCIAL_TRANSACTION_TYPE_METADATA_NAME).maybeSingle(),
+        supabase.from('system_metadata').select('data').eq('name', CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME).maybeSingle(),
+        fetch('/api/admin/finance/config', {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          credentials: 'include',
+          cache: 'no-store',
+        }),
+        loadAdminFinancialLedger(selectedMonth),
+      ]);
+
       if (employeesError) throw employeesError;
       setEmployees(emps || []);
       if (emps && emps.length > 0) {
@@ -275,10 +306,6 @@ export default function AdminFinancialLedger() {
         setReporter((current) => current || String(defaultPayer.id));
       }
 
-      const { data: paymentSourceRows, error: paymentSourceError } = await supabase
-        .from('shareholders')
-        .select('id, name, status')
-        .order('id', { ascending: true });
       if (paymentSourceError) {
         console.error(paymentSourceError);
         setExpensePaymentSources(getExpensePaymentSourceOptions([]));
@@ -291,7 +318,6 @@ export default function AdminFinancialLedger() {
       }
       setExpenseSourcesLoading(false);
 
-      const { data: meta, error: metadataError } = await supabase.from('system_metadata').select('data').eq('name', FINANCIAL_TRANSACTION_TYPE_METADATA_NAME).maybeSingle();
       if (metadataError) throw metadataError;
       const normalizedTransactionTypes = normalizeSystemMetadataOptions(meta?.data, DEFAULT_FINANCIAL_TRANSACTION_TYPES);
       setTransactionTypes(normalizedTransactionTypes);
@@ -299,22 +325,12 @@ export default function AdminFinancialLedger() {
         ? current
         : normalizedTransactionTypes[0]?.code || 'CHI_PHI');
 
-      const { data: contribMeta, error: contributionMetadataError } = await supabase.from('system_metadata').select('data').eq('name', CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME).maybeSingle();
       if (contributionMetadataError) throw contributionMetadataError;
       const normalizedContributionTypes = normalizeSystemMetadataOptions(contribMeta?.data, DEFAULT_CAPITAL_CONTRIBUTION_TYPES);
       setContributionTypes(normalizedContributionTypes);
       setSubType((current) => normalizedContributionTypes.some((option) => option.code === current)
         ? current
         : (normalizedContributionTypes[0]?.code as 'TIEN_MAT' | 'HIEN_VAT' | undefined) || 'TIEN_MAT');
-
-      const financeConfigResponse = await fetch('/api/admin/finance/config', {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-        credentials: 'include',
-        cache: 'no-store',
-      });
 
       if (financeConfigResponse.ok) {
         const financeConfig = (await financeConfigResponse.json()) as {
@@ -329,13 +345,7 @@ export default function AdminFinancialLedger() {
         setCompanyBankAccount('');
       }
 
-      const ledgerResult = await loadAdminFinancialLedger(selectedMonth);
-      setLedger(ledgerResult.ledger);
-      setExtendedSchemaEnabled(ledgerResult.extendedSchemaEnabled);
-      setAttachmentsEnabled(ledgerResult.attachmentsEnabled);
-      setProjects(ledgerResult.projects);
-      setReimbursementCapabilities(ledgerResult.reimbursementCapabilities);
-      setHasLoadedData(true);
+      applyLedgerResult(ledgerResult);
     } catch (e) {
       console.error(e);
       setLoadError('Không tải được dữ liệu.');
@@ -344,7 +354,7 @@ export default function AdminFinancialLedger() {
       setExpenseSourcesLoading(false);
       setLoading(false);
     }
-  }, [selectedMonth, showToast]);
+  }, [applyLedgerResult, selectedMonth, showToast]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -480,7 +490,7 @@ export default function AdminFinancialLedger() {
       createIdempotencyKey.current = crypto.randomUUID();
       setCategory(''); setAmount(''); setExpenseSource(COMMON_FUND_SOURCE_ID); setSubType('TIEN_MAT');
       setBeneficiaryEmployeeId(''); setBeneficiaryExternalName(''); setDescription(''); setProjectId(''); setPendingFiles([]);
-      if (input.monthPeriod === selectedMonth) await loadData();
+      if (input.monthPeriod === selectedMonth) await refreshLedger();
       else setMonthInput(formMonthInput);
       setShowAddModal(false);
       showToast('Ghi sổ thành công', 'Giao dịch và chứng từ đã được lưu.', 'success');
@@ -540,7 +550,7 @@ export default function AdminFinancialLedger() {
         setEditPendingFiles(editPendingFiles.slice(index + 1));
       }
       setShowEditModal(false); setEditingId(null);
-      if (input.monthPeriod === selectedMonth) await loadData();
+      if (input.monthPeriod === selectedMonth) await refreshLedger();
       else setMonthInput(editMonthInput);
       showToast('Đã cập nhật', 'Giao dịch và chứng từ đã được lưu.', 'success');
     } catch (error) {
@@ -587,7 +597,7 @@ export default function AdminFinancialLedger() {
     showGlobalLoading('Đang lưu thay đổi...');
     try {
       await transitionAdminReimbursement(item.id, status, reason);
-      await loadData();
+      await refreshLedger();
       showToast('Đã cập nhật hoàn ứng', status === 'APPROVED' ? 'Phiếu đã được duyệt.' : status === 'REJECTED' ? 'Phiếu đã bị từ chối.' : 'Phiếu đã được xác nhận thanh toán.', 'success');
     } catch (error) {
       showToast('Không thể cập nhật hoàn ứng', error instanceof Error ? error.message : 'Vui lòng thử lại.', 'error');
@@ -606,7 +616,7 @@ export default function AdminFinancialLedger() {
     try {
       if (activeQrTarget.type === 'HOAN_UNG') {
         await transitionAdminReimbursement(targetId, 'PAID');
-        await loadData();
+        await refreshLedger();
       } else {
         await setAdminFinancialLedgerPaid(targetId, true);
         setLedger(prev => prev.map(l => l.id === targetId ? { ...l, is_paid: true } : l));

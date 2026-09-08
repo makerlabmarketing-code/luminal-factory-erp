@@ -236,23 +236,27 @@ async function attachmentDtos(ledgerIds: Array<number | string>): Promise<Map<st
     .order('id', { ascending: true });
   if (error) persistenceError('Không thể tải chứng từ giao dịch.');
 
-  for (const row of data || []) {
-    const key = String(row.financial_ledger_id);
-    const entries = result.get(key) || [];
+  const signedAttachments = await Promise.all((data || []).map(async (row) => {
     const pathIsOwned = isOwnedAttachmentPath(row.financial_ledger_id, row.storage_bucket, row.storage_path);
     const signedResult = pathIsOwned
       ? await admin.storage.from(FINANCE_EVIDENCE_BUCKET).createSignedUrl(row.storage_path, 300)
       : { data: null, error: new Error('invalid attachment ownership path') };
     if (signedResult.error) console.warn('[finance-attachment-signed-url]', { attachmentId: row.id, ledgerId: row.financial_ledger_id, invalidPath: !pathIsOwned });
-    entries.push({
+    return {
+      ledgerId: String(row.financial_ledger_id),
+      attachment: {
       id: row.id,
       originalFilename: row.original_filename,
       mimeType: row.mime_type,
       sizeBytes: Number(row.size_bytes),
       signedUrl: signedResult.error ? null : signedResult.data.signedUrl,
       verificationState: row.verification_state,
-    });
-    result.set(key, entries);
+      } satisfies FinanceAttachment,
+    };
+  }));
+
+  for (const { ledgerId, attachment } of signedAttachments) {
+    result.set(ledgerId, [...(result.get(ledgerId) || []), attachment]);
   }
   return result;
 }
@@ -275,15 +279,16 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
 
   const rows = (data || []) as unknown as FinancialLedgerEntry[];
   const employeeIds = Array.from(new Set(rows.flatMap((row) => [row.beneficiary_employee_id, row.payer_employee_id]).filter((id): id is number | string => id != null)));
-  const employeeNames = new Map<string, string>();
-  if (employeeIds.length > 0) {
+  const employeeNamesPromise = (async () => {
+    const employeeNames = new Map<string, string>();
+    if (employeeIds.length === 0) return employeeNames;
     const { data: employees, error: employeeError } = await admin.from('employees').select('id, full_name').in('id', employeeIds);
     if (employeeError) persistenceError('Không thể tải người liên quan.');
     for (const employee of employees || []) employeeNames.set(String(employee.id), employee.full_name);
-  }
-  const attachments = await attachmentDtos(rows.map((row) => row.id));
-  let projects: Array<{ id: number | string; name: string }> = [];
-  if (extendedLedgerEnabled()) {
+    return employeeNames;
+  })();
+  const projectsPromise = (async () => {
+    if (!extendedLedgerEnabled()) return [] as Array<{ id: number | string; name: string }>;
     const { data: projectRows, error: projectError } = await admin
       .from('projects')
       .select('id, project_name')
@@ -293,24 +298,31 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
         message: 'Không thể tải danh sách dự án liên quan.',
         code: projectError.code,
       });
-    } else {
-      projects = (projectRows || [])
-        .flatMap((project) => {
-          const name = project.project_name?.trim();
-          return name ? [{ id: project.id, name }] : [];
-        });
+      return [] as Array<{ id: number | string; name: string }>;
     }
-  }
+    return (projectRows || []).flatMap((project) => {
+      const name = project.project_name?.trim();
+      return name ? [{ id: project.id, name }] : [];
+    });
+  })();
+  const [employeeNames, attachments, projects, storageReady, canApprove, canPay] = await Promise.all([
+    employeeNamesPromise,
+    attachmentDtos(rows.map((row) => row.id)),
+    projectsPromise,
+    attachmentStorageReady(),
+    hasPermission(auth, 'FINANCE_APPROVE'),
+    hasPermission(auth, 'FINANCE_PAY'),
+  ]);
 
   return {
     success: true as const,
     extendedSchemaEnabled: extendedLedgerEnabled(),
-    attachmentsEnabled: await attachmentStorageReady(),
+    attachmentsEnabled: storageReady,
     projects,
     reimbursementCapabilities: {
       currentEmployeeId: String(auth.employee.id),
-      canApprove: await hasPermission(auth, 'FINANCE_APPROVE'),
-      canPay: await hasPermission(auth, 'FINANCE_PAY'),
+      canApprove,
+      canPay,
     },
     ledger: rows.map((row) => ({
       ...resolveLedgerPeople(row, employeeNames),
