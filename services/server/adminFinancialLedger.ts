@@ -11,7 +11,7 @@ import {
 } from '@/lib/adminFinancialLedger';
 import { FINANCE_ATTACHMENT_POLICY, validateFinanceAttachment } from '@/lib/financeExpenseWorkflow';
 import type { AdminLedgerMutationInput, FinanceAttachment, FinancialLedgerEntry } from '@/lib/types/finance';
-import { AuthFlowError, hasPermission, requireWorkspaceAccess, type AuthContext } from './auth';
+import { AuthFlowError, hasPermission, listGrantedPermissions, requireWorkspaceAccess, type AuthContext } from './auth';
 
 const FINANCE_EVIDENCE_BUCKET = 'finance-evidence';
 const ACTIVE_ATTACHMENT_STATES = ['UNVERIFIED', 'VERIFIED'];
@@ -262,11 +262,28 @@ async function attachmentDtos(ledgerIds: Array<number | string>): Promise<Map<st
 }
 
 export async function listAdminFinancialLedger(monthPeriod: string) {
-  const auth = await requireFinance('FINANCE_VIEW');
+  const startedAt = performance.now();
+  const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
+  const grantedPermissions = await listGrantedPermissions(auth, [
+    'FINANCE_VIEW',
+    'FINANCE_APPROVE',
+    'FINANCE_PAY',
+  ]);
+  if (!grantedPermissions.ok) {
+    throw new AuthFlowError({
+      status: 500,
+      code: 'admin_verification_failed',
+      message: 'Không thể xác minh quyền tài chính. Vui lòng thử lại.',
+      failureStage: 'permission_check',
+      safeDetails: grantedPermissions.safeDetails,
+    });
+  }
+  if (!grantedPermissions.permissionCodes.includes('FINANCE_VIEW')) {
+    throw new AuthFlowError({ status: 403, code: 'permission_forbidden', message: 'Bạn không có quyền xem sổ thu chi.', failureStage: 'permission_check' });
+  }
   if (!/^(0[1-9]|1[0-2])\/\d{4}$/.test(monthPeriod)) {
     throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Kỳ báo cáo không hợp lệ.', failureStage: 'validation' });
   }
-  await requireExtendedLedgerSchema();
   const admin = createSupabaseAdminClient();
   const baseColumns = 'id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at';
   const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference';
@@ -305,24 +322,29 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
       return name ? [{ id: project.id, name }] : [];
     });
   })();
-  const [employeeNames, attachments, projects, storageReady, canApprove, canPay] = await Promise.all([
+  const [employeeNames, attachments, projects] = await Promise.all([
     employeeNamesPromise,
     attachmentDtos(rows.map((row) => row.id)),
     projectsPromise,
-    attachmentStorageReady(),
-    hasPermission(auth, 'FINANCE_APPROVE'),
-    hasPermission(auth, 'FINANCE_PAY'),
   ]);
+
+  console.info('[admin-finance-ledger-read]', {
+    durationMs: Math.round(performance.now() - startedAt),
+    rowCount: rows.length,
+    attachmentCount: Array.from(attachments.values()).reduce((total, entries) => total + entries.length, 0),
+  });
 
   return {
     success: true as const,
+    companyBankCode: process.env.COMPANY_BANK_CODE || 'MB',
+    companyBankAccount: process.env.COMPANY_BANK_ACCOUNT || '',
     extendedSchemaEnabled: extendedLedgerEnabled(),
-    attachmentsEnabled: storageReady,
+    attachmentsEnabled: extendedLedgerEnabled() && attachmentWritesEnabled(),
     projects,
     reimbursementCapabilities: {
       currentEmployeeId: String(auth.employee.id),
-      canApprove,
-      canPay,
+      canApprove: grantedPermissions.permissionCodes.includes('FINANCE_APPROVE'),
+      canPay: grantedPermissions.permissionCodes.includes('FINANCE_PAY'),
     },
     ledger: rows.map((row) => ({
       ...resolveLedgerPeople(row, employeeNames),

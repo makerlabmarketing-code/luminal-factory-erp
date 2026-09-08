@@ -47,6 +47,12 @@ describe('Admin attendance summary regression', () => {
     expect(client).not.toContain('absolute bottom-full');
   });
 
+  it('keeps every calendar slot at the same height, including leading empty dates', () => {
+    expect(client).toContain('auto-rows-[112px]');
+    expect(client).toContain('aria-hidden="true" className="h-full');
+    expect(client).toContain('relative flex h-full min-h-0');
+  });
+
   it('uses a concise empty selected-month message', () => {
     expect(client).toContain('Không có bản ghi chấm công trong tháng đang chọn.');
   });

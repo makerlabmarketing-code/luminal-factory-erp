@@ -426,8 +426,8 @@ export default function AdminAttendanceManagement() {
           <div>CN</div><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 md:gap-3">
-          {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} className="min-h-[112px] rounded-xl border border-transparent bg-slate-950/20 opacity-20"></div>)}
+        <div className="grid auto-rows-[112px] grid-cols-7 gap-2 md:gap-3">
+          {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} aria-hidden="true" className="h-full rounded-xl border border-slate-800/60 bg-slate-950/40"></div>)}
 
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
@@ -454,7 +454,7 @@ export default function AdminAttendanceManagement() {
                 onBlur={() => setAttendanceDayDetails(null)}
                 aria-label={`Xem chi tiết chấm công ngày ${day}/${currentMonth + 1}`}
                 aria-describedby={attendanceDayDetails?.day === day ? 'attendance-day-details' : undefined}
-                className={`relative flex min-h-[112px] flex-col justify-between rounded-xl border bg-slate-950 p-3 text-left transition-all hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400 ${processedDayRecords.length > 0 ? 'border-purple-900/40 bg-gradient-to-b from-slate-950 to-purple-950/10 shadow-md hover:border-purple-500' : 'border-slate-850 hover:border-purple-500/50'}`}
+                className={`relative flex h-full min-h-0 flex-col justify-between rounded-xl border bg-slate-950 p-3 text-left transition-all hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400 ${processedDayRecords.length > 0 ? 'border-purple-900/40 bg-gradient-to-b from-slate-950 to-purple-950/10 shadow-md hover:border-purple-500' : 'border-slate-850 hover:border-purple-500/50'}`}
               >
                 <span className={`font-mono text-sm font-black ${processedDayRecords.length > 0 ? 'text-purple-300' : 'text-slate-400'}`}>{day}</span>
                 <div>{processedDayRecords.length > 0 && <span className="mt-2 block truncate rounded-md border border-purple-500/25 bg-purple-500/10 px-2 py-1 text-center text-[10px] font-bold uppercase text-purple-300 shadow-inner md:text-left">{completedDayShifts} công ca</span>}</div>

@@ -26,7 +26,7 @@ describe('Attendance multi-check contract', () => {
   });
 
   it.each([
-    [0, 1], [180, 1], [181, 2], [360, 2], [361, 3],
+    [0, 0], [29, 0], [30, 1], [180, 1], [209, 1], [210, 2], [389, 2], [390, 3],
   ])('uses approved conversion boundary %i => %i shifts', (minutes, shifts) => {
     if (minutes === 0) {
       expect(getFinalizedShiftUnitsForRecord({ id: 1, employee_id: 7, work_date: '2026-08-04', shift_name: 'Ca Chiều', check_in: '10:00:00', check_out: '10:00:00' })).toBe(shifts);
