@@ -67,7 +67,8 @@ describe('Admin financial ledger repair', () => {
     expect(page).not.toMatch(/from\('financial_ledger'\)\.(insert|update|delete)/);
     expect(server).toMatch(/requireFinance\('FINANCE_CREATE'\)/);
     expect(server).toMatch(/requireFinance\('FINANCE_UPDATE'\)/);
-    expect(server).toMatch(/requireFinance\('FINANCE_VIEW'\)/);
+    expect(server).toMatch(/listGrantedPermissions\(auth/);
+    expect(server).toMatch(/permissionCodes\.includes\('FINANCE_VIEW'\)/);
     expect(server).toMatch(/process\.env\.FINANCE_REIMBURSEMENT_ENABLED === 'true'/);
     expect(server).toMatch(/requireExtendedLedgerSchema/);
     expect(server).toMatch(/attachmentStorageReady/);

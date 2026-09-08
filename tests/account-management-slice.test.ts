@@ -81,6 +81,7 @@ describe("account and permission management slice", () => {
     expect(PERMISSION_GROUPS.map((group) => group.label)).toEqual([
       "Nhân sự",
       "Tài chính",
+      "Bảng lương",
       "Dự án & công việc",
       "Mẫu giai đoạn",
       "Dự án & công việc",

@@ -17,6 +17,7 @@ export interface SystemMetadataCategory {
 export const FINANCIAL_TRANSACTION_TYPE_METADATA_NAME = 'Danh mục Nghiệp vụ';
 export const CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME = 'Danh mục Hình thức Góp vốn';
 export const EXPENSE_CATEGORY_METADATA_NAME = 'Danh mục Loại Chi Tiêu';
+export const BANK_DIRECTORY_METADATA_NAME = 'Danh mục Ngân hàng';
 
 export const DEFAULT_FINANCIAL_TRANSACTION_TYPES: readonly SystemMetadataOption[] = [
   { code: 'CHI_PHI', label: '❌ Chi phí vận hành' },
@@ -38,6 +39,17 @@ export const DEFAULT_EXPENSE_CATEGORIES: readonly SystemMetadataOption[] = [
   { code: 'KHAC', label: 'Khác' },
 ];
 
+export const DEFAULT_BANK_DIRECTORY: readonly SystemMetadataOption[] = [
+  { code: 'MB', label: 'MB Bank' },
+  { code: 'VCB', label: 'Vietcombank' },
+  { code: 'BIDV', label: 'BIDV' },
+  { code: 'CTG', label: 'VietinBank' },
+  { code: 'TCB', label: 'Techcombank' },
+  { code: 'ACB', label: 'ACB' },
+  { code: 'VPB', label: 'VPBank' },
+  { code: 'TPB', label: 'TPBank' },
+];
+
 export const DEFAULT_SYSTEM_METADATA_CATEGORIES: readonly SystemMetadataCategory[] = [
   {
     id: -1,
@@ -57,7 +69,22 @@ export const DEFAULT_SYSTEM_METADATA_CATEGORIES: readonly SystemMetadataCategory
     data: [...DEFAULT_EXPENSE_CATEGORIES],
     isFallback: true,
   },
+  {
+    id: -4,
+    name: BANK_DIRECTORY_METADATA_NAME,
+    data: [...DEFAULT_BANK_DIRECTORY],
+    isFallback: true,
+  },
 ];
+
+export function mergeSystemMetadataCategories(value: unknown): SystemMetadataCategory[] {
+  const persisted = Array.isArray(value) ? value as SystemMetadataCategory[] : [];
+  const persistedNames = new Set(persisted.map((category) => category.name));
+  return [
+    ...persisted,
+    ...DEFAULT_SYSTEM_METADATA_CATEGORIES.filter((category) => !persistedNames.has(category.name)),
+  ];
+}
 
 export function isSystemMetadataOption(value: unknown): value is SystemMetadataOption {
   if (!value || typeof value !== 'object') return false;

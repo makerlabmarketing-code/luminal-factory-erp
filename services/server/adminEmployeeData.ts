@@ -5,6 +5,7 @@ import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import {
   AuthFlowError,
   hasPermission,
+  listGrantedPermissions,
   requireWorkspaceAccess,
   type AuthContext,
 } from '@/services/server/auth';
@@ -13,6 +14,12 @@ import { resolveEmployeeFacility, type FacilityResolutionStatus } from '@/lib/em
 import { accountConnectionExplanations, resolveAccountConnectionStatus, type AccountConnectionStatus } from '@/lib/accountConnection';
 import { loadAttendanceData } from '@/services/server/attendanceData';
 import { businessDateFromInstant, formatBusinessDateInput } from '@/lib/business-date';
+import {
+  BANK_DIRECTORY_METADATA_NAME,
+  DEFAULT_BANK_DIRECTORY,
+  normalizeSystemMetadataOptions,
+  type SystemMetadataOption,
+} from '@/lib/system-metadata-defaults';
 
 export type { AccountConnectionStatus } from '@/lib/accountConnection';
 
@@ -146,6 +153,7 @@ export interface EmployeeDetailDto {
   hourlyRate: number | string | null;
   bankName: string | null;
   bankAccountNumber: string | null;
+  bankOptions: SystemMetadataOption[];
   createdAt: string | null;
   accountConnectionStatus: AccountConnectionStatus;
   invitationStatus: InvitationStatus;
@@ -229,6 +237,32 @@ async function listAuthUsersById(): Promise<Map<string, AuthUserSummary>> {
   return users;
 }
 
+async function listRelevantAuthUsers(employees: EmployeeRow[]): Promise<Map<string, AuthUserSummary>> {
+  const authUserIds = Array.from(new Set(employees.map((employee) => employee.auth_user_id).filter((id): id is string => Boolean(id))));
+  if (authUserIds.length === 0) return new Map();
+  if (authUserIds.length > 25) return listAuthUsersById();
+
+  const supabaseAdmin = createSupabaseAdminClient();
+  const users = await Promise.all(authUserIds.map(async (authUserId) => {
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(authUserId);
+    if (error) throw error;
+    return data.user ? data.user as AuthUserSummary : null;
+  }));
+  return new Map(users.filter((user): user is AuthUserSummary => Boolean(user)).map((user) => [user.id, user]));
+}
+
+async function requireEmployeeReadCapabilities() {
+  const authContext = await requireWorkspaceAccess('ADMIN_WORKSPACE');
+  const permissions = await listGrantedPermissions(authContext, ['EMPLOYEE_VIEW', 'EMPLOYEE_MANAGE', 'ACCOUNT_MANAGE', 'FINANCE_VIEW']);
+  if (!permissions.ok) {
+    throw new AuthFlowError({ status: 500, code: 'admin_verification_failed', message: 'Không thể xác minh quyền nhân sự. Vui lòng thử lại.', failureStage: 'permission_check', safeDetails: permissions.safeDetails });
+  }
+  if (!permissions.permissionCodes.includes('EMPLOYEE_VIEW')) {
+    throw new AuthFlowError({ status: 403, code: 'permission_forbidden', message: 'Bạn không có quyền xem hồ sơ nhân sự.', failureStage: 'permission_check' });
+  }
+  return { authContext, permissionCodes: permissions.permissionCodes };
+}
+
 async function getAuthUserById(authUserId?: string | null): Promise<AuthUserSummary | null> {
   if (!authUserId) return null;
   const supabaseAdmin = createSupabaseAdminClient();
@@ -259,11 +293,10 @@ export async function requireAdminEmployeePermission(
 }
 
 export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData> {
-  const authContext = await requireAdminEmployeePermission('EMPLOYEE_VIEW');
-  const [canEditEmployees, canManageAccounts] = await Promise.all([
-    hasPermission(authContext, 'EMPLOYEE_MANAGE'),
-    hasPermission(authContext, 'ACCOUNT_MANAGE'),
-  ]);
+  const startedAt = performance.now();
+  const { permissionCodes } = await requireEmployeeReadCapabilities();
+  const canEditEmployees = permissionCodes.includes('EMPLOYEE_MANAGE');
+  const canManageAccounts = permissionCodes.includes('ACCOUNT_MANAGE');
   const supabase = await createClient();
 
   const [{ data: employees, error: employeeError }, facilityResult, workspaceResult] =
@@ -294,7 +327,7 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
     });
   }
 
-  const authUsersById = listAuthUsersById();
+  const authUsersById = listRelevantAuthUsers((employees || []) as EmployeeRow[]);
   const authResult = await authUsersById.then(
     (users) => ({ users, failed: false as const }),
     () => ({ users: new Map<string, AuthUserSummary>(), failed: true as const })
@@ -306,7 +339,7 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
     if (employee.auth_user_id) authMappingCounts.set(employee.auth_user_id, (authMappingCounts.get(employee.auth_user_id) || 0) + 1);
   });
 
-  return {
+  const result: AdminEmployeeListData = {
     employees: ((employees || []) as EmployeeRow[]).map((employee) => {
       const authUser = employee.auth_user_id ? authResult.users.get(employee.auth_user_id) || null : null;
       const status = resolveAccountStatus(employee, authUser, workspaceRows, {
@@ -345,18 +378,19 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
         ? ['employee_enrichment_failed']
         : [],
   };
+  console.info('[admin-employee-list-read]', { durationMs: Math.round(performance.now() - startedAt), employeeCount: result.employees.length, authLookupMode: result.employees.length <= 25 ? 'targeted' : 'paged' });
+  return result;
 }
 
 export async function getAdminEmployeeDetailData(employeeId: string): Promise<EmployeeDetailDto> {
   if (!/^\d+$/.test(employeeId)) {
     throw new AuthFlowError({ status: 400, code: 'employee_lookup_failed', message: 'Mã nhân sự không hợp lệ.', failureStage: 'employee_lookup' });
   }
-  const authContext = await requireAdminEmployeePermission('EMPLOYEE_VIEW');
-  const [canEditEmployee, canManageAccount, canViewFinance] = await Promise.all([
-    hasPermission(authContext, 'EMPLOYEE_MANAGE'),
-    hasPermission(authContext, 'ACCOUNT_MANAGE'),
-    hasPermission(authContext, 'FINANCE_VIEW'),
-  ]);
+  const startedAt = performance.now();
+  const { permissionCodes } = await requireEmployeeReadCapabilities();
+  const canEditEmployee = permissionCodes.includes('EMPLOYEE_MANAGE');
+  const canManageAccount = permissionCodes.includes('ACCOUNT_MANAGE');
+  const canViewFinance = permissionCodes.includes('FINANCE_VIEW');
   const supabase = await createClient();
 
   const { data: employee, error: employeeError } = await supabase
@@ -387,8 +421,9 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
   }
 
   const employeeRow = employee as EmployeeRow;
-  const [facilityResult, workspaceResult, permissionResult, membershipResult, taskResult, attendanceResult, authResult] = await Promise.all([
+  const [facilityResult, bankDirectoryResult, workspaceResult, permissionResult, membershipResult, taskResult, attendanceResult, authResult] = await Promise.all([
     loadFacilityDirectory(supabase).then(({ facilities }) => ({ data: facilities, failed: false as const }), () => ({ data: [] as FacilityDirectoryItem[], failed: true as const })),
+    supabase.from('system_metadata').select('data').eq('name', BANK_DIRECTORY_METADATA_NAME).maybeSingle().then(({ data, error }) => ({ data: normalizeSystemMetadataOptions(data?.data, DEFAULT_BANK_DIRECTORY), failed: Boolean(error) }), () => ({ data: [...DEFAULT_BANK_DIRECTORY], failed: true as const })),
     supabase.from('employee_workspace_access').select('employee_id, workspace, status, revoked_at').eq('employee_id', employeeId).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('employee_permissions').select('employee_id, permission_code, effect, status, revoked_at').eq('employee_id', employeeId).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('project_members').select('project_id, member_role, status, projects(name)').eq('employee_id', employeeId).limit(20).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
@@ -397,6 +432,7 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
     getAuthUserById(employeeRow.auth_user_id).then((data) => ({ data, failed: false as const }), () => ({ data: null as AuthUserSummary | null, failed: true as const })),
   ]);
   const facilities = facilityResult.data;
+  const bankOptions = bankDirectoryResult.data;
   const workspaceAccess = workspaceResult.data;
   const permissions = permissionResult.data;
   const projectMemberships = membershipResult.data;
@@ -408,7 +444,7 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
     (row) => row.status === 'ACTIVE' && !row.revoked_at
   );
 
-  return {
+  const result: EmployeeDetailDto = {
     employeeId: String(employeeRow.id),
     fullName: employeeRow.full_name || 'Chưa đặt tên',
     title: employeeRow.title || null,
@@ -421,6 +457,7 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
     hourlyRate: canViewFinance ? employeeRow.hourly_rate ?? null : null,
     bankName: canViewFinance ? (employee as { bank_name?: string | null }).bank_name ?? null : null,
     bankAccountNumber: canViewFinance ? (employee as { bank_account_number?: string | null }).bank_account_number ?? null : null,
+    bankOptions,
     createdAt: employeeRow.created_at || null,
     accountConnectionStatus: status.accountConnectionStatus,
     invitationStatus: status.invitationStatus,
@@ -458,4 +495,6 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
       canEditPersonalFinance: canViewFinance && canEditEmployee,
     },
   };
+  console.info('[admin-employee-detail-read]', { durationMs: Math.round(performance.now() - startedAt), employeeId, warningCount: result.warnings.length });
+  return result;
 }

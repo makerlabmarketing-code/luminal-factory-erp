@@ -45,6 +45,10 @@ describe('admin list production recovery boundaries', () => {
     expect(hook).toContain("setError('request_timeout')");
     expect(hook).toContain('sequence === sequenceRef.current');
     expect(hook).toContain('controllerRef.current?.abort()');
+    expect(hook).toContain('adminListMemoryCache');
+    expect(hook).toContain("typeof window === 'undefined'");
+    expect(hook).not.toContain('document.cookie');
+    expect(hook).not.toContain('localStorage');
   });
 
   it('does not couple facility or account list reads to project membership', () => {
