@@ -1,6 +1,6 @@
 'use client';
 import { Fragment, useState } from 'react';
-import { Check, Edit2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon, X } from 'lucide-react';
+import { Check, Edit2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon, X, ArrowDownLeft, ArrowUpRight, RefreshCcw } from 'lucide-react';
 import type { FinancialLedgerEntry } from '@/lib/types/finance';
 
 type LedgerRow = FinancialLedgerEntry & { linkedChild?: FinancialLedgerEntry | null };
@@ -39,20 +39,19 @@ export default function LedgerTable({
     });
   };
 
-  const getTypeLabel = (item: FinancialLedgerEntry) => {
+  const getDisplayCategory = (item: FinancialLedgerEntry) =>
+    (item.category || '').replace(/^\[(Đối ứng|Hủy đối ứng)\]\s*/, '');
+
+  const getTypeBadge = (item: FinancialLedgerEntry) => {
     if (item.type === 'HOAN_UNG') {
-      return item.is_paid ? (
-        <><span className="text-red-400">❌</span> <span className="text-slate-400 font-normal line-through text-[10px] mr-1">Hoàn ứng</span> {item.category}</>
-      ) : (
-        <><span className="text-cyan-400">🔄</span> <span className="text-slate-300 font-normal text-[10px] mr-1">[Hoàn ứng treo]</span> {item.category}</>
-      );
+      return <span className="inline-flex items-center gap-1 text-cyan-300"><RefreshCcw className="h-3 w-3" /> Hoàn ứng</span>;
     }
     switch(item.type) {
       case 'CHI_PHI':
-      case 'CHI_TIEU': return <><span className="text-red-400">❌</span> {item.category}</>;
-      case 'VON_GOP': return <><span className="text-emerald-400">🟢</span> {item.sub_type === 'HIEN_VAT' ? <span className="text-slate-400 font-normal text-[10px] mr-1">[Cá nhân tự chi]</span> : ''}{item.category}</>;
-      case 'DOANH_THU': return <><span className="text-yellow-400">💰</span> {item.category}</>;
-      default: return item.category;
+      case 'CHI_TIEU': return <span className="inline-flex items-center gap-1 text-rose-300"><ArrowUpRight className="h-3 w-3" /> Khoản chi</span>;
+      case 'VON_GOP': return <span className="inline-flex items-center gap-1 text-emerald-300"><ArrowDownLeft className="h-3 w-3" /> {item.sub_type === 'HIEN_VAT' ? 'Ghi nhận vốn hiện vật' : 'Góp vốn'}</span>;
+      case 'DOANH_THU': return <span className="inline-flex items-center gap-1 text-amber-300"><ArrowDownLeft className="h-3 w-3" /> Khoản thu</span>;
+      default: return <span>Giao dịch</span>;
     }
   };
 
@@ -86,22 +85,26 @@ export default function LedgerTable({
               {/* === DÒNG CHA (GIAO DỊCH CHÍNH) === */}
               <tr className={`hover:bg-slate-950/20 transition ${isExpanded ? 'bg-slate-950/40' : ''}`}>
                 <td className="p-4 font-bold text-slate-200">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-start gap-1.5">
                     {hasChild && (
-                      <button type="button" aria-label={isExpanded ? 'Thu gọn giao dịch đối ứng' : 'Mở giao dịch đối ứng'} onClick={() => toggleRow(l.id)} className="mr-1 rounded p-1 text-slate-400 transition hover:bg-slate-800 hover:text-white">
+                      <button type="button" aria-label={isExpanded ? 'Thu gọn khoản ghi nhận vốn' : 'Mở khoản ghi nhận vốn'} onClick={() => toggleRow(l.id)} className="mr-1 rounded p-1 text-slate-400 transition hover:bg-slate-800 hover:text-white">
                         {isExpanded ? <ChevronDown className="h-4 w-4"/> : <ChevronRight className="h-4 w-4"/>}
                       </button>
                     )}
                     {!hasChild && <span className="mr-1 inline-block w-6"></span>}
 
-                    <span>{getTypeLabel(l)}</span>
-                    {Boolean(l.attachments?.length) && <span className="ml-2 whitespace-nowrap rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] text-purple-300">{l.attachments?.length} chứng từ</span>}
-
-                    {hasChild && (
-                      <button type="button" onClick={() => toggleRow(l.id)} className="ml-2 flex items-center gap-1 whitespace-nowrap rounded border border-blue-500/20 bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-400 transition hover:bg-blue-500/20">
-                        <LinkIcon className="h-3 w-3" /> Có đối ứng
-                      </button>
-                    )}
+                    <div className="min-w-0">
+                      <p className="break-words leading-5 text-slate-100">{getDisplayCategory(l)}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold">
+                        <span className="rounded border border-slate-700 bg-slate-950/70 px-1.5 py-0.5">{getTypeBadge(l)}</span>
+                        {Boolean(l.attachments?.length) && <span className="whitespace-nowrap rounded bg-purple-500/10 px-1.5 py-0.5 text-purple-300">{l.attachments?.length} chứng từ</span>}
+                        {hasChild && (
+                          <button type="button" onClick={() => toggleRow(l.id)} className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-blue-500/20 bg-blue-500/10 px-1.5 py-0.5 text-blue-300 transition hover:bg-blue-500/20">
+                            <LinkIcon className="h-3 w-3" /> Có ghi nhận vốn kèm
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </td>
                 <td className="max-w-[180px] break-words p-4 text-slate-400">{l.payer_name || l.requested_by || 'Chưa xác định'}</td>
@@ -163,7 +166,10 @@ export default function LedgerTable({
                     <div className="absolute bottom-1/2 left-[26px] top-0 w-4 rounded-bl-lg border-b-2 border-l-2 border-slate-700"></div>
                     <div className="flex items-center gap-1.5">
                       <Lock className="z-10 h-3 w-3 text-slate-500" />
-                      {getTypeLabel(child)}
+                      <div className="min-w-0">
+                        <p className="break-words leading-5 text-slate-300">{getDisplayCategory(child)}</p>
+                        <span className="mt-1 inline-flex rounded border border-slate-700 bg-slate-950/70 px-1.5 py-0.5 text-[10px] font-semibold">{getTypeBadge(child)}</span>
+                      </div>
                     </div>
                   </td>
                   <td className="p-4 text-slate-500">{child.requested_by}</td>
@@ -173,7 +179,7 @@ export default function LedgerTable({
                   </td>
                   <td className="p-4 text-right font-mono font-bold text-slate-500">{Number(child.amount).toLocaleString()} đ</td>
                   <td className="p-4 text-center">
-                    <span className="text-slate-500 text-[10px] italic">Liên kết tự động</span>
+                    <span className="text-slate-500 text-[10px] italic">Hệ thống tự ghi nhận</span>
                   </td>
                 </tr>
               )}

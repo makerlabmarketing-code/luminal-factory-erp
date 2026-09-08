@@ -31,18 +31,19 @@ describe('Admin attendance summary regression', () => {
     expect(client).not.toContain('bản ghi ngoài tháng đang chọn');
   });
 
-  it('counts one completed attendance record as one visible work shift', () => {
+  it('shows duration-based shift units consistently in summaries and day details', () => {
     expect(client).toContain('Công ca hoàn tất');
-    expect(client).toContain('{selectedMonthSummary.completed}');
-    expect(client).toContain('Mỗi bản ghi hoàn tất = 1 công ca');
-    expect(client).not.toContain('Tổng ca quy đổi');
+    expect(client).toContain('{payrollSummary.totalShifts}');
+    expect(client).toContain('Quy đổi theo tổng thời gian làm việc thực tế');
+    expect(client).toContain('getFinalizedShiftUnitsForRecord(record)');
+    expect(client).toContain('{completedDayShifts} công ca');
   });
 
   it('renders a larger day-detail overlay outside the table clipping boundary', () => {
     expect(client).toContain("import { createPortal } from 'react-dom'");
     expect(client).toContain('z-[999999]');
     expect(client).toContain('md:w-[30rem]');
-    expect(client).toContain('1 công ca');
+    expect(client).toContain('{completedShifts} công ca');
     expect(client).not.toContain('absolute bottom-full');
   });
 

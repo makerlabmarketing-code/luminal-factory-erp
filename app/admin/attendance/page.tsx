@@ -20,6 +20,7 @@ import {
   type AttendanceScopeSummary,
   calculateFinalizedAttendanceSummary,
   formatWorkedDuration,
+  getFinalizedShiftUnitsForRecord,
   getWorkedMinutesForRecord,
   isAttendanceRecordComplete,
   isAttendanceRecordOverdue,
@@ -92,6 +93,11 @@ function AttendanceDayDetailsPanel({
   records,
   employees,
 }: AttendanceDayDetailsState & { month: number; employees: Employee[] }) {
+  const completedShifts = records.reduce(
+    (total, record) => total + getFinalizedShiftUnitsForRecord(record),
+    0
+  );
+
   return (
     <aside
       id="attendance-day-details"
@@ -104,7 +110,7 @@ function AttendanceDayDetailsPanel({
           <p className="mt-1 text-xs text-slate-400">{records.length} bản ghi chấm công</p>
         </div>
         <span className="rounded-lg border border-purple-400/30 bg-purple-500/10 px-2.5 py-1 text-xs font-bold text-purple-200">
-          {records.filter(isAttendanceRecordComplete).length} công ca
+          {completedShifts} công ca
         </span>
       </div>
 
@@ -143,7 +149,9 @@ function AttendanceDayDetailsPanel({
               <div className="mt-2 flex items-center justify-between gap-3 text-xs">
                 <span className="text-slate-400">Thời gian thực tế: {formatWorkedDuration(workedMinutes)}</span>
                 {isCompleted ? (
-                  <span className="font-black text-emerald-300">1 công ca</span>
+                  <span className="font-black text-emerald-300">
+                    {getFinalizedShiftUnitsForRecord(record)} công ca
+                  </span>
                 ) : (
                   <span className="font-bold italic text-amber-400">Chưa tính công · thiếu giờ ra</span>
                 )}
@@ -345,8 +353,8 @@ export default function AdminAttendanceManagement() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-center">
           <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1.5"><LayoutGrid className="w-4 h-4 text-purple-400"/> Công ca hoàn tất</span>
-          <span className="text-2xl font-black font-mono text-purple-400 mt-1">{selectedMonthSummary.completed} <span className="text-sm font-sans text-slate-500">Công ca</span></span>
-          <span className="mt-1 text-[10px] text-slate-500">Mỗi bản ghi hoàn tất = 1 công ca</span>
+          <span className="text-2xl font-black font-mono text-purple-400 mt-1">{payrollSummary.totalShifts} <span className="text-sm font-sans text-slate-500">Công ca</span></span>
+          <span className="mt-1 text-[10px] text-slate-500">Quy đổi theo tổng thời gian làm việc thực tế</span>
         </div>
         
         <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-center">
@@ -430,7 +438,10 @@ export default function AdminAttendanceManagement() {
               rawDayRecords = rawDayRecords.filter((record) => String(record.employee_id) === String(filterEmployeeId));
             }
             const processedDayRecords = mergeAttendanceRecords(rawDayRecords);
-            const completedDayRecords = processedDayRecords.filter(isAttendanceRecordComplete).length;
+            const completedDayShifts = processedDayRecords.reduce(
+              (total, record) => total + getFinalizedShiftUnitsForRecord(record),
+              0
+            );
 
             return (
               <button
@@ -446,7 +457,7 @@ export default function AdminAttendanceManagement() {
                 className={`relative flex min-h-[112px] flex-col justify-between rounded-xl border bg-slate-950 p-3 text-left transition-all hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400 ${processedDayRecords.length > 0 ? 'border-purple-900/40 bg-gradient-to-b from-slate-950 to-purple-950/10 shadow-md hover:border-purple-500' : 'border-slate-850 hover:border-purple-500/50'}`}
               >
                 <span className={`font-mono text-sm font-black ${processedDayRecords.length > 0 ? 'text-purple-300' : 'text-slate-400'}`}>{day}</span>
-                <div>{processedDayRecords.length > 0 && <span className="mt-2 block truncate rounded-md border border-purple-500/25 bg-purple-500/10 px-2 py-1 text-center text-[10px] font-bold uppercase text-purple-300 shadow-inner md:text-left">{completedDayRecords} công ca</span>}</div>
+                <div>{processedDayRecords.length > 0 && <span className="mt-2 block truncate rounded-md border border-purple-500/25 bg-purple-500/10 px-2 py-1 text-center text-[10px] font-bold uppercase text-purple-300 shadow-inner md:text-left">{completedDayShifts} công ca</span>}</div>
               </button>
             );
           })}

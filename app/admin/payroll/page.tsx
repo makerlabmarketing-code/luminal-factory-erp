@@ -93,6 +93,10 @@ export default function AdminPayrollPage() {
   }
 
   async function settle(employeeId: string) {
+    if (readiness?.firstSettlementMonth && month < readiness.firstSettlementMonth) {
+      setError(`Không thể quyết toán kỳ ${month}. Hệ thống chỉ cho phép quyết toán từ ${readiness.firstSettlementMonth}.`);
+      return;
+    }
     if (lock.current || !confirm('Xác nhận quyết toán? Bản gốc sẽ không thể sửa hoặc ghi đè.')) return;
     lock.current = true;
     setActiveAction(`settle:${employeeId}`);
@@ -104,7 +108,9 @@ export default function AdminPayrollPage() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
-      await loadPayroll();
+      setRows((current) => current.map((row) => row.employeeId === employeeId
+        ? { ...row, settlementStatus: 'SETTLED', settlementId: String(body.settlementId), settledAt: new Date().toISOString() }
+        : row));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không thể quyết toán.');
     } finally {
@@ -129,7 +135,20 @@ export default function AdminPayrollPage() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
-      await loadPayroll();
+      const numericAmount = Number(amount);
+      setRows((current) => current.map((row) => row.settlementId === settlementId
+        ? {
+            ...row,
+            approvedAdjustments: [...row.approvedAdjustments, {
+              id: String(body.adjustmentId),
+              amount: numericAmount,
+              reason,
+              approvedAt: new Date().toISOString(),
+            }],
+            adjustmentTotal: row.adjustmentTotal + numericAmount,
+            finalPayableAmount: row.finalPayableAmount + numericAmount,
+          }
+        : row));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không thể tạo điều chỉnh.');
     } finally {
@@ -139,6 +158,9 @@ export default function AdminPayrollPage() {
   }
 
   const readyForPayroll = Boolean(readiness?.schemaReady && readiness.featureEnabled && readiness.configured && readiness.canView);
+  const selectedMonthBeforeStart = Boolean(
+    readiness?.firstSettlementMonth && month < readiness.firstSettlementMonth
+  );
 
   return (
     <section className="space-y-5 p-5 sm:p-8">
@@ -200,6 +222,11 @@ export default function AdminPayrollPage() {
       {readyForPayroll && (
         <>
           <div className="max-w-xs"><MonthPicker value={month} onChange={setMonth} /></div>
+          {selectedMonthBeforeStart && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">
+              Kỳ {month} chỉ được xem để đối chiếu. Mốc quyết toán đầu tiên đã khóa ở {readiness?.firstSettlementMonth}, nên không thể xác nhận các kỳ cũ hơn.
+            </div>
+          )}
           {loading ? (
             <p className="text-sm text-slate-400">Đang tải bảng lương...</p>
           ) : (
@@ -216,7 +243,7 @@ export default function AdminPayrollPage() {
                       <td className="font-bold">{money.format(row.finalPayableAmount)}</td>
                       <td>{row.settlementStatus === 'SETTLED' ? 'Đã quyết toán' : 'Chưa quyết toán'}</td>
                       <td className="p-3">
-                        {row.settlementStatus === 'UNSETTLED' && readiness?.canSettle && <button disabled={activeAction !== null} onClick={() => void settle(row.employeeId)} className="rounded-lg bg-blue-600 px-3 py-2 font-bold hover:bg-blue-500 disabled:opacity-60">{activeAction === `settle:${row.employeeId}` ? 'Đang xác nhận...' : 'Xác nhận'}</button>}
+                        {row.settlementStatus === 'UNSETTLED' && readiness?.canSettle && <button disabled={activeAction !== null || selectedMonthBeforeStart} title={selectedMonthBeforeStart ? `Chỉ được quyết toán từ ${readiness.firstSettlementMonth}` : undefined} onClick={() => void settle(row.employeeId)} className="rounded-lg bg-blue-600 px-3 py-2 font-bold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">{activeAction === `settle:${row.employeeId}` ? 'Đang xác nhận...' : selectedMonthBeforeStart ? 'Ngoài kỳ' : 'Xác nhận'}</button>}
                         {row.settlementStatus === 'SETTLED' && row.settlementId && readiness?.canAdjust && <button disabled={activeAction !== null} onClick={() => void adjust(row.settlementId!)} className="rounded-lg border border-slate-600 px-3 py-2 font-bold hover:bg-slate-800 disabled:opacity-60">{activeAction === `adjust:${row.settlementId}` ? 'Đang điều chỉnh...' : 'Điều chỉnh'}</button>}
                       </td>
                     </tr>

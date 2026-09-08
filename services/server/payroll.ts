@@ -209,7 +209,17 @@ export async function settlePayroll(employeeId: unknown, month: unknown) {
   const { data, error } = await supabase.rpc('settle_monthly_payroll', { p_employee_id: Number(employeeId), p_month: `${validMonth(String(month))}-01` });
   if (error) {
     const duplicate = error.code === '23505' || error.message.includes('already settled');
-    throw new AuthFlowError({ status: duplicate ? 409 : 400, code: 'payload_validation_failed', message: duplicate ? 'Nhân viên đã được quyết toán trong tháng này.' : 'Không thể xác nhận quyết toán lương.', failureStage: 'persistence' });
+    const historical = error.message.includes('historical settlement is not allowed');
+    throw new AuthFlowError({
+      status: duplicate ? 409 : 400,
+      code: 'payload_validation_failed',
+      message: duplicate
+        ? 'Nhân viên đã được quyết toán trong tháng này.'
+        : historical
+          ? 'Kỳ đã chọn nằm trước tháng quyết toán đầu tiên.'
+          : 'Không thể xác nhận quyết toán lương.',
+      failureStage: 'persistence',
+    });
   }
   return { success: true as const, settlementId: String(data) };
 }
