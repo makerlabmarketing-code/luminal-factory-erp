@@ -138,7 +138,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
     if (!response.ok) throw new AdminListRequestError(response.status === 403 ? 'forbidden' : 'employee_list_load_failed');
     return payload;
   };
-  const { data: loadedEmployeeData, error: loadError, isLoading: listLoading, isRefreshing, refresh: refreshPage } = useAdminListData({ initialData: initialData || undefined, initialError, request: employeeRequest });
+  const { data: loadedEmployeeData, error: loadError, isLoading: listLoading, isRefreshing, refresh: refreshPage } = useAdminListData({ cacheKey: 'admin:employees', initialData: initialData || undefined, initialError, request: employeeRequest });
   const employeeData = loadedEmployeeData || emptyEmployeeData;
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');

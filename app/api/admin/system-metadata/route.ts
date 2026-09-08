@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { DEFAULT_SYSTEM_METADATA_CATEGORIES } from '@/lib/system-metadata-defaults';
+import { mergeSystemMetadataCategories } from '@/lib/system-metadata-defaults';
 import { AuthFlowError, hasPermission, requireWorkspaceAccess } from '@/services/server/auth';
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 
@@ -112,7 +112,7 @@ export async function GET() {
       .order('id', { ascending: true });
 
     if (error) throw error;
-    const categories = data && data.length > 0 ? data : DEFAULT_SYSTEM_METADATA_CATEGORIES;
+    const categories = mergeSystemMetadataCategories(data);
     return jsonNoStore({ success: true, categories });
   } catch (error) {
     return toErrorResponse(error);

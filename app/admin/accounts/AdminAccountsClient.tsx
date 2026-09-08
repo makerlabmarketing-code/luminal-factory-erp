@@ -165,7 +165,7 @@ export default function AdminAccountsClient({
     if (!response.ok) throw new AdminListRequestError(response.status === 403 ? 'forbidden' : 'account_list_load_failed');
     return (await response.json()) as AdminAccountManagementData;
   };
-  const { data: accountData, error: listError, isLoading: listLoading, isRefreshing, refresh: refreshAccounts } = useAdminListData({ initialData: initialData || undefined, initialError, request: accountRequest });
+  const { data: accountData, error: listError, isLoading: listLoading, isRefreshing, refresh: refreshAccounts } = useAdminListData({ cacheKey: 'admin:accounts', initialData: initialData || undefined, initialError, request: accountRequest });
 
   const filteredAccounts = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();

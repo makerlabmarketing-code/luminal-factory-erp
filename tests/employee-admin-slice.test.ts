@@ -20,7 +20,7 @@ describe('employee admin list and account actions slice', () => {
     expect(clientSource).toMatch(/['"]use client['"]/);
     expect(clientSource).not.toMatch(/supabase|from\(['"]employees['"]\)|auth_user_id|qr_token|bank_account_number/);
     expect(serviceSource).toMatch(/EmployeeListItem/);
-    expect(serviceSource).toMatch(/requireAdminEmployeePermission\('EMPLOYEE_VIEW'\)/);
+    expect(serviceSource).toMatch(/requireEmployeeReadCapabilities\(\)/);
     expect(serviceSource).toMatch(/from\('employees'\)/);
     expect(serviceSource).not.toMatch(/\.eq\(['"]auth_user_id['"]/);
   });
@@ -48,7 +48,7 @@ describe('employee admin list and account actions slice', () => {
     const serviceSource = source('services/server/adminEmployeeData.ts');
 
     expect(serviceSource).toMatch(/requireWorkspaceAccess\('ADMIN_WORKSPACE'\)/);
-    expect(serviceSource).toMatch(/hasPermission\(authContext, permissionCode\)/);
+    expect(serviceSource).toMatch(/listGrantedPermissions\(authContext/);
     expect(serviceSource).toMatch(/permission_forbidden/);
   });
 
@@ -124,12 +124,30 @@ describe('employee admin list and account actions slice', () => {
     expect(detailClient).toMatch(/Chưa có nguồn audit nhân sự được triển khai/);
     expect(loadingSource).toMatch(/CenteredPageLoading/);
     expect(serviceSource).toMatch(/EmployeeDetailDto/);
-    expect(serviceSource).toMatch(/requireAdminEmployeePermission\('EMPLOYEE_VIEW'\)/);
-    expect(serviceSource).toMatch(/hasPermission\(authContext, 'EMPLOYEE_MANAGE'\)/);
-    expect(serviceSource).toMatch(/hasPermission\(authContext, 'ACCOUNT_MANAGE'\)/);
+    expect(serviceSource).toMatch(/requireEmployeeReadCapabilities\(\)/);
+    expect(serviceSource).toMatch(/permissionCodes\.includes\('EMPLOYEE_MANAGE'\)/);
+    expect(serviceSource).toMatch(/permissionCodes\.includes\('ACCOUNT_MANAGE'\)/);
     expect(serviceSource).toMatch(/employee_workspace_access/);
     expect(serviceSource).toMatch(/employee_permissions/);
     expect(serviceSource).toMatch(/project_members/);
+  });
+
+  it('loads only relevant Auth users for short employee lists and records server timing', () => {
+    const serviceSource = source('services/server/adminEmployeeData.ts');
+    expect(serviceSource).toMatch(/listRelevantAuthUsers/);
+    expect(serviceSource).toMatch(/authUserIds\.length > 25/);
+    expect(serviceSource).toMatch(/Promise\.all\(authUserIds\.map/);
+    expect(serviceSource).toMatch(/\[admin-employee-list-read\]/);
+    expect(serviceSource).toMatch(/\[admin-employee-detail-read\]/);
+  });
+
+  it('uses the system bank directory for employee finance edits', () => {
+    const serviceSource = source('services/server/adminEmployeeData.ts');
+    const detailClient = source('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
+    expect(serviceSource).toMatch(/BANK_DIRECTORY_METADATA_NAME/);
+    expect(serviceSource).toMatch(/bankOptions/);
+    expect(detailClient).toMatch(/BankSelect/);
+    expect(detailClient).toMatch(/Danh mục hệ thống → Danh mục Ngân hàng/);
   });
 
   it('keeps sensitive employee detail fields out of the client DTO surface', () => {

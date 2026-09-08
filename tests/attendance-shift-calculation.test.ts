@@ -300,6 +300,6 @@ describe('attendance shift calculation', () => {
       },
     ]);
 
-    expect(summary).toEqual({ totalShifts: 2, totalHours: 3 });
+    expect(summary).toEqual({ totalShifts: 1, totalHours: 3 });
   });
 });

@@ -56,7 +56,7 @@ export default function AdminFacilitiesManagement() {
       }
       return result;
   };
-  const { data: facilityData, error: loadError, isLoading: loading, isRefreshing, refresh: loadFacilities } = useAdminListData({ request: facilityRequest });
+  const { data: facilityData, error: loadError, isLoading: loading, isRefreshing, refresh: loadFacilities } = useAdminListData({ cacheKey: 'admin:facilities', request: facilityRequest });
   const canManageFacilities = facilityData?.capabilities?.canManageFacilities !== false;
   const hasFacilityStatus = facilityData?.capabilities?.canPersistStatusAndCode === true;
 
