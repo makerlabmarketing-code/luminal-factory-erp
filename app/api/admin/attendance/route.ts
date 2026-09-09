@@ -267,11 +267,15 @@ async function loadAttendanceAuditEvents(
 }
 
 export async function GET(request: Request) {
+  const startedAt = performance.now();
+  let employeeScope: 'all' | 'selected' = 'all';
+
   try {
     const authContext = await requireAttendanceView();
     const url = new URL(request.url);
     const monthInput = url.searchParams.get('month') || formatBusinessMonthInput(businessMonthFromInstant(new Date()));
     const employeeId = url.searchParams.get('employeeId') || null;
+    employeeScope = employeeId ? 'selected' : 'all';
     const manualMutationEnabled = isAttendanceManualMutationEnabled();
 
     const [payload, canManage, auditEvents] = await Promise.all([
@@ -280,12 +284,27 @@ export async function GET(request: Request) {
       loadAttendanceAuditEvents(employeeId, manualMutationEnabled),
     ]);
 
+    console.info('[admin-attendance-read]', {
+      durationMs: Math.round(performance.now() - startedAt),
+      employeeScope,
+      attendanceRecordCount: payload.attendanceRecords.length,
+      auditEventCount: auditEvents.length,
+    });
+
     return NextResponse.json({
       ...payload,
       auditEvents,
       permissions: { canAdjustAttendance: canManage && manualMutationEnabled },
     });
   } catch (error) {
+    console.warn('[admin-attendance-read]', {
+      durationMs: Math.round(performance.now() - startedAt),
+      employeeScope,
+      outcome: 'failed',
+      failureStage: error instanceof AuthFlowError || error instanceof AttendanceDataError
+        ? error.failureStage
+        : 'unknown',
+    });
     return toErrorResponse(error, 'load');
   }
 }

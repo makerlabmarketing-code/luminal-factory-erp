@@ -22,10 +22,12 @@ describe('Employee Detail business-tab completeness', () => {
     expect(service).toContain('canEditPersonalFinance: canViewFinance && canEditEmployee');
   });
   it('renders empty and failure states locally without duplicating mutation routes', () => {
+    const saveFlow = ui.slice(ui.indexOf('const save = async'), ui.indexOf('const accountAction ='));
     expect(ui).toContain("value === null || value === '' ? 'Chưa cập nhật' : value");
     expect(ui).toContain('function TabWarning');
     expect(ui).toContain('Thử tải lại');
     expect(ui).toContain('router.refresh()');
+    expect(saveFlow).not.toContain('router.refresh()');
     expect(ui.match(/method: 'PATCH'/g)).toHaveLength(1);
     expect(ui).toContain("path: 'send-password-reset'");
     expect(ui).toContain('Mở trình quản lý tài khoản và quyền');

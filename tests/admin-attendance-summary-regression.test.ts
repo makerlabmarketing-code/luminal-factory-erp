@@ -14,12 +14,21 @@ describe('Admin attendance summary regression', () => {
   const dataSource = source('services/server/attendanceData.ts');
   const staffClient = source('app/staff/attendance/AttendanceView.tsx');
 
-  it('scopes the source count request to the selected employee and month', () => {
+  it('loads each month once and filters the selected employee without another request', () => {
     expect(client).toMatch(/new URLSearchParams\(\{ month: monthInput \}\)/);
-    expect(client).toMatch(/searchParams\.set\('employeeId', filterEmployeeId\)/);
+    expect(client).not.toMatch(/searchParams\.set\('employeeId', filterEmployeeId\)/);
+    expect(client).toContain('}, [monthInput, showToast]);');
+    expect(client).toMatch(/!filterEmployeeId \|\| String\(record\.employee_id\) === String\(filterEmployeeId\)/);
+    expect(client).toContain('visibleSourceCounts');
     expect(route).toMatch(/loadAttendanceData\(\{[\s\S]*monthInput,[\s\S]*employeeId/);
     expect(dataSource).toMatch(/attendanceQuery = attendanceQuery\.eq\('employee_id'/);
     expect(client).toContain('Nguồn trong phạm vi');
+  });
+
+  it('records aggregate attendance read timing without exposing employee identifiers', () => {
+    expect(route).toContain("'[admin-attendance-read]'");
+    expect(route).toContain('employeeScope');
+    expect(route).not.toMatch(/console\.(?:info|warn)\([^)]*employeeId/);
   });
 
   it('shows actionable open, stale, and excluded diagnostics without redundant record totals', () => {

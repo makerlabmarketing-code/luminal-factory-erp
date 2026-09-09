@@ -104,7 +104,6 @@ export default function AdminEmployeeDetailClient({ initialData }: { initialData
       }
       setData((current) => ({ ...current, fullName: draft.fullName, email: draft.email || null, phone: draft.phone || null, title: draft.title || null, facilityCode: draft.department || null, facility: current.facilities.find((f) => f.code === draft.department)?.name || null, employmentStatus: draft.employmentStatus, bankName: draft.bankName || null, bankAccountNumber: draft.bankAccountNumber || null, hourlyRate: dirtyFields.includes('hourlyRate') ? Number(draft.hourlyRate) : current.hourlyRate }));
       showToast('Đã cập nhật', 'Đã cập nhật thông tin nhân sự.', 'success');
-      startTransition(() => router.refresh());
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Không thể cập nhật thông tin. Vui lòng thử lại.';
       setError(message); showToast('Không thể cập nhật', 'Không thể cập nhật thông tin. Vui lòng thử lại.', 'error');

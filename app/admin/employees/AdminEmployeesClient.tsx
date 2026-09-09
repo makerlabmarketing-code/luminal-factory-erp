@@ -412,6 +412,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                         <td className="p-4">
                           <Link
                             href={`/admin/employees/${employee.employeeId}`}
+                            prefetch={false}
                             className="font-bold text-slate-100 hover:text-blue-300"
                           >
                             {employee.fullName}
@@ -458,6 +459,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                               <div className="absolute right-0 top-9 z-20 w-64 rounded-lg border border-slate-800 bg-slate-950 p-2 shadow-2xl">
                                 <Link
                                   href={`/admin/employees/${employee.employeeId}`}
+                                  prefetch={false}
                                   className="flex items-center gap-2 rounded-md px-3 py-2 text-[11px] font-bold text-slate-200 hover:bg-slate-800"
                                 >
                                   <UserRound className="h-3.5 w-3.5" />
@@ -481,6 +483,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                                 {capabilities.canManageAccounts && accountAction && !accountAction.path && (
                                   <Link
                                     href={`/admin/employees/${employee.employeeId}`}
+                                    prefetch={false}
                                     onClick={() => setOpenActionMenuId(null)}
                                     className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-800"
                                   >
