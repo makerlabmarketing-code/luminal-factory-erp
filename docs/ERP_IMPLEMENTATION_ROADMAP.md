@@ -886,3 +886,20 @@ unchanged. The regression contract is recorded in
 
 No dependency, API, schema, SQL, RLS, runtime flag, production data, or Commerce
 change belongs to this UI slice.
+
+## 2026-09-09 Core Admin/Staff — shared bank directory
+
+Status: `APPLICATION_COMPLETE / READY_FOR_PREVIEW`.
+
+Admin Employee Detail and Staff Profile now consume one server-owned bank
+directory loader backed by `Danh mục Ngân hàng`. Staff receives the normalized
+directory in the initial server render, in parallel with facility and workspace
+capability reads, so opening the profile does not add a browser API request or a
+client-side data waterfall. Existing bank values outside the current directory
+remain selectable as historical data until the employee chooses a catalog item.
+
+Validation passes with 811/811 tests, lint, TypeScript, production build, and
+whitespace checks. No SQL, migration, RLS, backfill, runtime flag, production
+query, live data mutation, Project workflow, or Commerce change is included.
+Rollback is the application/test/document commit only; no data rollback is
+required.

@@ -1,7 +1,10 @@
 import 'server-only';
 
 import type { Facility } from '@/lib/types/facility';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SystemMetadataOption } from '@/lib/system-metadata-defaults';
 import { createClient } from '@/utils/supabase/server';
+import { loadBankDirectory } from '@/services/server/bankDirectory';
 import { loadFacilityDirectory } from '@/services/server/facilityDirectory';
 import {
   canAccessAdmin,
@@ -41,6 +44,7 @@ export type StaffPortalLoadState =
       ok: true;
       employee: ReturnType<typeof toPublicStaffEmployee>;
       assignedBranch: Facility | null;
+      bankOptions: SystemMetadataOption[];
       capabilities: {
         canAccessAdmin: boolean;
         canAccessStaff: boolean;
@@ -120,8 +124,8 @@ function logStaffPortalBoundary(params: {
   });
 }
 
-async function getMetadataBranches(): Promise<Facility[]> {
-  const directory = await loadFacilityDirectory(await createClient());
+async function getMetadataBranches(supabase: SupabaseClient): Promise<Facility[]> {
+  const directory = await loadFacilityDirectory(supabase);
   const facilities = directory.facilities;
   return facilities.map((facility) => ({
     id: facility.id,
@@ -218,7 +222,8 @@ export async function getStaffPortalLoadState(): Promise<StaffPortalLoadState> {
   }
 
   const warnings: StaffPortalWarning[] = [];
-  const branchesPromise = getMetadataBranches().catch((error) => {
+  const supabase = await createClient();
+  const branchesPromise = getMetadataBranches(supabase).catch((error) => {
     const facilityCorrelationId = crypto.randomUUID();
     logStaffPortalBoundary({
       correlationId: facilityCorrelationId,
@@ -240,8 +245,9 @@ export async function getStaffPortalLoadState(): Promise<StaffPortalLoadState> {
     return [] as Facility[];
   });
 
-  const [branches, adminAccess] = await Promise.all([
+  const [branches, bankDirectory, adminAccess] = await Promise.all([
     branchesPromise,
+    loadBankDirectory(supabase),
     canAccessAdmin(authContext),
   ]);
 
@@ -249,6 +255,7 @@ export async function getStaffPortalLoadState(): Promise<StaffPortalLoadState> {
     ok: true,
     employee: toPublicStaffEmployee(authContext.employee),
     assignedBranch: findAssignedBranch(authContext.employee, branches),
+    bankOptions: bankDirectory.options,
     capabilities: {
       canAccessAdmin: adminAccess.allowed,
       canAccessStaff: true,
@@ -259,7 +266,8 @@ export async function getStaffPortalLoadState(): Promise<StaffPortalLoadState> {
 
 export async function getAuthenticatedStaffPortalData() {
   const authContext = await requireWorkspaceAccess('STAFF_WORKSPACE');
-  const branchesPromise = getMetadataBranches().catch((error) => {
+  const supabase = await createClient();
+  const branchesPromise = getMetadataBranches(supabase).catch((error) => {
     logStaffPortalBoundary({
       correlationId: crypto.randomUUID(), route: '/staff', code: 'facility_lookup_failed',
       authStage: 'verified', employeeStage: 'resolved', workspaceStage: 'allowed',
@@ -276,6 +284,35 @@ export async function getAuthenticatedStaffPortalData() {
   return {
     employee: toPublicStaffEmployee(authContext.employee),
     assignedBranch: findAssignedBranch(authContext.employee, branches),
+    capabilities: {
+      canAccessAdmin: adminAccess.allowed,
+      canAccessStaff: true,
+    },
+  };
+}
+
+export async function getAuthenticatedStaffProfileData() {
+  const authContext = await requireWorkspaceAccess('STAFF_WORKSPACE');
+  const supabase = await createClient();
+  const branchesPromise = getMetadataBranches(supabase).catch((error) => {
+    logStaffPortalBoundary({
+      correlationId: crypto.randomUUID(), route: '/staff', code: 'facility_lookup_failed',
+      authStage: 'verified', employeeStage: 'resolved', workspaceStage: 'allowed',
+      facilityStage: 'failed', retryable: true, error,
+    });
+    return [] as Facility[];
+  });
+
+  const [branches, bankDirectory, adminAccess] = await Promise.all([
+    branchesPromise,
+    loadBankDirectory(supabase),
+    canAccessAdmin(authContext),
+  ]);
+
+  return {
+    employee: toPublicStaffEmployee(authContext.employee),
+    assignedBranch: findAssignedBranch(authContext.employee, branches),
+    bankOptions: bankDirectory.options,
     capabilities: {
       canAccessAdmin: adminAccess.allowed,
       canAccessStaff: true,

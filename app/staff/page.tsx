@@ -59,6 +59,7 @@ export default async function StaffPage() {
       <StaffPortalContent
         workerData={portalState.employee}
         assignedBranchData={portalState.assignedBranch}
+        bankOptions={portalState.bankOptions}
         capabilities={portalState.capabilities}
       />
     </Suspense>

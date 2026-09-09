@@ -60,7 +60,8 @@ describe('staff portal crash boundary', () => {
     const service = source('services/server/staffPortalData.ts');
     const attendanceRoute = source('app/api/staff/attendance/route.ts');
 
-    expect(service).toMatch(/loadFacilityDirectory\(await createClient\(\)\)/);
+    expect(service).toMatch(/loadFacilityDirectory\(supabase\)/);
+    expect(service).toMatch(/loadBankDirectory\(supabase\)/);
     expect(service).not.toMatch(/getFacilityDirectory/);
     expect(service).toMatch(/warnings\.push\(\{/);
     expect(service).toMatch(/code: 'facility_lookup_failed'/);

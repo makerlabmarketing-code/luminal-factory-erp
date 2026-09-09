@@ -14,12 +14,8 @@ import { resolveEmployeeFacility, type FacilityResolutionStatus } from '@/lib/em
 import { accountConnectionExplanations, resolveAccountConnectionStatus, type AccountConnectionStatus } from '@/lib/accountConnection';
 import { loadAttendanceData } from '@/services/server/attendanceData';
 import { businessDateFromInstant, formatBusinessDateInput } from '@/lib/business-date';
-import {
-  BANK_DIRECTORY_METADATA_NAME,
-  DEFAULT_BANK_DIRECTORY,
-  normalizeSystemMetadataOptions,
-  type SystemMetadataOption,
-} from '@/lib/system-metadata-defaults';
+import type { SystemMetadataOption } from '@/lib/system-metadata-defaults';
+import { loadBankDirectory } from '@/services/server/bankDirectory';
 
 export type { AccountConnectionStatus } from '@/lib/accountConnection';
 
@@ -423,7 +419,7 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
   const employeeRow = employee as EmployeeRow;
   const [facilityResult, bankDirectoryResult, workspaceResult, permissionResult, membershipResult, taskResult, attendanceResult, authResult] = await Promise.all([
     loadFacilityDirectory(supabase).then(({ facilities }) => ({ data: facilities, failed: false as const }), () => ({ data: [] as FacilityDirectoryItem[], failed: true as const })),
-    supabase.from('system_metadata').select('data').eq('name', BANK_DIRECTORY_METADATA_NAME).maybeSingle().then(({ data, error }) => ({ data: normalizeSystemMetadataOptions(data?.data, DEFAULT_BANK_DIRECTORY), failed: Boolean(error) }), () => ({ data: [...DEFAULT_BANK_DIRECTORY], failed: true as const })),
+    loadBankDirectory(supabase).then(({ options, lookupFailed }) => ({ data: options, failed: lookupFailed })),
     supabase.from('employee_workspace_access').select('employee_id, workspace, status, revoked_at').eq('employee_id', employeeId).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('employee_permissions').select('employee_id, permission_code, effect, status, revoked_at').eq('employee_id', employeeId).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('project_members').select('project_id, member_role, status, projects(name)').eq('employee_id', employeeId).limit(20).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
