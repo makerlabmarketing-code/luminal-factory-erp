@@ -62,6 +62,8 @@ describe('global loading foundation', () => {
   });
 
   it('uses loading links for landing and workspace switching', () => {
+    const loadingSource = source('component/GlobalLoading.tsx');
+    const employeeListSource = source('app/admin/employees/AdminEmployeesClient.tsx');
     const landingSource = source('app/page.tsx');
     const adminShellSource = source('component/app-shell/AdminAppShell.tsx');
     const staffPortalSource = source('app/staff/portal/StaffPortalContent.tsx');
@@ -71,6 +73,9 @@ describe('global loading foundation', () => {
     expect(landingSource).toMatch(/Đang mở khu vực nhân viên\.\.\./);
     expect(adminShellSource).toMatch(/LoadingLink/);
     expect(staffPortalSource).toMatch(/LoadingLink/);
+    expect(loadingSource).toMatch(/prefetch = false/);
+    expect(loadingSource).toMatch(/prefetch=\{prefetch\}/);
+    expect(employeeListSource.match(/prefetch=\{false\}/g)).toHaveLength(3);
   });
 
   it('adds route and ledger loading states without showing fake zero values on load error', () => {

@@ -84,6 +84,7 @@ describe('project list request waterfall guardrails', () => {
     expect(service).toMatch(/Promise\.all\(\[/);
     expect(service).toMatch(/workflowRepository\.listPhasesByProjectIds\(projectIds\)/);
     expect(service).toMatch(/workflowRepository\.listLegacyTasks\(\)/);
+    expect(service).toMatch(/const \[allProjects, legacyTasks\] = await Promise\.all/);
     expect(repository).toMatch(/\/api\/admin\/phases/);
     expect(repository).toMatch(/body: JSON\.stringify\(\{ projectIds \}\)/);
     expect(repository).not.toMatch(/projectIds\.map\([\s\S]{0,220}\/api\/admin\/phases/);

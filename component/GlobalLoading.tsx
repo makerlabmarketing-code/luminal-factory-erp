@@ -190,6 +190,7 @@ export function LoadingLink({
   children,
   loadingMessage,
   onClick,
+  prefetch = false,
   ...props
 }: LinkProps & {
   children: React.ReactNode;
@@ -202,6 +203,7 @@ export function LoadingLink({
   return (
     <Link
       {...props}
+      prefetch={prefetch}
       aria-disabled={isGlobalLoading}
       onClick={(event) => {
         if (isGlobalLoading) {

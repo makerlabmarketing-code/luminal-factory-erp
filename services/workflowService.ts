@@ -184,22 +184,22 @@ function toLegacyWorkflowSetting(
 
 export async function getWorkflowItems(options: WorkflowItemsOptions = {}): Promise<WorkflowSetting[]> {
   const includeClosedProjects = options.includeClosedProjects ?? true;
-  const allProjects = await workflowRepository.listProjects();
+  const [allProjects, legacyTasks] = await Promise.all([
+    workflowRepository.listProjects(),
+    workflowRepository.listLegacyTasks(),
+  ]);
   const projects = includeClosedProjects
     ? allProjects
     : allProjects.filter((project) => !isClosedProjectStatus(project.status));
   const projectIds = projects.map((project) => project.id);
-  const [phaseResult, legacyTasks] = await Promise.all([
-    workflowRepository.listPhasesByProjectIds(projectIds)
-      .then((phases) => ({ phases, warning: null as WorkflowRequestError | null }))
-      .catch((error: unknown) => ({
-        phases: [] as WorkflowPhase[],
-        warning: error instanceof WorkflowRequestError
-          ? error
-          : new WorkflowRequestError('Không thể tải giai đoạn.', 500, 'phase_load_failed', 'unknown'),
-      })),
-    workflowRepository.listLegacyTasks(),
-  ]);
+  const phaseResult = await workflowRepository.listPhasesByProjectIds(projectIds)
+    .then((phases) => ({ phases, warning: null as WorkflowRequestError | null }))
+    .catch((error: unknown) => ({
+      phases: [] as WorkflowPhase[],
+      warning: error instanceof WorkflowRequestError
+        ? error
+        : new WorkflowRequestError('Không thể tải giai đoạn.', 500, 'phase_load_failed', 'unknown'),
+    }));
   const { phases, warning: phaseLoadWarning } = phaseResult;
   const projectNames = new Set(projects.map((project) => project.name));
   const visibleLegacyTasks = includeClosedProjects

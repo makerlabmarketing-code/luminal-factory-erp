@@ -877,6 +877,7 @@ export async function createEmployee(input: EmployeeMutationInput, correlationId
 }
 
 export async function updateEmployee(employeeId: string, input: EmployeeMutationInput, correlationId?: string): Promise<AdminActionResult> {
+  const startedAt = performance.now();
   const actor = await requireAdminEmployeePermission('EMPLOYEE_MANAGE');
   const touchesPersonalFinance =
     Object.prototype.hasOwnProperty.call(input, 'bankName') ||
@@ -928,6 +929,7 @@ export async function updateEmployee(employeeId: string, input: EmployeeMutation
       mutationKeys: Object.keys(payload).sort(),
       requestReachedSupabase: trace.requestReachedSupabase,
       rowUpdated: trace.rowUpdated,
+      durationMs: Math.round(performance.now() - startedAt),
       ...safeDetails,
     });
     throw new AuthFlowError({
@@ -955,6 +957,7 @@ export async function updateEmployee(employeeId: string, input: EmployeeMutation
       supabaseOperation: 'select',
       targetRelation: 'public.employees',
       supabaseErrorCode: sanitizeAdminMutationFailure(readbackError).supabaseErrorCode || 'row_not_returned',
+      durationMs: Math.round(performance.now() - startedAt),
     });
   }
 
@@ -968,6 +971,7 @@ export async function updateEmployee(employeeId: string, input: EmployeeMutation
     failureStage: 'persisted',
     mutationKeys: Object.keys(payload).sort(),
     rowUpdated: trace.rowUpdated,
+    durationMs: Math.round(performance.now() - startedAt),
   });
 
   return {

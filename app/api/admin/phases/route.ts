@@ -34,10 +34,23 @@ function toErrorResponse(error: unknown) {
 }
 
 export async function POST(request: NextRequest) {
+  const startedAt = performance.now();
+
   try {
     const body = (await request.json().catch(() => null)) || {};
-    return jsonNoStore(await listPhases(body));
+    const result = await listPhases(body);
+    console.info('[admin-phase-list-read]', {
+      durationMs: Math.round(performance.now() - startedAt),
+      projectCount: Array.isArray(body.projectIds) ? body.projectIds.length : 0,
+      phaseCount: result.phases.length,
+    });
+    return jsonNoStore(result);
   } catch (error) {
+    console.warn('[admin-phase-list-read]', {
+      durationMs: Math.round(performance.now() - startedAt),
+      outcome: 'failed',
+      failureStage: error instanceof AuthFlowError ? error.failureStage : 'unknown',
+    });
     return toErrorResponse(error);
   }
 }

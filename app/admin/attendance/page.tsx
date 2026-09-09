@@ -1,6 +1,6 @@
 // app/admin/attendance/page.tsx
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
@@ -28,11 +28,6 @@ import {
   mergeAttendanceRecords,
   summarizeAttendanceScope,
 } from '@/services/attendanceService';
-
-interface PayrollSummary {
-  totalShifts: number;
-  totalHours: number;
-}
 
 interface AttendanceDayDetailsState {
   day: number;
@@ -200,7 +195,6 @@ export default function AdminAttendanceManagement() {
 
     try {
       const searchParams = new URLSearchParams({ month: monthInput });
-      if (filterEmployeeId) searchParams.set('employeeId', filterEmployeeId);
       const response = await fetch(`/api/admin/attendance?${searchParams.toString()}`, {
         cache: 'no-store',
       });
@@ -227,7 +221,7 @@ export default function AdminAttendanceManagement() {
     } finally {
       if (requestId === loadRequestIdRef.current) setLoading(false);
     }
-  }, [filterEmployeeId, monthInput, showToast]);
+  }, [monthInput, showToast]);
 
   useEffect(() => { void loadData(); }, [loadData]);
 
@@ -242,26 +236,8 @@ export default function AdminAttendanceManagement() {
     });
   }, []);
 
-  const calculatePayrollFromRecords = (targetRecords: AttendanceRecord[]): PayrollSummary => {
-    return calculateFinalizedAttendanceSummary(targetRecords);
-  };
-
-  // TÍNH TOÁN ĐỒNG BỘ: Tính toán tổng giờ làm và tiền lương dựa trên định mức động từ Metadata
-  const calculateFilteredPayroll = () => {
-    let targetRecords = attendanceRecords.filter((record) => {
-      const recordDate = businessDateFromDateInput(record.work_date);
-      return recordDate.month === currentBusinessMonth.month && recordDate.year === currentBusinessMonth.year;
-    });
-
-    if (filterEmployeeId) {
-      targetRecords = targetRecords.filter((record) => String(record.employee_id) === String(filterEmployeeId));
-    }
-
-    return calculatePayrollFromRecords(targetRecords);
-  };
-  const payrollSummary = calculateFilteredPayroll();
-  const normalizedMonthlyRecords = mergeAttendanceRecords(
-    attendanceRecords.filter((record) => {
+  const normalizedMonthlyRecords = useMemo(
+    () => mergeAttendanceRecords(attendanceRecords.filter((record) => {
       const recordDate = businessDateFromDateInput(record.work_date);
       const matchesMonth =
         recordDate.month === currentBusinessMonth.month && recordDate.year === currentBusinessMonth.year;
@@ -269,8 +245,25 @@ export default function AdminAttendanceManagement() {
         !filterEmployeeId || String(record.employee_id) === String(filterEmployeeId);
 
       return matchesMonth && matchesEmployee;
-    })
+    })),
+    [attendanceRecords, currentBusinessMonth.month, currentBusinessMonth.year, filterEmployeeId]
   );
+  const payrollSummary = useMemo(
+    () => calculateFinalizedAttendanceSummary(normalizedMonthlyRecords),
+    [normalizedMonthlyRecords]
+  );
+  const visibleSourceCounts = useMemo(() => {
+    if (!filterEmployeeId) return sourceCounts;
+
+    return normalizedMonthlyRecords.reduce(
+      (counts, record) => {
+        if (record.source === 'attendance_logs') counts.attendanceLogs += 1;
+        else counts.attendance += 1;
+        return counts;
+      },
+      { attendance: 0, attendanceLogs: 0 }
+    );
+  }, [filterEmployeeId, normalizedMonthlyRecords, sourceCounts]);
   const missingCheckoutRecords = normalizedMonthlyRecords.filter(isMissingCheckoutRecord);
   const overdueCheckoutRecords = missingCheckoutRecords.filter((record) =>
     isAttendanceRecordOverdue({
@@ -374,7 +367,7 @@ export default function AdminAttendanceManagement() {
       </div>
 
       <p className="text-[10px] text-slate-500">
-        Nguồn trong phạm vi: {sourceCounts.attendance} attendance · {sourceCounts.attendanceLogs} log cũ
+        Nguồn trong phạm vi: {visibleSourceCounts.attendance} attendance · {visibleSourceCounts.attendanceLogs} log cũ
       </p>
 
       {filterEmployeeId && outsideMonthSummary.open > 0 && (
