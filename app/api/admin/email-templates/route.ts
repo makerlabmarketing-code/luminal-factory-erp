@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
-import { AuthFlowError, hasPermission, requireWorkspaceAccess } from '@/services/server/auth';
+import { AuthFlowError, hasPermission, requireSystemOwner, requireWorkspaceAccess } from '@/services/server/auth';
 
 const TEMPLATE_SELECT =
   'id, group_type, template_name, subject, html_content, body, script_name, created_at';
@@ -85,7 +85,7 @@ function toErrorResponse(error: unknown) {
 
 export async function GET() {
   try {
-    await requireEmailTemplatePermission('EMAIL_TEMPLATE_VIEW');
+    const authContext = await requireEmailTemplatePermission('EMAIL_TEMPLATE_VIEW');
     const supabaseAdmin = createSupabaseAdminClient();
     const [templateResult, metadataResult] = await Promise.all([
       supabaseAdmin.from('email_templates').select(TEMPLATE_SELECT).order('id', { ascending: false }),
@@ -108,6 +108,7 @@ export async function GET() {
       success: true,
       templates: templateResult.data || [],
       emailGroups,
+      canPermanentlyDelete: authContext.employee.role?.toUpperCase() === 'OWNER',
     });
   } catch (error) {
     return toErrorResponse(error);
@@ -185,7 +186,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    await requireEmailTemplatePermission('EMAIL_TEMPLATE_MANAGE');
+    await requireSystemOwner();
     const id = numericId(new URL(request.url).searchParams.get('id'));
     if (!id) {
       return jsonNoStore(

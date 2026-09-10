@@ -30,6 +30,7 @@ import { accountConnectionExplanations, accountConnectionLabels } from '@/lib/ac
 import { AdminPage } from '@/component/AdminUI';
 import type { EmployeeCreateRequest as EmployeeFormState } from '@/lib/employeeCreateContract';
 import type { EmployeeCreateSafeDiagnostic } from '@/lib/employeePersistenceDiagnostics';
+import { EmployeeAdminTabs } from '@/component/admin/EmployeeAdminTabs';
 
 interface ApiActionResponse {
   success?: boolean;
@@ -141,7 +142,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
   const { data: loadedEmployeeData, error: loadError, isLoading: listLoading, isRefreshing, refresh: refreshPage } = useAdminListData({ cacheKey: 'admin:employees', initialData: initialData || undefined, initialError, request: employeeRequest });
   const employeeData = loadedEmployeeData || emptyEmployeeData;
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ACTIVE_EMPLOYEES');
   const [currentPage, setCurrentPage] = useState(1);
   const [formState, setFormState] = useState<EmployeeFormState | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -182,8 +183,10 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
         employee.fullName.toLowerCase().includes(query) ||
         (employee.title || '').toLowerCase().includes(query) ||
         (employee.email || '').toLowerCase().includes(query);
-      const matchesStatus =
-        statusFilter === 'ALL' || employee.accountConnectionStatus === statusFilter;
+      const matchesStatus = statusFilter === 'ALL'
+        || (statusFilter === 'ACTIVE_EMPLOYEES' && employee.employmentStatus === 'ACTIVE')
+        || (statusFilter === 'INACTIVE_EMPLOYEES' && employee.employmentStatus !== 'ACTIVE')
+        || employee.accountConnectionStatus === statusFilter;
 
       return matchesText && matchesStatus;
     });
@@ -315,6 +318,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
   return (
     <AdminPage>
       <div className="space-y-6">
+        <EmployeeAdminTabs active="employees" />
         <div className="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="flex items-center gap-2 text-base font-bold">
@@ -359,7 +363,9 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                   setCurrentPage(1);
                 }}
               >
-                <option value="ALL">Tất cả tài khoản</option>
+                <option value="ACTIVE_EMPLOYEES">Nhân sự đang hoạt động</option>
+                <option value="INACTIVE_EMPLOYEES">Nhân sự ngừng hoạt động</option>
+                <option value="ALL">Tất cả nhân sự</option>
                 {Object.entries(accountStatusLabels).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}

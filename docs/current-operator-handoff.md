@@ -636,3 +636,16 @@ query, or data cleanup is needed. Preview smoke should verify that an Admin
 catalog change appears in both Admin Employee Detail and Staff Profile, and that
 saving a Staff bank selection remains visible to Admin after reload. Rollback is
 the application/test/document commit only.
+
+## 2026-09-10 Protected system owner
+
+Status: `READY_FOR_PREVIEW`. Production now has exactly one active `OWNER`; that
+account has both workspaces, 32 active allows, and zero active denies. The change
+was explicitly requested and verified with read-only postflight queries.
+
+The application update makes owner access dynamic for new permission codes,
+labels the account `Chủ hệ thống`, removes self-revoke and self-demotion controls,
+and keeps the permission modal read-only for the owner. For editable employee
+accounts, `Lưu quyền` remains disabled until the draft differs from persisted
+state. Repository validation passes with 815/815 tests, lint, TypeScript,
+production build, and whitespace checks.

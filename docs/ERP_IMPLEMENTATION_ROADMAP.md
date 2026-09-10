@@ -903,3 +903,20 @@ whitespace checks. No SQL, migration, RLS, backfill, runtime flag, production
 query, live data mutation, Project workflow, or Commerce change is included.
 Rollback is the application/test/document commit only; no data rollback is
 required.
+
+## 2026-09-10 Account security — protected system owner
+
+Status: `APPLICATION_COMPLETE / READY_FOR_PREVIEW`; the approved live account
+correction is complete.
+
+The single designated Luminal owner account now uses the existing `OWNER` role,
+retains both workspaces, and has all 32 current permissions with no active deny.
+Application authorization treats an active owner as full access for current and
+future permission codes. Account management presents the owner as read-only,
+hides self-revoke and self-demotion actions, and enables permission persistence
+only after an editable draft changes.
+
+Validation passes with 815/815 tests, lint, TypeScript, production build, and
+whitespace checks. The live correction changed only the explicitly approved
+owner account; no schema, migration, RLS, runtime flag, or other employee account
+was changed.

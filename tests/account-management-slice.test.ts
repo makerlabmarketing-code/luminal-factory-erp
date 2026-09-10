@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   ACCOUNT_PRESETS,
+  ADMINISTRATOR_PERMISSION_CODES,
   ALL_PERMISSION_CODES,
   PERMISSION_GROUPS,
 } from "../lib/account-permissions";
@@ -14,7 +15,7 @@ function source(relativePath: string): string {
 }
 
 describe("account and permission management slice", () => {
-  it("serves the accounts page through a server DTO and ACCOUNT_MANAGE gate", () => {
+  it("lets administrators view accounts while reserving mutations for the owner", () => {
     const page = source("app/admin/accounts/page.tsx");
     const client = source("app/admin/accounts/AdminAccountsClient.tsx");
     const service = source("services/server/adminAccountManagement.ts");
@@ -25,9 +26,8 @@ describe("account and permission management slice", () => {
     expect(client).not.toMatch(
       /from\(['"]employee_permissions['"]\)|from\(['"]employee_workspace_access['"]\)|utils\/supabase\/admin|SUPABASE_SECRET_KEY/,
     );
-    expect(service).toMatch(
-      /requireAdminEmployeePermission\([\"\']ACCOUNT_MANAGE[\"\']\)/,
-    );
+    expect(service).toMatch(/requireWorkspaceAccess\(["']ADMIN_WORKSPACE["']\)/);
+    expect(service).toMatch(/requireSystemOwner\(\)/);
     expect(service).toMatch(/createSupabaseAdminClient/);
   });
 
@@ -41,13 +41,10 @@ describe("account and permission management slice", () => {
       "STAFF_WORKSPACE",
       "ADMIN_WORKSPACE",
     ]);
-    expect(administrator?.permissions).toEqual(ALL_PERMISSION_CODES);
+    expect(administrator?.permissions).toEqual(ADMINISTRATOR_PERMISSION_CODES);
+    expect(administrator?.permissions).not.toContain("ACCOUNT_MANAGE");
     expect(staff?.workspaces).toEqual(["STAFF_WORKSPACE"]);
     expect(staff?.permissions).toEqual(["TASK_VIEW", "REIMBURSEMENT_SUBMIT"]);
-    expect(
-      ACCOUNT_PRESETS.find((preset) => preset.code === "HR_MANAGER")
-        ?.permissions,
-    ).not.toContain("FINANCE_VIEW");
     expect(
       ACCOUNT_PRESETS.find((preset) => preset.code === "PROJECT_MANAGER")
         ?.permissions,
@@ -69,7 +66,6 @@ describe("account and permission management slice", () => {
     );
     expect(ACCOUNT_PRESETS.map((preset) => preset.code)).toEqual([
       "ADMINISTRATOR",
-      "HR_MANAGER",
       "PROJECT_MANAGER",
       "CREATIVE_LEAD",
       "STAFF",
@@ -83,13 +79,10 @@ describe("account and permission management slice", () => {
       "Tài chính",
       "Bảng lương",
       "Dự án & công việc",
-      "Mẫu giai đoạn",
-      "Dự án & công việc",
       "Hoàn trả",
       "Chấm công",
       "Danh mục hệ thống",
       "Mẫu email",
-      "Tài khoản & phân quyền",
     ]);
   });
 
@@ -147,9 +140,7 @@ describe("account and permission management slice", () => {
 
     expect(listRoute).toMatch(/getAdminAccountManagementData/);
     expect(detailRoute).toMatch(/loadScopedAccountDetail/);
-    expect(detailRoute).toMatch(
-      /requireAdminEmployeePermission\(['"]ACCOUNT_MANAGE['"]\)/,
-    );
+    expect(detailRoute).toMatch(/requireWorkspaceAccess\(['"]ADMIN_WORKSPACE['"]\)/);
     expect(detailRoute).toMatch(/\.eq\(['"]employee_id['"], employeeIdValue\)/);
     expect(workspaceRoute).toMatch(/updateAccountWorkspaces/);
     expect(permissionRoute).toMatch(/updateAccountPermissions/);
@@ -178,6 +169,42 @@ describe("account and permission management slice", () => {
     expect(service).not.toMatch(/delete\(\)/);
   });
 
+  it("treats the system owner as protected full access", () => {
+    const auth = source("services/server/auth.ts");
+    const service = source("services/server/adminAccountManagement.ts");
+    const client = source("app/admin/accounts/AdminAccountsClient.tsx");
+    const detailRoute = source("app/api/admin/accounts/[employeeId]/route.ts");
+
+    expect(auth).toMatch(/isSystemOwner\(authContext\.employee\)/);
+    expect(auth).toMatch(/permissionCodes: requestedCodes/);
+    expect(service).toMatch(/isSystemOwner\(employee\).*ALL_PERMISSION_CODES\.length/s);
+    expect(service).toMatch(/isSystemOwner\(target\) \? ["']ALLOW["'] : state/);
+    expect(client).toMatch(/Chủ hệ thống/);
+    expect(client).toMatch(/!account\.isSelf.*!account\.isSystemOwner/s);
+    expect(detailRoute).toMatch(/isSystemOwner\(employee\) \? ['"]ALLOW['"] : state/);
+  });
+
+  it("only enables permission persistence for an editable changed draft", () => {
+    const client = source("app/admin/accounts/AdminAccountsClient.tsx");
+
+    expect(client).toMatch(/canEditPermissionDraft/);
+    expect(client).toMatch(/permissionDraftChanged/);
+    expect(client).toMatch(/!permissionDraftChanged/);
+    expect(client).toMatch(/Chủ hệ thống có toàn quyền/);
+    expect(client).toMatch(/accountData\?\.canManagePermissions/);
+    expect(client).toMatch(/<details key=\{group\.label\}/);
+    expect(client).toMatch(/allowedCount.*group\.permissions\.length/s);
+    expect(client).toMatch(/Đã cho phép hết/);
+  });
+
+  it("automatically grants the administrator baseline without permission management", () => {
+    const service = source("services/server/adminAccountManagement.ts");
+
+    expect(service).toMatch(/if \(adminWorkspace\)[\s\S]*grantWorkspace\(targetEmployeeId, "STAFF_WORKSPACE"/);
+    expect(service).toMatch(/ADMINISTRATOR_PERMISSION_CODES\.map/);
+    expect(service).toMatch(/setPermissionState\(targetEmployeeId, "ACCOUNT_MANAGE", "NONE"/);
+  });
+
   it("collapses duplicate active workspace and permission rows before reporting success", () => {
     const service = source("services/server/adminAccountManagement.ts");
 
@@ -200,6 +227,14 @@ describe("account and permission management slice", () => {
     expect(client).not.toMatch(
       /SUPABASE_SECRET_KEY|createSupabaseAdminClient|createBrowserClient|\.from\(/,
     );
+  });
+
+  it("shows active employees by default and keeps inactive history discoverable", () => {
+    const client = source("app/admin/employees/AdminEmployeesClient.tsx");
+
+    expect(client).toMatch(/useState\('ACTIVE_EMPLOYEES'\)/);
+    expect(client).toMatch(/employee\.employmentStatus === 'ACTIVE'/);
+    expect(client).toMatch(/Nhân sự ngừng hoạt động/);
   });
 });
 

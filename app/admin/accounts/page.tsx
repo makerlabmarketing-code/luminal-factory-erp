@@ -12,7 +12,7 @@ function AccountAccessDenied() {
       <section className="mx-auto max-w-3xl rounded-lg border border-slate-800 bg-slate-900 p-6">
         <h1 className="text-base font-bold text-red-300">Không có quyền truy cập</h1>
         <p className="mt-2 text-xs text-slate-400">
-          Bạn cần quyền quản lý tài khoản để mở trang này.
+          Bạn cần quyền truy cập Trang quản trị để mở trang này.
         </p>
       </section>
     </main>

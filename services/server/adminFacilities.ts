@@ -311,17 +311,17 @@ export async function deleteAdminFacility(body: Record<string, unknown>) {
   assertFacilityMutationEnabled();
   const facilityId = parseFacilityId(body.id);
   const supabase = createSupabaseAdminClient();
-  const { error } = await supabase.from('facilities').delete().eq('id', facilityId);
+  const { error } = await supabase.from('facilities').update({ is_active: false }).eq('id', facilityId);
 
   if (error) {
     logFacilityPersistenceError('facility_delete', error);
     throw new AuthFlowError({
       status: 500,
       code: 'facility_persistence_failed',
-      message: 'Không thể xóa cơ sở làm việc. Vui lòng kiểm tra nhân sự đang được gán vào cơ sở này.',
+      message: 'Không thể ngừng hoạt động cơ sở làm việc.',
       failureStage: 'persistence',
     });
   }
 
-  return { success: true, deletedId: facilityId };
+  return { success: true, deletedId: facilityId, message: 'Đã chuyển cơ sở sang trạng thái ngừng hoạt động.' };
 }

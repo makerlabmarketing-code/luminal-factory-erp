@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { mergeSystemMetadataCategories } from '@/lib/system-metadata-defaults';
-import { AuthFlowError, hasPermission, requireWorkspaceAccess } from '@/services/server/auth';
+import { AuthFlowError, hasPermission, requireSystemOwner, requireWorkspaceAccess } from '@/services/server/auth';
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 
 type MetadataPayload = {
@@ -31,6 +31,7 @@ async function requireSystemSettingsPermission(
       failureStage: 'permission_check',
     });
   }
+  return authContext;
 }
 
 function numericId(value: unknown): number | null {
@@ -104,7 +105,7 @@ function toErrorResponse(error: unknown) {
 
 export async function GET() {
   try {
-    await requireSystemSettingsPermission('SYSTEM_SETTINGS_VIEW');
+    const authContext = await requireSystemSettingsPermission('SYSTEM_SETTINGS_VIEW');
     const supabaseAdmin = createSupabaseAdminClient();
     const { data, error } = await supabaseAdmin
       .from('system_metadata')
@@ -113,7 +114,7 @@ export async function GET() {
 
     if (error) throw error;
     const categories = mergeSystemMetadataCategories(data);
-    return jsonNoStore({ success: true, categories });
+    return jsonNoStore({ success: true, categories, canPermanentlyDelete: authContext.employee.role?.toUpperCase() === 'OWNER' });
   } catch (error) {
     return toErrorResponse(error);
   }
@@ -180,7 +181,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    await requireSystemSettingsPermission('SYSTEM_SETTINGS_MANAGE');
+    await requireSystemOwner();
     const id = numericId(new URL(request.url).searchParams.get('id'));
     if (!id) {
       return jsonNoStore(

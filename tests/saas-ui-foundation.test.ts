@@ -24,7 +24,7 @@ describe("bounded SaaS UI foundation", () => {
     expect(projectNavigation.flatMap((group) => group.items.map((item) => item.path))).not.toContain(
       "/admin/employees",
     );
-    expect(ADMIN_NAVIGATION_PERMISSION_CODES).toContain("ACCOUNT_MANAGE");
+    expect(ADMIN_NAVIGATION_PERMISSION_CODES).not.toContain("ACCOUNT_MANAGE");
   });
 
   it("derives shell permissions on the server with explicit deny precedence", () => {

@@ -5,6 +5,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import {
   Edit3,
+  CheckCircle2,
   KeyRound,
   Mail,
   MoreHorizontal,
@@ -31,6 +32,7 @@ import {
 } from "@/lib/account-permissions";
 import { AdminListRequestError, useAdminListData } from '@/hooks/useAdminListData';
 import { AdminPage } from '@/component/AdminUI';
+import { EmployeeAdminTabs } from '@/component/admin/EmployeeAdminTabs';
 
 interface ApiActionResponse {
   success?: boolean;
@@ -51,7 +53,6 @@ const accountStatusLabels: Record<AccountConnectionStatus, string> = {
 
 const presetLabels: Record<AdminAccountListItem["presetCode"], string> = {
   ADMINISTRATOR: "Quản trị viên",
-  HR_MANAGER: "Nhân sự",
   PROJECT_MANAGER: "Quản lý dự án",
   CREATIVE_LEAD: "Trưởng nhóm sáng tạo",
   STAFF: "Nhân viên",
@@ -166,6 +167,17 @@ export default function AdminAccountsClient({
     return (await response.json()) as AdminAccountManagementData;
   };
   const { data: accountData, error: listError, isLoading: listLoading, isRefreshing, refresh: refreshAccounts } = useAdminListData({ cacheKey: 'admin:accounts', initialData: initialData || undefined, initialError, request: accountRequest });
+  const canEditPermissionDraft = Boolean(accountData?.canManagePermissions && editorAccount && !editorAccount.isSelf && !editorAccount.isSystemOwner);
+  const permissionDraftChanged = useMemo(() => Boolean(
+    editorAccount && permissionDraft && editorAccount.permissions.some((permission) => permissionDraft[permission.code] !== permission.state)
+  ), [editorAccount, permissionDraft]);
+  const selectedPresetChanged = useMemo(() => {
+    if (!editorAccount || !permissionDraft || !accountData) return false;
+    const preset = accountData.presets.find((item) => item.code === selectedPreset);
+    if (!preset || preset.code === "CUSTOM") return false;
+    const presetPermissions = new Set(preset.permissions);
+    return accountData.permissionCodes.some((permissionCode) => permissionDraft[permissionCode] !== (presetPermissions.has(permissionCode) ? "ALLOW" : "NONE"));
+  }, [accountData, editorAccount, permissionDraft, selectedPreset]);
 
   const filteredAccounts = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -258,6 +270,7 @@ export default function AdminAccountsClient({
   };
 
   const openPermissionEditor = async (account: AdminAccountListItem) => {
+    closeActionMenu();
     setEditorLoading(true);
     setEditorAccount(null);
     setPermissionDraft(null);
@@ -302,7 +315,7 @@ export default function AdminAccountsClient({
   };
 
   const applyPreset = () => {
-    if (!editorAccount) return;
+    if (!editorAccount || !canEditPermissionDraft || !selectedPresetChanged) return;
 
     runAction(
       `${editorAccount.employeeId}:preset`,
@@ -316,7 +329,7 @@ export default function AdminAccountsClient({
   };
 
   const savePermissions = () => {
-    if (!editorAccount || !permissionDraft) return;
+    if (!editorAccount || !permissionDraft || !canEditPermissionDraft || !permissionDraftChanged) return;
 
     runAction(
       `${editorAccount.employeeId}:permissions`,
@@ -368,6 +381,7 @@ export default function AdminAccountsClient({
   return (
     <main>
       <AdminPage>
+        <EmployeeAdminTabs active="permissions" />
         {(listError || listLoading) && <section className="rounded-lg border border-slate-800 bg-slate-900 p-6 text-center"><h2 className="font-bold text-amber-300">{listLoading ? 'Đang tải danh sách tài khoản...' : 'Không thể tải danh sách tài khoản'}</h2>{listError && <><p className="mt-2 text-xs text-slate-400">Hệ thống gặp lỗi khi tải dữ liệu tài khoản. Vui lòng thử lại.</p><button type="button" onClick={() => void refreshAccounts()} disabled={isRefreshing} className="mt-3 rounded-lg border border-blue-500/40 px-3 py-2 text-xs font-bold text-blue-300">{isRefreshing ? 'Đang thử lại...' : 'Thử lại'}</button></>}</section>}
         <header className="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -376,8 +390,7 @@ export default function AdminAccountsClient({
               Tài khoản & quyền truy cập
             </h1>
             <p className="mt-1 text-xs text-slate-500">
-              Quản lý cổng nhân viên, trang quản trị, preset vai trò và quyền
-              ứng dụng riêng biệt.
+              Quản trị viên được xem; chỉ Chủ hệ thống được thay đổi quyền.
             </p>
           </div>
           <div className="relative sm:w-80">
@@ -455,10 +468,10 @@ export default function AdminAccountsClient({
                           )}
                         </td>
                         <td className="p-4 text-slate-300">
-                          {presetLabels[account.presetCode]}
+                          {account.isSystemOwner ? "Chủ hệ thống" : presetLabels[account.presetCode]}
                         </td>
                         <td className="p-4 text-slate-300">
-                          {account.activePermissionCount}
+                          {account.activePermissionCount}{account.isSystemOwner ? " · Toàn quyền" : ""}
                         </td>
                         <td className="p-4 text-slate-300">
                           {account.accessStatus === "ACTIVE"
@@ -507,7 +520,7 @@ export default function AdminAccountsClient({
                                     <Edit3 className="h-3.5 w-3.5" />
                                     Xem chi tiết quyền
                                   </button>
-                                  {accountAction && (
+                                  {accountData?.canManagePermissions && accountAction && (
                                     <button
                                       type="button"
                                       disabled={
@@ -531,7 +544,7 @@ export default function AdminAccountsClient({
                                       {accountAction.label}
                                     </button>
                                   )}
-                                  {account.accountConnectionStatus === "NOT_CONNECTED" && (
+                                  {accountData?.canManagePermissions && account.accountConnectionStatus === "NOT_CONNECTED" && (
                                     <button
                                       type="button"
                                       disabled={Boolean(activeActionKey) || isPending}
@@ -542,6 +555,7 @@ export default function AdminAccountsClient({
                                       Kết nối tài khoản hiện có
                                     </button>
                                   )}
+                                  {accountData?.canManagePermissions && !account.isSelf && !account.isSystemOwner && <>
                                   <button
                                     type="button"
                                     disabled={
@@ -589,6 +603,7 @@ export default function AdminAccountsClient({
                                     <ShieldOff className="h-3.5 w-3.5" />
                                     Thu hồi toàn bộ quyền truy cập
                                   </button>
+                                  </>}
                                 </div>
                               </>,
                               document.body,
@@ -645,7 +660,7 @@ export default function AdminAccountsClient({
           <section className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg border border-slate-800 bg-slate-900 p-5 text-xs text-slate-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
-                <h2 className="font-bold text-blue-300">Cập nhật quyền</h2>
+                <h2 className="font-bold text-blue-300">{canEditPermissionDraft ? "Cập nhật quyền" : "Chi tiết quyền"}</h2>
                 <p className="mt-1 text-slate-500">
                   {editorAccount?.fullName || "Đang tải dữ liệu"}
                 </p>
@@ -668,7 +683,10 @@ export default function AdminAccountsClient({
 
             {editorAccount && permissionDraft && (
               <div className="space-y-5 pt-4">
-                <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+                {!canEditPermissionDraft && <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-blue-200">
+                  {editorAccount.isSystemOwner ? "Đây là tài khoản Chủ hệ thống có toàn quyền và được bảo vệ khỏi thao tác tự hạ quyền." : accountData?.canManagePermissions ? "Bạn không thể tự thay đổi quyền của chính mình trong màn hình này." : "Bạn có thể xem quyền; chỉ Chủ hệ thống được thay đổi phân quyền."}
+                </div>}
+                {canEditPermissionDraft && <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
                   <label className="block space-y-2">
                     <span className="font-bold text-slate-300">Preset</span>
                     <select
@@ -689,7 +707,7 @@ export default function AdminAccountsClient({
                   </label>
                   <button
                     type="button"
-                    disabled={Boolean(activeActionKey)}
+                    disabled={Boolean(activeActionKey) || !selectedPresetChanged}
                     onClick={applyPreset}
                     className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50"
                   >
@@ -701,18 +719,19 @@ export default function AdminAccountsClient({
                       idleText="Xem trước và áp dụng preset"
                     />
                   </button>
-                </div>
+                </div>}
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  {PERMISSION_GROUPS.map((group) => (
-                    <div
-                      key={group.label}
-                      className="rounded-lg border border-slate-800 bg-slate-950/40 p-4"
-                    >
-                      <h3 className="font-bold text-slate-200">
-                        Quyền tùy chỉnh ·{group.label}
-                      </h3>
-                      <div className="mt-3 space-y-3">
+                <div className="space-y-3">
+                  {PERMISSION_GROUPS.map((group) => {
+                    const allowedCount = group.permissions.filter((permission) => permissionDraft[permission.code] === "ALLOW").length;
+                    const allAllowed = allowedCount === group.permissions.length;
+                    return (
+                    <details key={group.label} className="group rounded-lg border border-slate-800 bg-slate-950/40">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-bold text-slate-200">
+                        <span>{group.label} · {allowedCount}/{group.permissions.length} quyền</span>
+                        {allAllowed && <span className="inline-flex items-center gap-1 text-emerald-300"><CheckCircle2 className="h-4 w-4" /> Đã cho phép hết</span>}
+                      </summary>
+                      <div className="space-y-3 border-t border-slate-800 p-4">
                         {group.permissions.map((permission) => {
                           const state = permissionDraft[permission.code];
                           return (
@@ -739,7 +758,7 @@ export default function AdminAccountsClient({
                                       : "Theo preset"}
                                 </span>
                               </div>
-                              <div className="mt-3 flex gap-2">
+                              {canEditPermissionDraft && <div className="mt-3 flex gap-2">
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -774,13 +793,13 @@ export default function AdminAccountsClient({
                                 >
                                   Từ chối
                                 </button>
-                              </div>
+                              </div>}
                             </div>
                           );
                         })}
                       </div>
-                    </div>
-                  ))}
+                    </details>
+                  )})}
                 </div>
 
                 <div className="flex flex-col gap-2 border-t border-slate-800 pt-4 sm:flex-row">
@@ -789,11 +808,11 @@ export default function AdminAccountsClient({
                     onClick={() => setEditorAccount(null)}
                     className="flex-1 rounded-lg border border-slate-800 bg-slate-950 p-3 font-bold text-slate-400 hover:bg-slate-800"
                   >
-                    Hủy
+                    {canEditPermissionDraft ? "Hủy" : "Đóng"}
                   </button>
-                  <button
+                  {canEditPermissionDraft && <button
                     type="button"
-                    disabled={Boolean(activeActionKey)}
+                    disabled={Boolean(activeActionKey) || !permissionDraftChanged}
                     onClick={savePermissions}
                     className="flex-1 rounded-lg bg-blue-600 p-3 font-bold text-white hover:bg-blue-700 disabled:opacity-50"
                   >
@@ -805,7 +824,7 @@ export default function AdminAccountsClient({
                       loadingText="Đang lưu..."
                       idleText="Lưu quyền"
                     />
-                  </button>
+                  </button>}
                 </div>
               </div>
             )}

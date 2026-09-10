@@ -25,9 +25,8 @@ describe("administration information architecture correction slice", () => {
     expect(navigation).toMatch(
       /name: ERP_UI_TEXT\.navigation\.items\.metadata,\s*path: "\/admin\/metadata"/,
     );
-    expect(navigation).toMatch(
-      /name: ERP_UI_TEXT\.navigation\.items\.accounts,\s*path: "\/admin\/accounts"/,
-    );
+    expect(navigation).not.toMatch(/path: "\/admin\/accounts"/);
+    expect(source("component/admin/EmployeeAdminTabs.tsx")).toMatch(/href="\/admin\/accounts"/);
     expect(navigation).toMatch(/pathname\.startsWith\(`\$\{path\}\/`\)/);
     expect(`${shell}\n${navigation}\n${vocabulary}`).not.toMatch(
       /Danh Sách Cơ Sở & GPS|Quản Lý Danh Mục DB|Gán Việc & Tiến Độ Phase|Sổ Cái Vốn & Chi Tiêu|Lịch Chấm Công Ca/,
@@ -106,6 +105,23 @@ describe("administration information architecture correction slice", () => {
 
     expect(directory).toMatch(/id, facility_name, code, is_active, address, lat, lng, radius/);
     expect(staffAttendanceRoute).toMatch(/filter\(\(facility\) => facility\.isActive\)/);
+  });
+
+  it("keeps historical facilities by deactivating instead of deleting", () => {
+    const service = source("services/server/adminFacilities.ts");
+    const page = source("app/admin/facilities/page.tsx");
+
+    expect(service).toMatch(/from\('facilities'\)\.update\(\{ is_active: false \}\)/);
+    expect(service).not.toMatch(/from\('facilities'\)\.delete\(\)/);
+    expect(page).toMatch(/showInactive/);
+    expect(page).toMatch(/branch\.isActive \|\| showInactive/);
+  });
+
+  it("allows only the owner to permanently delete records without an inactive state", () => {
+    for (const route of ["app/api/admin/email-templates/route.ts", "app/api/admin/system-metadata/route.ts"]) {
+      const body = source(route);
+      expect(body).toMatch(/export async function DELETE[\s\S]*requireSystemOwner\(\)/);
+    }
   });
 
 describe("facility active-state schema package", () => {
