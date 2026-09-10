@@ -24,12 +24,14 @@ interface SystemMetadataResponse {
   categories?: SystemMetadataCategory[];
   category?: SystemMetadataCategory;
   message?: string;
+  canPermanentlyDelete?: boolean;
 }
 
 export default function MetadataManagement() {
   const { showToast, showConfirm } = useNotification();
   const [categories, setCategories] = useState<SystemMetadataCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canPermanentlyDelete, setCanPermanentlyDelete] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedCatId, setSelectedCatId] = useState<string>("");
@@ -52,6 +54,7 @@ export default function MetadataManagement() {
       }
 
       const loadedCategories = payload.categories || [];
+      setCanPermanentlyDelete(payload.canPermanentlyDelete === true);
       setCategories(loadedCategories);
       setSelectedCatId((currentCategoryId) => {
         if (currentCategoryId && loadedCategories.some((item) => String(item.id) === currentCategoryId)) {
@@ -348,13 +351,13 @@ export default function MetadataManagement() {
                 </option>
               ))}
             </select>
-            {activeCategory && !isFallbackCategory && (
+            {canPermanentlyDelete && activeCategory && !isFallbackCategory && (
               <button
                 onClick={handleDeleteCategory}
                 disabled={saving}
                 className="p-2 bg-slate-950 border border-red-900/30 text-red-400 hover:bg-red-950/20 rounded-xl text-[10px] font-bold transition disabled:opacity-50"
               >
-                Ngừng dùng danh mục
+                Xóa vĩnh viễn
               </button>
             )}
           </div>

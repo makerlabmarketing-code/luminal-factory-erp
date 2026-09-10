@@ -36,6 +36,7 @@ export default function AdminFacilitiesManagement() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [branches, setBranches] = useState<AdminFacility[]>([]);
+  const [showInactive, setShowInactive] = useState(false);
   const [geocodeDisplayName, setGeocodeDisplayName] = useState<string | null>(null);
   const [geocodeAlternatives, setGeocodeAlternatives] = useState<GeocodeMatch[]>([]);
 
@@ -59,6 +60,7 @@ export default function AdminFacilitiesManagement() {
   const { data: facilityData, error: loadError, isLoading: loading, isRefreshing, refresh: loadFacilities } = useAdminListData({ cacheKey: 'admin:facilities', request: facilityRequest });
   const canManageFacilities = facilityData?.capabilities?.canManageFacilities !== false;
   const hasFacilityStatus = facilityData?.capabilities?.canPersistStatusAndCode === true;
+  const visibleBranches = branches.filter((branch) => branch.isActive || showInactive);
 
   useEffect(() => {
     if (facilityData?.facilities) setBranches(facilityData.facilities);
@@ -171,7 +173,7 @@ export default function AdminFacilitiesManagement() {
   };
 
   const handleDelete = (id: number | string) => {
-    showConfirm('Xác nhận xóa cơ sở', 'Bạn có chắc muốn xóa cơ sở này không? Nhân sự đang gán vào cơ sở này có thể không chấm công được.', async () => {
+    showConfirm('Xác nhận ngừng hoạt động', 'Cơ sở sẽ được ẩn khỏi danh sách mặc định nhưng vẫn được giữ lại để tra cứu lịch sử.', async () => {
       try {
         const response = await fetch('/api/admin/facilities', {
           method: 'DELETE',
@@ -187,9 +189,9 @@ export default function AdminFacilitiesManagement() {
         const deletedId = result.deletedId ?? id;
         setBranches((current) => reconcileDeletedFacility(current, deletedId));
 
-        showToast('Đã xóa', 'Đã xóa cơ sở làm việc.', 'success');
+        showToast('Đã cập nhật', result.message || 'Đã ngừng hoạt động cơ sở.', 'success');
       } catch (err) {
-        showToast('Lỗi hệ thống', err instanceof Error ? err.message : 'Không thể xóa cơ sở làm việc.', 'error');
+        showToast('Lỗi hệ thống', err instanceof Error ? err.message : 'Không thể ngừng hoạt động cơ sở.', 'error');
       }
     });
   };
@@ -206,6 +208,8 @@ export default function AdminFacilitiesManagement() {
       </div>
 
       {!canManageFacilities && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">Chức năng cập nhật cơ sở đang chờ kích hoạt.</p>}
+
+      {hasFacilityStatus && <label className="flex items-center gap-2 text-xs text-slate-400"><input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} /> Hiện cả cơ sở ngừng hoạt động</label>}
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <table className="w-full text-left text-xs text-slate-300">
@@ -232,14 +236,14 @@ export default function AdminFacilitiesManagement() {
                   </button>
                 </td>
               </tr>
-            ) : branches.length === 0 ? (
+            ) : visibleBranches.length === 0 ? (
               <tr>
                 <td colSpan={hasFacilityStatus ? 7 : 6} className="text-center p-8 text-slate-500 italic">
                   Chưa có dữ liệu cơ sở xưởng trên hệ thống.
                 </td>
               </tr>
             ) : (
-              branches.map(b => (
+              visibleBranches.map(b => (
                 <tr key={b.id} className="hover:bg-slate-950/20 transition">
                   <td className="p-4 font-bold text-slate-200">
                     🏛️ {b.facilityName}
@@ -254,7 +258,7 @@ export default function AdminFacilitiesManagement() {
                   {hasFacilityStatus && <td className="p-4 text-slate-400">{b.isActive ? 'Đang hoạt động' : 'Ngừng hoạt động'}</td>}
                   <td className="p-4 text-center space-x-1">
                     <button disabled={!canManageFacilities} onClick={() => handleOpenEdit(b)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-800 transition disabled:opacity-40" title="Chỉnh sửa"><Edit2 className="w-3.5 h-3.5" /></button>
-                    <button disabled={!canManageFacilities} onClick={() => handleDelete(b.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500 hover:bg-red-950/20 transition disabled:opacity-40" title="Xóa cơ sở"><Trash2 className="w-3.5 h-3.5" /></button>
+                    {b.isActive && <button disabled={!canManageFacilities} onClick={() => handleDelete(b.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-amber-400 hover:bg-amber-950/20 transition disabled:opacity-40" title="Ngừng hoạt động"><Trash2 className="w-3.5 h-3.5" /></button>}
                   </td>
                 </tr>
               ))

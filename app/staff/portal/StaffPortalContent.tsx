@@ -11,10 +11,12 @@ import PayrollView from '../payroll/PayrollView';
 import type { StaffPortalTab } from '@/lib/types/staff';
 import type { Employee } from '@/lib/types/employee';
 import type { Facility } from '@/lib/types/facility';
+import type { SystemMetadataOption } from '@/lib/system-metadata-defaults';
 
 interface StaffPortalContentProps {
   workerData: Employee;
   assignedBranchData: Facility | null;
+  bankOptions: SystemMetadataOption[];
   capabilities?: {
     canAccessAdmin: boolean;
     canAccessStaff: boolean;
@@ -24,6 +26,7 @@ interface StaffPortalContentProps {
 export default function StaffPortalContent({
   workerData,
   assignedBranchData,
+  bankOptions,
   capabilities,
 }: StaffPortalContentProps) {
   const [worker] = useState<Employee | null>(workerData);
@@ -124,7 +127,7 @@ export default function StaffPortalContent({
       </div>
 
       <div className={tabClasses.profile}>
-        {visitedTabs.profile && <StaffProfileContent workerData={worker} assignedBranchData={assignedBranch} />}
+        {visitedTabs.profile && <StaffProfileContent workerData={worker} assignedBranchData={assignedBranch} bankOptions={bankOptions} />}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-2 pt-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] z-50 flex justify-around items-center shadow-2xl text-[10px] font-bold">

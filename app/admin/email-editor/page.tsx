@@ -20,6 +20,7 @@ interface EmailTemplatesResponse {
   templates?: EmailTemplate[];
   emailGroups?: EmailGroup[];
   message?: string;
+  canPermanentlyDelete?: boolean;
 }
 
 const emptyForm = { groupType: 'WELCOME', scriptName: '', subject: '', body: '' };
@@ -30,6 +31,7 @@ export default function AdminEmailTemplates() {
   const [emailGroups, setEmailGroups] = useState<EmailGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [canPermanentlyDelete, setCanPermanentlyDelete] = useState(false);
 
   const [selectedPreview, setSelectedPreview] = useState<EmailTemplate | null>(null);
 
@@ -73,6 +75,7 @@ export default function AdminEmailTemplates() {
 
       const nextTemplates = payload.templates || [];
       setEmailGroups(payload.emailGroups || []);
+      setCanPermanentlyDelete(payload.canPermanentlyDelete === true);
       setTemplates(nextTemplates);
       setSelectedPreview((currentPreview) => {
         if (!currentPreview) return nextTemplates[0] || null;
@@ -264,7 +267,7 @@ export default function AdminEmailTemplates() {
                     <td className="p-4 text-center space-x-1 font-sans" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => handleTriggerTestMailModal(t)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-purple-400 hover:bg-purple-900/30 transition"><Send className="w-3.5 h-3.5"/></button>
                       <button onClick={() => handleOpenEdit(t)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-800 transition"><Edit2 className="w-3.5 h-3.5"/></button>
-                      <button onClick={() => handleDelete(t.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500 hover:bg-red-950/20 transition"><Trash2 className="w-3.5 h-3.5"/></button>
+                      {canPermanentlyDelete && <button onClick={() => handleDelete(t.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500 hover:bg-red-950/20 transition" title="Xóa vĩnh viễn"><Trash2 className="w-3.5 h-3.5"/></button>}
                     </td>
                   </tr>
                 ))}

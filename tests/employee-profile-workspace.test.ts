@@ -8,6 +8,9 @@ describe('employee profile workspace contract', () => {
   const detail = read('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
   const actions = read('services/server/adminEmployeeActions.ts');
   const staff = read('app/staff/profile/ProfileView.tsx');
+  const staffPortal = read('app/staff/portal/StaffPortalContent.tsx');
+  const staffPortalData = read('services/server/staffPortalData.ts');
+  const bankDirectory = read('services/server/bankDirectory.ts');
   const staffRoute = read('app/api/staff/profile/route.ts');
   const persistence = read('services/server/staffProfilePersistence.ts');
   const permissions = read('lib/account-permissions.ts');
@@ -48,6 +51,17 @@ describe('employee profile workspace contract', () => {
     expect(persistence).toContain(".select('phone, bank_name, bank_account_number')");
     expect(staff).toContain("'Đã cập nhật thông tin cá nhân.'");
     expect(staff).toContain('setWorker((current)');
+  });
+  it('uses the shared system bank directory without a client-side lookup', () => {
+    expect(bankDirectory).toContain('BANK_DIRECTORY_METADATA_NAME');
+    expect(staffPortalData).toContain('loadBankDirectory(supabase)');
+    expect(staffPortalData).toContain('bankOptions: bankDirectory.options');
+    expect(staffPortalData).toContain('getAuthenticatedStaffProfileData');
+    expect(staffPortal).toContain('bankOptions={bankOptions}');
+    expect(staff).toContain('<select');
+    expect(staff).toContain('Danh mục hệ thống → Danh mục Ngân hàng');
+    expect(staff).toContain('(dữ liệu cũ)');
+    expect(staff).not.toMatch(/fetch\(|createClient|system_metadata/);
   });
   it('localizes grouped permissions and uses centralized account management', () => {
     expect(permissions).toContain('Xem hồ sơ nhân sự');

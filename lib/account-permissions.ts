@@ -39,7 +39,6 @@ export type PermissionEditorState = PermissionEffect | "NONE";
 
 export type AccountPresetCode =
   | "ADMINISTRATOR"
-  | "HR_MANAGER"
   | "PROJECT_MANAGER"
   | "CREATIVE_LEAD"
   | "STAFF"
@@ -97,12 +96,17 @@ export const ALL_PERMISSION_CODES: PermissionCode[] = [
   "EMAIL_TEMPLATE_MANAGE",
 ];
 
+export const ADMINISTRATOR_PERMISSION_CODES = ALL_PERMISSION_CODES.filter(
+  (permissionCode) => permissionCode !== "ACCOUNT_MANAGE",
+);
+
 export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     label: "Nhân sự",
     permissions: [
       { code: "EMPLOYEE_VIEW", label: "Xem hồ sơ nhân sự" },
       { code: "EMPLOYEE_MANAGE", label: "Quản lý hồ sơ nhân sự" },
+      { code: "ACCOUNT_MANAGE", label: "Quản lý tài khoản và quyền truy cập" },
     ],
   },
   {
@@ -130,19 +134,9 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { code: "PROJECT_VIEW", label: "Xem dự án" },
       { code: "PROJECT_MANAGE", label: "Quản lý dự án" },
+      { code: "PHASE_TEMPLATE_MANAGE", label: "Quản lý mẫu giai đoạn dự án" },
       { code: "PROJECT_ASSIGN", label: "Giao việc dự án" },
       { code: "PROJECT_REVIEW", label: "Duyệt công việc dự án" },
-    ],
-  },
-  {
-    label: "Mẫu giai đoạn",
-    permissions: [
-      { code: "PHASE_TEMPLATE_MANAGE", label: "Quản lý mẫu giai đoạn dự án" },
-    ],
-  },
-  {
-    label: "Dự án & công việc",
-    permissions: [
       { code: "TASK_VIEW", label: "Xem công việc" },
       { code: "TASK_MANAGE", label: "Quản lý nội dung công việc" },
       { code: "TASK_ASSIGN", label: "Giao người phụ trách công việc" },
@@ -179,12 +173,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { code: "EMAIL_TEMPLATE_MANAGE", label: "Quản lý mẫu email" },
     ],
   },
-  {
-    label: "Tài khoản & phân quyền",
-    permissions: [
-      { code: "ACCOUNT_MANAGE", label: "Quản lý tài khoản và quyền truy cập" },
-    ],
-  },
 ];
 
 export function getPermissionPresentation(code: string): { group: string; label: string; code: string } {
@@ -194,14 +182,6 @@ export function getPermissionPresentation(code: string): { group: string; label:
   }
   return { group: "Danh mục hệ thống", label: "Quyền hệ thống chưa đặt tên", code };
 }
-
-const hrManagerPermissions: PermissionCode[] = [
-  "EMPLOYEE_VIEW",
-  "EMPLOYEE_MANAGE",
-  "ACCOUNT_MANAGE",
-  "ATTENDANCE_VIEW",
-  "ATTENDANCE_MANAGE",
-];
 
 const projectManagerPermissions: PermissionCode[] = [
   "PROJECT_VIEW",
@@ -234,13 +214,7 @@ export const ACCOUNT_PRESETS: AccountPreset[] = [
     code: "ADMINISTRATOR",
     label: "Quản trị viên",
     workspaces: ["STAFF_WORKSPACE", "ADMIN_WORKSPACE"],
-    permissions: ALL_PERMISSION_CODES,
-  },
-  {
-    code: "HR_MANAGER",
-    label: "Nhân sự",
-    workspaces: ["STAFF_WORKSPACE", "ADMIN_WORKSPACE"],
-    permissions: hrManagerPermissions,
+    permissions: ADMINISTRATOR_PERMISSION_CODES,
   },
   {
     code: "PROJECT_MANAGER",

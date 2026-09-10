@@ -5,17 +5,20 @@ import { useNotification } from '@/component/NotificationContext';
 import { Briefcase, RefreshCcw, ShieldCheck } from 'lucide-react';
 import type { Facility } from '@/lib/types/facility';
 import type { Employee } from '@/lib/types/employee';
+import type { SystemMetadataOption } from '@/lib/system-metadata-defaults';
 import { getShiftWageByTitle, updateStaffProfile } from '@/services/staffProfileService';
 import StaffLogoutButton from './StaffLogoutButton';
 
 interface StaffProfileContentProps {
   workerData?: Employee | null;
   assignedBranchData?: Facility | null;
+  bankOptions: SystemMetadataOption[];
 }
 
 export function StaffProfileContent({
   workerData,
   assignedBranchData,
+  bankOptions,
 }: StaffProfileContentProps) {
   const { showToast } = useNotification();
 
@@ -80,6 +83,7 @@ export function StaffProfileContent({
   const currentWage = getShiftWageByTitle(worker.title);
   const legacyFacility = worker.branch_code || worker.branch;
   const assignedBranchName = assignedBranch?.name || assignedBranch?.facility_name || (legacyFacility && !/^\d+$/.test(legacyFacility) ? legacyFacility : null) || 'Cơ sở chưa xác định';
+  const hasHistoricalBank = Boolean(profileBankName) && !bankOptions.some((option) => option.code === profileBankName);
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl space-y-5 text-xs max-w-2xl mx-auto animate-fadeIn w-full text-slate-100 font-sans">
@@ -146,13 +150,20 @@ export function StaffProfileContent({
         </div>
 
         <div>
-          <label className="text-slate-400 font-bold">Tên Ngân hàng:</label>
-          <input
-            type="text"
+          <label htmlFor="staff-bank-name" className="text-slate-400 font-bold">Ngân hàng:</label>
+          <select
+            id="staff-bank-name"
             className="w-full bg-slate-950 border border-slate-800 p-3 mt-1 rounded-xl focus:outline-none text-slate-200"
             value={profileBankName}
             onChange={(event) => setProfileBankName(event.target.value)}
-          />
+          >
+            <option value="">Chưa cập nhật</option>
+            {hasHistoricalBank && <option value={profileBankName}>{profileBankName} (dữ liệu cũ)</option>}
+            {bankOptions.map((option) => (
+              <option key={option.code} value={option.code}>{option.label}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-[10px] text-slate-500">Danh mục hệ thống → Danh mục Ngân hàng</p>
         </div>
 
         <div className="sm:col-span-2">
@@ -176,9 +187,9 @@ export function StaffProfileContent({
         <ShieldCheck className="w-4 h-4" /> {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
       </button>}
 
-      <section className="space-y-3 border-t border-slate-800 pt-5" aria-labelledby="staff-account-heading">
+      <section className="space-y-3 border-t border-slate-800 pt-5" aria-labelledby="staff-access-heading">
         <div>
-          <h3 id="staff-account-heading" className="font-bold text-slate-200">Tài khoản nhân viên</h3>
+          <h3 id="staff-access-heading" className="font-bold text-slate-200">Tài khoản nhân viên</h3>
           <p className="mt-1 text-[11px] text-slate-400">
             {worker.full_name} · {worker.title || 'Nhân viên'} · {assignedBranchName}
           </p>

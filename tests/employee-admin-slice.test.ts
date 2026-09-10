@@ -143,8 +143,11 @@ describe('employee admin list and account actions slice', () => {
 
   it('uses the system bank directory for employee finance edits', () => {
     const serviceSource = source('services/server/adminEmployeeData.ts');
+    const bankDirectorySource = source('services/server/bankDirectory.ts');
     const detailClient = source('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
-    expect(serviceSource).toMatch(/BANK_DIRECTORY_METADATA_NAME/);
+    expect(serviceSource).toMatch(/loadBankDirectory/);
+    expect(bankDirectorySource).toMatch(/BANK_DIRECTORY_METADATA_NAME/);
+    expect(bankDirectorySource).toMatch(/normalizeSystemMetadataOptions/);
     expect(serviceSource).toMatch(/bankOptions/);
     expect(detailClient).toMatch(/BankSelect/);
     expect(detailClient).toMatch(/Danh mục hệ thống → Danh mục Ngân hàng/);

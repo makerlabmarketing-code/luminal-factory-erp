@@ -886,3 +886,37 @@ unchanged. The regression contract is recorded in
 
 No dependency, API, schema, SQL, RLS, runtime flag, production data, or Commerce
 change belongs to this UI slice.
+
+## 2026-09-09 Core Admin/Staff — shared bank directory
+
+Status: `APPLICATION_COMPLETE / READY_FOR_PREVIEW`.
+
+Admin Employee Detail and Staff Profile now consume one server-owned bank
+directory loader backed by `Danh mục Ngân hàng`. Staff receives the normalized
+directory in the initial server render, in parallel with facility and workspace
+capability reads, so opening the profile does not add a browser API request or a
+client-side data waterfall. Existing bank values outside the current directory
+remain selectable as historical data until the employee chooses a catalog item.
+
+Validation passes with 811/811 tests, lint, TypeScript, production build, and
+whitespace checks. No SQL, migration, RLS, backfill, runtime flag, production
+query, live data mutation, Project workflow, or Commerce change is included.
+Rollback is the application/test/document commit only; no data rollback is
+required.
+
+## 2026-09-10 Account security — protected system owner
+
+Status: `APPLICATION_COMPLETE / READY_FOR_PREVIEW`; the approved live account
+correction is complete.
+
+The single designated Luminal owner account now uses the existing `OWNER` role,
+retains both workspaces, and has all 32 current permissions with no active deny.
+Application authorization treats an active owner as full access for current and
+future permission codes. Account management presents the owner as read-only,
+hides self-revoke and self-demotion actions, and enables permission persistence
+only after an editable draft changes.
+
+Validation passes with 815/815 tests, lint, TypeScript, production build, and
+whitespace checks. The live correction changed only the explicitly approved
+owner account; no schema, migration, RLS, runtime flag, or other employee account
+was changed.

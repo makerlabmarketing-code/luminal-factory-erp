@@ -7,7 +7,6 @@ export type AdminNavigationIcon =
   | "employees"
   | "attendance"
   | "facilities"
-  | "accounts"
   | "capital"
   | "payroll"
   | "metadata"
@@ -73,12 +72,6 @@ export const ADMIN_NAVIGATION_GROUPS: readonly AdminNavigationGroup[] = [
         path: "/admin/facilities",
         icon: "facilities",
         anyPermission: ["SYSTEM_SETTINGS_VIEW", "SYSTEM_SETTINGS_MANAGE", "ATTENDANCE_MANAGE"],
-      },
-      {
-        name: ERP_UI_TEXT.navigation.items.accounts,
-        path: "/admin/accounts",
-        icon: "accounts",
-        anyPermission: ["ACCOUNT_MANAGE"],
       },
     ],
   },

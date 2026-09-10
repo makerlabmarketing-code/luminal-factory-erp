@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import type { AuthContext } from '@/services/server/auth';
 import { AuthFlowError } from '@/services/server/auth';
-import { requireAdminEmployeePermission } from '@/services/server/adminEmployeeData';
+import { requireWorkspaceAccess } from '@/services/server/auth';
 import type { AdminAccountDetailDto } from '@/services/server/adminAccountManagement';
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import {
@@ -122,6 +122,8 @@ function permissionStateFor(
 }
 
 function activePermissionCount(employee: EmployeeAccountRow, rows: PermissionRow[]) {
+  if (isSystemOwner(employee)) return ALL_PERMISSION_CODES.length;
+
   return ALL_PERMISSION_CODES.filter(
     (permissionCode) => permissionStateFor(employee, rows, permissionCode) === 'ALLOW'
   ).length;
@@ -132,6 +134,8 @@ function detectPreset(
   workspaceRows: WorkspaceAccessRow[],
   permissionRows: PermissionRow[]
 ): DetectedPresetCode {
+  if (isSystemOwner(employee)) return 'ADMINISTRATOR';
+
   const activeWorkspaces = new Set<WorkspaceCode>();
   if (hasWorkspace(employee, workspaceRows, 'STAFF_WORKSPACE')) activeWorkspaces.add('STAFF_WORKSPACE');
   if (hasWorkspace(employee, workspaceRows, 'ADMIN_WORKSPACE')) activeWorkspaces.add('ADMIN_WORKSPACE');
@@ -254,7 +258,7 @@ async function loadScopedAccountDetail(
     isSystemOwner: isSystemOwner(employee),
     permissions: ALL_PERMISSION_CODES.map((permissionCode) => {
       const state = permissionStateFor(employee, permissionRows, permissionCode);
-      return { code: permissionCode, state, effective: state };
+      return { code: permissionCode, state, effective: isSystemOwner(employee) ? 'ALLOW' : state };
     }),
   };
 }
@@ -262,7 +266,7 @@ async function loadScopedAccountDetail(
 export async function GET(_request: Request, props: { params: Promise<{ employeeId: string }> }) {
   const params = await props.params;
   try {
-    const authContext = await requireAdminEmployeePermission('ACCOUNT_MANAGE');
+    const authContext = await requireWorkspaceAccess('ADMIN_WORKSPACE');
     return jsonNoStore(await loadScopedAccountDetail(params.employeeId, authContext));
   } catch (error) {
     return toErrorResponse(error);

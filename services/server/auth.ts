@@ -219,6 +219,10 @@ export function hasAdminAccess(employee: ServerEmployee): boolean {
   return isActiveEmployee(employee) && (role === 'ADMIN' || role === 'OWNER');
 }
 
+export function isSystemOwner(employee: ServerEmployee): boolean {
+  return isActiveEmployee(employee) && normalizeRole(employee.role) === 'OWNER';
+}
+
 function logAuthorizationDiagnostic(diagnostic: Record<string, boolean | number | string | null>) {
   console.warn('[authorization]', diagnostic);
 }
@@ -268,6 +272,10 @@ async function lookupPermissionAccess(
   authContext: AuthContext,
   permissionCode: string
 ): Promise<{ ok: true; hasAccess: boolean } | { ok: false; safeDetails: Record<string, string | null> }> {
+  if (isSystemOwner(authContext.employee)) {
+    return { ok: true, hasAccess: true };
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('employee_permissions')
@@ -324,6 +332,9 @@ export async function listGrantedPermissions(
 > {
   const requestedCodes = Array.from(new Set(permissionCodes.filter(Boolean)));
   if (requestedCodes.length === 0) return { ok: true, permissionCodes: [] };
+  if (isSystemOwner(authContext.employee)) {
+    return { ok: true, permissionCodes: requestedCodes };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -489,6 +500,20 @@ export async function requirePermission(permissionCode: string): Promise<AuthCon
       safeDetails: {
         permission_check_result: 'denied',
       },
+    });
+  }
+
+  return authContext;
+}
+
+export async function requireSystemOwner(): Promise<AuthContext> {
+  const authContext = await requireWorkspaceAccess('ADMIN_WORKSPACE');
+  if (!isSystemOwner(authContext.employee)) {
+    throw new AuthFlowError({
+      status: 403,
+      code: 'permission_forbidden',
+      message: 'Chỉ Chủ hệ thống được thay đổi phân quyền.',
+      failureStage: 'permission_check',
     });
   }
 

@@ -1,10 +1,10 @@
 import "server-only";
 
-import { AuthFlowError, type AuthContext } from "@/services/server/auth";
-import { requireAdminEmployeePermission } from "@/services/server/adminEmployeeData";
+import { AuthFlowError, requireSystemOwner, requireWorkspaceAccess, type AuthContext } from "@/services/server/auth";
 import { createSupabaseAdminClient } from "@/utils/supabase/admin";
 import {
   ACCOUNT_PRESETS,
+  ADMINISTRATOR_PERMISSION_CODES,
   ALL_PERMISSION_CODES,
   type AccountPresetCode,
   type PermissionCode,
@@ -90,6 +90,7 @@ export interface AdminAccountManagementData {
   accounts: AdminAccountListItem[];
   presets: typeof ACCOUNT_PRESETS;
   permissionCodes: PermissionCode[];
+  canManagePermissions: boolean;
 }
 
 export interface AdminAccountActionResult {
@@ -173,6 +174,8 @@ function activePermissionCount(
   employee: EmployeeAccountRow,
   rows: PermissionRow[],
 ): number {
+  if (isSystemOwner(employee)) return ALL_PERMISSION_CODES.length;
+
   return ALL_PERMISSION_CODES.filter(
     (permissionCode) =>
       permissionStateFor(employee, rows, permissionCode) === "ALLOW",
@@ -184,6 +187,8 @@ function detectPreset(
   workspaceRows: WorkspaceAccessRow[],
   permissionRows: PermissionRow[],
 ): DetectedPresetCode {
+  if (isSystemOwner(employee)) return "ADMINISTRATOR";
+
   const activeWorkspaces = new Set<WorkspaceCode>();
   if (hasWorkspace(employee, workspaceRows, "STAFF_WORKSPACE"))
     activeWorkspaces.add("STAFF_WORKSPACE");
@@ -631,11 +636,11 @@ function parsePermissionState(value: unknown): PermissionEditorState | null {
 }
 
 async function requireAccountManager(): Promise<AuthContext> {
-  return requireAdminEmployeePermission("ACCOUNT_MANAGE");
+  return requireSystemOwner();
 }
 
 export async function getAdminAccountManagementData(): Promise<AdminAccountManagementData> {
-  const authContext = await requireAccountManager();
+  const authContext = await requireWorkspaceAccess("ADMIN_WORKSPACE");
   const { employees, workspaceRows, permissionRows } = await loadAccountRows();
   const authUsersById = await listAuthUsersById();
 
@@ -653,13 +658,14 @@ export async function getAdminAccountManagementData(): Promise<AdminAccountManag
     ),
     presets: ACCOUNT_PRESETS,
     permissionCodes: ALL_PERMISSION_CODES,
+    canManagePermissions: authContext.employee.role?.toUpperCase() === "OWNER",
   };
 }
 
 export async function getAdminAccountDetailData(
   employeeIdValue: string,
 ): Promise<AdminAccountDetailDto> {
-  const authContext = await requireAccountManager();
+  const authContext = await requireWorkspaceAccess("ADMIN_WORKSPACE");
   const target = await loadTargetEmployee(employeeIdValue);
   const { workspaceRows, permissionRows } = await loadAccountRows();
   const authUsersById = await listAuthUsersById();
@@ -679,7 +685,7 @@ export async function getAdminAccountDetailData(
       return {
         code: permissionCode,
         state,
-        effective: state,
+        effective: isSystemOwner(target) ? "ALLOW" : state,
       };
     }),
   };
@@ -747,6 +753,14 @@ export async function updateAccountWorkspaces(
       employeeId(authContext),
     );
   else await revokeWorkspace(targetEmployeeId, "ADMIN_WORKSPACE");
+
+  if (adminWorkspace) {
+    await grantWorkspace(targetEmployeeId, "STAFF_WORKSPACE", employeeId(authContext));
+    await Promise.all(ADMINISTRATOR_PERMISSION_CODES.map((permissionCode) =>
+      setPermissionState(targetEmployeeId, permissionCode, "ALLOW", employeeId(authContext))
+    ));
+    await setPermissionState(targetEmployeeId, "ACCOUNT_MANAGE", "NONE", employeeId(authContext));
+  }
 
   return { success: true, message: "Đã cập nhật workspace." };
 }
