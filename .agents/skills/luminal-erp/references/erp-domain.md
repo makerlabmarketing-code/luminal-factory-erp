@@ -246,3 +246,8 @@ Financial totals should derive from expenses, payments, refunds, and other autho
 The ERP is expected to become the operational back office for products, product variants, product media, collections, raffles, raffle lifecycle, winner operations, commissions, customers, orders, payments, refunds, shipments, and finished product inventory.
 
 Shared commerce contracts must remain compatible with the storefront.
+
+Commerce remains authoritative for public presentation and persisted commerce state. ERP
+administration expresses authorized management commands through the Commerce Management API;
+it does not create an independent copy of Homepage Hero, product, raffle, order, or customer
+truth in Supabase ERP.

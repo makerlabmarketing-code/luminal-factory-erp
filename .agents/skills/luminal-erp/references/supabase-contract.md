@@ -165,7 +165,17 @@ Do not run live SQL, deploy RPCs, mutate RLS, backfill data, or bypass `LIVE_APP
 
 ## Shared Storefront Contract
 
-ERP and storefront may eventually use the same Supabase project.
+ERP and storefront use separate Supabase projects. Supabase ERP must not query, replicate
+credentials for, or receive direct grants on the Commerce database.
+
+Privileged Commerce administration uses a server-to-server Commerce Management API. Only
+the Commerce server may hold the Commerce service-role credential and call Commerce-owned
+tables, Storage administration, or privileged RPCs. ERP holds only its own authentication
+configuration and the server-only credentials required to authenticate to that API.
+
+The ERP browser must never receive the Commerce management base URL, client identifier,
+HMAC secret, service-role key, signed actor headers, or privileged Commerce payloads that are
+not explicitly part of an authorized ERP response.
 
 Public data access and ERP administration remain separate permission concerns.
 

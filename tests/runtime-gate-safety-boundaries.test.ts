@@ -16,6 +16,7 @@ const gates = [
   'ATTENDANCE_RECOVERY_ENABLED',
   'PRODUCTION_ORDER_MUTATIONS_ENABLED',
   'SYSTEM_RECORD_LIFECYCLE_ENABLED',
+  'COMMERCE_ADMIN_INTEGRATION_ENABLED',
 ] as const;
 
 describe('runtime gate server authority', () => {
@@ -31,6 +32,7 @@ describe('runtime gate server authority', () => {
       'services/server/productionOrderMutations.ts',
       'app/api/admin/email-templates/route.ts',
       'app/api/admin/system-metadata/route.ts',
+      'services/server/commerceAdminIntegration.ts',
     ];
     const combined = files.map(source).join('\n');
     for (const gate of gates) {
@@ -49,6 +51,7 @@ describe('runtime gate server authority', () => {
     const productionOrders = source('services/server/productionOrderMutations.ts');
     const emailTemplates = source('app/api/admin/email-templates/route.ts');
     const systemMetadata = source('app/api/admin/system-metadata/route.ts');
+    const commerceAdmin = source('services/server/commerceAdminIntegration.ts');
 
     expect(facility).toMatch(/process\.env\.FACILITY_ACTIVE_STATE_ENABLED === 'true'/);
     expect(facility).toMatch(/assertFacilityMutationEnabled\(\)[\s\S]*Chức năng cập nhật cơ sở đang chờ kích hoạt\./);
@@ -70,6 +73,8 @@ describe('runtime gate server authority', () => {
       expect(lifecycleRoute).toMatch(/process\.env\.SYSTEM_RECORD_LIFECYCLE_ENABLED === 'true'/);
       expect(lifecycleRoute).toMatch(/Chức năng ngừng hoạt động đang chờ kích hoạt\./);
     }
+    expect(commerceAdmin).toMatch(/value === 'true'/);
+    expect(commerceAdmin).toContain('Kết nối quản trị Commerce đang tắt.');
   });
 
   it('keeps disabled states honest and readable without hidden writes', () => {

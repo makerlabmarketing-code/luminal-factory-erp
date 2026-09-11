@@ -97,7 +97,24 @@ The moved responsibility has one clear owner, all callers use the intended bound
 
 ## Shared Commerce Architecture
 
-ERP and storefront may eventually share commerce domain types, database contracts, and validation schemas.
+ERP and storefront remain separate applications and separate Supabase projects.
+
+Commerce owns its database, Storage assets, privileged RPCs, and the Management API that
+wraps them. ERP owns staff authentication, ERP permission checks, server-side management
+adapters, and operational UI. ERP browser code calls only ERP routes. ERP server code calls
+the Commerce Management API and never queries the Commerce database directly.
+
+The reusable boundary is:
+
+    ERP route or server action
+    -> ERP workspace and capability authorization
+    -> server-only signed Commerce Admin transport
+    -> module adapter such as Homepage Hero
+    -> Commerce Management API
+    -> Commerce-owned validation, service role, database and RPC
+
+Each Commerce module adds a typed adapter on top of the shared transport. It must not copy
+request signing, actor propagation, timeout, response validation, or error normalization.
 
 Possible future strategies:
 
@@ -105,4 +122,5 @@ Possible future strategies:
 2. monorepo package
 3. generated database types plus shared validation contracts
 
-Choose a permanent repository-sharing strategy after auditing both repositories and the Supabase schema.
+These strategies may later distribute compatible TypeScript contracts, but they do not change
+database ownership or allow cross-project database credentials.

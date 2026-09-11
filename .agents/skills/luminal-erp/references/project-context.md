@@ -123,6 +123,8 @@ The public storefront is a separate customer-facing application.
 
 Storefront-owned concerns include public brand experience, public product presentation, raffle discovery and customer entry, customer account, checkout, and customer commission submission.
 
-Both may eventually share Supabase and compatible commerce contracts.
+ERP and storefront keep separate Supabase projects. ERP commerce administration crosses a
+server-to-server Commerce Management API boundary; ERP browser code and Supabase ERP never
+connect to the Commerce database.
 
-The final repository-sharing strategy remains open until a combined audit is complete.
+The first prepared contract is documented in `docs/commerce-admin-integration-contract.md`.
