@@ -1,9 +1,15 @@
 export const COMMERCE_ADMIN_CONTRACT_VERSION = '2026-09-11';
-export const COMMERCE_ADMIN_MANAGEMENT_PREFIX = '/api/management/v1';
+export const COMMERCE_ADMIN_SIGNATURE_VERSION = 'lfc-hmac-v1';
+export const COMMERCE_ADMIN_MANAGEMENT_PREFIX = '/api/admin/v1';
 
 export type CommerceAdminCapability =
   | 'COMMERCE_HOMEPAGE_HERO_VIEW'
   | 'COMMERCE_HOMEPAGE_HERO_MANAGE';
+
+export type CommerceAdminScope =
+  | 'commerce.hero.read'
+  | 'commerce.hero.write'
+  | 'commerce.hero.publish';
 
 export type CommerceAdminHttpMethod = 'GET' | 'POST' | 'PATCH';
 
@@ -33,9 +39,7 @@ export interface CommerceAdminFailure {
   meta: CommerceAdminResponseMeta;
 }
 
-export type CommerceAdminResponse<TData> =
-  | CommerceAdminSuccess<TData>
-  | CommerceAdminFailure;
+export type CommerceAdminResponse<TData> = CommerceAdminSuccess<TData> | CommerceAdminFailure;
 
 export interface HomepageHeroPresentationSettings {
   tint: string | null;
@@ -86,6 +90,7 @@ export interface HomepageHeroPublishMutation {
 
 export interface CommerceAdminEndpoint<TBody = undefined> {
   capability: CommerceAdminCapability;
+  scope: CommerceAdminScope;
   method: CommerceAdminHttpMethod;
   path: string;
   body?: TBody;
@@ -95,6 +100,7 @@ export const homepageHeroEndpoints = {
   list(): CommerceAdminEndpoint {
     return {
       capability: 'COMMERCE_HOMEPAGE_HERO_VIEW',
+      scope: 'commerce.hero.read',
       method: 'GET',
       path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/homepage-hero`,
     };
@@ -102,6 +108,7 @@ export const homepageHeroEndpoints = {
   create(body: HomepageHeroDraftMutation): CommerceAdminEndpoint<HomepageHeroDraftMutation> {
     return {
       capability: 'COMMERCE_HOMEPAGE_HERO_MANAGE',
+      scope: 'commerce.hero.write',
       method: 'POST',
       path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/homepage-hero`,
       body,
@@ -110,6 +117,7 @@ export const homepageHeroEndpoints = {
   update(id: string, body: HomepageHeroDraftMutation): CommerceAdminEndpoint<HomepageHeroDraftMutation> {
     return {
       capability: 'COMMERCE_HOMEPAGE_HERO_MANAGE',
+      scope: 'commerce.hero.write',
       method: 'PATCH',
       path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/homepage-hero/${encodeURIComponent(id)}`,
       body,
@@ -118,6 +126,7 @@ export const homepageHeroEndpoints = {
   publish(id: string, body: HomepageHeroPublishMutation): CommerceAdminEndpoint<HomepageHeroPublishMutation> {
     return {
       capability: 'COMMERCE_HOMEPAGE_HERO_MANAGE',
+      scope: 'commerce.hero.publish',
       method: 'POST',
       path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/homepage-hero/${encodeURIComponent(id)}/publish`,
       body,
@@ -126,6 +135,7 @@ export const homepageHeroEndpoints = {
   unpublish(id: string, body: HomepageHeroPublishMutation): CommerceAdminEndpoint<HomepageHeroPublishMutation> {
     return {
       capability: 'COMMERCE_HOMEPAGE_HERO_MANAGE',
+      scope: 'commerce.hero.publish',
       method: 'POST',
       path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/homepage-hero/${encodeURIComponent(id)}/unpublish`,
       body,
