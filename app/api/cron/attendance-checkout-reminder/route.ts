@@ -35,15 +35,16 @@ export async function GET(request: Request) {
         success: true,
         message: 'Không có ca nào quá giờ cần nhắc checkout.',
         sent: 0,
+        skippedCount: 0,
       });
     }
 
     let sent = 0;
-    const skipped: string[] = [];
+    let skippedCount = 0;
 
     for (const candidate of candidates) {
       if (!candidate.employee?.email) {
-        skipped.push(String(candidate.record.id));
+        skippedCount += 1;
         continue;
       }
 
@@ -59,23 +60,22 @@ export async function GET(request: Request) {
           },
         });
         sent += 1;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Gửi mail nhắc checkout thất bại.';
-        skipped.push(`${candidate.employee.full_name || candidate.employee.email}: ${message}`);
+      } catch {
+        skippedCount += 1;
       }
     }
 
     return jsonNoStore({
       success: true,
       sent,
-      skipped,
+      skippedCount,
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Lỗi cron nhắc checkout.';
-
+  } catch {
     return jsonNoStore(
       {
-        error: message,
+        success: false,
+        code: 'attendance_checkout_reminder_failed',
+        message: 'Không thể hoàn tất tác vụ nhắc checkout.',
       },
       { status: 500 }
     );
