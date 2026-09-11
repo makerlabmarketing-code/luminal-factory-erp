@@ -11,10 +11,9 @@ function source(relativePath: string): string {
 describe('expense payment source binding', () => {
   it('loads payment sources from live shareholders columns only', () => {
     const capitalPage = source('app/admin/capital/page.tsx');
-    const shareholdersQuery = capitalPage.slice(
-      capitalPage.indexOf(".from('shareholders')"),
-      capitalPage.indexOf("supabase.from('system_metadata')", capitalPage.indexOf(".from('shareholders')"))
-    );
+    const shareholdersQuery = capitalPage.match(
+      /supabase\.from\('shareholders'\)\.select\([^\n]+/,
+    )?.[0] || '';
 
     expect(shareholdersQuery).toMatch(/from\('shareholders'\)/);
     expect(shareholdersQuery).toMatch(/select\('id, name, status'\)/);

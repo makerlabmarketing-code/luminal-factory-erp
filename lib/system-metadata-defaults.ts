@@ -12,6 +12,8 @@ export interface SystemMetadataCategory {
   name: string;
   data: SystemMetadataRow[];
   isFallback?: boolean;
+  is_active?: boolean;
+  deactivated_at?: string | null;
 }
 
 export const FINANCIAL_TRANSACTION_TYPE_METADATA_NAME = 'Danh mục Nghiệp vụ';

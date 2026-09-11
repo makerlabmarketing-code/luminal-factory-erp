@@ -11,6 +11,13 @@ import {
 } from '@/lib/adminFinancialLedger';
 import { FINANCE_ATTACHMENT_POLICY, validateFinanceAttachment } from '@/lib/financeExpenseWorkflow';
 import type { AdminLedgerMutationInput, FinanceAttachment, FinancialLedgerEntry } from '@/lib/types/finance';
+import {
+  CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME,
+  DEFAULT_CAPITAL_CONTRIBUTION_TYPES,
+  DEFAULT_FINANCIAL_TRANSACTION_TYPES,
+  FINANCIAL_TRANSACTION_TYPE_METADATA_NAME,
+  normalizeSystemMetadataOptions,
+} from '@/lib/system-metadata-defaults';
 import { AuthFlowError, hasPermission, listGrantedPermissions, requireWorkspaceAccess, type AuthContext } from './auth';
 
 const FINANCE_EVIDENCE_BUCKET = 'finance-evidence';
@@ -295,6 +302,26 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
   if (error) persistenceError('Không tải được sổ thu chi.');
 
   const rows = (data || []) as unknown as FinancialLedgerEntry[];
+  const financeMetadataPromise = (async () => {
+    let query = admin
+      .from('system_metadata')
+      .select('name, data')
+      .in('name', [FINANCIAL_TRANSACTION_TYPE_METADATA_NAME, CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME]);
+    if (process.env.SYSTEM_RECORD_LIFECYCLE_ENABLED === 'true') query = query.eq('is_active', true);
+    const { data: metadataRows, error: metadataError } = await query;
+    if (metadataError) persistenceError('Không tải được danh mục tài chính.');
+    const metadata = new Map((metadataRows || []).map((row) => [row.name, row.data]));
+    return {
+      transactionTypes: normalizeSystemMetadataOptions(
+        metadata.get(FINANCIAL_TRANSACTION_TYPE_METADATA_NAME),
+        DEFAULT_FINANCIAL_TRANSACTION_TYPES,
+      ),
+      contributionTypes: normalizeSystemMetadataOptions(
+        metadata.get(CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME),
+        DEFAULT_CAPITAL_CONTRIBUTION_TYPES,
+      ),
+    };
+  })();
   const employeeIds = Array.from(new Set(rows.flatMap((row) => [row.beneficiary_employee_id, row.payer_employee_id]).filter((id): id is number | string => id != null)));
   const employeeNamesPromise = (async () => {
     const employeeNames = new Map<string, string>();
@@ -322,10 +349,11 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
       return name ? [{ id: project.id, name }] : [];
     });
   })();
-  const [employeeNames, attachments, projects] = await Promise.all([
+  const [employeeNames, attachments, projects, financeMetadata] = await Promise.all([
     employeeNamesPromise,
     attachmentDtos(rows.map((row) => row.id)),
     projectsPromise,
+    financeMetadataPromise,
   ]);
 
   console.info('[admin-finance-ledger-read]', {
@@ -338,6 +366,8 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     success: true as const,
     companyBankCode: process.env.COMPANY_BANK_CODE || 'MB',
     companyBankAccount: process.env.COMPANY_BANK_ACCOUNT || '',
+    transactionTypes: financeMetadata.transactionTypes,
+    contributionTypes: financeMetadata.contributionTypes,
     extendedSchemaEnabled: extendedLedgerEnabled(),
     attachmentsEnabled: extendedLedgerEnabled() && attachmentWritesEnabled(),
     projects,

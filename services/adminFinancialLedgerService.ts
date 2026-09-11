@@ -4,6 +4,8 @@ interface LedgerResponse {
   ledger: FinancialLedgerEntry[];
   companyBankCode: string;
   companyBankAccount: string;
+  transactionTypes: Array<{ code: string; label: string }>;
+  contributionTypes: Array<{ code: string; label: string }>;
   extendedSchemaEnabled: boolean;
   attachmentsEnabled: boolean;
   projects: Array<{ id: number | string; name: string }>;

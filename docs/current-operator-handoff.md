@@ -649,3 +649,19 @@ and keeps the permission modal read-only for the owner. For editable employee
 accounts, `Lưu quyền` remains disabled until the draft differs from persisted
 state. Repository validation passes with 815/815 tests, lint, TypeScript,
 production build, and whitespace checks.
+
+## 2026-09-10 System record lifecycle
+
+Status: `READY_FOR_OPERATOR / RUNTIME_DISABLED`. Email templates and system
+metadata now have one shared active/inactive contract. Admins may deactivate or
+reactivate; only the active `OWNER` may permanently delete, and only after a
+record is inactive. Active records remain the default list and the only source
+for new email, finance, and bank choices.
+
+Package order: read-only preflight → migration `20260910090000` → read-only
+validation → authenticated Admin/Owner smoke → enable server-only
+`SYSTEM_RECORD_LIFECYCLE_ENABLED=true`. Do not enable the flag before schema and
+smoke PASS. Disable the flag before rollback; rollback is blocked while inactive
+records exist. No Production SQL or flag change occurred while preparing this
+package. Repository gates pass with 823/823 tests, lint, TypeScript, production
+build, and whitespace checks.

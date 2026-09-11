@@ -5,6 +5,8 @@ import { useNotification } from "@/component/NotificationContext";
 import {
   Plus,
   Trash2,
+  Archive,
+  RotateCcw,
   Save,
   Layers,
   Search,
@@ -25,6 +27,7 @@ interface SystemMetadataResponse {
   category?: SystemMetadataCategory;
   message?: string;
   canPermanentlyDelete?: boolean;
+  lifecycleEnabled?: boolean;
 }
 
 export default function MetadataManagement() {
@@ -32,6 +35,8 @@ export default function MetadataManagement() {
   const [categories, setCategories] = useState<SystemMetadataCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [canPermanentlyDelete, setCanPermanentlyDelete] = useState(false);
+  const [lifecycleEnabled, setLifecycleEnabled] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedCatId, setSelectedCatId] = useState<string>("");
@@ -47,7 +52,8 @@ export default function MetadataManagement() {
     setLoading(true);
     setLoadError(null);
     try {
-      const response = await fetch("/api/admin/system-metadata", { cache: "no-store" });
+      const query = showInactive ? "?includeInactive=true" : "";
+      const response = await fetch(`/api/admin/system-metadata${query}`, { cache: "no-store" });
       const payload = (await response.json().catch(() => null)) as SystemMetadataResponse | null;
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.message || "Không thể tải danh mục hệ thống.");
@@ -55,6 +61,7 @@ export default function MetadataManagement() {
 
       const loadedCategories = payload.categories || [];
       setCanPermanentlyDelete(payload.canPermanentlyDelete === true);
+      setLifecycleEnabled(payload.lifecycleEnabled === true);
       setCategories(loadedCategories);
       setSelectedCatId((currentCategoryId) => {
         if (currentCategoryId && loadedCategories.some((item) => String(item.id) === currentCategoryId)) {
@@ -68,7 +75,7 @@ export default function MetadataManagement() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showInactive]);
 
   useEffect(() => {
     void loadMetadata();
@@ -181,6 +188,28 @@ export default function MetadataManagement() {
             "error",
           );
         }
+      },
+    );
+  };
+
+  const handleLifecycleChange = () => {
+    if (!activeCategory || isFallbackCategory) return;
+    const activating = activeCategory.is_active === false;
+    showConfirm(
+      activating ? "Kích hoạt lại danh mục" : "Ngừng dùng danh mục",
+      activating
+        ? `Kích hoạt lại [${activeCategory.name}]?`
+        : `Ngừng dùng [${activeCategory.name}]? Dữ liệu vẫn được giữ để tra cứu lịch sử.`,
+      async () => {
+        const response = await fetch("/api/admin/system-metadata", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: activeCategory.id, lifecycleAction: activating ? "ACTIVATE" : "DEACTIVATE" }),
+        });
+        const payload = (await response.json().catch(() => null)) as SystemMetadataResponse | null;
+        if (!response.ok || !payload?.success) return showToast("Không thể cập nhật", payload?.message || "Vui lòng thử lại.", "error");
+        await loadMetadata();
+        showToast("Đã cập nhật", activating ? "Danh mục đã được kích hoạt lại." : "Danh mục đã chuyển sang ngừng hoạt động.", "success");
       },
     );
   };
@@ -347,11 +376,17 @@ export default function MetadataManagement() {
             >
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  📁 {c.name} ({c.data?.length || 0})
+                  📁 {c.name} ({c.data?.length || 0}){c.is_active === false ? " · Ngừng hoạt động" : ""}
                 </option>
               ))}
             </select>
-            {canPermanentlyDelete && activeCategory && !isFallbackCategory && (
+            {lifecycleEnabled && activeCategory && !isFallbackCategory && (
+              <button onClick={handleLifecycleChange} disabled={saving} className={`flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950 p-2 text-[10px] font-bold disabled:opacity-50 ${activeCategory.is_active === false ? "text-emerald-400" : "text-amber-400"}`}>
+                {activeCategory.is_active === false ? <RotateCcw className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+                {activeCategory.is_active === false ? "Kích hoạt lại" : "Ngừng hoạt động"}
+              </button>
+            )}
+            {canPermanentlyDelete && activeCategory && !isFallbackCategory && (!lifecycleEnabled || activeCategory.is_active === false) && (
               <button
                 onClick={handleDeleteCategory}
                 disabled={saving}
@@ -369,6 +404,7 @@ export default function MetadataManagement() {
           )}
 
           <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+            {lifecycleEnabled && <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[11px] text-slate-400"><input type="checkbox" checked={showInactive} onChange={(event) => { setShowInactive(event.target.checked); setCurrentPage(1); }} className="accent-purple-500" /> Hiện ngừng hoạt động</label>}
             <div className="relative w-full md:w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
               <input
@@ -385,7 +421,7 @@ export default function MetadataManagement() {
             </div>
             <button
               onClick={handleSaveCategory}
-              disabled={isFallbackCategory || saving || !activeCategory}
+              disabled={isFallbackCategory || activeCategory?.is_active === false || saving || !activeCategory}
               title={
                 isFallbackCategory
                   ? "Danh mục mặc định chỉ hiển thị khi DB chưa có dữ liệu."
@@ -441,14 +477,14 @@ export default function MetadataManagement() {
                               e.target.value,
                             )
                           }
-                          disabled={isFallbackCategory || saving}
+                          disabled={isFallbackCategory || activeCategory?.is_active === false || saving}
                         />
                       </td>
                     ))}
                     <td className="p-3 text-center">
                       <button
                         onClick={() => handleRemoveRow(row.__globalIndex)}
-                        disabled={isFallbackCategory || saving}
+                        disabled={isFallbackCategory || activeCategory?.is_active === false || saving}
                         className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition disabled:opacity-30"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -466,7 +502,7 @@ export default function MetadataManagement() {
           <div className="w-full md:w-auto flex justify-between md:justify-start items-center gap-4">
             <button
               onClick={handleAddRow}
-              disabled={isFallbackCategory || saving || !activeCategory}
+              disabled={isFallbackCategory || activeCategory?.is_active === false || saving || !activeCategory}
               className="text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 transition font-sans disabled:opacity-30"
             >
               <Plus className="w-4 h-4" /> Thêm hàng con mới

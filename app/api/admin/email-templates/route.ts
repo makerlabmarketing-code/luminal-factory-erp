@@ -5,6 +5,7 @@ import { AuthFlowError, hasPermission, requireSystemOwner, requireWorkspaceAcces
 
 const TEMPLATE_SELECT =
   'id, group_type, template_name, subject, html_content, body, script_name, created_at';
+const LIFECYCLE_TEMPLATE_SELECT = `${TEMPLATE_SELECT}, is_active, deactivated_at`;
 const DEFAULT_EMAIL_GROUPS = [
   { code: 'WELCOME', label: '📧 Thư Chào Mừng Thành Viên' },
   { code: 'ORDER_CONFIRM', label: '📦 Xác Nhận Đơn Hàng Mới' },
@@ -18,7 +19,23 @@ type TemplateMutationPayload = {
   templateName?: unknown;
   subject?: unknown;
   htmlContent?: unknown;
+  lifecycleAction?: unknown;
 };
+
+function isLifecycleEnabled() {
+  return process.env.SYSTEM_RECORD_LIFECYCLE_ENABLED === 'true';
+}
+
+function requireLifecycleEnabled() {
+  if (!isLifecycleEnabled()) {
+    throw new AuthFlowError({
+      status: 503,
+      code: 'service_unavailable',
+      message: 'Chức năng ngừng hoạt động đang chờ kích hoạt.',
+      failureStage: 'persistence',
+    });
+  }
+}
 
 function jsonNoStore(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
@@ -83,17 +100,27 @@ function toErrorResponse(error: unknown) {
   );
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const authContext = await requireEmailTemplatePermission('EMAIL_TEMPLATE_VIEW');
     const supabaseAdmin = createSupabaseAdminClient();
+    const lifecycleEnabled = isLifecycleEnabled();
+    const includeInactive = lifecycleEnabled && new URL(request.url).searchParams.get('includeInactive') === 'true';
+    let templateQuery = supabaseAdmin
+      .from('email_templates')
+      .select(lifecycleEnabled ? LIFECYCLE_TEMPLATE_SELECT : TEMPLATE_SELECT)
+      .order('id', { ascending: false });
+    if (lifecycleEnabled && !includeInactive) templateQuery = templateQuery.eq('is_active', true);
+
+    let metadataQuery = supabaseAdmin
+      .from('system_metadata')
+      .select('data')
+      .eq('name', 'Danh mục Nhóm Email');
+    if (lifecycleEnabled) metadataQuery = metadataQuery.eq('is_active', true);
+
     const [templateResult, metadataResult] = await Promise.all([
-      supabaseAdmin.from('email_templates').select(TEMPLATE_SELECT).order('id', { ascending: false }),
-      supabaseAdmin
-        .from('system_metadata')
-        .select('data')
-        .eq('name', 'Danh mục Nhóm Email')
-        .maybeSingle(),
+      templateQuery,
+      metadataQuery.maybeSingle(),
     ]);
 
     if (templateResult.error) throw templateResult.error;
@@ -108,6 +135,7 @@ export async function GET() {
       success: true,
       templates: templateResult.data || [],
       emailGroups,
+      lifecycleEnabled,
       canPermanentlyDelete: authContext.employee.role?.toUpperCase() === 'OWNER',
     });
   } catch (error) {
@@ -147,7 +175,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    await requireEmailTemplatePermission('EMAIL_TEMPLATE_MANAGE');
+    const authContext = await requireEmailTemplatePermission('EMAIL_TEMPLATE_MANAGE');
     const payload = (await request.json().catch(() => null)) as TemplateMutationPayload | null;
     const id = numericId(payload?.id);
     if (!payload || !id) {
@@ -157,8 +185,33 @@ export async function PATCH(request: Request) {
       );
     }
 
+    const lifecycleAction = payload.lifecycleAction;
     const supabaseAdmin = createSupabaseAdminClient();
-    const { data, error } = await supabaseAdmin
+    if (lifecycleAction === 'DEACTIVATE' || lifecycleAction === 'ACTIVATE') {
+      requireLifecycleEnabled();
+      const activating = lifecycleAction === 'ACTIVATE';
+      const { data, error } = await supabaseAdmin
+        .from('email_templates')
+        .update({
+          is_active: activating,
+          deactivated_at: activating ? null : new Date().toISOString(),
+          deactivated_by_employee_id: activating ? null : authContext.employee.id,
+        })
+        .eq('id', id)
+        .eq('is_active', !activating)
+        .select(LIFECYCLE_TEMPLATE_SELECT)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        return jsonNoStore(
+          { success: false, code: 'record_state_conflict', message: 'Mẫu email đã ở trạng thái này hoặc không còn tồn tại.' },
+          { status: 409 }
+        );
+      }
+      return jsonNoStore({ success: true, template: data });
+    }
+
+    let updateQuery = supabaseAdmin
       .from('email_templates')
       .update({
         group_type: requiredText(payload, 'groupType'),
@@ -166,9 +219,9 @@ export async function PATCH(request: Request) {
         subject: requiredText(payload, 'subject'),
         html_content: optionalHtml(payload),
       })
-      .eq('id', id)
-      .select(TEMPLATE_SELECT)
-      .maybeSingle();
+      .eq('id', id);
+    if (isLifecycleEnabled()) updateQuery = updateQuery.eq('is_active', true);
+    const { data, error } = await updateQuery.select(TEMPLATE_SELECT).maybeSingle();
 
     if (error) throw error;
     if (!data) {
@@ -196,18 +249,22 @@ export async function DELETE(request: Request) {
     }
 
     const supabaseAdmin = createSupabaseAdminClient();
-    const { data, error } = await supabaseAdmin
+    let deleteQuery = supabaseAdmin
       .from('email_templates')
       .delete()
-      .eq('id', id)
-      .select('id')
-      .maybeSingle();
+      .eq('id', id);
+    if (isLifecycleEnabled()) deleteQuery = deleteQuery.eq('is_active', false);
+    const { data, error } = await deleteQuery.select('id').maybeSingle();
 
     if (error) throw error;
     if (!data) {
       return jsonNoStore(
-        { success: false, code: 'email_template_not_found', message: 'Không tìm thấy mẫu email.' },
-        { status: 404 }
+        {
+          success: false,
+          code: isLifecycleEnabled() ? 'record_must_be_inactive' : 'email_template_not_found',
+          message: isLifecycleEnabled() ? 'Cần ngừng hoạt động mẫu email trước khi xóa vĩnh viễn.' : 'Không tìm thấy mẫu email.',
+        },
+        { status: isLifecycleEnabled() ? 409 : 404 }
       );
     }
 

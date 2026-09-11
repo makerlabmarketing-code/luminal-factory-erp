@@ -15,6 +15,7 @@ const gates = [
   'TASK_COMMENTS_ACTIVITY_ENABLED',
   'ATTENDANCE_RECOVERY_ENABLED',
   'PRODUCTION_ORDER_MUTATIONS_ENABLED',
+  'SYSTEM_RECORD_LIFECYCLE_ENABLED',
 ] as const;
 
 describe('runtime gate server authority', () => {
@@ -28,6 +29,8 @@ describe('runtime gate server authority', () => {
       'services/server/projectActivity.ts',
       'app/api/admin/attendance/route.ts',
       'services/server/productionOrderMutations.ts',
+      'app/api/admin/email-templates/route.ts',
+      'app/api/admin/system-metadata/route.ts',
     ];
     const combined = files.map(source).join('\n');
     for (const gate of gates) {
@@ -44,6 +47,8 @@ describe('runtime gate server authority', () => {
     const timeline = source('services/server/projectActivity.ts');
     const attendance = source('app/api/admin/attendance/route.ts');
     const productionOrders = source('services/server/productionOrderMutations.ts');
+    const emailTemplates = source('app/api/admin/email-templates/route.ts');
+    const systemMetadata = source('app/api/admin/system-metadata/route.ts');
 
     expect(facility).toMatch(/process\.env\.FACILITY_ACTIVE_STATE_ENABLED === 'true'/);
     expect(facility).toMatch(/assertFacilityMutationEnabled\(\)[\s\S]*Chức năng cập nhật cơ sở đang chờ kích hoạt\./);
@@ -61,6 +66,10 @@ describe('runtime gate server authority', () => {
     expect(attendance).toMatch(/attendance_manual_mutation_disabled[\s\S]*Điều chỉnh chấm công đang chờ kích hoạt\./);
     expect(productionOrders).toMatch(/process\.env\[PRODUCTION_ORDER_MUTATIONS_FLAG\] === 'true'/);
     expect(productionOrders).toMatch(/runtime_flag_enabled:\s*false/);
+    for (const lifecycleRoute of [emailTemplates, systemMetadata]) {
+      expect(lifecycleRoute).toMatch(/process\.env\.SYSTEM_RECORD_LIFECYCLE_ENABLED === 'true'/);
+      expect(lifecycleRoute).toMatch(/Chức năng ngừng hoạt động đang chờ kích hoạt\./);
+    }
   });
 
   it('keeps disabled states honest and readable without hidden writes', () => {

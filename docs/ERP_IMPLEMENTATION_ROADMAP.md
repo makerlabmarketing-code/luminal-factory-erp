@@ -920,3 +920,21 @@ Validation passes with 815/815 tests, lint, TypeScript, production build, and
 whitespace checks. The live correction changed only the explicitly approved
 owner account; no schema, migration, RLS, runtime flag, or other employee account
 was changed.
+
+## 2026-09-10 System configuration — active/inactive lifecycle
+
+Status: `APPLICATION_COMPLETE / READY_FOR_OPERATOR / RUNTIME_DISABLED`.
+
+Email templates and system metadata now default to active records, expose an
+explicit inactive filter, retain deactivation actor/time, exclude inactive
+records from new operational choices, and reserve permanent deletion of an
+already inactive record for the Owner. Finance metadata now travels inside the
+existing server ledger response rather than through direct browser catalog
+queries.
+
+The versioned migration, read-only pre/post validation, rollback guard, formal
+specification, application compatibility flag, and 823-test regression suite are
+complete. Production delivery still requires protected migration delivery,
+retained validation, authenticated Admin/Owner smoke, and separate activation of
+`SYSTEM_RECORD_LIFECYCLE_ENABLED=true`. No live SQL or runtime flag change was
+performed in this slice.
