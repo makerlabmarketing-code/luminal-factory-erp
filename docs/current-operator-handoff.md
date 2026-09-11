@@ -1,5 +1,30 @@
 # Current Operator Handoff
 
+## ERP to Commerce Admin integration contract (2026-09-11)
+
+Status: `APPLICATION_CONTRACT_PREPARED / RUNTIME_DISABLED`.
+
+ERP and Commerce continue to use separate Supabase projects. The ERP repository
+now has a versioned Homepage Hero contract, a generic server-only signed transport,
+and a module adapter. There is no ERP route or UI consumer and no Commerce
+Management API implementation in this slice. Keep
+`COMMERCE_ADMIN_INTEGRATION_ENABLED=false` or unset and do not configure signing
+credentials until the Commerce-side authentication, replay, authorization, audit
+and idempotency gate in `docs/commerce-admin-integration-contract.md` is complete.
+
+Rollback is the contract/service/test/document diff only. No database or data
+rollback is required.
+
+## System record lifecycle Production activation (2026-09-11)
+
+Status: `PRODUCTION_SCHEMA_PASS / RUNTIME_ENABLED / AUTHENTICATED_SMOKE_PENDING`.
+
+PR #201 merged as `27bee4168b7df54e4a6671243771dd13d59be580`.
+Supabase records migration `20260910090000`; schema, consistency and unchanged
+row-count validation passed. The Production redeployment is `READY` in `hnd1`
+with no runtime errors after `SYSTEM_RECORD_LIFECYCLE_ENABLED=true` was configured.
+Retain an authenticated Owner/Admin lifecycle smoke before calling the rollout fully closed.
+
 ## Phase 7 Production Order create slice (2026-09-03)
 
 Status: `APPLICATION_CREATE_SLICE_COMPLETE / HARDENING_APPLIED / ROLLBACK_FIXTURE_PASS / RUNTIME_DISABLED`.

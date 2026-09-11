@@ -923,7 +923,7 @@ was changed.
 
 ## 2026-09-10 System configuration — active/inactive lifecycle
 
-Status: `APPLICATION_COMPLETE / READY_FOR_OPERATOR / RUNTIME_DISABLED`.
+Status: `APPLICATION_COMPLETE / PRODUCTION_SCHEMA_PASS / RUNTIME_ENABLED / AUTHENTICATED_SMOKE_PENDING`.
 
 Email templates and system metadata now default to active records, expose an
 explicit inactive filter, retain deactivation actor/time, exclude inactive
@@ -932,9 +932,26 @@ already inactive record for the Owner. Finance metadata now travels inside the
 existing server ledger response rather than through direct browser catalog
 queries.
 
-The versioned migration, read-only pre/post validation, rollback guard, formal
-specification, application compatibility flag, and 823-test regression suite are
-complete. Production delivery still requires protected migration delivery,
-retained validation, authenticated Admin/Owner smoke, and separate activation of
-`SYSTEM_RECORD_LIFECYCLE_ENABLED=true`. No live SQL or runtime flag change was
-performed in this slice.
+Migration `20260910090000` is recorded in Supabase Production. Read-only
+validation confirmed all lifecycle columns, constraints, foreign keys and indexes;
+the original 1 email template and 8 system metadata rows remain consistent. PR
+#201 merged as `27bee4168b7df54e4a6671243771dd13d59be580`, the runtime flag was enabled
+after validation, and the redeployment is `READY` in `hnd1` without runtime errors.
+An authenticated Owner/Admin lifecycle smoke remains to be retained.
+
+## 2026-09-11 ERP to Commerce Admin integration contract
+
+Status: `APPLICATION_CONTRACT_PREPARED / RUNTIME_DISABLED`.
+
+ERP and Commerce remain separate applications and Supabase projects. The prepared
+boundary makes Commerce authoritative for persisted commerce data and privileged
+mutations. ERP performs its own session, Admin Workspace and capability checks,
+then uses a server-only HMAC-signed HTTPS transport to a Commerce-owned Management
+API. Browser code and Supabase ERP have no direct Commerce database access.
+
+The first typed adapter covers Homepage Hero drafts, publish and unpublish while
+wrapping the Commerce-owned table, Storage guards and atomic RPCs. No ERP route or
+UI consumes the adapter yet, no Commerce repository or data changed, and
+`COMMERCE_ADMIN_INTEGRATION_ENABLED` remains false/unset. Next action is a separate
+Commerce slice implementing signature verification, durable replay protection,
+capability allowlisting, audit and idempotency before any ERP UI or activation.
