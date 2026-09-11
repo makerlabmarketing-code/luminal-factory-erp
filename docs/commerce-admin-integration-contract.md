@@ -1,145 +1,126 @@
 # ERP to Commerce Admin Integration Contract
 
-**Status:** `PREPARED_DISABLED`
+**Status:** `LFC_HMAC_V1_COMPATIBILITY_PREPARED / RUNTIME_DISABLED`
 **Contract version:** `2026-09-11`
+**Signature profile:** `lfc-hmac-v1`
 **First adapter:** Homepage Hero
 
 ## Decision
 
-Luminal Factory ERP and Commerce remain separate Next.js applications with separate Supabase
-projects. Commerce is authoritative for persisted commerce state and public presentation.
-ERP is the operational administration surface.
+Luminal Factory ERP and Commerce remain separate Next.js applications with separate Supabase projects. Commerce is authoritative for persisted commerce state and public presentation. ERP is the operational administration surface.
 
-ERP must not connect its browser, server-side Supabase client, or Supabase ERP project directly
-to the Commerce database. Commerce service-role credentials remain only in Commerce server code.
+ERP must not connect its browser, server-side Supabase client, or Supabase ERP project directly to the Commerce database. Commerce service-role credentials remain only in Commerce server code.
 
 ## Boundary
 
 1. An ERP route or Server Action verifies the current Supabase ERP session.
-2. ERP requires `ADMIN_WORKSPACE` and the operation-specific Commerce capability.
-3. A server-only ERP adapter sends a signed HTTPS request to the Commerce Management API.
-4. Commerce verifies client identity, signature, timestamp, nonce replay and capability.
-5. Commerce validates the input and performs the operation through its own service-role client,
-   Storage boundary or privileged RPC.
-6. Commerce returns a versioned response envelope with the same request ID.
+2. ERP requires `ADMIN_WORKSPACE` and the operation-specific ERP Commerce capability.
+3. A server-only ERP adapter maps that capability to an exact Commerce scope and sends a signed HTTPS request to the Commerce Management API.
+4. Commerce verifies client/key identity, audience, HMAC, timestamp, durable nonce replay state and requested scope.
+5. Commerce validates the input and performs the operation through its own privileged server boundary, Storage guard or RPC.
+6. Commerce returns a bounded versioned response with the same request ID.
 
-The ERP browser calls only ERP routes. It never receives the HMAC secret or Commerce service-role
-key and never calls the Commerce Management API directly.
+The ERP browser calls only ERP routes. It never receives the HMAC secret, signed machine headers or Commerce service-role key.
 
-## Authentication and authorization
+## `lfc-hmac-v1` authentication contract
 
-The prepared transport uses `LFM-HMAC-SHA256`. The canonical signature covers:
+The canonical request is newline-delimited in this exact order:
 
-- contract version, HTTP method and path;
-- timestamp, nonce and request ID;
-- ERP client ID;
-- verified ERP Auth subject and stable employee ID;
-- required capability;
-- SHA-256 request-body digest.
-
-Commerce must reject requests with an invalid signature, unknown client ID, stale timestamp,
-replayed nonce, mismatched body digest, unsupported contract version or disallowed capability.
-Nonce replay protection must use a durable Commerce-owned store with a bounded retention window;
-an in-memory set is insufficient across Vercel instances.
-
-ERP capabilities prepared for the first adapter are:
-
-- `COMMERCE_HOMEPAGE_HERO_VIEW`
-- `COMMERCE_HOMEPAGE_HERO_MANAGE`
-
-They are intentionally not added to the current permission-editor catalog in this slice. The
-existing server policy grants requested capabilities to the protected system Owner; every other
-account remains denied until a later reviewed permission-catalog/backfill slice.
-
-## Generic response envelope
-
-Successful response:
-
-```json
-{
-  "ok": true,
-  "data": {},
-  "meta": {
-    "contractVersion": "2026-09-11",
-    "requestId": "same-as-request"
-  }
-}
+```text
+signature-version
+client-id
+key-id
+audience
+request-id
+timestamp
+nonce
+actor-id
+workspace-id
+scope
+HTTP-method
+request-path
+content-type
+body-sha256
 ```
 
-Failure response:
+ERP uses:
 
-```json
-{
-  "ok": false,
-  "error": {
-    "code": "STABLE_COMMERCE_ERROR_CODE",
-    "message": "Safe user-facing message",
-    "retryable": false
-  },
-  "meta": {
-    "contractVersion": "2026-09-11",
-    "requestId": "same-as-request"
-  }
-}
+- signature version `lfc-hmac-v1`;
+- HMAC-SHA256 encoded as lowercase hex;
+- SHA-256 of the exact UTF-8 request body encoded as lowercase hex;
+- integer Unix timestamp in seconds;
+- exact content type `application/json`;
+- signed route family `/api/admin/v1/`;
+- one ERP-authenticated actor ID, configured workspace ID, audience and key ID;
+- Commerce scopes rather than ERP permission codes in the signed envelope.
+
+The prepared Homepage Hero scope mapping is:
+
+- `COMMERCE_HOMEPAGE_HERO_VIEW` → `commerce.hero.read`;
+- draft create/update with `COMMERCE_HOMEPAGE_HERO_MANAGE` → `commerce.hero.write`;
+- publish/unpublish with `COMMERCE_HOMEPAGE_HERO_MANAGE` → `commerce.hero.publish`.
+
+The ERP signer is tested against the shared TEST-ONLY Commerce compatibility vector. Production secrets are not part of the repository and the integration flag remains disabled.
+
+## Signed headers
+
+```text
+X-Luminal-Signature-Version
+X-Luminal-Client-Id
+X-Luminal-Key-Id
+X-Luminal-Audience
+X-Luminal-Request-Id
+X-Luminal-Timestamp
+X-Luminal-Nonce
+X-Luminal-Actor-Id
+X-Luminal-Workspace-Id
+X-Luminal-Scope
+X-Luminal-Body-SHA256
+X-Luminal-Signature
 ```
 
-Raw database errors, stack traces, credentials and internal Supabase identifiers must not cross
-the boundary.
+Commerce must reject invalid/unknown credentials, wrong audience, stale timestamps, replayed nonces, body-hash mismatch, invalid HMAC, unsupported scopes and route/scope mismatches. Durable replay protection, final authorization, audit and idempotency remain Commerce responsibilities.
 
 ## Homepage Hero management contract
 
-| Operation | Method and path | ERP capability | Commerce responsibility |
+| Operation | Method and path | ERP capability | Commerce scope |
 |---|---|---|---|
-| List presentations | `GET /api/management/v1/homepage-hero` | `COMMERCE_HOMEPAGE_HERO_VIEW` | Return drafts and published presentation for authorized administration |
-| Create draft | `POST /api/management/v1/homepage-hero` | `COMMERCE_HOMEPAGE_HERO_MANAGE` | Validate and insert inactive draft |
-| Update draft | `PATCH /api/management/v1/homepage-hero/{id}` | `COMMERCE_HOMEPAGE_HERO_MANAGE` | Reject unsafe paths and enforce editable state |
-| Publish | `POST /api/management/v1/homepage-hero/{id}/publish` | `COMMERCE_HOMEPAGE_HERO_MANAGE` | Verify Storage assets and call the Commerce-owned atomic publish RPC |
-| Unpublish | `POST /api/management/v1/homepage-hero/{id}/unpublish` | `COMMERCE_HOMEPAGE_HERO_MANAGE` | Call the Commerce-owned unpublish RPC |
+| List presentations | `GET /api/admin/v1/homepage-hero` | `COMMERCE_HOMEPAGE_HERO_VIEW` | `commerce.hero.read` |
+| Create draft | `POST /api/admin/v1/homepage-hero` | `COMMERCE_HOMEPAGE_HERO_MANAGE` | `commerce.hero.write` |
+| Update draft | `PATCH /api/admin/v1/homepage-hero/{id}` | `COMMERCE_HOMEPAGE_HERO_MANAGE` | `commerce.hero.write` |
+| Publish | `POST /api/admin/v1/homepage-hero/{id}/publish` | `COMMERCE_HOMEPAGE_HERO_MANAGE` | `commerce.hero.publish` |
+| Unpublish | `POST /api/admin/v1/homepage-hero/{id}/unpublish` | `COMMERCE_HOMEPAGE_HERO_MANAGE` | `commerce.hero.publish` |
 
-Every mutation carries a caller-generated `operationId`. Commerce owns idempotency persistence;
-the ERP request ID is for tracing and does not replace mutation idempotency.
-
-The current Commerce `master` schema already owns `homepage_hero_presentations`, the public
-active-only read policy, Storage asset guards, `publish_homepage_hero(uuid)` and
-`unpublish_homepage_hero(uuid)`. The future Commerce Management API must wrap these objects rather
-than let ERP duplicate their database contract.
+Every mutation carries a caller-generated `operationId`. Commerce owns durable idempotency; the request ID is tracing evidence and does not replace operation idempotency.
 
 ## Server-only ERP environment contract
 
+Keep these server-only and never prefix them with `NEXT_PUBLIC_`:
+
 - `COMMERCE_ADMIN_INTEGRATION_ENABLED=false` or unset by default;
 - `COMMERCE_ADMIN_API_BASE_URL` as an HTTPS origin only;
-- `COMMERCE_ADMIN_API_CLIENT_ID` as the allowlisted ERP service identity;
-- `COMMERCE_ADMIN_API_HMAC_SECRET` as a distinct secret of at least 32 characters.
+- `COMMERCE_ADMIN_API_CLIENT_ID`;
+- `COMMERCE_ADMIN_API_KEY_ID`;
+- `COMMERCE_ADMIN_API_AUDIENCE`;
+- `COMMERCE_ADMIN_API_WORKSPACE_ID`;
+- `COMMERCE_ADMIN_API_HMAC_SECRET_BASE64`, canonical base64 encoding of at least 32 random secret bytes.
 
-None of these variables use the `NEXT_PUBLIC_` prefix. The HMAC secret must be different from all
-Supabase, SMTP, Turnstile, cart and Auth secrets.
-
-## Reuse for later Commerce modules
-
-Products, variants, collections, raffles, commissions, customers, orders and fulfillment add a
-module contract and server adapter on top of the same signed transport. They reuse actor evidence,
-capability checks, request signing, timeout, response-size limit, response envelope and error
-normalization. Module code does not reproduce those responsibilities.
+Production, Preview and local credentials must be distinct. Key rotation is coordinated with Commerce; ERP signs with the currently configured key while Commerce may accept a bounded current/previous overlap.
 
 ## Rollout gate
 
 Keep `COMMERCE_ADMIN_INTEGRATION_ENABLED` false/unset until all of the following pass:
 
-1. Commerce implements the management route with request-schema validation.
-2. Commerce implements constant-time HMAC verification, timestamp tolerance and durable nonce
-   replay protection.
-3. Commerce maps the allowlisted ERP client to exact allowed capabilities.
-4. Commerce adds immutable management audit records and idempotency receipts for mutations.
-5. ERP adds reviewed routes/UI and adds Commerce permissions to the account catalog with an
-   explicit administrator backfill decision.
-6. Disabled-boundary, unauthorized, replay, stale-signature, invalid-payload, idempotency and
-   authorized non-production smoke tests pass.
-7. A separate activation approval is received.
+1. ERP signer passes the shared `lfc-hmac-v1` vector and negative tamper tests.
+2. Commerce credential provisioning/rotation wiring is complete server-side.
+3. Commerce live Management API routes are implemented and reviewed.
+4. Commerce durable replay, audit and idempotency gates remain validated.
+5. ERP adds reviewed routes/UI and the Commerce permission catalog/backfill decision is approved.
+6. Unauthorized, stale, replay, tamper, rotation, idempotency and authorized non-production E2E smoke tests pass.
+7. A separate Production activation approval is received.
 
 ## Current slice and non-goals
 
-This slice adds only types, the disabled server transport, the Homepage Hero adapter, documentation
-and tests in ERP. It adds no ERP route, Server Action or UI; performs no network request; changes no
-Supabase schema or data; changes no Commerce repository; and enables no runtime flag.
+This compatibility slice changes the prepared signer/transport contract only. It adds no ERP browser route or Commerce-management UI, performs no real ERP→Commerce request, creates no real HMAC secret, changes no Supabase schema or Production data and enables no runtime flag.
 
 Rollback is a code/document revert. There is no database rollback and no data-loss risk.
