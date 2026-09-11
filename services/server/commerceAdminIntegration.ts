@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import {
   COMMERCE_ADMIN_CONTRACT_VERSION,
   COMMERCE_ADMIN_MANAGEMENT_PREFIX,
+  COMMERCE_ADMIN_SIGNATURE_VERSION,
   type CommerceAdminActor,
   type CommerceAdminCapability,
   type CommerceAdminEndpoint,
@@ -11,6 +12,7 @@ import {
   type CommerceAdminResponse,
 } from '@/lib/commerce-admin/contracts';
 import {
+  COMMERCE_ADMIN_CONTENT_TYPE,
   createCommerceAdminBodyDigest,
   createCommerceAdminSignature,
 } from '@/lib/commerce-admin/signature';
@@ -21,13 +23,16 @@ export const COMMERCE_ADMIN_SERVER_ENVIRONMENT_KEYS = [
   COMMERCE_ADMIN_INTEGRATION_FLAG,
   'COMMERCE_ADMIN_API_BASE_URL',
   'COMMERCE_ADMIN_API_CLIENT_ID',
-  'COMMERCE_ADMIN_API_HMAC_SECRET',
+  'COMMERCE_ADMIN_API_KEY_ID',
+  'COMMERCE_ADMIN_API_AUDIENCE',
+  'COMMERCE_ADMIN_API_WORKSPACE_ID',
+  'COMMERCE_ADMIN_API_HMAC_SECRET_BASE64',
 ] as const;
 
 const REQUEST_TIMEOUT_MS = 4_000;
 const MAX_REQUEST_BYTES = 256_000;
 const MAX_RESPONSE_BYTES = 1_000_000;
-const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
+const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export type CommerceAdminIntegrationErrorCode =
   | 'INTEGRATION_DISABLED'
@@ -55,7 +60,10 @@ export class CommerceAdminIntegrationError extends Error {
 interface CommerceAdminConfig {
   baseUrl: string;
   clientId: string;
-  signingSecret: string;
+  keyId: string;
+  audience: string;
+  workspaceId: string;
+  signingSecret: Buffer;
 }
 
 function readEnvironmentValue(key: typeof COMMERCE_ADMIN_SERVER_ENVIRONMENT_KEYS[number]): string {
@@ -66,6 +74,20 @@ export function isCommerceAdminIntegrationEnabled(
   value = process.env.COMMERCE_ADMIN_INTEGRATION_ENABLED,
 ): boolean {
   return value === 'true';
+}
+
+function assertSafeToken(value: string): boolean {
+  return SAFE_TOKEN_PATTERN.test(value);
+}
+
+function decodeSigningSecret(secretBase64: string): Buffer | null {
+  try {
+    const secret = Buffer.from(secretBase64, 'base64');
+    if (secret.length < 32 || secret.toString('base64') !== secretBase64) return null;
+    return secret;
+  } catch {
+    return null;
+  }
 }
 
 function readCommerceAdminConfig(): CommerceAdminConfig {
@@ -79,7 +101,10 @@ function readCommerceAdminConfig(): CommerceAdminConfig {
 
   const baseUrlValue = readEnvironmentValue('COMMERCE_ADMIN_API_BASE_URL');
   const clientId = readEnvironmentValue('COMMERCE_ADMIN_API_CLIENT_ID');
-  const signingSecret = readEnvironmentValue('COMMERCE_ADMIN_API_HMAC_SECRET');
+  const keyId = readEnvironmentValue('COMMERCE_ADMIN_API_KEY_ID');
+  const audience = readEnvironmentValue('COMMERCE_ADMIN_API_AUDIENCE');
+  const workspaceId = readEnvironmentValue('COMMERCE_ADMIN_API_WORKSPACE_ID');
+  const signingSecret = decodeSigningSecret(readEnvironmentValue('COMMERCE_ADMIN_API_HMAC_SECRET_BASE64'));
   let baseUrl: URL;
 
   try {
@@ -93,28 +118,35 @@ function readCommerceAdminConfig(): CommerceAdminConfig {
   }
 
   const hasOriginOnly = baseUrl.pathname === '/' && !baseUrl.search && !baseUrl.hash;
-  if (baseUrl.protocol !== 'https:' || !hasOriginOnly || baseUrl.username || baseUrl.password) {
+  const tokensValid = [clientId, keyId, audience, workspaceId].every(assertSafeToken);
+  if (
+    baseUrl.protocol !== 'https:' ||
+    !hasOriginOnly ||
+    baseUrl.username ||
+    baseUrl.password ||
+    !tokensValid ||
+    !signingSecret
+  ) {
     throw new CommerceAdminIntegrationError(
       'CONFIGURATION_INVALID',
-      'Commerce Admin API phải dùng HTTPS origin không kèm thông tin đăng nhập hoặc đường dẫn.',
+      'Cấu hình xác thực Commerce Admin API chưa hợp lệ.',
       503,
     );
   }
 
-  if (!SAFE_ID_PATTERN.test(clientId) || signingSecret.length < 32) {
-    throw new CommerceAdminIntegrationError(
-      'CONFIGURATION_INVALID',
-      'Cấu hình định danh hoặc chữ ký Commerce Admin API chưa hợp lệ.',
-      503,
-    );
-  }
-
-  return { baseUrl: baseUrl.origin, clientId, signingSecret };
+  return {
+    baseUrl: baseUrl.origin,
+    clientId,
+    keyId,
+    audience,
+    workspaceId,
+    signingSecret,
+  };
 }
 
 function toStableActorId(value: string | number | null | undefined): string {
   const normalized = String(value ?? '').trim();
-  if (!normalized || normalized.length > 128) {
+  if (!assertSafeToken(normalized)) {
     throw new CommerceAdminIntegrationError(
       'AUTHORIZATION_DENIED',
       'Không thể xác định nhân sự thực hiện thao tác Commerce.',
@@ -186,7 +218,7 @@ function assertSafeEndpoint<TBody>(endpoint: CommerceAdminEndpoint<TBody>): void
   const expectedPrefix = `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/`;
   if (
     !endpoint.path.startsWith(expectedPrefix) ||
-    endpoint.path.includes('..') ||
+    /(^|\/)\.\.?(\/|$)/.test(endpoint.path) ||
     endpoint.path.includes('?') ||
     endpoint.path.includes('#')
   ) {
@@ -225,21 +257,25 @@ export async function requestCommerceAdmin<TData, TBody>(
   const actor = await requireCommerceAdminActor(endpoint.capability);
   const requestId = randomUUID();
   const nonce = randomUUID();
-  const timestamp = new Date().toISOString();
+  const timestamp = Math.floor(Date.now() / 1000);
   const body = serializeRequestBody(endpoint.body);
   if (Buffer.byteLength(body, 'utf8') > MAX_REQUEST_BYTES) {
     throw new CommerceAdminIntegrationError('REQUEST_INVALID', 'Yêu cầu Commerce Admin API quá lớn.', 413);
   }
+
   const bodyDigest = createCommerceAdminBodyDigest(body);
   const signature = createCommerceAdminSignature({
-    actor,
+    audience: config.audience,
     bodyDigest,
-    capability: endpoint.capability,
     clientId: config.clientId,
+    keyId: config.keyId,
     method: endpoint.method,
     nonce,
+    actorId: actor.authUserId,
+    workspaceId: config.workspaceId,
     path: endpoint.path,
     requestId,
+    scope: endpoint.scope,
     timestamp,
   }, config.signingSecret);
 
@@ -248,18 +284,20 @@ export async function requestCommerceAdmin<TData, TBody>(
     response = await fetch(`${config.baseUrl}${endpoint.path}`, {
       method: endpoint.method,
       headers: {
-        Accept: 'application/json',
-        Authorization: `LFM-HMAC-SHA256 ${signature}`,
-        'Content-Type': 'application/json',
-        'X-Luminal-Actor-Auth-User-Id': actor.authUserId,
-        'X-Luminal-Actor-Employee-Id': actor.employeeId,
-        'X-Luminal-Capability': endpoint.capability,
+        Accept: COMMERCE_ADMIN_CONTENT_TYPE,
+        'Content-Type': COMMERCE_ADMIN_CONTENT_TYPE,
+        'X-Luminal-Signature-Version': COMMERCE_ADMIN_SIGNATURE_VERSION,
         'X-Luminal-Client-Id': config.clientId,
-        'X-Luminal-Content-SHA256': bodyDigest,
-        'X-Luminal-Contract-Version': COMMERCE_ADMIN_CONTRACT_VERSION,
-        'X-Luminal-Nonce': nonce,
+        'X-Luminal-Key-Id': config.keyId,
+        'X-Luminal-Audience': config.audience,
         'X-Luminal-Request-Id': requestId,
-        'X-Luminal-Timestamp': timestamp,
+        'X-Luminal-Timestamp': String(timestamp),
+        'X-Luminal-Nonce': nonce,
+        'X-Luminal-Actor-Id': actor.authUserId,
+        'X-Luminal-Workspace-Id': config.workspaceId,
+        'X-Luminal-Scope': endpoint.scope,
+        'X-Luminal-Body-SHA256': bodyDigest,
+        'X-Luminal-Signature': signature,
       },
       body: body || undefined,
       cache: 'no-store',

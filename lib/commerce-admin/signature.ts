@@ -2,45 +2,56 @@ import 'server-only';
 
 import { createHash, createHmac } from 'node:crypto';
 import {
-  COMMERCE_ADMIN_CONTRACT_VERSION,
-  type CommerceAdminActor,
-  type CommerceAdminCapability,
+  COMMERCE_ADMIN_SIGNATURE_VERSION,
   type CommerceAdminHttpMethod,
+  type CommerceAdminScope,
 } from './contracts';
 
+export const COMMERCE_ADMIN_CONTENT_TYPE = 'application/json';
+
 export interface CommerceAdminSignatureInput {
-  actor: CommerceAdminActor;
+  audience: string;
   bodyDigest: string;
-  capability: CommerceAdminCapability;
   clientId: string;
+  keyId: string;
   method: CommerceAdminHttpMethod;
   nonce: string;
+  actorId: string;
+  workspaceId: string;
   path: string;
   requestId: string;
-  timestamp: string;
+  scope: CommerceAdminScope;
+  timestamp: number;
 }
 
 export function createCommerceAdminBodyDigest(body: string): string {
-  return createHash('sha256').update(body, 'utf8').digest('base64url');
+  return createHash('sha256').update(body, 'utf8').digest('hex');
+}
+
+export function buildCommerceAdminCanonicalRequest(input: CommerceAdminSignatureInput): string {
+  return [
+    COMMERCE_ADMIN_SIGNATURE_VERSION,
+    input.clientId,
+    input.keyId,
+    input.audience,
+    input.requestId,
+    String(input.timestamp),
+    input.nonce,
+    input.actorId,
+    input.workspaceId,
+    input.scope,
+    input.method,
+    input.path,
+    COMMERCE_ADMIN_CONTENT_TYPE,
+    input.bodyDigest,
+  ].join('\n');
 }
 
 export function createCommerceAdminSignature(
   input: CommerceAdminSignatureInput,
-  signingSecret: string,
+  signingSecret: string | Buffer,
 ): string {
-  const canonicalRequest = [
-    COMMERCE_ADMIN_CONTRACT_VERSION,
-    input.method,
-    input.path,
-    input.timestamp,
-    input.nonce,
-    input.requestId,
-    input.clientId,
-    input.actor.employeeId,
-    input.actor.authUserId,
-    input.capability,
-    input.bodyDigest,
-  ].join('\n');
-
-  return createHmac('sha256', signingSecret).update(canonicalRequest, 'utf8').digest('base64url');
+  return createHmac('sha256', signingSecret)
+    .update(buildCommerceAdminCanonicalRequest(input), 'utf8')
+    .digest('hex');
 }
