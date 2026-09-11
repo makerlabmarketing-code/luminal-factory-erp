@@ -49,8 +49,28 @@ export function getSmtpConfig() {
   if (port < 1 || port > 65535) throw new EmailDeliveryError('PROVIDER_NOT_CONFIGURED', 'SMTP_PORT không hợp lệ.', 503);
   return { host, port, user, pass, fromName: getRequiredEnvValue('SMTP_FROM_NAME') || 'Luminal ERP', secure: port === 465 };
 }
-export async function getEmailTemplateById(templateId: number): Promise<EmailTemplateRecord> { const { data, error } = await createServerSupabaseClient().from('email_templates').select('id, group_type, template_name, subject, html_content, body').eq('id', templateId).maybeSingle(); if (error) throw error; if (!data) throw new EmailDeliveryError('INVALID_TEMPLATE', 'Không tìm thấy mẫu email.', 404); return data as EmailTemplateRecord; }
-export async function getEmailTemplateByGroup(groupType: string): Promise<EmailTemplateRecord> { const { data, error } = await createServerSupabaseClient().from('email_templates').select('id, group_type, template_name, subject, html_content, body').eq('group_type', groupType).limit(1).maybeSingle(); if (error) throw error; if (!data) throw new EmailDeliveryError('INVALID_TEMPLATE', `Chưa cấu hình mẫu email cho nhóm ${groupType}.`, 404); return data as EmailTemplateRecord; }
+export async function getEmailTemplateById(templateId: number): Promise<EmailTemplateRecord> {
+  let query = createServerSupabaseClient()
+    .from('email_templates')
+    .select('id, group_type, template_name, subject, html_content, body')
+    .eq('id', templateId);
+  if (process.env.SYSTEM_RECORD_LIFECYCLE_ENABLED === 'true') query = query.eq('is_active', true);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  if (!data) throw new EmailDeliveryError('INVALID_TEMPLATE', 'Không tìm thấy mẫu email đang hoạt động.', 404);
+  return data as EmailTemplateRecord;
+}
+export async function getEmailTemplateByGroup(groupType: string): Promise<EmailTemplateRecord> {
+  let query = createServerSupabaseClient()
+    .from('email_templates')
+    .select('id, group_type, template_name, subject, html_content, body')
+    .eq('group_type', groupType);
+  if (process.env.SYSTEM_RECORD_LIFECYCLE_ENABLED === 'true') query = query.eq('is_active', true);
+  const { data, error } = await query.limit(1).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new EmailDeliveryError('INVALID_TEMPLATE', `Chưa cấu hình mẫu email đang hoạt động cho nhóm ${groupType}.`, 404);
+  return data as EmailTemplateRecord;
+}
 async function logEmailHistory(payload: EmailHistoryRecord) { const { error } = await createServerSupabaseClient().from('email_history').insert([{ ...payload, error_message: payload.error_message || null }]); if (error) console.error('[erp-email-history]', { failure: 'history_write_failed', code: String(error.code || 'unknown') }); }
 function classifyProviderFailure(error: unknown): EmailDeliveryError { const record = error as { code?: string; responseCode?: number }; if (record?.code === 'EAUTH') return new EmailDeliveryError('PROVIDER_AUTH', 'Dịch vụ gửi email từ chối xác thực.', 502); if (/ETIMEDOUT|ESOCKET|ECONNREFUSED|ENOTFOUND/.test(record?.code || '')) return new EmailDeliveryError('PROVIDER_NETWORK', 'Không thể kết nối dịch vụ gửi email.', 502); return new EmailDeliveryError('PROVIDER_REJECTED', 'Dịch vụ gửi email từ chối yêu cầu.', 502); }
 async function sendWithTemplate(params: { template: EmailTemplateRecord; recipient: string; variables?: Record<string, string>; correlationId?: string }) {

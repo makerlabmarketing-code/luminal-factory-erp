@@ -17,11 +17,12 @@ export async function loadBankDirectory(
   supabase: SupabaseClient
 ): Promise<BankDirectoryResult> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('system_metadata')
       .select('data')
-      .eq('name', BANK_DIRECTORY_METADATA_NAME)
-      .maybeSingle();
+      .eq('name', BANK_DIRECTORY_METADATA_NAME);
+    if (process.env.SYSTEM_RECORD_LIFECYCLE_ENABLED === 'true') query = query.eq('is_active', true);
+    const { data, error } = await query.maybeSingle();
 
     return {
       options: normalizeSystemMetadataOptions(data?.data, DEFAULT_BANK_DIRECTORY),

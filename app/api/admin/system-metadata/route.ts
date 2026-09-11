@@ -8,7 +8,26 @@ type MetadataPayload = {
   id?: unknown;
   name?: unknown;
   data?: unknown;
+  lifecycleAction?: unknown;
 };
+
+const BASE_METADATA_SELECT = 'id, name, data, created_at';
+const LIFECYCLE_METADATA_SELECT = `${BASE_METADATA_SELECT}, is_active, deactivated_at`;
+
+function isLifecycleEnabled() {
+  return process.env.SYSTEM_RECORD_LIFECYCLE_ENABLED === 'true';
+}
+
+function requireLifecycleEnabled() {
+  if (!isLifecycleEnabled()) {
+    throw new AuthFlowError({
+      status: 503,
+      code: 'service_unavailable',
+      message: 'Chức năng ngừng hoạt động đang chờ kích hoạt.',
+      failureStage: 'persistence',
+    });
+  }
+}
 
 function jsonNoStore(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
@@ -103,18 +122,27 @@ function toErrorResponse(error: unknown) {
   );
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const authContext = await requireSystemSettingsPermission('SYSTEM_SETTINGS_VIEW');
     const supabaseAdmin = createSupabaseAdminClient();
-    const { data, error } = await supabaseAdmin
+    const lifecycleEnabled = isLifecycleEnabled();
+    const includeInactive = lifecycleEnabled && new URL(request.url).searchParams.get('includeInactive') === 'true';
+    let query = supabaseAdmin
       .from('system_metadata')
-      .select('id, name, data, created_at')
+      .select(lifecycleEnabled ? LIFECYCLE_METADATA_SELECT : BASE_METADATA_SELECT)
       .order('id', { ascending: true });
+    if (lifecycleEnabled && !includeInactive) query = query.eq('is_active', true);
+    const { data, error } = await query;
 
     if (error) throw error;
     const categories = mergeSystemMetadataCategories(data);
-    return jsonNoStore({ success: true, categories, canPermanentlyDelete: authContext.employee.role?.toUpperCase() === 'OWNER' });
+    return jsonNoStore({
+      success: true,
+      categories,
+      lifecycleEnabled,
+      canPermanentlyDelete: authContext.employee.role?.toUpperCase() === 'OWNER',
+    });
   } catch (error) {
     return toErrorResponse(error);
   }
@@ -147,7 +175,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    await requireSystemSettingsPermission('SYSTEM_SETTINGS_MANAGE');
+    const authContext = await requireSystemSettingsPermission('SYSTEM_SETTINGS_MANAGE');
     const payload = (await request.json().catch(() => null)) as MetadataPayload | null;
     const id = numericId(payload?.id);
     if (!payload || !id) {
@@ -157,13 +185,38 @@ export async function PATCH(request: Request) {
       );
     }
 
+    const lifecycleAction = payload.lifecycleAction;
     const supabaseAdmin = createSupabaseAdminClient();
-    const { data, error } = await supabaseAdmin
+    if (lifecycleAction === 'DEACTIVATE' || lifecycleAction === 'ACTIVATE') {
+      requireLifecycleEnabled();
+      const activating = lifecycleAction === 'ACTIVATE';
+      const { data, error } = await supabaseAdmin
+        .from('system_metadata')
+        .update({
+          is_active: activating,
+          deactivated_at: activating ? null : new Date().toISOString(),
+          deactivated_by_employee_id: activating ? null : authContext.employee.id,
+        })
+        .eq('id', id)
+        .eq('is_active', !activating)
+        .select(LIFECYCLE_METADATA_SELECT)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        return jsonNoStore(
+          { success: false, code: 'record_state_conflict', message: 'Danh mục đã ở trạng thái này hoặc không còn tồn tại.' },
+          { status: 409 }
+        );
+      }
+      return jsonNoStore({ success: true, category: data });
+    }
+
+    let updateQuery = supabaseAdmin
       .from('system_metadata')
       .update({ data: requiredData(payload.data) })
-      .eq('id', id)
-      .select('id, name, data, created_at')
-      .maybeSingle();
+      .eq('id', id);
+    if (isLifecycleEnabled()) updateQuery = updateQuery.eq('is_active', true);
+    const { data, error } = await updateQuery.select(BASE_METADATA_SELECT).maybeSingle();
 
     if (error) throw error;
     if (!data) {
@@ -191,18 +244,22 @@ export async function DELETE(request: Request) {
     }
 
     const supabaseAdmin = createSupabaseAdminClient();
-    const { data, error } = await supabaseAdmin
+    let deleteQuery = supabaseAdmin
       .from('system_metadata')
       .delete()
-      .eq('id', id)
-      .select('id')
-      .maybeSingle();
+      .eq('id', id);
+    if (isLifecycleEnabled()) deleteQuery = deleteQuery.eq('is_active', false);
+    const { data, error } = await deleteQuery.select('id').maybeSingle();
 
     if (error) throw error;
     if (!data) {
       return jsonNoStore(
-        { success: false, code: 'system_metadata_not_found', message: 'Không tìm thấy danh mục hệ thống.' },
-        { status: 404 }
+        {
+          success: false,
+          code: isLifecycleEnabled() ? 'record_must_be_inactive' : 'system_metadata_not_found',
+          message: isLifecycleEnabled() ? 'Cần ngừng hoạt động danh mục trước khi xóa vĩnh viễn.' : 'Không tìm thấy danh mục hệ thống.',
+        },
+        { status: isLifecycleEnabled() ? 409 : 404 }
       );
     }
 

@@ -17,11 +17,8 @@ import {
   validateFinanceAttachment,
 } from '@/lib/financeExpenseWorkflow';
 import {
-  CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME,
   DEFAULT_CAPITAL_CONTRIBUTION_TYPES,
   DEFAULT_FINANCIAL_TRANSACTION_TYPES,
-  FINANCIAL_TRANSACTION_TYPE_METADATA_NAME,
-  normalizeSystemMetadataOptions,
   type SystemMetadataOption,
 } from '@/lib/system-metadata-defaults';
 import {
@@ -267,6 +264,8 @@ export default function AdminFinancialLedger() {
     setReimbursementCapabilities(ledgerResult.reimbursementCapabilities);
     setCompanyBankCode(ledgerResult.companyBankCode || 'MB');
     setCompanyBankAccount(ledgerResult.companyBankAccount || '');
+    setTransactionTypes(ledgerResult.transactionTypes);
+    setContributionTypes(ledgerResult.contributionTypes);
     setHasLoadedData(true);
   }, []);
 
@@ -283,14 +282,10 @@ export default function AdminFinancialLedger() {
       const [
         { data: emps, error: employeesError },
         { data: paymentSourceRows, error: paymentSourceError },
-        { data: meta, error: metadataError },
-        { data: contribMeta, error: contributionMetadataError },
         ledgerResult,
       ] = await Promise.all([
         supabase.from('employees').select('id, full_name, bank_name, bank_account_number'),
         supabase.from('shareholders').select('id, name, status').order('id', { ascending: true }),
-        supabase.from('system_metadata').select('data').eq('name', FINANCIAL_TRANSACTION_TYPE_METADATA_NAME).maybeSingle(),
-        supabase.from('system_metadata').select('data').eq('name', CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME).maybeSingle(),
         loadAdminFinancialLedger(selectedMonth),
       ]);
 
@@ -313,19 +308,13 @@ export default function AdminFinancialLedger() {
       }
       setExpenseSourcesLoading(false);
 
-      if (metadataError) throw metadataError;
-      const normalizedTransactionTypes = normalizeSystemMetadataOptions(meta?.data, DEFAULT_FINANCIAL_TRANSACTION_TYPES);
-      setTransactionTypes(normalizedTransactionTypes);
-      setType((current) => normalizedTransactionTypes.some((option) => option.code === current)
+      setType((current) => ledgerResult.transactionTypes.some((option) => option.code === current)
         ? current
-        : normalizedTransactionTypes[0]?.code || 'CHI_PHI');
+        : ledgerResult.transactionTypes[0]?.code || 'CHI_PHI');
 
-      if (contributionMetadataError) throw contributionMetadataError;
-      const normalizedContributionTypes = normalizeSystemMetadataOptions(contribMeta?.data, DEFAULT_CAPITAL_CONTRIBUTION_TYPES);
-      setContributionTypes(normalizedContributionTypes);
-      setSubType((current) => normalizedContributionTypes.some((option) => option.code === current)
+      setSubType((current) => ledgerResult.contributionTypes.some((option) => option.code === current)
         ? current
-        : (normalizedContributionTypes[0]?.code as 'TIEN_MAT' | 'HIEN_VAT' | undefined) || 'TIEN_MAT');
+        : (ledgerResult.contributionTypes[0]?.code as 'TIEN_MAT' | 'HIEN_VAT' | undefined) || 'TIEN_MAT');
 
       applyLedgerResult(ledgerResult);
     } catch (e) {

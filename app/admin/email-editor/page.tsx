@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotification } from '@/component/NotificationContext';
-import { Mail, Plus, Trash2, Edit2, X, Save, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RefreshCcw, Send, Sparkles } from 'lucide-react';
+import { Archive, Mail, Plus, Trash2, Edit2, X, Save, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RefreshCcw, RotateCcw, Send, Sparkles } from 'lucide-react';
 
 interface EmailTemplate {
   id: number;
@@ -11,6 +11,8 @@ interface EmailTemplate {
   subject?: string | null;
   html_content?: string | null;
   body?: string | null;
+  is_active?: boolean;
+  deactivated_at?: string | null;
 }
 
 interface EmailGroup { code: string; label: string }
@@ -21,6 +23,7 @@ interface EmailTemplatesResponse {
   emailGroups?: EmailGroup[];
   message?: string;
   canPermanentlyDelete?: boolean;
+  lifecycleEnabled?: boolean;
 }
 
 const emptyForm = { groupType: 'WELCOME', scriptName: '', subject: '', body: '' };
@@ -32,6 +35,8 @@ export default function AdminEmailTemplates() {
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
   const [canPermanentlyDelete, setCanPermanentlyDelete] = useState(false);
+  const [lifecycleEnabled, setLifecycleEnabled] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
 
   const [selectedPreview, setSelectedPreview] = useState<EmailTemplate | null>(null);
 
@@ -67,7 +72,8 @@ export default function AdminEmailTemplates() {
     if (isInitial) setLoading(true);
     setDbError(null);
     try {
-      const response = await fetch('/api/admin/email-templates', { cache: 'no-store' });
+      const query = showInactive ? '?includeInactive=true' : '';
+      const response = await fetch(`/api/admin/email-templates${query}`, { cache: 'no-store' });
       const payload = (await response.json().catch(() => null)) as EmailTemplatesResponse | null;
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.message || 'Không thể tải danh sách mẫu email.');
@@ -76,6 +82,7 @@ export default function AdminEmailTemplates() {
       const nextTemplates = payload.templates || [];
       setEmailGroups(payload.emailGroups || []);
       setCanPermanentlyDelete(payload.canPermanentlyDelete === true);
+      setLifecycleEnabled(payload.lifecycleEnabled === true);
       setTemplates(nextTemplates);
       setSelectedPreview((currentPreview) => {
         if (!currentPreview) return nextTemplates[0] || null;
@@ -86,7 +93,7 @@ export default function AdminEmailTemplates() {
     } finally {
       if (isInitial) setLoading(false);
     }
-  }, []);
+  }, [showInactive]);
 
   useEffect(() => { void loadData(true); }, [loadData]);
 
@@ -209,6 +216,27 @@ export default function AdminEmailTemplates() {
     });
   };
 
+  const handleLifecycleChange = (template: EmailTemplate) => {
+    const activating = template.is_active === false;
+    showConfirm(
+      activating ? 'Kích hoạt lại mẫu email' : 'Ngừng dùng mẫu email',
+      activating
+        ? `Kích hoạt lại [${template.template_name || 'mẫu email'}]?`
+        : `Ngừng dùng [${template.template_name || 'mẫu email'}]? Bản ghi vẫn được giữ để tra cứu lịch sử.`,
+      async () => {
+        const response = await fetch('/api/admin/email-templates', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: template.id, lifecycleAction: activating ? 'ACTIVATE' : 'DEACTIVATE' }),
+        });
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+        if (!response.ok) return showToast('Không thể cập nhật', payload?.message || 'Vui lòng thử lại.', 'error');
+        await loadData(false);
+        showToast('Đã cập nhật', activating ? 'Mẫu email đã được kích hoạt lại.' : 'Mẫu email đã chuyển sang ngừng hoạt động.', 'success');
+      },
+    );
+  };
+
   const filteredTemplates = templates.filter(t => {
     const matchGroup = selectedGroupFilter === 'ALL' || (t.group_type || '').toUpperCase().trim() === selectedGroupFilter.toUpperCase().trim();
     const matchText = !searchTerm.trim() ||
@@ -245,9 +273,12 @@ export default function AdminEmailTemplates() {
               <option value="ALL">🌐 Tất cả kịch bản ({templates.length})</option>
               {emailGroups.map(g => <option key={g.code} value={g.code}>{g.label}</option>)}
             </select>
+            <div className="flex w-full items-center gap-3 sm:w-auto">
+            {lifecycleEnabled && <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[11px] text-slate-400"><input type="checkbox" checked={showInactive} onChange={(event) => { setShowInactive(event.target.checked); setCurrentPage(1); }} className="accent-purple-500" /> Hiện ngừng hoạt động</label>}
             <div className="relative w-full sm:w-60">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
               <input type="text" placeholder="Tìm tên kịch bản, tiêu đề..." className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
+            </div>
             </div>
           </div>
 
@@ -261,13 +292,14 @@ export default function AdminEmailTemplates() {
                 {!loading && dbError && <tr><td colSpan={3} className="p-8 text-center"><p className="text-red-300">{dbError}</p><button onClick={() => loadData(true)} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-slate-200"><RefreshCcw className="h-4 w-4" />Thử lại</button></td></tr>}
                 {!loading && !dbError && currentData.length === 0 && <tr><td colSpan={3} className="p-8 text-center text-slate-400">Không tìm thấy mẫu email phù hợp.</td></tr>}
                 {currentData.map(t => (
-                  <tr key={t.id} onClick={() => setSelectedPreview(t)} className={`transition cursor-pointer ${selectedPreview?.id === t.id ? 'bg-purple-950/20 text-purple-300 font-bold border-l-2 border-purple-500' : 'hover:bg-slate-950/10'}`}>
+                  <tr key={t.id} onClick={() => setSelectedPreview(t)} className={`transition cursor-pointer ${t.is_active === false ? 'opacity-60' : ''} ${selectedPreview?.id === t.id ? 'bg-purple-950/20 text-purple-300 font-bold border-l-2 border-purple-500' : 'hover:bg-slate-950/10'}`}>
                     <td className="p-4"><span className="bg-slate-950 border border-slate-800 px-2 py-1 rounded text-purple-400 font-mono font-bold text-[10px] block w-fit">{t.group_type}</span></td>
-                    <td className="p-4 text-slate-200 font-bold">{t.template_name}</td>
+                    <td className="p-4 text-slate-200 font-bold">{t.template_name}{t.is_active === false && <span className="ml-2 rounded bg-amber-950/60 px-2 py-0.5 text-[9px] text-amber-300">Ngừng hoạt động</span>}</td>
                     <td className="p-4 text-center space-x-1 font-sans" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => handleTriggerTestMailModal(t)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-purple-400 hover:bg-purple-900/30 transition"><Send className="w-3.5 h-3.5"/></button>
-                      <button onClick={() => handleOpenEdit(t)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-800 transition"><Edit2 className="w-3.5 h-3.5"/></button>
-                      {canPermanentlyDelete && <button onClick={() => handleDelete(t.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500 hover:bg-red-950/20 transition" title="Xóa vĩnh viễn"><Trash2 className="w-3.5 h-3.5"/></button>}
+                      {t.is_active !== false && <button onClick={() => handleTriggerTestMailModal(t)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-purple-400 hover:bg-purple-900/30 transition" title="Gửi thử"><Send className="w-3.5 h-3.5"/></button>}
+                      {t.is_active !== false && <button onClick={() => handleOpenEdit(t)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-800 transition" title="Sửa"><Edit2 className="w-3.5 h-3.5"/></button>}
+                      {lifecycleEnabled && <button onClick={() => handleLifecycleChange(t)} className={`p-1.5 bg-slate-950 border border-slate-800 rounded-lg transition ${t.is_active === false ? 'text-emerald-400' : 'text-amber-400'}`} title={t.is_active === false ? 'Kích hoạt lại' : 'Ngừng hoạt động'}>{t.is_active === false ? <RotateCcw className="w-3.5 h-3.5"/> : <Archive className="w-3.5 h-3.5"/>}</button>}
+                      {canPermanentlyDelete && (!lifecycleEnabled || t.is_active === false) && <button onClick={() => handleDelete(t.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500 hover:bg-red-950/20 transition" title="Xóa vĩnh viễn"><Trash2 className="w-3.5 h-3.5"/></button>}
                     </td>
                   </tr>
                 ))}

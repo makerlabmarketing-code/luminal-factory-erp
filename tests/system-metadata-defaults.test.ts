@@ -68,16 +68,16 @@ describe("system metadata dropdown fallbacks", () => {
 
   it("uses fallback metadata in the capital and metadata pages without writing seed data", () => {
     const capitalPage = source("app/admin/capital/page.tsx");
+    const financialLedger = source("services/server/adminFinancialLedger.ts");
     const metadataPage = source("app/admin/metadata/page.tsx");
     const metadataRoute = source("app/api/admin/system-metadata/route.ts");
 
     expect(capitalPage).toMatch(/DEFAULT_FINANCIAL_TRANSACTION_TYPES/);
-    expect(capitalPage).toMatch(
-      /normalizeSystemMetadataOptions\(meta\?\.data, DEFAULT_FINANCIAL_TRANSACTION_TYPES\)/,
-    );
-    expect(capitalPage).toMatch(
-      /normalizeSystemMetadataOptions\(contribMeta\?\.data, DEFAULT_CAPITAL_CONTRIBUTION_TYPES\)/,
-    );
+    expect(financialLedger).toMatch(/normalizeSystemMetadataOptions/);
+    expect(financialLedger).toMatch(/DEFAULT_FINANCIAL_TRANSACTION_TYPES/);
+    expect(financialLedger).toMatch(/DEFAULT_CAPITAL_CONTRIBUTION_TYPES/);
+    expect(capitalPage).toMatch(/ledgerResult\.transactionTypes/);
+    expect(capitalPage).toMatch(/ledgerResult\.contributionTypes/);
     expect(metadataRoute).toMatch(/mergeSystemMetadataCategories/);
     expect(metadataPage).toMatch(/payload\.categories \|\| \[\]/);
     expect(metadataPage).toMatch(
