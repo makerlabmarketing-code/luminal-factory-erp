@@ -952,6 +952,34 @@ API. Browser code and Supabase ERP have no direct Commerce database access.
 The first typed adapter covers Homepage Hero drafts, publish and unpublish while
 wrapping the Commerce-owned table, Storage guards and atomic RPCs. No ERP route or
 UI consumes the adapter yet, no Commerce repository or data changed, and
-`COMMERCE_ADMIN_INTEGRATION_ENABLED` remains false/unset. Next action is a separate
-Commerce slice implementing signature verification, durable replay protection,
-capability allowlisting, audit and idempotency before any ERP UI or activation.
+`COMMERCE_ADMIN_INTEGRATION_ENABLED` remains false/unset. The 2026-09-13
+reconciliation below supersedes the original next action to implement the Commerce
+verifier/routes from scratch.
+
+## 2026-09-13 ERP/Commerce coordination — E-003
+
+Status: `HANDOFF_RECONCILED / INTEGRATION_PARKED / RUNTIME_DISABLED`.
+
+The [integration contract handoff](commerce-admin-integration-contract.md#2026-09-13-cross-repository-handoff-e-003)
+now traces the five prepared Commerce operations, HMAC/current-previous key lookup,
+durable nonce boundary and idempotent Hero RPC to Commerce `f22515d1`. Remaining
+gates include idempotency delivery, denied-request audit persistence, credentials,
+ERP consumer/permissions and retained E2E evidence. Production state was not
+reverified in this documentation slice.
+
+Commerce C-002 is already in progress in the shared coordinator. ERP E-001 still
+requires retained authenticated Owner/Admin lifecycle smoke. E-002 depends on
+E-001 and cannot be treated as an unblocked implementation slice. E-003 has no
+such dependency and reconciles the existing handoff without reopening completed
+application work. The current ERP open-PR search returned no results; no new
+review finding was supplied, and unavailable Codex review evidence is not a PASS.
+
+Exit criteria: the handoff distinguishes implemented repository boundaries from
+operator-only gates and references the current Commerce source; reviewed changes
+are delivered through a feature PR and recorded in the coordinator. Rollback is
+the document diff only. No application, API contract, dependency, database,
+migration, permission or runtime behavior changes are included.
+
+Next: complete Commerce #67 in its active workstream and retain E-001 smoke
+evidence before selecting E-002. Integration #63/#203 stays parked until its
+explicit resumption; this reconciliation does not authorize live activation.
