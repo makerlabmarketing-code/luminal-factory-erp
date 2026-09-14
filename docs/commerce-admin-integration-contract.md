@@ -113,7 +113,7 @@ Keep `COMMERCE_ADMIN_INTEGRATION_ENABLED` false/unset until all of the following
 
 1. ERP signer passes the shared `lfc-hmac-v1` vector and negative tamper tests.
 2. Commerce credential provisioning/rotation wiring is complete server-side.
-3. Commerce live Management API routes are implemented and reviewed.
+3. Commerce's prepared Management API routes pass review and their remaining deployment/runtime gates; route implementation already exists (see the handoff below).
 4. Commerce durable replay, audit and idempotency gates remain validated.
 5. ERP adds reviewed routes/UI and the Commerce permission catalog/backfill decision is approved.
 6. Unauthorized, stale, replay, tamper, rotation, idempotency and authorized non-production E2E smoke tests pass.
@@ -121,6 +121,18 @@ Keep `COMMERCE_ADMIN_INTEGRATION_ENABLED` false/unset until all of the following
 
 ## Current slice and non-goals
 
-This compatibility slice changes the prepared signer/transport contract only. It adds no ERP browser route or Commerce-management UI, performs no real ERP→Commerce request, creates no real HMAC secret, changes no Supabase schema or Production data and enables no runtime flag.
+### 2026-09-13 cross-repository handoff (E-003)
+
+Repository evidence: [Commerce `f22515d1`](https://github.com/makerlabmarketing-code/luminal-factory-commerce/tree/f22515d14e41778df286ac351aa251174e712a54), especially `specs/integration/commerce-admin-homepage-hero-route-plan.md` and `src/features/management/commerce-admin-route-runtime.ts`.
+
+All five operations above have Commerce route implementations. The shared runtime verifies the raw-body `lfc-hmac-v1` signature, supports configured current/previous keys, checks route scopes and calls the durable nonce RPC. The default-disabled path returns `503 INTEGRATION_DISABLED`. Hero mutations use the Commerce-owned `manage_homepage_hero` RPC with operation-id receipts; repository code is not evidence of live database delivery or end-to-end readiness.
+
+The Commerce route plan records `20260912150000_add_commerce_admin_hero_idempotency.sql` as repository-only and awaiting database approval. This handoff does not reverify the production migration ledger. The route runtime returns authentication/replay failures before entering the authenticated audit context; denied-request audit persistence therefore remains a separate open gate. No ERP route or UI currently consumes the prepared adapter.
+
+Execution order remains [Commerce standalone #67](https://github.com/makerlabmarketing-code/luminal-factory-commerce/issues/67) → explicit resumption of [integration #63](https://github.com/makerlabmarketing-code/luminal-factory-commerce/issues/63) / [ERP #203](https://github.com/makerlabmarketing-code/luminal-factory-erp/issues/203) → idempotency review/rollback validation and approved delivery → environment-specific credentials and denied-request audit → reviewed ERP consumer/permission decision → retained non-production E2E evidence → separate production activation approval. Asset upload remains outside the five-operation adapter scope.
+
+Acceptance for E-003 is documentation alignment with these repository seams and remaining gates. It does not close #203, resume parked integration work, approve credentials or migrations, or establish a live PASS. The wire contract version stays `2026-09-11`.
+
+The earlier compatibility slice changed the prepared signer/transport contract only. E-003 changes documentation only. Neither adds an ERP browser route or Commerce-management UI, performs a real ERP→Commerce request, creates a real HMAC secret, changes Supabase schema or Production data, or enables a runtime flag.
 
 Rollback is a code/document revert. There is no database rollback and no data-loss risk.
