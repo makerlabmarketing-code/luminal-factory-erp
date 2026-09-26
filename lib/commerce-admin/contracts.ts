@@ -1,6 +1,7 @@
 export const COMMERCE_ADMIN_CONTRACT_VERSION = '2026-09-11';
 export const COMMERCE_ADMIN_SIGNATURE_VERSION = 'lfc-hmac-v1';
 export const COMMERCE_ADMIN_MANAGEMENT_PREFIX = '/api/admin/v1';
+export const HOMEPAGE_HERO_ASSET_MAX_BYTES = 10 * 1024 * 1024;
 
 export type CommerceAdminCapability =
   | 'COMMERCE_HOMEPAGE_HERO_VIEW'
@@ -88,6 +89,43 @@ export interface HomepageHeroPublishMutation {
   operationId: string;
 }
 
+export type HomepageHeroAssetKind = 'model' | 'poster';
+
+export type HomepageHeroAssetContentType =
+  | 'model/gltf-binary'
+  | 'application/octet-stream'
+  | 'image/webp'
+  | 'image/avif'
+  | 'image/png';
+
+export interface HomepageHeroAssetPresentation {
+  kind: HomepageHeroAssetKind;
+  path: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  updatedAt: string | null;
+  publicUrl: string;
+}
+
+export interface HomepageHeroAssetUploadTicketRequest {
+  kind: HomepageHeroAssetKind;
+  fileName: string;
+  contentType: HomepageHeroAssetContentType;
+  sizeBytes: number;
+}
+
+export interface HomepageHeroAssetUploadTicket {
+  kind: HomepageHeroAssetKind;
+  path: string;
+  contentType: string;
+  sizeBytes: number;
+  signedUrl: string;
+  token: string;
+  publicUrl: string;
+  expiresInSeconds: number;
+}
+
 export interface CommerceAdminEndpoint<TBody = undefined> {
   capability: CommerceAdminCapability;
   scope: CommerceAdminScope;
@@ -103,6 +141,25 @@ export const homepageHeroEndpoints = {
       scope: 'commerce.hero.read',
       method: 'GET',
       path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/homepage-hero`,
+    };
+  },
+  assets(): CommerceAdminEndpoint {
+    return {
+      capability: 'COMMERCE_HOMEPAGE_HERO_VIEW',
+      scope: 'commerce.hero.read',
+      method: 'GET',
+      path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/homepage-hero/assets`,
+    };
+  },
+  createAssetUploadTicket(
+    body: HomepageHeroAssetUploadTicketRequest,
+  ): CommerceAdminEndpoint<HomepageHeroAssetUploadTicketRequest> {
+    return {
+      capability: 'COMMERCE_HOMEPAGE_HERO_MANAGE',
+      scope: 'commerce.hero.write',
+      method: 'POST',
+      path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/homepage-hero/assets/upload-ticket`,
+      body,
     };
   },
   create(body: HomepageHeroDraftMutation): CommerceAdminEndpoint<HomepageHeroDraftMutation> {
