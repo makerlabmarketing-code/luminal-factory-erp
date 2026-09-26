@@ -19,6 +19,7 @@ export const ERP_UI_TEXT = {
       projects: "Dự án & sản xuất",
       people: "Nhân sự",
       finance: "Tài chính",
+      commerce: "Thương mại",
       system: "Cấu hình hệ thống",
     },
     items: {
@@ -33,6 +34,7 @@ export const ERP_UI_TEXT = {
       payroll: "Quyết toán lương",
       metadata: "Danh mục hệ thống",
       emailTemplates: "Mẫu email",
+      homepageHero: "Hero trang chủ",
     },
   },
   commandMenu: {
