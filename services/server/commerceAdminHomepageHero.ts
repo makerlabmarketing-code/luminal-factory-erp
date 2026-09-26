@@ -2,6 +2,9 @@ import 'server-only';
 
 import {
   homepageHeroEndpoints,
+  type HomepageHeroAssetPresentation,
+  type HomepageHeroAssetUploadTicket,
+  type HomepageHeroAssetUploadTicketRequest,
   type HomepageHeroDraftMutation,
   type HomepageHeroPresentation,
   type HomepageHeroPublishMutation,
@@ -47,6 +50,40 @@ function isHomepageHeroList(value: unknown): value is HomepageHeroPresentation[]
   return Array.isArray(value) && value.every(isHomepageHeroPresentation);
 }
 
+function isHomepageHeroAssetPresentation(value: unknown): value is HomepageHeroAssetPresentation {
+  return (
+    isRecord(value) &&
+    (value.kind === 'model' || value.kind === 'poster') &&
+    typeof value.path === 'string' &&
+    typeof value.fileName === 'string' &&
+    typeof value.contentType === 'string' &&
+    typeof value.sizeBytes === 'number' &&
+    Number.isFinite(value.sizeBytes) &&
+    (value.updatedAt === null || typeof value.updatedAt === 'string') &&
+    typeof value.publicUrl === 'string'
+  );
+}
+
+function isHomepageHeroAssetList(value: unknown): value is HomepageHeroAssetPresentation[] {
+  return Array.isArray(value) && value.every(isHomepageHeroAssetPresentation);
+}
+
+function isHomepageHeroAssetUploadTicket(value: unknown): value is HomepageHeroAssetUploadTicket {
+  return (
+    isRecord(value) &&
+    (value.kind === 'model' || value.kind === 'poster') &&
+    typeof value.path === 'string' &&
+    typeof value.contentType === 'string' &&
+    typeof value.sizeBytes === 'number' &&
+    Number.isFinite(value.sizeBytes) &&
+    typeof value.signedUrl === 'string' &&
+    typeof value.token === 'string' &&
+    typeof value.publicUrl === 'string' &&
+    typeof value.expiresInSeconds === 'number' &&
+    Number.isFinite(value.expiresInSeconds)
+  );
+}
+
 export function listHomepageHeroPresentations(): Promise<HomepageHeroPresentation[]> {
   return requestCommerceAdmin(homepageHeroEndpoints.list(), isHomepageHeroList);
 }
@@ -76,4 +113,18 @@ export function unpublishHomepageHero(
   mutation: HomepageHeroPublishMutation,
 ): Promise<HomepageHeroPresentation> {
   return requestCommerceAdmin(homepageHeroEndpoints.unpublish(heroId, mutation), isHomepageHeroPresentation);
+}
+
+
+export function listHomepageHeroAssets(): Promise<HomepageHeroAssetPresentation[]> {
+  return requestCommerceAdmin(homepageHeroEndpoints.assets(), isHomepageHeroAssetList);
+}
+
+export function createHomepageHeroAssetUploadTicket(
+  request: HomepageHeroAssetUploadTicketRequest,
+): Promise<HomepageHeroAssetUploadTicket> {
+  return requestCommerceAdmin(
+    homepageHeroEndpoints.createAssetUploadTicket(request),
+    isHomepageHeroAssetUploadTicket,
+  );
 }
