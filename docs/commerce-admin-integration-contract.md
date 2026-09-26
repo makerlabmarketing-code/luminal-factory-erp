@@ -136,3 +136,48 @@ Acceptance for E-003 is documentation alignment with these repository seams and 
 The earlier compatibility slice changed the prepared signer/transport contract only. E-003 changes documentation only. Neither adds an ERP browser route or Commerce-management UI, performs a real ERP→Commerce request, creates a real HMAC secret, changes Supabase schema or Production data, or enables a runtime flag.
 
 Rollback is a code/document revert. There is no database rollback and no data-loss risk.
+
+## 2026-09-26 — ERP Homepage Hero Manager consumer slice
+
+The business owner resumed Homepage Hero administration after the Commerce
+publish-guard and Storage asset gates passed.
+
+ERP now owns an internal control-plane route family under
+`/api/admin/commerce/homepage-hero`. The browser still does not receive the
+shared HMAC secret, machine signature headers or a Commerce service-role key.
+
+The Homepage Hero contract also includes:
+
+| Operation | Commerce method and path | ERP capability | Commerce scope |
+|---|---|---|---|
+| List assets | `GET /api/admin/v1/homepage-hero/assets` | `COMMERCE_HOMEPAGE_HERO_VIEW` | `commerce.hero.read` |
+| Create signed upload ticket | `POST /api/admin/v1/homepage-hero/assets/upload-ticket` | `COMMERCE_HOMEPAGE_HERO_MANAGE` | `commerce.hero.write` |
+
+Binary upload is the narrow exception to the normal browser control-plane
+rule: the ERP browser may PUT the selected GLB/poster bytes directly to the
+time-limited, path-scoped Supabase Storage signed URL returned through the ERP
+server route. The browser does not receive a Commerce database credential or
+service-role key, and every draft/publish mutation still goes through the ERP
+server signer and Commerce Management API.
+
+The admin UI is available at `/admin/commerce/homepage-hero` and provides:
+
+- Hero list and draft selection;
+- GLB/poster asset selection;
+- signed asset upload;
+- isolated 3D preview using the same pinned model-viewer runtime family as Commerce;
+- camera, exposure, shadow and rotation settings;
+- explicit save-draft, publish and unpublish actions.
+
+The integration flag remains false by default. With
+`COMMERCE_ADMIN_INTEGRATION_ENABLED` disabled, live Commerce operations fail
+closed and the UI exposes a Vietnamese disabled state.
+
+Permission catalog/backfill is intentionally not included in this slice.
+System OWNER retains protected full access through the existing authorization
+rule. Non-owner Commerce capability rollout remains a separate reviewed
+permission-catalog decision before Production activation.
+
+Rollback is an application-code revert of the ERP route/UI/contract additions.
+No ERP schema migration, Commerce data mutation, HMAC credential provisioning
+or runtime activation belongs to this slice.
