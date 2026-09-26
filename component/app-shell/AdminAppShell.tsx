@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
 import {
   ArrowLeftRight,
+  Box,
   BriefcaseBusiness,
   CalendarDays,
   Database,
@@ -41,6 +42,7 @@ const ICONS: Record<AdminNavigationIcon, ElementType> = {
   payroll: WalletCards,
   metadata: Database,
   emailTemplates: Mail,
+  commerceHero: Box,
 };
 
 function AppSidebar({
