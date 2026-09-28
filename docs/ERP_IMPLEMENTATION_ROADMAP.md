@@ -1007,7 +1007,15 @@ Commerce permission catalog rollout remains a separate decision.
 
 Next gates after this application slice passes CI/review:
 
-1. environment-specific credential provisioning;
+1. environment-specific credential provisioning and a non-production Commerce
+   environment;
 2. non-production ERP↔Commerce E2E handshake;
 3. denied-auth/replay audit completion;
 4. explicit Production live activation approval.
+
+Read-only Commerce Production verification on 2026-09-28 found ledger entry
+`20260922031133_add_commerce_admin_hero_idempotency`, the private receipt
+table and `public.manage_homepage_hero` RPC. The previous repository-only
+migration status is stale; do not reapply it. The Commerce Supabase project had
+no development branch at that check, so no non-production handshake was run.
+ERP PR #207 remains open with its runtime flag disabled.

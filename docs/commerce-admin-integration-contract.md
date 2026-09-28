@@ -127,9 +127,19 @@ Repository evidence: [Commerce `f22515d1`](https://github.com/makerlabmarketing-
 
 All five operations above have Commerce route implementations. The shared runtime verifies the raw-body `lfc-hmac-v1` signature, supports configured current/previous keys, checks route scopes and calls the durable nonce RPC. The default-disabled path returns `503 INTEGRATION_DISABLED`. Hero mutations use the Commerce-owned `manage_homepage_hero` RPC with operation-id receipts; repository code is not evidence of live database delivery or end-to-end readiness.
 
-The Commerce route plan records `20260912150000_add_commerce_admin_hero_idempotency.sql` as repository-only and awaiting database approval. This handoff does not reverify the production migration ledger. The route runtime returns authentication/replay failures before entering the authenticated audit context; denied-request audit persistence therefore remains a separate open gate. No ERP route or UI currently consumes the prepared adapter.
+The Commerce Production migration ledger was read on 2026-09-28 and includes
+`20260922031133_add_commerce_admin_hero_idempotency`. The private receipt table
+and `public.manage_homepage_hero` RPC were also confirmed by read-only catalog
+queries. The earlier repository-only status is superseded; do not reapply the
+migration. The route runtime returns authentication/replay failures before
+entering the authenticated audit context; denied-request audit persistence
+remains a separate open gate.
 
-Execution order remains [Commerce standalone #67](https://github.com/makerlabmarketing-code/luminal-factory-commerce/issues/67) → explicit resumption of [integration #63](https://github.com/makerlabmarketing-code/luminal-factory-commerce/issues/63) / [ERP #203](https://github.com/makerlabmarketing-code/luminal-factory-erp/issues/203) → idempotency review/rollback validation and approved delivery → environment-specific credentials and denied-request audit → reviewed ERP consumer/permission decision → retained non-production E2E evidence → separate production activation approval. Asset upload remains outside the five-operation adapter scope.
+The application routes/UI and asset upload-ticket boundary are now prepared.
+Remaining order: distinct environment-specific credentials and denied-request
+audit → reviewed ERP permission decision → retained non-production E2E evidence
+→ separate Production activation approval. On 2026-09-28, Commerce had no
+Supabase development branch for that E2E run.
 
 Acceptance for E-003 is documentation alignment with these repository seams and remaining gates. It does not close #203, resume parked integration work, approve credentials or migrations, or establish a live PASS. The wire contract version stays `2026-09-11`.
 
