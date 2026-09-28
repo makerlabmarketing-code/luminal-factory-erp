@@ -97,7 +97,7 @@ describe('Homepage Hero administration consumer', () => {
     );
 
     expect(client).toMatch(
-      /Màu phủ hiện được lưu trong contract; storefront chưa áp trực tiếp/,
+      /Màu phủ hiện được lưu trong contract; storefront chưa áp trực\s+tiếp/,
     );
   });
 });

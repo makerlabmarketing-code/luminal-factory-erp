@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box,
   ExternalLink,
@@ -270,20 +270,49 @@ export default function HomepageHeroManagerClient() {
   const selectedModelAsset =
     modelAssets.find((asset) => asset.path === draft.modelStoragePath) || null;
   const previewUrl = safeHttpsUrl(selectedModelAsset?.publicUrl);
-  const previewDocument = useMemo(
-    () =>
-      previewUrl ? buildPreviewDocument(previewUrl, draft.settings) : null,
-    [draft.settings, previewUrl],
-  );
+  const previewDocument = previewUrl
+    ? buildPreviewDocument(previewUrl, draft.settings)
+    : null;
+  const hasUnsavedChanges = selectedHero
+    ? JSON.stringify(draft) !== JSON.stringify(draftFromHero(selectedHero))
+    : JSON.stringify(draft) !==
+      JSON.stringify(emptyDraft(modelAssets[0]?.path || ''));
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warnBeforeLeave = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener('beforeunload', warnBeforeLeave);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeave);
+  }, [hasUnsavedChanges]);
+
+  function confirmDiscardChanges(next: () => void) {
+    if (!hasUnsavedChanges) {
+      next();
+      return;
+    }
+    showConfirm(
+      'Bỏ thay đổi chưa lưu?',
+      'Những chỉnh sửa chưa lưu sẽ mất. Bạn có muốn tiếp tục?',
+      next,
+      { confirmLabel: 'Bỏ thay đổi', cancelLabel: 'Hủy' },
+    );
+  }
 
   function selectHero(hero: HomepageHeroPresentation) {
-    setSelectedHeroId(hero.id);
-    setDraft(draftFromHero(hero));
+    if (hero.id === selectedHeroId) return;
+    confirmDiscardChanges(() => {
+      setSelectedHeroId(hero.id);
+      setDraft(draftFromHero(hero));
+    });
   }
 
   function beginNewDraft() {
-    setSelectedHeroId(null);
-    setDraft(emptyDraft(modelAssets[0]?.path || ''));
+    confirmDiscardChanges(() => {
+      setSelectedHeroId(null);
+      setDraft(emptyDraft(modelAssets[0]?.path || ''));
+    });
   }
 
   function updateSetting(
@@ -297,6 +326,14 @@ export default function HomepageHeroManagerClient() {
   }
 
   async function saveDraft() {
+    if (selectedHero?.status === 'PUBLISHED') {
+      showToast(
+        'Hero đang dùng',
+        'Hãy tạo bản nháp từ Hero này trước khi sửa.',
+        'info',
+      );
+      return;
+    }
     if (!draft.name.trim() || !draft.modelStoragePath) {
       showToast(
         'Thiếu thông tin',
@@ -378,6 +415,14 @@ export default function HomepageHeroManagerClient() {
   }
 
   function confirmPublishChange(action: 'publish' | 'unpublish') {
+    if (hasUnsavedChanges) {
+      showToast(
+        'Có thay đổi chưa lưu',
+        'Hãy lưu nháp trước khi đổi trạng thái Hero.',
+        'info',
+      );
+      return;
+    }
     showConfirm(
       action === 'publish'
         ? 'Dùng Hero này trên Commerce?'
@@ -483,7 +528,9 @@ export default function HomepageHeroManagerClient() {
           <button
             type="button"
             className="admin-button-secondary"
-            onClick={() => void loadData(selectedHeroId, true)}
+            onClick={() =>
+              confirmDiscardChanges(() => void loadData(selectedHeroId, true))
+            }
             disabled={loading}
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -820,16 +867,32 @@ export default function HomepageHeroManagerClient() {
                   : 'Bản nháp mới'}
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
-                Lưu bản nháp không thay đổi Hero live. Xuất bản là thao tác
-                riêng có xác nhận.
+                {selectedHero?.status === 'PUBLISHED'
+                  ? 'Tạo bản nháp từ Hero này để chỉnh sửa mà không đổi Hero đang dùng.'
+                  : 'Lưu bản nháp không thay đổi Hero đang dùng. Dùng Hero là thao tác riêng có xác nhận.'}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {selectedHero?.status === 'PUBLISHED' ? (
+                <button
+                  type="button"
+                  className="admin-button-secondary"
+                  onClick={() => setSelectedHeroId(null)}
+                  disabled={integrationDisabled || saving}
+                >
+                  <Plus className="h-4 w-4" />
+                  Tạo bản nháp từ Hero này
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="admin-button-primary"
                 onClick={() => void saveDraft()}
-                disabled={integrationDisabled || saving}
+                disabled={
+                  integrationDisabled ||
+                  saving ||
+                  selectedHero?.status === 'PUBLISHED'
+                }
               >
                 <Save className="h-4 w-4" />
                 {saving ? 'Đang lưu...' : 'Lưu nháp'}
@@ -840,7 +903,7 @@ export default function HomepageHeroManagerClient() {
                   type="button"
                   className="admin-button-secondary"
                   onClick={() => confirmPublishChange('unpublish')}
-                  disabled={integrationDisabled || saving}
+                  disabled={integrationDisabled || saving || hasUnsavedChanges}
                 >
                   <Pause className="h-4 w-4" />
                   Dừng Hero
@@ -851,7 +914,10 @@ export default function HomepageHeroManagerClient() {
                   className="admin-button-secondary"
                   onClick={() => confirmPublishChange('publish')}
                   disabled={
-                    integrationDisabled || saving || !selectedHeroId
+                    integrationDisabled ||
+                    saving ||
+                    !selectedHeroId ||
+                    hasUnsavedChanges
                   }
                 >
                   <Play className="h-4 w-4" />
