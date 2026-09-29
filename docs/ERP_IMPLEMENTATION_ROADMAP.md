@@ -986,7 +986,7 @@ explicit resumption; this reconciliation does not authorize live activation.
 
 ## 2026-09-26 — Homepage Hero Admin consumer (I-005 / I-008)
 
-**Status:** `APPLICATION_SLICE_IMPLEMENTED_ON_FEATURE_BRANCH / RUNTIME_DISABLED`
+**Status (2026-09-29):** `APPLICATION_MERGED_MAIN / PRODUCTION_READY / RUNTIME_DISABLED`
 
 Owner approval resumed Homepage Hero administration after Commerce completed
 the Hero publish guard and Storage asset onboarding.
@@ -1005,17 +1005,26 @@ Production Commerce request or runtime activation is included. System OWNER can
 access the feature through the existing protected full-access rule. Non-owner
 Commerce permission catalog rollout remains a separate decision.
 
-Next gates after this application slice passes CI/review:
+PR #207 was squash-merged to `main` at `5b14730`. The 838 tests, lint,
+typecheck and build passed after merge. Vercel Production is READY; an
+unauthenticated Hero API request returned 401. GitHub Advanced Security
+failed before review because its requested model was unsupported (HTTP 400)
+and produced no code finding. The infrastructure failure remains visible
+on the PR.
 
-1. environment-specific credential provisioning and a non-production Commerce
-   environment;
-2. non-production ERP↔Commerce E2E handshake;
-3. denied-auth/replay audit completion;
-4. explicit Production live activation approval.
+Next gates after this default-off application delivery:
+
+1. environment-specific HMAC credential provisioning on the existing
+   projects while both runtime flags remain false;
+2. reviewed draft-only ERP↔Commerce E2E handshake on existing infrastructure,
+   including tamper/replay/rotation/idempotency and bounded denial samples;
+3. explicit Production live activation approval.
 
 Read-only Commerce Production verification on 2026-09-28 found ledger entry
 `20260922031133_add_commerce_admin_hero_idempotency`, the private receipt
 table and `public.manage_homepage_hero` RPC. The previous repository-only
-migration status is stale; do not reapply it. The Commerce Supabase project had
-no development branch at that check, so no non-production handshake was run.
-ERP PR #207 remains open with its runtime flag disabled.
+migration status is stale; do not reapply it. Commerce added bounded
+denied-auth/replay audit on 2026-09-29 as ledger
+`20260929020944_add_bounded_commerce_admin_denial_audit`; RLS/grants and
+rollback-scoped fixtures passed. No paid branch or new Supabase project
+will be created. No real handshake has run and both runtime flags remain off.

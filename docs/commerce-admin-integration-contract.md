@@ -5,6 +5,27 @@
 **Signature profile:** `lfc-hmac-v1`
 **First adapter:** Homepage Hero
 
+## 2026-09-29 current checkpoint
+
+ERP Homepage Hero routes/UI were merged to `main` in `5b14730` (PR #207).
+The 838 tests, lint, typecheck and Production build passed again after merge;
+Vercel Production is READY. The default-off integration has no HMAC
+credential or live ERP→Commerce request. System OWNER can access the
+application route; non-owner capability grants need a separate catalog
+decision.
+
+Commerce denied-auth/replay sample audit was delivered on `master` and the
+existing Commerce Supabase project records
+`20260929020944_add_bounded_commerce_admin_denial_audit`. RLS, grants,
+duplicate-sample behavior, cleanup and rollback-scoped fixture checks passed.
+The Admin endpoint remains `INTEGRATION_DISABLED`.
+
+Continue with the existing security/test/live gates: provision matching
+server-only HMAC values while both runtime flags remain off; run a reviewed,
+cleaned-up draft-only handshake on the existing infrastructure; then request
+separate approval to enable Production. No Supabase paid branch or new project
+is planned. The dated E-003 handoff below is historical.
+
 ## Decision
 
 Luminal Factory ERP and Commerce remain separate Next.js applications with separate Supabase projects. Commerce is authoritative for persisted commerce state and public presentation. ERP is the operational administration surface.
