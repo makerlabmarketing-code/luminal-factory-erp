@@ -127,12 +127,67 @@ Repository evidence: [Commerce `f22515d1`](https://github.com/makerlabmarketing-
 
 All five operations above have Commerce route implementations. The shared runtime verifies the raw-body `lfc-hmac-v1` signature, supports configured current/previous keys, checks route scopes and calls the durable nonce RPC. The default-disabled path returns `503 INTEGRATION_DISABLED`. Hero mutations use the Commerce-owned `manage_homepage_hero` RPC with operation-id receipts; repository code is not evidence of live database delivery or end-to-end readiness.
 
-The Commerce route plan records `20260912150000_add_commerce_admin_hero_idempotency.sql` as repository-only and awaiting database approval. This handoff does not reverify the production migration ledger. The route runtime returns authentication/replay failures before entering the authenticated audit context; denied-request audit persistence therefore remains a separate open gate. No ERP route or UI currently consumes the prepared adapter.
+The Commerce Production migration ledger was read on 2026-09-28 and includes
+`20260922031133_add_commerce_admin_hero_idempotency`. The private receipt table
+and `public.manage_homepage_hero` RPC were also confirmed by read-only catalog
+queries. The earlier repository-only status is superseded; do not reapply the
+migration. The route runtime returns authentication/replay failures before
+entering the authenticated audit context; denied-request audit persistence
+remains a separate open gate.
 
-Execution order remains [Commerce standalone #67](https://github.com/makerlabmarketing-code/luminal-factory-commerce/issues/67) → explicit resumption of [integration #63](https://github.com/makerlabmarketing-code/luminal-factory-commerce/issues/63) / [ERP #203](https://github.com/makerlabmarketing-code/luminal-factory-erp/issues/203) → idempotency review/rollback validation and approved delivery → environment-specific credentials and denied-request audit → reviewed ERP consumer/permission decision → retained non-production E2E evidence → separate production activation approval. Asset upload remains outside the five-operation adapter scope.
+The application routes/UI and asset upload-ticket boundary are now prepared.
+Remaining order: distinct environment-specific credentials and denied-request
+audit → reviewed ERP permission decision → retained non-production E2E evidence
+→ separate Production activation approval. On 2026-09-28, Commerce had no
+Supabase development branch for that E2E run.
 
 Acceptance for E-003 is documentation alignment with these repository seams and remaining gates. It does not close #203, resume parked integration work, approve credentials or migrations, or establish a live PASS. The wire contract version stays `2026-09-11`.
 
 The earlier compatibility slice changed the prepared signer/transport contract only. E-003 changes documentation only. Neither adds an ERP browser route or Commerce-management UI, performs a real ERP→Commerce request, creates a real HMAC secret, changes Supabase schema or Production data, or enables a runtime flag.
 
 Rollback is a code/document revert. There is no database rollback and no data-loss risk.
+
+## 2026-09-26 — ERP Homepage Hero Manager consumer slice
+
+The business owner resumed Homepage Hero administration after the Commerce
+publish-guard and Storage asset gates passed.
+
+ERP now owns an internal control-plane route family under
+`/api/admin/commerce/homepage-hero`. The browser still does not receive the
+shared HMAC secret, machine signature headers or a Commerce service-role key.
+
+The Homepage Hero contract also includes:
+
+| Operation | Commerce method and path | ERP capability | Commerce scope |
+|---|---|---|---|
+| List assets | `GET /api/admin/v1/homepage-hero/assets` | `COMMERCE_HOMEPAGE_HERO_VIEW` | `commerce.hero.read` |
+| Create signed upload ticket | `POST /api/admin/v1/homepage-hero/assets/upload-ticket` | `COMMERCE_HOMEPAGE_HERO_MANAGE` | `commerce.hero.write` |
+
+Binary upload is the narrow exception to the normal browser control-plane
+rule: the ERP browser may PUT the selected GLB/poster bytes directly to the
+time-limited, path-scoped Supabase Storage signed URL returned through the ERP
+server route. The browser does not receive a Commerce database credential or
+service-role key, and every draft/publish mutation still goes through the ERP
+server signer and Commerce Management API.
+
+The admin UI is available at `/admin/commerce/homepage-hero` and provides:
+
+- Hero list and draft selection;
+- GLB/poster asset selection;
+- signed asset upload;
+- isolated 3D preview using the same pinned model-viewer runtime family as Commerce;
+- camera, exposure, shadow and rotation settings;
+- explicit save-draft, publish and unpublish actions.
+
+The integration flag remains false by default. With
+`COMMERCE_ADMIN_INTEGRATION_ENABLED` disabled, live Commerce operations fail
+closed and the UI exposes a Vietnamese disabled state.
+
+Permission catalog/backfill is intentionally not included in this slice.
+System OWNER retains protected full access through the existing authorization
+rule. Non-owner Commerce capability rollout remains a separate reviewed
+permission-catalog decision before Production activation.
+
+Rollback is an application-code revert of the ERP route/UI/contract additions.
+No ERP schema migration, Commerce data mutation, HMAC credential provisioning
+or runtime activation belongs to this slice.

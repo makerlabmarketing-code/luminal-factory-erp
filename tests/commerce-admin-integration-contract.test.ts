@@ -67,6 +67,25 @@ describe('Commerce Admin integration contract', () => {
       scope: 'commerce.hero.read',
       path: '/api/admin/v1/homepage-hero',
     });
+    expect(homepageHeroEndpoints.assets()).toMatchObject({
+      method: 'GET',
+      capability: 'COMMERCE_HOMEPAGE_HERO_VIEW',
+      scope: 'commerce.hero.read',
+      path: '/api/admin/v1/homepage-hero/assets',
+    });
+    expect(
+      homepageHeroEndpoints.createAssetUploadTicket({
+        kind: 'model',
+        fileName: 'hero.glb',
+        contentType: 'model/gltf-binary',
+        sizeBytes: 1024,
+      }),
+    ).toMatchObject({
+      method: 'POST',
+      capability: 'COMMERCE_HOMEPAGE_HERO_MANAGE',
+      scope: 'commerce.hero.write',
+      path: '/api/admin/v1/homepage-hero/assets/upload-ticket',
+    });
     expect(homepageHeroEndpoints.publish('hero/value', { operationId: 'operation-1' })).toMatchObject({
       method: 'POST',
       capability: 'COMMERCE_HOMEPAGE_HERO_MANAGE',
@@ -140,8 +159,11 @@ describe('Commerce Admin integration contract', () => {
     }
   });
 
-  it('does not add an ERP route or UI consumer before activation approval', () => {
-    expect(fs.existsSync(path.join(root, 'app/api/admin/commerce'))).toBe(false);
-    expect(fs.existsSync(path.join(root, 'app/admin/commerce'))).toBe(false);
+  it('adds the reviewed ERP route/UI consumer while keeping live activation default-off', () => {
+    expect(fs.existsSync(path.join(root, 'app/api/admin/commerce/homepage-hero'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'app/admin/commerce/homepage-hero'))).toBe(true);
+    const transport = source('services/server/commerceAdminIntegration.ts');
+    expect(transport).toContain("return value === 'true'");
+    expect(transport).toContain('COMMERCE_ADMIN_INTEGRATION_ENABLED');
   });
 });
