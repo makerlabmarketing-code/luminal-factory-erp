@@ -1,5 +1,34 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-09-30 — Homepage Hero retry correctness (I-006)
+
+Status: `CODE_COMPLETE / LOCAL_VALIDATION_PASS / RUNTIME_DISABLED`.
+
+The Hero Manager now keeps the same operation ID when retrying identical draft
+or publish/unpublish input after a lost response. A synchronous in-flight guard
+prevents two clicks from submitting concurrently. Confirmed success clears the
+pending ID; changed payload, method, target or action creates a new operation.
+This identity survives retries within the mounted manager only, not a reload.
+
+Focused behavioral tests cover lost-response retry, confirmed success, changed
+input/target/action and stale confirmation. Executable server-transport tests
+also prove denied/missing sessions never call Commerce, each retry rechecks
+authorization, and response request identity is enforced. Auth providers and
+fetch are test dependencies; this does not prove a real ERP session.
+Commerce separately extends its local
+handshake runner with revoked-key rejection and tests its actual verifier.
+No live request, schema, permission catalog, environment or runtime flag changed.
+Database idempotency, ERP-session E2E, bounded audit and trusted local HTTPS
+evidence remain I-006 gates. Production activation remains separate I-007.
+Rollback is an application revert. No open ERP PR was present when this slice
+started; the Codex review workflow was unavailable, so repository tests and
+self-review are the available review sources (`REVIEW_SOURCE_UNAVAILABLE`).
+
+Validation: 113 Vitest files / 844 tests, lint, typecheck and the Production build pass
+with build-only public Supabase placeholders. A clean build cache resolved a
+Turbopack persistence panic after the initial build lacked the required public
+key. No build-time value was provisioned to a deployed environment.
+
 ## 2026-09-03 Phase 7 Production Order create slice
 
 Status: `APPLICATION_CREATE_SLICE_COMPLETE / HARDENING_DRAFT / RUNTIME_DISABLED`.
