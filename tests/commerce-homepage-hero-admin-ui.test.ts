@@ -65,6 +65,12 @@ describe('Homepage Hero administration consumer', () => {
     expect(client).toMatch(/camera-target="auto auto auto"/);
     expect(client).toMatch(/file.size > HOMEPAGE_HERO_ASSET_MAX_BYTES/);
     expect(client).toMatch(/field-of-view/);
+    expect(client).toMatch(/previewLocalModel/);
+    expect(client).toMatch(/reader.readAsDataURL/);
+    expect(client).toMatch(/Boolean\(localModelPreview\)/);
+    expect(client).toMatch(/Chỉ xem trên máy, không tải lên hay lưu vào Commerce/);
+    const localControls = client.slice(client.indexOf('Tên cấu hình'), client.indexOf('Hero đang dùng', client.indexOf('Tên cấu hình')));
+    expect(localControls).not.toMatch(/disabled=\{integrationDisabled\}/);
     expect(client).toMatch(/shadow-intensity/);
     expect(client).toMatch(/exposure/);
   });
