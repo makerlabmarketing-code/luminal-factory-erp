@@ -43,6 +43,7 @@ const ICONS: Record<AdminNavigationIcon, ElementType> = {
   metadata: Database,
   emailTemplates: Mail,
   commerceHero: Box,
+  commerceProducts: Box,
 };
 
 function AppSidebar({

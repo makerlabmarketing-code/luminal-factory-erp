@@ -35,6 +35,7 @@ export const ERP_UI_TEXT = {
       metadata: "Danh mục hệ thống",
       emailTemplates: "Mẫu email",
       homepageHero: "Hero trang chủ",
+      commerceProducts: "Danh mục sản phẩm",
     },
   },
   commandMenu: {

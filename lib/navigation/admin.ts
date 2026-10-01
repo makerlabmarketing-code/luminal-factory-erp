@@ -11,7 +11,8 @@ export type AdminNavigationIcon =
   | "payroll"
   | "metadata"
   | "emailTemplates"
-  | "commerceHero";
+  | "commerceHero"
+  | "commerceProducts";
 
 export interface AdminNavigationItem {
   name: string;
@@ -56,6 +57,12 @@ export const ADMIN_NAVIGATION_GROUPS: readonly AdminNavigationGroup[] = [
   {
     groupTitle: ERP_UI_TEXT.navigation.groups.commerce,
     items: [
+      {
+        name: ERP_UI_TEXT.navigation.items.commerceProducts,
+        path: "/admin/commerce/products",
+        icon: "commerceProducts",
+        anyPermission: ["COMMERCE_PRODUCT_VIEW"],
+      },
       {
         name: ERP_UI_TEXT.navigation.items.homepageHero,
         path: "/admin/commerce/homepage-hero",
