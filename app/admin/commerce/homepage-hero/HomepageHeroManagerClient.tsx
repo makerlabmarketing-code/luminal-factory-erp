@@ -13,6 +13,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
+import { buildPreviewDocument } from '@/lib/commerce-admin/hero-preview';
 import { createCommerceMutationRetry } from '@/lib/commerce-admin/mutation-retry';
 import {
   HOMEPAGE_HERO_ASSET_MAX_BYTES,
@@ -107,45 +108,6 @@ function safeHttpsUrl(value: string | null | undefined): string | null {
   }
 }
 
-function escapeHtmlAttribute(value: string) {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
-}
-
-function buildPreviewDocument(
-  modelUrl: string,
-  settings: HomepageHeroPresentationSettings,
-) {
-  const autoRotate = settings.autoRotate ? ' auto-rotate' : '';
-  const safeModelUrl = escapeHtmlAttribute(modelUrl);
-
-  return [
-    '<!doctype html>',
-    '<html lang="vi"><head><meta charset="utf-8" />',
-    '<meta name="viewport" content="width=device-width,initial-scale=1" />',
-    '<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js"><' + '/script>',
-    '<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020617;color:#cbd5e1;font-family:system-ui,sans-serif}model-viewer{width:100%;height:100%;background:radial-gradient(circle at 50% 45%,#172033 0%,#07101f 58%,#020617 100%)}.note{position:absolute;left:12px;bottom:10px;padding:6px 8px;border:1px solid #334155;border-radius:8px;background:#020617cc;font-size:11px}</style>',
-    '</head><body>',
-    '<model-viewer src="' + safeModelUrl + '" alt="Xem trước mô hình Hero" camera-controls disable-pan interaction-prompt="none" environment-image="neutral" orientation="0deg -52deg 0deg" camera-target="auto auto auto"',
-    ' exposure="' + settings.exposure + '"',
-    ' shadow-intensity="' + settings.shadowIntensity + '"',
-    ' shadow-softness="' + settings.shadowSoftness + '"',
-    ' camera-orbit="' + settings.cameraThetaDeg + 'deg ' + settings.cameraPhiDeg + 'deg ' + settings.cameraRadiusPercent + '%"',
-    ' field-of-view="' + settings.cameraFieldOfViewDeg + 'deg"',
-    ' min-camera-orbit="auto auto ' + settings.cameraMinRadiusPercent + '%"',
-    ' max-camera-orbit="auto auto ' + settings.cameraMaxRadiusPercent + '%"',
-    ' min-field-of-view="' + settings.cameraMinFieldOfViewDeg + 'deg"',
-    ' max-field-of-view="' + settings.cameraMaxFieldOfViewDeg + 'deg"',
-    ' rotation-per-second="' + settings.rotationPerSecondDeg + 'deg"',
-    ' auto-rotate-delay="' + settings.autoRotateDelayMs + '"' + autoRotate + '></model-viewer>',
-    '<div class="note">Xem trước quản trị · kéo để xoay 360° · cuộn để phóng to</div>',
-    '</body></html>',
-  ].join('');
-}
-
 async function requestJson<T extends Record<string, unknown>>(
   url: string,
   init?: RequestInit,
@@ -204,6 +166,9 @@ function assetContentType(
 
 export default function HomepageHeroManagerClient() {
   const { showConfirm, showToast } = useNotification();
+  const previewFrameRef = useRef<HTMLIFrameElement>(null);
+  const previewSettingsRef = useRef(DEFAULT_SETTINGS);
+  const [previewStatus, setPreviewStatus] = useState('Đang tải mô hình...');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewReaderRef = useRef<FileReader | null>(null);
   const [localModelPreview, setLocalModelPreview] = useState<{ url: string; name: string } | null>(null);
@@ -277,8 +242,33 @@ export default function HomepageHeroManagerClient() {
   const previewUrl = localModelPreview?.url || safeHttpsUrl(selectedModelAsset?.publicUrl) ||
     (integrationDisabled ? 'https://luminalfactory.com/models/meowhe-hero.glb' : null);
   const previewDocument = previewUrl
-    ? buildPreviewDocument(previewUrl, draft.settings)
+    ? buildPreviewDocument(previewUrl, DEFAULT_SETTINGS)
     : null;
+
+  const sendPreviewSettings = useCallback(() => {
+    previewFrameRef.current?.contentWindow?.postMessage({
+      type: 'hero-preview-settings', settings: previewSettingsRef.current,
+    }, '*');
+  }, []);
+
+  useEffect(() => {
+    previewSettingsRef.current = draft.settings;
+    sendPreviewSettings();
+  }, [draft.settings, sendPreviewSettings]);
+  useEffect(() => { setPreviewStatus('Đang tải mô hình...'); }, [previewUrl]);
+  useEffect(() => {
+    const receivePreviewState = (event: MessageEvent) => {
+      if (event.source !== previewFrameRef.current?.contentWindow) return;
+      if (event.data?.type === 'hero-preview-ready') {
+        setPreviewStatus('Mô hình đã tải · thông số được áp dụng trực tiếp');
+        sendPreviewSettings();
+      } else if (event.data?.type === 'hero-preview-error') {
+        setPreviewStatus('Không tải được mô hình. Vui lòng chọn lại GLB hoặc tải lại trang.');
+      }
+    };
+    window.addEventListener('message', receivePreviewState);
+    return () => window.removeEventListener('message', receivePreviewState);
+  }, [sendPreviewSettings]);
   const hasUnsavedChanges = selectedHero
     ? JSON.stringify(draft) !== JSON.stringify(draftFromHero(selectedHero))
     : JSON.stringify(draft) !==
@@ -662,7 +652,7 @@ export default function HomepageHeroManagerClient() {
                     Xem trước 3D
                   </h2>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    Kéo trực tiếp trong khung để kiểm tra góc.
+                    Kéo trực tiếp trong khung để kiểm tra góc. {previewStatus}
                   </p>
                 </div>
                 {previewUrl && !localModelPreview ? (
@@ -707,6 +697,8 @@ export default function HomepageHeroManagerClient() {
                   <iframe
                     title="Xem trước mô hình Hero"
                     className="h-full w-full border-0"
+                    ref={previewFrameRef}
+                    onLoad={sendPreviewSettings}
                     srcDoc={previewDocument}
                     sandbox="allow-scripts"
                     referrerPolicy="no-referrer"
@@ -870,8 +862,7 @@ export default function HomepageHeroManagerClient() {
                     />
                   </div>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    Màu phủ hiện được lưu trong contract; storefront chưa áp trực
-                    tiếp lên vật liệu 3D.
+                    Màu phủ áp lên vật liệu 3D và hòa với màu có sẵn trong texture. Xóa mã màu để trở về màu gốc.
                   </p>
                 </div>
 
@@ -881,7 +872,7 @@ export default function HomepageHeroManagerClient() {
                       Tự xoay
                     </span>
                     <span className="mt-1 block text-[11px] text-slate-500">
-                      Dùng cho cấu hình có auto-rotate.
+                      Xoay theo tốc độ bên cạnh; 3°/giây sẽ chuyển động chậm.
                     </span>
                   </span>
                   <input
@@ -936,6 +927,14 @@ export default function HomepageHeroManagerClient() {
                   : 'Lưu bản nháp không thay đổi Hero đang dùng. Dùng Hero là thao tác riêng có xác nhận.'}
               </p>
             </div>
+            <div>
+              {integrationDisabled || localModelPreview ? (
+                <p className="mb-2 text-xs text-amber-200" role="status">
+                  {integrationDisabled
+                    ? 'Chưa thể lưu vào Commerce: kết nối đang tắt. Các thay đổi hiện chỉ để xem thử.'
+                    : 'Chưa thể lưu khi đang xem GLB trên máy. Bỏ tệp xem thử, tải tệp lên Commerce rồi chọn tệp đã tải.'}
+                </p>
+              ) : null}
             <div className="flex flex-wrap gap-2">
               {selectedHero?.status === 'PUBLISHED' ? (
                 <button
@@ -992,6 +991,7 @@ export default function HomepageHeroManagerClient() {
                   Dùng Hero này
                 </button>
               )}
+            </div>
             </div>
           </section>
         </div>

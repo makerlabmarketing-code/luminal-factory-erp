@@ -1,5 +1,27 @@
 # Current Operator Handoff
 
+## 2026-10-01 — Live Hero material and preview settings
+
+Reported preview settings were hard to observe because changing settings
+rebuilt the entire iframe. Keep its source document stable for the selected
+model and deliver settings via source-checked postMessage with load/error
+status. The viewer applies lighting, camera bounds and auto-rotation directly.
+Tint now updates linear RGBA material factors and clearing it restores original
+material colors/alpha; Commerce applies the same tint and supports saved
+auto-rotation while respecting reduced motion. The save panel explains disabled
+connection/local-file states; no flag or credential is changed.
+
+Validation: ERP 847 tests plus lint/typecheck/build; Commerce 316 tests and full
+check (two existing lint warnings, audit zero vulnerabilities). Chromium
+headless shell renders the actual pinned model-viewer 4.3.1 and Meowhe GLB in
+an isolated page with the actual iframe runtime: tint/restore, native lighting
+and auto-rotate properties, visible rotation between screenshots, zero reloads
+and zero page errors pass. This is renderer evidence, not authenticated ERP
+or Commerce persistence/handshake evidence. Native agent-browser daemon failed
+on prohibited Unix sockets; headless shell through Playwright rendered the
+local test with no production session. Rollback: revert this UI batch.
+
+
 ## 2026-10-01 — Local Hero preview with integration disabled
 
 A reported usability defect locked all presentation controls when the Commerce
