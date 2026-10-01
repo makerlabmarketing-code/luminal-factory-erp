@@ -404,6 +404,48 @@ export default function HomepageHeroManagerClient() {
     }
   }
 
+  async function applyLiveHero() {
+    if (selectedHero?.status !== 'PUBLISHED' || !hasUnsavedChanges ||
+        integrationDisabled || localModelPreview || mutationInFlight.current) return;
+    mutationInFlight.current = true;
+    setSaving(true);
+    try {
+      const url = '/api/admin/commerce/homepage-hero/' + encodeURIComponent(selectedHero.id) + '/apply';
+      const draftInput = {
+        name: draft.name.trim(),
+        modelStoragePath: draft.modelStoragePath,
+        posterStoragePath: draft.posterStoragePath || null,
+        settings: draft.settings,
+      };
+      const input = { draft: draftInput, expectedUpdatedAt: selectedHero.updatedAt };
+      const operationId = mutationRetry.current.prepare(url, 'POST', input);
+      const payload = await requestJson<{ hero: HomepageHeroPresentation }>(url, {
+        method: 'POST',
+        body: JSON.stringify({ ...input, operationId }),
+      });
+      mutationRetry.current.confirm(operationId);
+      setSelectedHeroId(payload.hero.id);
+      setDraft(draftFromHero(payload.hero));
+      showToast('Đã áp dụng Hero', 'Commerce đã cập nhật cấu hình đang dùng, không tạo thêm bản nháp.', 'success');
+      await loadData(payload.hero.id, false);
+    } catch (error) {
+      showToast('Không áp dụng được Hero', errorMessage(error), 'error');
+    } finally {
+      mutationInFlight.current = false;
+      setSaving(false);
+    }
+  }
+
+  function confirmApplyHero() {
+    if (!selectedHero || selectedHero.status !== 'PUBLISHED' || !hasUnsavedChanges) return;
+    showConfirm(
+      'Áp dụng thay đổi trực tiếp lên trang chủ?',
+      'Hero đang dùng sẽ cập nhật ngay sau khi lưu thành công. Không tạo bản nháp mới. Hãy kiểm tra kỹ cấu hình trước khi xác nhận.',
+      () => void applyLiveHero(),
+      { confirmLabel: 'Áp dụng lên trang chủ', cancelLabel: 'Hủy' },
+    );
+  }
+
   async function deleteDraftHero(hero: HomepageHeroPresentation) {
     if (hero.status !== 'DRAFT' || integrationDisabled || mutationInFlight.current) return;
     mutationInFlight.current = true;
@@ -420,7 +462,7 @@ export default function HomepageHeroManagerClient() {
         clearLocalPreview();
         setSelectedHeroId(null);
       }
-      showToast('Đã xóa bản nháp', 'Đã xóa cấu hình nháp khỏi Commerce. Tệp 3D không bị xóa.', 'success');
+      showToast('Đã xóa phiên bản', 'Đã xóa cấu hình không còn hoạt động. Tệp 3D không bị xóa.', 'success');
       await loadData(selectedHeroId === hero.id ? null : selectedHeroId, false);
     } catch (error) {
       showToast('Không xóa được bản nháp', errorMessage(error), 'error');
@@ -433,8 +475,10 @@ export default function HomepageHeroManagerClient() {
   function confirmDeleteDraft(hero: HomepageHeroPresentation) {
     if (hero.status !== 'DRAFT') return;
     showConfirm(
-      'Xóa bản nháp Hero?',
-      'Chỉ xóa cấu hình nháp này, không xóa tệp 3D hoặc Hero đang xuất bản. Thao tác không thể hoàn tác.',
+      hero.publishedAt ? 'Xóa phiên bản Hero cũ?' : 'Xóa bản nháp Hero?',
+      hero.publishedAt
+        ? 'Đây là phiên bản từng được xuất bản. Xóa sẽ mất lựa chọn khôi phục phiên bản này, nhưng không ảnh hưởng Hero đang dùng hoặc tệp GLB.'
+        : 'Chỉ xóa cấu hình nháp này, không xóa tệp 3D hoặc Hero đang dùng. Thao tác không thể hoàn tác.',
       () => void deleteDraftHero(hero),
       { confirmLabel: 'Xóa bản nháp', cancelLabel: 'Hủy' },
     );
@@ -668,16 +712,16 @@ export default function HomepageHeroManagerClient() {
                           ? 'border-emerald-700/50 bg-emerald-950/40 text-emerald-300'
                           : 'border-slate-700 text-slate-400')
                       }>
-                        {hero.status === 'PUBLISHED' ? 'Đang dùng' : 'Bản nháp'}
+                        {hero.status === 'PUBLISHED' ? 'Đang dùng' : hero.publishedAt ? 'Bản cũ' : 'Bản nháp'}
                       </span>
                     </div>
                     <p className="mt-2 truncate text-[11px] text-slate-500">{hero.modelStoragePath}</p>
                   </button>
-                  {hero.status === 'DRAFT' && !hero.publishedAt ? (
+                  {hero.status === 'DRAFT' ? (
                     <button
                       type="button"
-                      aria-label={`Xóa bản nháp ${hero.name}`}
-                      title="Xóa bản nháp"
+                      aria-label={`Xóa ${hero.publishedAt ? 'phiên bản cũ' : 'bản nháp'} ${hero.name}`}
+                      title={hero.publishedAt ? 'Xóa phiên bản cũ' : 'Xóa bản nháp'}
                       className="absolute right-1.5 top-1.5 rounded p-1.5 text-slate-400 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
                       disabled={saving || uploading || integrationDisabled}
                       onClick={() => confirmDeleteDraft(hero)}
@@ -984,19 +1028,27 @@ export default function HomepageHeroManagerClient() {
                 </p>
               ) : null}
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="admin-button-primary"
-                onClick={() => void saveDraft()}
-                disabled={
-                  integrationDisabled ||
-                  Boolean(localModelPreview) ||
-                  saving
-                }
-              >
-                <Save className="h-4 w-4" />
-                {saving ? 'Đang lưu...' : selectedHero?.status === 'PUBLISHED' ? 'Lưu bản chỉnh sửa' : 'Lưu nháp'}
-              </button>
+              {selectedHero?.status === 'PUBLISHED' ? (
+                <button
+                  type="button"
+                  className="admin-button-primary"
+                  onClick={confirmApplyHero}
+                  disabled={integrationDisabled || Boolean(localModelPreview) || saving || !hasUnsavedChanges}
+                >
+                  <Upload className="h-4 w-4" />
+                  {saving ? 'Đang áp dụng...' : 'Áp dụng lên trang chủ'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="admin-button-primary"
+                  onClick={() => void saveDraft()}
+                  disabled={integrationDisabled || Boolean(localModelPreview) || saving}
+                >
+                  <Save className="h-4 w-4" />
+                  {saving ? 'Đang lưu...' : 'Lưu nháp'}
+                </button>
+              )}
 
               {selectedHero?.status === 'PUBLISHED' ? (
                 <button
