@@ -110,4 +110,20 @@ describe('Homepage Hero administration consumer', () => {
       /Màu phủ áp lên vật liệu 3D/,
     );
   });
+  it('directly applies edits only to the active Hero and allows deleting inactive history', () => {
+    const client = source('app/admin/commerce/homepage-hero/HomepageHeroManagerClient.tsx');
+    const applyRoute = source('app/api/admin/commerce/homepage-hero/[id]/apply/route.ts');
+    const deleteRoute = source('app/api/admin/commerce/homepage-hero/[id]/delete/route.ts');
+    const contracts = source('lib/commerce-admin/contracts.ts');
+
+    expect(client).toMatch(/Áp dụng lên trang chủ/);
+    expect(client).toMatch(/expectedUpdatedAt: selectedHero\.updatedAt/);
+    expect(client).toMatch(/selectedHero\?\.status === 'PUBLISHED'/);
+    expect(client).toMatch(/hero\.status === 'DRAFT' \?/);
+    expect(client).toMatch(/hero\.publishedAt \? 'Bản cũ' : 'Bản nháp'/);
+    expect(applyRoute).toMatch(/requireHomepageHeroAccess\('COMMERCE_HOMEPAGE_HERO_MANAGE'\)/);
+    expect(deleteRoute).toMatch(/deleteHomepageHeroDraft/);
+    expect(contracts).toMatch(/scope: 'commerce\.hero\.publish'/);
+  });
+
 });
