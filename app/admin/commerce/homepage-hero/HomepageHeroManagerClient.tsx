@@ -64,21 +64,23 @@ const NUMBER_FIELDS: Array<{
   min: number;
   max: number;
   step: number;
+  hint: string;
+  previewOnly?: boolean;
 }> = [
-  { key: 'exposure', label: 'Độ sáng', min: 0.4, max: 2.5, step: 0.01 },
-  { key: 'shadowIntensity', label: 'Độ đậm bóng', min: 0, max: 2, step: 0.01 },
-  { key: 'shadowSoftness', label: 'Độ mềm bóng', min: 0, max: 1, step: 0.01 },
-  { key: 'cameraThetaDeg', label: 'Góc ngang camera', min: -360, max: 360, step: 1 },
-  { key: 'cameraPhiDeg', label: 'Góc dọc camera', min: 5, max: 175, step: 1 },
-  { key: 'cameraRadiusPercent', label: 'Khoảng cách camera', min: 50, max: 250, step: 1 },
-  { key: 'cameraIntroRadiusPercent', label: 'Khoảng cách mở đầu', min: 50, max: 250, step: 1 },
-  { key: 'cameraMinRadiusPercent', label: 'Khoảng cách gần nhất', min: 40, max: 250, step: 1 },
-  { key: 'cameraMaxRadiusPercent', label: 'Khoảng cách xa nhất', min: 50, max: 300, step: 1 },
-  { key: 'cameraFieldOfViewDeg', label: 'Góc nhìn', min: 10, max: 70, step: 1 },
-  { key: 'cameraMinFieldOfViewDeg', label: 'Góc nhìn nhỏ nhất', min: 8, max: 70, step: 1 },
-  { key: 'cameraMaxFieldOfViewDeg', label: 'Góc nhìn lớn nhất', min: 10, max: 90, step: 1 },
-  { key: 'autoRotateDelayMs', label: 'Độ trễ tự xoay (ms)', min: 0, max: 30000, step: 100 },
-  { key: 'rotationPerSecondDeg', label: 'Tốc độ xoay (độ/giây)', min: 0, max: 30, step: 0.5 },
+  { key: 'exposure', label: 'Độ sáng vật liệu', min: 0.4, max: 2.5, step: 0.01, hint: 'Tăng để mẫu sáng hơn, giảm để giữ chiều sâu chi tiết.' },
+  { key: 'shadowIntensity', label: 'Độ đậm bóng đổ', min: 0, max: 2, step: 0.01, hint: 'Chỉnh bóng đổ của model; không làm tối trực tiếp màu vật liệu.' },
+  { key: 'shadowSoftness', label: 'Độ mềm bóng đổ', min: 0, max: 1, step: 0.01, hint: 'Ảnh hưởng rìa bóng đổ, có thể khó nhận thấy trên nền tối.' },
+  { key: 'cameraThetaDeg', label: 'Góc ngang Hero mặc định (°)', min: -360, max: 360, step: 1, hint: 'Góc khi Hero vừa xuất hiện và trở về sau khi thả chuột. Commerce dùng chính xác giá trị này.' },
+  { key: 'cameraPhiDeg', label: 'Góc dọc Hero mặc định (°)', min: 48, max: 85, step: 1, hint: 'Góc cao/thấp của camera. Trang chủ giới hạn 48–85° để không lộ mặt đáy stem.' },
+  { key: 'cameraRadiusPercent', label: 'Khoảng cách Hero mặc định (%)', min: 50, max: 250, step: 1, hint: 'Số nhỏ: mẫu gần/lớn hơn. Số lớn: mẫu xa/nhỏ hơn.' },
+  { key: 'cameraFieldOfViewDeg', label: 'Góc mở ống kính (°)', min: 10, max: 70, step: 1, hint: 'Số nhỏ: cảm giác zoom gần, ít méo phối cảnh. Đây không phải góc xoay ngang.' },
+  { key: 'autoRotateDelayMs', label: 'Độ trễ tự xoay (ms)', min: 0, max: 30000, step: 100, hint: 'Chỉ có tác dụng nếu bật Tự xoay.' },
+  { key: 'rotationPerSecondDeg', label: 'Tốc độ tự xoay (°/giây)', min: 0, max: 30, step: 0.5, hint: 'Chỉ có tác dụng nếu bật Tự xoay.' },
+  { key: 'cameraIntroRadiusPercent', label: 'Khoảng cách mở đầu (chưa dùng ở Commerce)', min: 50, max: 250, step: 1, hint: 'Hiện không điều khiển animation mở đầu của Hero; chỉ được lưu trong cấu hình.', previewOnly: true },
+  { key: 'cameraMinRadiusPercent', label: 'Giới hạn gần nhất khi zoom', min: 40, max: 250, step: 1, hint: 'Dành cho giới hạn zoom ở preview; Commerce không cho zoom trực tiếp.', previewOnly: true },
+  { key: 'cameraMaxRadiusPercent', label: 'Giới hạn xa nhất khi zoom', min: 50, max: 300, step: 1, hint: 'Dành cho giới hạn zoom ở preview; Commerce không cho zoom trực tiếp.', previewOnly: true },
+  { key: 'cameraMinFieldOfViewDeg', label: 'Góc mở ống kính tối thiểu', min: 8, max: 70, step: 1, hint: 'Chỉ giới hạn mức zoom của preview. Không đổi góc Hero trên trang chủ.', previewOnly: true },
+  { key: 'cameraMaxFieldOfViewDeg', label: 'Góc mở ống kính tối đa', min: 10, max: 90, step: 1, hint: 'Chỉ giới hạn mức zoom của preview. Không đổi góc Hero trên trang chủ.', previewOnly: true },
 ];
 
 function draftFromHero(hero: HomepageHeroPresentation): DraftState {
@@ -979,8 +981,11 @@ export default function HomepageHeroManagerClient() {
                 </label>
               </div>
 
+              <p className="text-xs leading-5 text-slate-400">
+                Góc ngang, góc dọc và khoảng cách mặc định bên dưới điều khiển trực tiếp Hero trên trang chủ sau khi bấm Áp dụng. Kéo chuột chỉ xoay tạm thời, thả chuột sẽ trở về góc đã lưu.
+              </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                {NUMBER_FIELDS.map((field) => (
+                {NUMBER_FIELDS.filter((field) => !field.previewOnly).map((field) => (
                   <label key={field.key} className="block">
                     <span className="admin-label">{field.label}</span>
                     <input
@@ -990,17 +995,45 @@ export default function HomepageHeroManagerClient() {
                       max={field.max}
                       step={field.step}
                       value={String(draft.settings[field.key])}
-                      disabled={saving || uploading}
+                      disabled={saving || uploading || (['autoRotateDelayMs', 'rotationPerSecondDeg'].includes(field.key) && !draft.settings.autoRotate)}
                       onChange={(event) => {
                         const value = Number(event.target.value);
-                        if (Number.isFinite(value)) {
-                          updateSetting(field.key, value);
-                        }
+                        if (Number.isFinite(value)) updateSetting(field.key, value);
                       }}
                     />
+                    <span className="mt-1 block text-[11px] leading-4 text-slate-500">{field.hint}</span>
                   </label>
                 ))}
               </div>
+              <details className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                <summary className="cursor-pointer text-xs font-semibold text-slate-300">
+                  Thông số nâng cao: giới hạn zoom và tùy chọn chưa dùng
+                </summary>
+                <p className="my-2 text-[11px] leading-5 text-amber-200/75">
+                  Những trường này hiện không điều khiển góc nghỉ, chuyển động theo cuộn hoặc kéo xoay trên Commerce. Chúng được giữ lại để tương thích cấu hình và preview.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {NUMBER_FIELDS.filter((field) => field.previewOnly).map((field) => (
+                    <label key={field.key} className="block">
+                      <span className="admin-label">{field.label}</span>
+                      <input
+                        className="admin-field mt-1.5"
+                        type="number"
+                        min={field.min}
+                        max={field.max}
+                        step={field.step}
+                        value={String(draft.settings[field.key])}
+                        disabled={saving || uploading}
+                        onChange={(event) => {
+                          const value = Number(event.target.value);
+                          if (Number.isFinite(value)) updateSetting(field.key, value);
+                        }}
+                      />
+                      <span className="mt-1 block text-[11px] leading-4 text-slate-500">{field.hint}</span>
+                    </label>
+                  ))}
+                </div>
+              </details>
             </div>
           </section>
 
