@@ -702,7 +702,7 @@ export default function HomepageHeroManagerClient() {
                   <button
                     type="button"
                     onClick={() => selectHero(hero)}
-                    className="w-full rounded-lg p-3 pr-10 text-left"
+                    className="w-full rounded-lg p-3 pb-11 text-left"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-xs font-bold text-slate-100">{hero.name}</span>
@@ -722,11 +722,11 @@ export default function HomepageHeroManagerClient() {
                       type="button"
                       aria-label={`Xóa ${hero.publishedAt ? 'phiên bản cũ' : 'bản nháp'} ${hero.name}`}
                       title={hero.publishedAt ? 'Xóa phiên bản cũ' : 'Xóa bản nháp'}
-                      className="absolute right-1.5 top-1.5 rounded p-1.5 text-slate-400 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                      className="absolute bottom-2 right-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-700 bg-slate-900 text-slate-300 shadow-sm hover:border-red-500/60 hover:bg-red-500/15 hover:text-red-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400 disabled:opacity-40"
                       disabled={saving || uploading || integrationDisabled}
                       onClick={() => confirmDeleteDraft(hero)}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   ) : null}
                 </div>
