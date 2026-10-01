@@ -1090,7 +1090,7 @@ export default function HomepageHeroManagerClient() {
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
                 {selectedHero?.status === 'PUBLISHED'
-                  ? 'Chỉnh sửa rồi chọn Lưu nháp để tạo bản chỉnh sửa mới, không ảnh hưởng Hero đang dùng.'
+                  ? 'Chỉnh các thông số và bấm Áp dụng lên trang chủ để cập nhật Hero đang dùng. Preview chỉ hiển thị thử, không tự xuất bản.'
                   : 'Lưu bản nháp không thay đổi Hero đang dùng. Dùng Hero là thao tác riêng có xác nhận.'}
               </p>
             </div>
