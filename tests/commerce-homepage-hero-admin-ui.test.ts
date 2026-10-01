@@ -46,7 +46,7 @@ describe('Homepage Hero administration consumer', () => {
     expect(adapter).toMatch(/createHomepageHeroAssetUploadTicket/);
     expect(uploadRoute).toMatch(/COMMERCE_HOMEPAGE_HERO_MANAGE/);
     expect(client).toMatch(/fetch\(ticket\.signedUrl/);
-    expect(client).toMatch(/Tệp Hero phải nhỏ hơn hoặc bằng 10 MB/);
+    expect(client).toMatch(/Tệp Hero phải có từ 1 đến/);
   });
 
   it('keeps the 3D preview isolated and pins the Commerce model-viewer version', () => {
@@ -60,6 +60,10 @@ describe('Homepage Hero administration consumer', () => {
     expect(client).toMatch(/sandbox="allow-scripts"/);
     expect(client).toMatch(/referrerPolicy="no-referrer"/);
     expect(client).toMatch(/camera-orbit/);
+    expect(client).toMatch(/orientation="0deg -52deg 0deg"/);
+    expect(client).toMatch(/camera-controls disable-pan/);
+    expect(client).toMatch(/camera-target="auto auto auto"/);
+    expect(client).toMatch(/file.size > HOMEPAGE_HERO_ASSET_MAX_BYTES/);
     expect(client).toMatch(/field-of-view/);
     expect(client).toMatch(/shadow-intensity/);
     expect(client).toMatch(/exposure/);

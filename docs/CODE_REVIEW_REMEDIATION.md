@@ -396,3 +396,15 @@ exposed in this environment.
 | The geocoder submitted one raw query, accepted the first result, and blindly exposed provider/network text. | ACTIONABLE / P2_PRODUCTION_DEFECT | The helper used `encodeURIComponent(address)`, `limit=1`, and `data[0]` without Vietnam normalization, coordinate validation, or relevance scoring. | Added bounded search-only Vietnamese candidates, contextual `P.` interpretations, `URLSearchParams`, VN restriction, scored selection, typed safe failures, duplicate-click locking, and compact weak-result confirmation without changing the stored address or automatically saving. |
 
 Self-review found no actionable P0/P1 issue in this bounded application-only change. No SQL, schema/RLS/grant change, production Facility mutation, runtime activation, provider key, deployment, or production smoke test was performed.
+
+## 2026-10-01 Hero preview and dependency audit
+
+Source: current repository security audit and self-review; no open ERP PR
+existed at task start. Status: `FIXED / LOCAL_VALIDATION_PASS`, external
+review pending. Next.js 16.3.6 resolves GHSA-vcvr-r3jv-pc5j; Nodemailer
+10.0.9, brace-expansion 1.1.21 and compatible transitive fixes clear the ERP
+production audit (zero vulnerabilities). 844 tests, lint, tsc and build pass.
+Stream-transport message/envelope compatibility passes with no external email.
+Preview matches Commerce static orientation and saved presentation controls.
+Browser visual verification remains unavailable due Chrome download failures.
+No production integration activation, secrets, schema or permission changes.

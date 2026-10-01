@@ -129,7 +129,7 @@ function buildPreviewDocument(
     '<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js"><' + '/script>',
     '<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020617;color:#cbd5e1;font-family:system-ui,sans-serif}model-viewer{width:100%;height:100%;background:radial-gradient(circle at 50% 45%,#172033 0%,#07101f 58%,#020617 100%)}.note{position:absolute;left:12px;bottom:10px;padding:6px 8px;border:1px solid #334155;border-radius:8px;background:#020617cc;font-size:11px}</style>',
     '</head><body>',
-    '<model-viewer src="' + safeModelUrl + '" alt="Xem trước mô hình Hero" camera-controls interaction-prompt="none" environment-image="neutral"',
+    '<model-viewer src="' + safeModelUrl + '" alt="Xem trước mô hình Hero" camera-controls disable-pan interaction-prompt="none" environment-image="neutral" orientation="0deg -52deg 0deg" camera-target="auto auto auto"',
     ' exposure="' + settings.exposure + '"',
     ' shadow-intensity="' + settings.shadowIntensity + '"',
     ' shadow-softness="' + settings.shadowSoftness + '"',
@@ -141,7 +141,7 @@ function buildPreviewDocument(
     ' max-field-of-view="' + settings.cameraMaxFieldOfViewDeg + 'deg"',
     ' rotation-per-second="' + settings.rotationPerSecondDeg + 'deg"',
     ' auto-rotate-delay="' + settings.autoRotateDelayMs + '"' + autoRotate + '></model-viewer>',
-    '<div class="note">Xem trước quản trị · kéo để xoay</div>',
+    '<div class="note">Xem trước quản trị · kéo để xoay 360° · cuộn để phóng to</div>',
     '</body></html>',
   ].join('');
 }
@@ -462,7 +462,7 @@ export default function HomepageHeroManagerClient() {
     if (file.size < 1 || file.size > HOMEPAGE_HERO_ASSET_MAX_BYTES) {
       showToast(
         'Tệp quá lớn',
-        'Tệp Hero phải nhỏ hơn hoặc bằng 10 MB.',
+        `Tệp Hero phải có từ 1 đến ${HOMEPAGE_HERO_ASSET_MAX_BYTES.toLocaleString('vi-VN')} byte (10 MiB).`,
         'info',
       );
       return;
@@ -753,7 +753,7 @@ export default function HomepageHeroManagerClient() {
                     }}
                   />
                   <p className="mt-2 text-[11px] text-slate-500">
-                    Tối đa 10 MB. Tệp được tải bằng quyền tạm thời 2 giờ.
+                    Tối đa {HOMEPAGE_HERO_ASSET_MAX_BYTES.toLocaleString('vi-VN')} byte (10 MiB). Tệp được tải bằng quyền tạm thời 2 giờ.
                   </p>
                   {uploading ? (
                     <p className="mt-2 flex items-center gap-2 text-xs text-blue-300">
