@@ -101,6 +101,13 @@ export function updateHomepageHeroDraft(
   return requestCommerceAdmin(homepageHeroEndpoints.update(heroId, mutation), isHomepageHeroPresentation);
 }
 
+export function applyHomepageHeroLive(
+  heroId: string,
+  mutation: HomepageHeroDraftMutation & { expectedUpdatedAt: string },
+): Promise<HomepageHeroPresentation> {
+  return requestCommerceAdmin(homepageHeroEndpoints.applyLive(heroId, mutation), isHomepageHeroPresentation);
+}
+
 export function deleteHomepageHeroDraft(
   heroId: string,
   mutation: HomepageHeroPublishMutation,
