@@ -10,6 +10,7 @@ import {
   Plus,
   RefreshCw,
   Save,
+  Trash2,
   Upload,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
@@ -403,6 +404,42 @@ export default function HomepageHeroManagerClient() {
     }
   }
 
+  async function deleteDraftHero(hero: HomepageHeroPresentation) {
+    if (hero.status !== 'DRAFT' || integrationDisabled || mutationInFlight.current) return;
+    mutationInFlight.current = true;
+    setSaving(true);
+    try {
+      const url = '/api/admin/commerce/homepage-hero/' + encodeURIComponent(hero.id) + '/delete';
+      const operationId = mutationRetry.current.prepare(url, 'POST', {});
+      await requestJson<{ deletedId: string }>(url, {
+        method: 'POST',
+        body: JSON.stringify({ operationId }),
+      });
+      mutationRetry.current.confirm(operationId);
+      if (selectedHeroId === hero.id) {
+        clearLocalPreview();
+        setSelectedHeroId(null);
+      }
+      showToast('Đã xóa bản nháp', 'Đã xóa cấu hình nháp khỏi Commerce. Tệp 3D không bị xóa.', 'success');
+      await loadData(selectedHeroId === hero.id ? null : selectedHeroId, false);
+    } catch (error) {
+      showToast('Không xóa được bản nháp', errorMessage(error), 'error');
+    } finally {
+      mutationInFlight.current = false;
+      setSaving(false);
+    }
+  }
+
+  function confirmDeleteDraft(hero: HomepageHeroPresentation) {
+    if (hero.status !== 'DRAFT') return;
+    showConfirm(
+      'Xóa bản nháp Hero?',
+      'Chỉ xóa cấu hình nháp này, không xóa tệp 3D hoặc Hero đang xuất bản. Thao tác không thể hoàn tác.',
+      () => void deleteDraftHero(hero),
+      { confirmLabel: 'Xóa bản nháp', cancelLabel: 'Hủy' },
+    );
+  }
+
   async function changePublishState(action: 'publish' | 'unpublish') {
     if (integrationDisabled || localModelPreview || !selectedHeroId || mutationInFlight.current) return;
     mutationInFlight.current = true;
@@ -609,38 +646,46 @@ export default function HomepageHeroManagerClient() {
               </p>
             ) : (
               heroes.map((hero) => (
-                <button
+                <div
                   key={hero.id}
-                  type="button"
-                  onClick={() => selectHero(hero)}
                   className={
-                    'w-full rounded-lg border p-3 text-left transition ' +
+                    'relative rounded-lg border transition ' +
                     (selectedHeroId === hero.id
                       ? 'border-blue-500/50 bg-blue-500/10'
                       : 'border-slate-800 bg-slate-950/40 hover:bg-slate-800/60')
                   }
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-xs font-bold text-slate-100">
-                      {hero.name}
-                    </span>
-                    <span
-                      className={
+                  <button
+                    type="button"
+                    onClick={() => selectHero(hero)}
+                    className="w-full rounded-lg p-3 pr-10 text-left"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-xs font-bold text-slate-100">{hero.name}</span>
+                      <span className={
                         'admin-badge ' +
                         (hero.status === 'PUBLISHED'
                           ? 'border-emerald-700/50 bg-emerald-950/40 text-emerald-300'
                           : 'border-slate-700 text-slate-400')
-                      }
+                      }>
+                        {hero.status === 'PUBLISHED' ? 'Đang dùng' : 'Bản nháp'}
+                      </span>
+                    </div>
+                    <p className="mt-2 truncate text-[11px] text-slate-500">{hero.modelStoragePath}</p>
+                  </button>
+                  {hero.status === 'DRAFT' && !hero.publishedAt ? (
+                    <button
+                      type="button"
+                      aria-label={`Xóa bản nháp ${hero.name}`}
+                      title="Xóa bản nháp"
+                      className="absolute right-1.5 top-1.5 rounded p-1.5 text-slate-400 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                      disabled={saving || uploading || integrationDisabled}
+                      onClick={() => confirmDeleteDraft(hero)}
                     >
-                      {hero.status === 'PUBLISHED'
-                        ? 'Đang dùng'
-                        : 'Bản nháp'}
-                    </span>
-                  </div>
-                  <p className="mt-2 truncate text-[11px] text-slate-500">
-                    {hero.modelStoragePath}
-                  </p>
-                </button>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                </div>
               ))
             )}
           </div>
@@ -939,18 +984,6 @@ export default function HomepageHeroManagerClient() {
                 </p>
               ) : null}
             <div className="flex flex-wrap gap-2">
-              {selectedHero?.status === 'PUBLISHED' ? (
-                <button
-                  type="button"
-                  className="admin-button-secondary"
-                  onClick={() => setSelectedHeroId(null)}
-                  disabled={integrationDisabled ||
-                  Boolean(localModelPreview) || saving}
-                >
-                  <Plus className="h-4 w-4" />
-                  Tạo bản nháp từ Hero này
-                </button>
-              ) : null}
               <button
                 type="button"
                 className="admin-button-primary"
