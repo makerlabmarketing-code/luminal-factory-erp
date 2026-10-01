@@ -1,5 +1,20 @@
 # Current Operator Handoff
 
+## 2026-09-30 Homepage Hero integration continuation
+
+The retry correctness slice retains operation IDs for identical failed requests
+and blocks concurrent submissions in the manager. An acknowledged operation
+clears its ID; a page reload starts a new retry context. See the current roadmap
+entry for scope and validation. This supersedes the historical no-route/no-UI
+statement below: the Hero manager/routes are already on main through PR #207.
+
+Commerce's local verifier now accepts an optional revoked-key negative check.
+Repository verifier tests use in-memory replay dependencies; no real connection
+or database idempotency/audit result is claimed. Trusted local HTTPS, approved
+draft-only E2E fixture/cleanup and ERP session evidence remain outstanding.
+Both Production integration flags remain off. Non-owner permission rollout and
+I-007 activation remain separately gated.
+
 ## ERP to Commerce Admin integration contract (2026-09-11)
 
 Status: `APPLICATION_CONTRACT_PREPARED / RUNTIME_DISABLED`.

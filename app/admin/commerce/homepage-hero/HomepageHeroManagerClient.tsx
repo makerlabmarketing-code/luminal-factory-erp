@@ -13,6 +13,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
+import { createCommerceMutationRetry } from '@/lib/commerce-admin/mutation-retry';
 import {
   HOMEPAGE_HERO_ASSET_MAX_BYTES,
   type HomepageHeroAssetContentType,
@@ -204,6 +205,8 @@ function assetContentType(
 export default function HomepageHeroManagerClient() {
   const { showConfirm, showToast } = useNotification();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mutationInFlight = useRef(false);
+  const mutationRetry = useRef(createCommerceMutationRetry());
   const [heroes, setHeroes] = useState<HomepageHeroPresentation[]>([]);
   const [assets, setAssets] = useState<HomepageHeroAssetPresentation[]>([]);
   const [selectedHeroId, setSelectedHeroId] = useState<string | null>(null);
@@ -326,6 +329,7 @@ export default function HomepageHeroManagerClient() {
   }
 
   async function saveDraft() {
+    if (mutationInFlight.current) return;
     if (selectedHero?.status === 'PUBLISHED') {
       showToast(
         'Hero đang dùng',
@@ -343,28 +347,30 @@ export default function HomepageHeroManagerClient() {
       return;
     }
 
+    mutationInFlight.current = true;
     setSaving(true);
     try {
-      const mutation = {
-        operationId: crypto.randomUUID(),
-        draft: {
-          name: draft.name.trim(),
-          modelStoragePath: draft.modelStoragePath,
-          posterStoragePath: draft.posterStoragePath || null,
-          settings: draft.settings,
-        },
+      const draftInput = {
+        name: draft.name.trim(),
+        modelStoragePath: draft.modelStoragePath,
+        posterStoragePath: draft.posterStoragePath || null,
+        settings: draft.settings,
       };
       const url = selectedHeroId
         ? '/api/admin/commerce/homepage-hero/' +
           encodeURIComponent(selectedHeroId)
         : '/api/admin/commerce/homepage-hero';
+      const method = selectedHeroId ? 'PATCH' : 'POST';
+      const operationId = mutationRetry.current.prepare(url, method, { draft: draftInput });
+      const mutation = { operationId, draft: draftInput };
       const payload = await requestJson<{ hero: HomepageHeroPresentation }>(
         url,
         {
-          method: selectedHeroId ? 'PATCH' : 'POST',
+          method,
           body: JSON.stringify(mutation),
         },
       );
+      mutationRetry.current.confirm(operationId);
       setSelectedHeroId(payload.hero.id);
       setDraft(draftFromHero(payload.hero));
       showToast(
@@ -376,24 +382,26 @@ export default function HomepageHeroManagerClient() {
     } catch (error) {
       showToast('Không lưu được Hero', errorMessage(error), 'error');
     } finally {
+      mutationInFlight.current = false;
       setSaving(false);
     }
   }
 
   async function changePublishState(action: 'publish' | 'unpublish') {
-    if (!selectedHeroId) return;
+    if (!selectedHeroId || mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setSaving(true);
     try {
+      const url = '/api/admin/commerce/homepage-hero/' + encodeURIComponent(selectedHeroId) + '/' + action;
+      const operationId = mutationRetry.current.prepare(url, 'POST', {});
       const payload = await requestJson<{ hero: HomepageHeroPresentation }>(
-        '/api/admin/commerce/homepage-hero/' +
-          encodeURIComponent(selectedHeroId) +
-          '/' +
-          action,
+        url,
         {
           method: 'POST',
-          body: JSON.stringify({ operationId: crypto.randomUUID() }),
+          body: JSON.stringify({ operationId }),
         },
       );
+      mutationRetry.current.confirm(operationId);
       setDraft(draftFromHero(payload.hero));
       showToast(
         action === 'publish' ? 'Đã dùng Hero mới' : 'Đã dừng Hero',
@@ -410,6 +418,7 @@ export default function HomepageHeroManagerClient() {
         'error',
       );
     } finally {
+      mutationInFlight.current = false;
       setSaving(false);
     }
   }

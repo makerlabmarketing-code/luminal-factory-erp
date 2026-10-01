@@ -87,7 +87,9 @@ describe('Homepage Hero administration consumer', () => {
     expect(client).toMatch(/Lưu nháp/);
     expect(client).toMatch(/Dùng Hero này/);
     expect(client).toMatch(/showConfirm/);
-    expect(client).toMatch(/operationId: crypto\.randomUUID\(\)/);
+    expect(client).toMatch(/mutationRetry\.current\.prepare/);
+    expect(client).toMatch(/mutationRetry\.current\.confirm\(operationId\)/);
+    expect(client).toMatch(/mutationInFlight\.current/);
     expect(client).toMatch(/changePublishState/);
   });
 
