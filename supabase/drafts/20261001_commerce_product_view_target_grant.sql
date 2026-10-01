@@ -48,11 +48,11 @@ begin
   values ('COMMERCE_PRODUCT_VIEW', 'Read-only Commerce product catalog via ERP Admin')
   on conflict (code) do nothing;
 
-  -- Do not assign permission to other employees or group presets.
+  -- Do not assign permission to other employees or group presets.\n  -- granted_by_employee_id intentionally remains NULL for a migration-driven grant;\n  -- never misattribute a database migration to the target account.
   insert into public.employee_permissions (
-    employee_id, permission_code, effect, status, granted_by_employee_id
+    employee_id, permission_code, effect, status
   )
-  select v_target_employee_id, 'COMMERCE_PRODUCT_VIEW', 'ALLOW', 'ACTIVE', v_target_employee_id
+  select v_target_employee_id, 'COMMERCE_PRODUCT_VIEW', 'ALLOW', 'ACTIVE'
   where not exists (
     select 1 from public.employee_permissions p
     where p.employee_id = v_target_employee_id
