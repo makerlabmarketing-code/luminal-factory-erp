@@ -50,9 +50,7 @@ describe('Homepage Hero administration consumer', () => {
   });
 
   it('keeps the 3D preview isolated and pins the Commerce model-viewer version', () => {
-    const client = source(
-      'app/admin/commerce/homepage-hero/HomepageHeroManagerClient.tsx',
-    );
+    const client = source('app/admin/commerce/homepage-hero/HomepageHeroManagerClient.tsx') + source('lib/commerce-admin/hero-preview.ts');
 
     expect(client).toMatch(
       /model-viewer\/4\.3\.1\/model-viewer\.min\.js/,
@@ -103,13 +101,13 @@ describe('Homepage Hero administration consumer', () => {
     expect(client).toMatch(/changePublishState/);
   });
 
-  it('states that tint is contract-only until storefront material rendering supports it', () => {
+  it('explains material tint and why remote save can be unavailable', () => {
     const client = source(
       'app/admin/commerce/homepage-hero/HomepageHeroManagerClient.tsx',
     );
 
     expect(client).toMatch(
-      /Màu phủ hiện được lưu trong contract; storefront chưa áp trực\s+tiếp/,
+      /Màu phủ áp lên vật liệu 3D/,
     );
   });
 });
