@@ -738,8 +738,8 @@ export default function HomepageHeroManagerClient() {
         </aside>
 
         <div className="space-y-5">
-          <div className="grid items-start gap-5 2xl:grid-cols-[minmax(360px,0.95fr)_minmax(0,1.05fr)]">
-            <div className="2xl:sticky 2xl:top-20 2xl:z-10 2xl:self-start">
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(300px,0.95fr)_minmax(0,1.05fr)]">
+            <div className="xl:sticky xl:top-20 xl:z-10 xl:self-start">
             <div className="admin-card overflow-hidden">
               <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
                 <div>
@@ -827,7 +827,7 @@ export default function HomepageHeroManagerClient() {
                   </button>
                 ) : null}
               </div>
-              <div className="aspect-[4/3] min-h-[320px] bg-slate-950 2xl:aspect-auto 2xl:h-[min(62vh,560px)]">
+              <div className="aspect-[4/3] min-h-[320px] bg-slate-950 xl:aspect-auto xl:h-[min(62vh,560px)]">
                 {previewDocument ? (
                   <iframe
                     title="Xem trước mô hình Hero"
