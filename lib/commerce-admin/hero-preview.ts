@@ -64,6 +64,10 @@ function previewRuntime(settings: HomepageHeroPresentationSettings) {
       viewer.toggleAttribute('auto-rotate', settings.autoRotate === true);
       for (const material of viewer.model?.materials || []) {
         const pbr = material.pbrMetallicRoughness;
+        // Match Commerce's modest highlight smoothing without changing GLB geometry.
+        if (typeof pbr.roughnessFactor === 'number' && pbr.roughnessFactor < 0.42) {
+          pbr.setRoughnessFactor?.(0.42);
+        }
         if (!originalColors.has(material)) originalColors.set(material, [...pbr.baseColorFactor]);
         const original = originalColors.get(material);
         const tint = typeof settings.tint === 'string' && /^#[0-9a-f]{6}$/i.test(settings.tint) ? settings.tint : null;
