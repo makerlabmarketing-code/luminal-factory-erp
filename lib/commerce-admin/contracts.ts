@@ -5,12 +5,14 @@ export const HOMEPAGE_HERO_ASSET_MAX_BYTES = 10 * 1024 * 1024;
 
 export type CommerceAdminCapability =
   | 'COMMERCE_HOMEPAGE_HERO_VIEW'
-  | 'COMMERCE_HOMEPAGE_HERO_MANAGE';
+  | 'COMMERCE_HOMEPAGE_HERO_MANAGE'
+  | 'COMMERCE_PRODUCT_VIEW';
 
 export type CommerceAdminScope =
   | 'commerce.hero.read'
   | 'commerce.hero.write'
-  | 'commerce.hero.publish';
+  | 'commerce.hero.publish'
+  | 'commerce.product.read';
 
 export type CommerceAdminHttpMethod = 'GET' | 'POST' | 'PATCH';
 
@@ -214,6 +216,34 @@ export const homepageHeroEndpoints = {
       method: 'POST',
       path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/homepage-hero/${encodeURIComponent(id)}/unpublish`,
       body,
+    };
+  },
+};
+
+/**
+ * Product catalog is read-only in the first ERP batch.
+ * Direct write/publish methods require separately provisioned permission scopes.
+ */
+export interface CommerceProductRecord {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  product_type: string;
+  release_type: string;
+  status: 'draft' | 'published' | 'archived';
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const commerceProductEndpoints = {
+  list(): CommerceAdminEndpoint {
+    return {
+      capability: 'COMMERCE_PRODUCT_VIEW',
+      scope: 'commerce.product.read',
+      method: 'GET',
+      path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/products`,
     };
   },
 };
