@@ -352,14 +352,6 @@ export default function HomepageHeroManagerClient() {
 
   async function saveDraft() {
     if (integrationDisabled || localModelPreview || mutationInFlight.current) return;
-    if (selectedHero?.status === 'PUBLISHED') {
-      showToast(
-        'Hero đang dùng',
-        'Hãy tạo bản nháp từ Hero này trước khi sửa.',
-        'info',
-      );
-      return;
-    }
     if (!draft.name.trim() || !draft.modelStoragePath) {
       showToast(
         'Thiếu thông tin',
@@ -378,11 +370,13 @@ export default function HomepageHeroManagerClient() {
         posterStoragePath: draft.posterStoragePath || null,
         settings: draft.settings,
       };
-      const url = selectedHeroId
-        ? '/api/admin/commerce/homepage-hero/' +
-          encodeURIComponent(selectedHeroId)
-        : '/api/admin/commerce/homepage-hero';
-      const method = selectedHeroId ? 'PATCH' : 'POST';
+      // A published Hero is immutable: saving edits creates a new inactive draft.
+      // No intermediate selection step is required and the live Hero stays intact.
+      const createDraft = !selectedHeroId || selectedHero?.status === 'PUBLISHED';
+      const url = createDraft
+        ? '/api/admin/commerce/homepage-hero'
+        : '/api/admin/commerce/homepage-hero/' + encodeURIComponent(selectedHeroId);
+      const method = createDraft ? 'POST' : 'PATCH';
       const operationId = mutationRetry.current.prepare(url, method, { draft: draftInput });
       const mutation = { operationId, draft: draftInput };
       const payload = await requestJson<{ hero: HomepageHeroPresentation }>(
@@ -446,6 +440,15 @@ export default function HomepageHeroManagerClient() {
   }
 
   function confirmPublishChange(action: 'publish' | 'unpublish') {
+    if (hasUnsavedChanges && action === 'unpublish') {
+      showConfirm(
+        'Dừng Hero và bỏ các chỉnh sửa chưa lưu?',
+        'Hero sẽ ngừng hiển thị cấu hình đã xuất bản. Các thông số bạn vừa chỉnh nhưng chưa lưu sẽ bị bỏ.',
+        () => void changePublishState('unpublish'),
+        { confirmLabel: 'Dừng Hero', cancelLabel: 'Hủy' },
+      );
+      return;
+    }
     if (hasUnsavedChanges) {
       showToast(
         'Có thay đổi chưa lưu',
@@ -923,7 +926,7 @@ export default function HomepageHeroManagerClient() {
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
                 {selectedHero?.status === 'PUBLISHED'
-                  ? 'Tạo bản nháp từ Hero này để chỉnh sửa mà không đổi Hero đang dùng.'
+                  ? 'Chỉnh sửa rồi chọn Lưu nháp để tạo bản chỉnh sửa mới, không ảnh hưởng Hero đang dùng.'
                   : 'Lưu bản nháp không thay đổi Hero đang dùng. Dùng Hero là thao tác riêng có xác nhận.'}
               </p>
             </div>
@@ -955,12 +958,11 @@ export default function HomepageHeroManagerClient() {
                 disabled={
                   integrationDisabled ||
                   Boolean(localModelPreview) ||
-                  saving ||
-                  selectedHero?.status === 'PUBLISHED'
+                  saving
                 }
               >
                 <Save className="h-4 w-4" />
-                {saving ? 'Đang lưu...' : 'Lưu nháp'}
+                {saving ? 'Đang lưu...' : selectedHero?.status === 'PUBLISHED' ? 'Lưu bản chỉnh sửa' : 'Lưu nháp'}
               </button>
 
               {selectedHero?.status === 'PUBLISHED' ? (
@@ -969,7 +971,7 @@ export default function HomepageHeroManagerClient() {
                   className="admin-button-secondary"
                   onClick={() => confirmPublishChange('unpublish')}
                   disabled={integrationDisabled ||
-                  Boolean(localModelPreview) || saving || hasUnsavedChanges}
+                  Boolean(localModelPreview) || saving}
                 >
                   <Pause className="h-4 w-4" />
                   Dừng Hero
