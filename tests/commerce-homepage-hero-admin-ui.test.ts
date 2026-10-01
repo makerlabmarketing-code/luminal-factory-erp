@@ -142,9 +142,9 @@ describe('Homepage Hero administration consumer', () => {
   it('keeps the 3D preview sticky beside editable fields and mirrors Commerce material smoothing', () => {
     const client = source('app/admin/commerce/homepage-hero/HomepageHeroManagerClient.tsx');
     const preview = source('lib/commerce-admin/hero-preview.ts');
-    expect(client).toContain('2xl:grid-cols-[minmax(360px,0.95fr)_minmax(0,1.05fr)]');
-    expect(client).toContain('2xl:sticky 2xl:top-20');
-    expect(client).toContain('2xl:h-[min(62vh,560px)]');
+    expect(client).toContain('xl:grid-cols-[minmax(300px,0.95fr)_minmax(0,1.05fr)]');
+    expect(client).toContain('xl:sticky xl:top-20');
+    expect(client).toContain('xl:h-[min(62vh,560px)]');
     expect(client).toContain('Preview cập nhật ngay khi sửa thông số');
     expect(client).toContain('Đặt lại góc');
     expect(client).toContain('Đặt lại màu / sáng');
