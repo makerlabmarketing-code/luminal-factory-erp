@@ -189,6 +189,15 @@ export const homepageHeroEndpoints = {
       body,
     };
   },
+  applyLive(id: string, body: HomepageHeroDraftMutation & { expectedUpdatedAt: string }): CommerceAdminEndpoint<HomepageHeroDraftMutation & { expectedUpdatedAt: string }> {
+    return {
+      capability: 'COMMERCE_HOMEPAGE_HERO_MANAGE',
+      scope: 'commerce.hero.publish',
+      method: 'POST',
+      path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/homepage-hero/${encodeURIComponent(id)}/apply`,
+      body,
+    };
+  },
   deleteDraft(id: string, body: HomepageHeroPublishMutation): CommerceAdminEndpoint<HomepageHeroPublishMutation> {
     return {
       capability: 'COMMERCE_HOMEPAGE_HERO_MANAGE',
