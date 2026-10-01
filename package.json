@@ -17,11 +17,11 @@
     "@types/react-dom": "19.2.4",
     "autoprefixer": "10.4.15",
     "eslint": "9.39.2",
-    "eslint-config-next": "16.3.1",
+    "eslint-config-next": "16.3.6",
     "geolib": "^3.3.14",
     "lucide-react": "^1.16.0",
-    "next": "16.3.1",
-    "nodemailer": "^9.0.3",
+    "next": "16.3.6",
+    "nodemailer": "10.0.9",
     "postcss": "8.5.26",
     "qrcode.react": "^4.2.0",
     "react": "19.2.8",
@@ -37,7 +37,7 @@
   },
   "overrides": {
     "minimatch@3.1.5": {
-      "brace-expansion": "1.1.18"
+      "brace-expansion": "1.1.21"
     }
   }
 }

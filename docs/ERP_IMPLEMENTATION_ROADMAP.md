@@ -1,5 +1,28 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-10-01 — Hero preview orientation and byte limit
+
+Preview now uses the Commerce model orientation (`0deg -52deg 0deg`),
+camera target, saved camera and lighting values; drag remains a 360-degree
+inspection control with pan disabled. It previews the static presentation,
+not the storefront scroll choreography. The existing 10 MiB upload guard
+is displayed exactly as 10,485,760 bytes; client and API enforcement remain.
+Next.js and its ESLint config are patched to 16.3.6 after the dependency gate
+reported GHSA-vcvr-r3jv-pc5j. No next/og ImageResponse usage was found. ERP audit also required Nodemailer
+10.0.9, brace-expansion 1.1.21 and compatible transitive security patches.
+A local stream-transport check validates message/envelope construction without
+network access or email delivery.
+Validation and delivery evidence accompany the PR. Runtime activation remains
+I-007 after real I-006 evidence; this UI change does not activate integration.
+Checks: ERP 844 tests and Commerce 314 tests pass with lint, typecheck and
+production build; Commerce retains two existing lint warnings. Executing the
+actual pointer handler confirms upward orbit (64°), angle bounds, touch and
+zero-size guards. Static model orientation parity passes. Browser rendering
+verification is unavailable: Chrome download failed (TLS issuer / invalid zip).
+Operator visual retest remains required.
+Rollback: revert this application/dependency batch.
+
+
 ## 2026-09-30 — Homepage Hero retry correctness (I-006)
 
 Status: `CODE_COMPLETE / LOCAL_VALIDATION_PASS / RUNTIME_DISABLED`.

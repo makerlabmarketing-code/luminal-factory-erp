@@ -1,5 +1,20 @@
 # Current Operator Handoff
 
+## 2026-10-01 Hero preview update
+
+Preview orientation now matches Commerce (`0deg -52deg 0deg`), with centered
+camera target, drag rotation and zoom. Upload maximum is shown in exact bytes:
+10,485,760 (10 MiB); the existing client/API bounds remain. Commerce pointer
+inspection expands to ±24° horizontally and ±18° vertically. This does not
+change production flags or establish I-006 evidence. Enable integration only
+after matching HMAC configuration, actual ERP authorization and the documented
+handshake/draft/audit gates pass, then perform the separate I-007 activation.
+Next.js/ESLint config are patched to 16.3.6 for the newly reported dependency
+advisory; ERP also receives Nodemailer 10.0.9, brace-expansion 1.1.21 and
+compatible transitive fixes required by audit. Local stream message construction
+passes without sending email. Rollback is a code/dependency revert.
+
+
 ## 2026-09-30 Homepage Hero integration continuation
 
 The retry correctness slice retains operation IDs for identical failed requests
