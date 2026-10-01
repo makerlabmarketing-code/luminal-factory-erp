@@ -205,6 +205,8 @@ function assetContentType(
 export default function HomepageHeroManagerClient() {
   const { showConfirm, showToast } = useNotification();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewReaderRef = useRef<FileReader | null>(null);
+  const [localModelPreview, setLocalModelPreview] = useState<{ url: string; name: string } | null>(null);
   const mutationInFlight = useRef(false);
   const mutationRetry = useRef(createCommerceMutationRetry());
   const [heroes, setHeroes] = useState<HomepageHeroPresentation[]>([]);
@@ -272,7 +274,8 @@ export default function HomepageHeroManagerClient() {
   const posterAssets = assets.filter((asset) => asset.kind === 'poster');
   const selectedModelAsset =
     modelAssets.find((asset) => asset.path === draft.modelStoragePath) || null;
-  const previewUrl = safeHttpsUrl(selectedModelAsset?.publicUrl);
+  const previewUrl = localModelPreview?.url || safeHttpsUrl(selectedModelAsset?.publicUrl) ||
+    (integrationDisabled ? 'https://luminalfactory.com/models/meowhe-hero.glb' : null);
   const previewDocument = previewUrl
     ? buildPreviewDocument(previewUrl, draft.settings)
     : null;
@@ -290,6 +293,33 @@ export default function HomepageHeroManagerClient() {
     return () => window.removeEventListener('beforeunload', warnBeforeLeave);
   }, [hasUnsavedChanges]);
 
+  useEffect(() => () => { previewReaderRef.current?.abort(); }, []);
+
+  function clearLocalPreview() {
+    previewReaderRef.current?.abort();
+    previewReaderRef.current = null;
+    setLocalModelPreview(null);
+  }
+
+  function previewLocalModel(file: File) {
+    if (!assetContentType(file, 'model') || file.size < 1 || file.size > HOMEPAGE_HERO_ASSET_MAX_BYTES) {
+      showToast('Không thể xem tệp', 'Chọn GLB có dung lượng từ 1 đến 10.485.760 byte (10 MiB).', 'info');
+      return;
+    }
+    previewReaderRef.current?.abort();
+    const reader = new FileReader();
+    previewReaderRef.current = reader;
+    reader.onload = () => {
+      if (previewReaderRef.current === reader && typeof reader.result === 'string') {
+        setLocalModelPreview({ url: reader.result, name: file.name });
+      }
+    };
+    reader.onerror = () => {
+      if (previewReaderRef.current === reader) showToast('Không đọc được tệp', 'Vui lòng chọn lại tệp GLB.', 'error');
+    };
+    reader.readAsDataURL(new Blob([file], { type: 'model/gltf-binary' }));
+  }
+
   function confirmDiscardChanges(next: () => void) {
     if (!hasUnsavedChanges) {
       next();
@@ -306,6 +336,7 @@ export default function HomepageHeroManagerClient() {
   function selectHero(hero: HomepageHeroPresentation) {
     if (hero.id === selectedHeroId) return;
     confirmDiscardChanges(() => {
+      clearLocalPreview();
       setSelectedHeroId(hero.id);
       setDraft(draftFromHero(hero));
     });
@@ -313,6 +344,7 @@ export default function HomepageHeroManagerClient() {
 
   function beginNewDraft() {
     confirmDiscardChanges(() => {
+      clearLocalPreview();
       setSelectedHeroId(null);
       setDraft(emptyDraft(modelAssets[0]?.path || ''));
     });
@@ -329,7 +361,7 @@ export default function HomepageHeroManagerClient() {
   }
 
   async function saveDraft() {
-    if (mutationInFlight.current) return;
+    if (integrationDisabled || localModelPreview || mutationInFlight.current) return;
     if (selectedHero?.status === 'PUBLISHED') {
       showToast(
         'Hero đang dùng',
@@ -388,7 +420,7 @@ export default function HomepageHeroManagerClient() {
   }
 
   async function changePublishState(action: 'publish' | 'unpublish') {
-    if (!selectedHeroId || mutationInFlight.current) return;
+    if (integrationDisabled || localModelPreview || !selectedHeroId || mutationInFlight.current) return;
     mutationInFlight.current = true;
     setSaving(true);
     try {
@@ -549,7 +581,7 @@ export default function HomepageHeroManagerClient() {
             type="button"
             className="admin-button-secondary"
             onClick={beginNewDraft}
-            disabled={integrationDisabled || loading}
+            disabled={loading}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             Bản nháp mới
@@ -561,9 +593,8 @@ export default function HomepageHeroManagerClient() {
         <div className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-4 text-sm text-amber-100">
           <p className="font-bold">Kết nối Commerce đang tắt</p>
           <p className="mt-1 text-xs leading-5 text-amber-200/75">
-            Màn quản trị đã sẵn sàng nhưng chưa gửi yêu cầu sang Commerce.
-            Cần hoàn tất credential, kiểm thử E2E và gate kích hoạt riêng trước
-            khi dùng live.
+            Bạn vẫn có thể xoay mô hình mẫu, chọn GLB trên máy và chỉnh góc xem thử.
+            Tải lên, lưu nháp và dùng Hero cần kết nối Commerce được xác minh.
           </p>
         </div>
       ) : null}
@@ -634,7 +665,7 @@ export default function HomepageHeroManagerClient() {
                     Kéo trực tiếp trong khung để kiểm tra góc.
                   </p>
                 </div>
-                {previewUrl ? (
+                {previewUrl && !localModelPreview ? (
                   <a
                     href={previewUrl}
                     target="_blank"
@@ -645,6 +676,30 @@ export default function HomepageHeroManagerClient() {
                   >
                     <ExternalLink className="h-4 w-4" />
                   </a>
+                ) : null}
+              </div>
+              <div className="border-b border-slate-800 p-4">
+                <label className="block text-xs text-slate-300">
+                  Chọn GLB trên máy để xem thử
+                  <input
+                    className="mt-2 block w-full text-xs"
+                    type="file"
+                    accept=".glb,model/gltf-binary"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) previewLocalModel(file);
+                      event.target.value = '';
+                    }}
+                  />
+                </label>
+                <p className="mt-2 text-xs text-slate-500">
+                  Chỉ xem trên máy, không tải lên hay lưu vào Commerce. Tối đa 10.485.760 byte.
+                  {localModelPreview ? ` Đang xem: ${localModelPreview.name}. Bỏ tệp xem thử trước khi lưu hoặc dùng Hero.` : integrationDisabled ? ' Đang dùng mô hình mẫu Meowhe.' : ''}
+                </p>
+                {localModelPreview ? (
+                  <button type="button" className="admin-button-secondary mt-2" onClick={clearLocalPreview}>
+                    Bỏ tệp xem thử
+                  </button>
                 ) : null}
               </div>
               <div className="aspect-[4/3] min-h-[320px] bg-slate-950">
@@ -664,7 +719,7 @@ export default function HomepageHeroManagerClient() {
                         Chưa có mô hình để xem trước
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        Chọn hoặc tải tệp GLB sau khi kết nối Commerce được bật.
+                        Chọn tệp GLB trên máy để xem thử, hoặc chọn tệp đã tải lên khi có kết nối.
                       </p>
                     </div>
                   </div>
@@ -780,7 +835,7 @@ export default function HomepageHeroManagerClient() {
                         name: event.target.value,
                       }))
                     }
-                    disabled={integrationDisabled}
+                    disabled={saving || uploading}
                     maxLength={120}
                   />
                 </label>
@@ -801,7 +856,7 @@ export default function HomepageHeroManagerClient() {
                           event.target.value.trim() || null,
                         )
                       }
-                      disabled={integrationDisabled}
+                      disabled={saving || uploading}
                     />
                     <input
                       aria-label="Chọn màu phủ"
@@ -811,7 +866,7 @@ export default function HomepageHeroManagerClient() {
                       onChange={(event) =>
                         updateSetting('tint', event.target.value)
                       }
-                      disabled={integrationDisabled}
+                      disabled={saving || uploading}
                     />
                   </div>
                   <p className="mt-1 text-[11px] text-slate-500">
@@ -835,7 +890,7 @@ export default function HomepageHeroManagerClient() {
                     onChange={(event) =>
                       updateSetting('autoRotate', event.target.checked)
                     }
-                    disabled={integrationDisabled}
+                    disabled={saving || uploading}
                     className="h-4 w-4 accent-blue-500"
                   />
                 </label>
@@ -852,7 +907,7 @@ export default function HomepageHeroManagerClient() {
                       max={field.max}
                       step={field.step}
                       value={String(draft.settings[field.key])}
-                      disabled={integrationDisabled}
+                      disabled={saving || uploading}
                       onChange={(event) => {
                         const value = Number(event.target.value);
                         if (Number.isFinite(value)) {
@@ -887,7 +942,8 @@ export default function HomepageHeroManagerClient() {
                   type="button"
                   className="admin-button-secondary"
                   onClick={() => setSelectedHeroId(null)}
-                  disabled={integrationDisabled || saving}
+                  disabled={integrationDisabled ||
+                  Boolean(localModelPreview) || saving}
                 >
                   <Plus className="h-4 w-4" />
                   Tạo bản nháp từ Hero này
@@ -899,6 +955,7 @@ export default function HomepageHeroManagerClient() {
                 onClick={() => void saveDraft()}
                 disabled={
                   integrationDisabled ||
+                  Boolean(localModelPreview) ||
                   saving ||
                   selectedHero?.status === 'PUBLISHED'
                 }
@@ -912,7 +969,8 @@ export default function HomepageHeroManagerClient() {
                   type="button"
                   className="admin-button-secondary"
                   onClick={() => confirmPublishChange('unpublish')}
-                  disabled={integrationDisabled || saving || hasUnsavedChanges}
+                  disabled={integrationDisabled ||
+                  Boolean(localModelPreview) || saving || hasUnsavedChanges}
                 >
                   <Pause className="h-4 w-4" />
                   Dừng Hero
@@ -924,6 +982,7 @@ export default function HomepageHeroManagerClient() {
                   onClick={() => confirmPublishChange('publish')}
                   disabled={
                     integrationDisabled ||
+                  Boolean(localModelPreview) ||
                     saving ||
                     !selectedHeroId ||
                     hasUnsavedChanges

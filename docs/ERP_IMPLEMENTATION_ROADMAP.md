@@ -1,5 +1,19 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-10-01 — Local Hero preview with integration disabled
+
+A reported usability defect locked all presentation controls when the Commerce
+flag was off. Local name/camera/lighting/rotation editing and new draft now
+remain usable. A separate bounded GLB picker reads into a data URL for the
+sandboxed preview only, with reader abort/stale-result guards. The offline
+preview falls back to the public sample Meowhe asset, not authenticated data.
+Actual upload, stored-asset selection, save and publish remain connection gated.
+Save/publish are also blocked while viewing a local file, so it cannot be
+confused with a persisted Commerce asset. No runtime flag or credential changed.
+Rollback: revert this UI batch. Browser rendering retest remains outstanding
+because Chrome installation was unavailable in this session.
+
+
 ## 2026-10-01 — Hero preview orientation and byte limit
 
 Preview now uses the Commerce model orientation (`0deg -52deg 0deg`),
