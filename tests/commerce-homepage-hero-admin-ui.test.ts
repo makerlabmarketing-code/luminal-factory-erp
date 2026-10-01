@@ -121,6 +121,8 @@ describe('Homepage Hero administration consumer', () => {
     expect(client).toMatch(/selectedHero\?\.status === 'PUBLISHED'/);
     expect(client).toMatch(/hero\.status === 'DRAFT' \?/);
     expect(client).toMatch(/hero\.publishedAt \? 'Bản cũ' : 'Bản nháp'/);
+    expect(client).toMatch(/absolute bottom-2 right-2 z-20/);
+    expect(client).toMatch(/className="w-full rounded-lg p-3 pb-11 text-left"/);
     expect(applyRoute).toMatch(/requireHomepageHeroAccess\('COMMERCE_HOMEPAGE_HERO_MANAGE'\)/);
     expect(deleteRoute).toMatch(/deleteHomepageHeroDraft/);
     expect(contracts).toMatch(/scope: 'commerce\.hero\.publish'/);
