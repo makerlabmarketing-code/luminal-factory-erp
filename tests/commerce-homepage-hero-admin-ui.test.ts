@@ -110,6 +110,17 @@ describe('Homepage Hero administration consumer', () => {
       /Màu phủ áp lên vật liệu 3D/,
     );
   });
+  it('explains live camera values and hides controls with no current Commerce effect', () => {
+    const client = source('app/admin/commerce/homepage-hero/HomepageHeroManagerClient.tsx');
+    expect(client).toMatch(/Góc ngang Hero mặc định/);
+    expect(client).toMatch(/Commerce dùng chính xác giá trị này/);
+    expect(client).toMatch(/Góc dọc Hero mặc định/);
+    expect(client).toMatch(/min: 48, max: 85/);
+    expect(client).toMatch(/Thông số nâng cao: giới hạn zoom và tùy chọn chưa dùng/);
+    expect(client).toMatch(/NUMBER_FIELDS\.filter\(\(field\) => !field\.previewOnly\)/);
+    expect(client).toMatch(/NUMBER_FIELDS\.filter\(\(field\) => field\.previewOnly\)/);
+  });
+
   it('directly applies edits only to the active Hero and allows deleting inactive history', () => {
     const client = source('app/admin/commerce/homepage-hero/HomepageHeroManagerClient.tsx');
     const applyRoute = source('app/api/admin/commerce/homepage-hero/[id]/apply/route.ts');
