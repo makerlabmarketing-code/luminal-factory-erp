@@ -738,7 +738,8 @@ export default function HomepageHeroManagerClient() {
         </aside>
 
         <div className="space-y-5">
-          <section className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,.75fr)]">
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(300px,0.95fr)_minmax(0,1.05fr)]">
+            <div className="xl:sticky xl:top-20 xl:z-10 xl:self-start">
             <div className="admin-card overflow-hidden">
               <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
                 <div>
@@ -746,10 +747,49 @@ export default function HomepageHeroManagerClient() {
                     Xem trước 3D
                   </h2>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    Kéo trực tiếp trong khung để kiểm tra góc. {previewStatus}
+                    Preview cập nhật ngay khi sửa thông số, chưa áp dụng lên Commerce. {previewStatus}
                   </p>
                 </div>
-                {previewUrl && !localModelPreview ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 hover:border-blue-500 disabled:opacity-50"
+                    disabled={!selectedHero || saving}
+                    title="Khôi phục góc camera từ bản Hero đã lưu"
+                    onClick={() => {
+                      if (!selectedHero) return;
+                      setDraft((current) => ({
+                        ...current,
+                        settings: {
+                          ...current.settings,
+                          cameraThetaDeg: selectedHero.settings.cameraThetaDeg,
+                          cameraPhiDeg: selectedHero.settings.cameraPhiDeg,
+                          cameraRadiusPercent: selectedHero.settings.cameraRadiusPercent,
+                          cameraFieldOfViewDeg: selectedHero.settings.cameraFieldOfViewDeg,
+                        },
+                      }));
+                    }}
+                  >Đặt lại góc</button>
+                  <button
+                    type="button"
+                    className="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 hover:border-blue-500 disabled:opacity-50"
+                    disabled={!selectedHero || saving}
+                    title="Khôi phục vật liệu và ánh sáng từ Hero đã lưu"
+                    onClick={() => {
+                      if (!selectedHero) return;
+                      setDraft((current) => ({
+                        ...current,
+                        settings: {
+                          ...current.settings,
+                          tint: selectedHero.settings.tint,
+                          exposure: selectedHero.settings.exposure,
+                          shadowIntensity: selectedHero.settings.shadowIntensity,
+                          shadowSoftness: selectedHero.settings.shadowSoftness,
+                        },
+                      }));
+                    }}
+                  >Đặt lại màu / sáng</button>
+                  {previewUrl && !localModelPreview ? (
                   <a
                     href={previewUrl}
                     target="_blank"
@@ -760,7 +800,8 @@ export default function HomepageHeroManagerClient() {
                   >
                     <ExternalLink className="h-4 w-4" />
                   </a>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
               <div className="border-b border-slate-800 p-4">
                 <label className="block text-xs text-slate-300">
@@ -786,7 +827,7 @@ export default function HomepageHeroManagerClient() {
                   </button>
                 ) : null}
               </div>
-              <div className="aspect-[4/3] min-h-[320px] bg-slate-950">
+              <div className="aspect-[4/3] min-h-[320px] bg-slate-950 xl:aspect-auto xl:h-[min(62vh,560px)]">
                 {previewDocument ? (
                   <iframe
                     title="Xem trước mô hình Hero"
@@ -812,9 +853,10 @@ export default function HomepageHeroManagerClient() {
                 )}
               </div>
             </div>
-
-            <div className="admin-card p-4">
-              <h2 className="text-sm font-bold text-slate-100">Tệp Hero</h2>
+            </div>
+            <div className="min-w-0 space-y-5">
+              <div className="admin-card p-4">
+                <h2 className="text-sm font-bold text-slate-100">Tệp Hero</h2>
               <div className="mt-4 space-y-4">
                 <label className="block">
                   <span className="admin-label">Mô hình 3D</span>
@@ -905,8 +947,6 @@ export default function HomepageHeroManagerClient() {
                 </div>
               </div>
             </div>
-          </section>
-
           <section className="admin-card p-4 sm:p-5">
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="space-y-4">
@@ -1036,6 +1076,8 @@ export default function HomepageHeroManagerClient() {
               </details>
             </div>
           </section>
+            </div>
+          </div>
 
           <section className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1048,7 +1090,7 @@ export default function HomepageHeroManagerClient() {
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
                 {selectedHero?.status === 'PUBLISHED'
-                  ? 'Chỉnh sửa rồi chọn Lưu nháp để tạo bản chỉnh sửa mới, không ảnh hưởng Hero đang dùng.'
+                  ? 'Chỉnh các thông số và bấm Áp dụng lên trang chủ để cập nhật Hero đang dùng. Preview chỉ hiển thị thử, không tự xuất bản.'
                   : 'Lưu bản nháp không thay đổi Hero đang dùng. Dùng Hero là thao tác riêng có xác nhận.'}
               </p>
             </div>
