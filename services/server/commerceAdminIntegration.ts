@@ -251,6 +251,7 @@ function serializeRequestBody(body: unknown): string {
 export async function requestCommerceAdmin<TData, TBody>(
   endpoint: CommerceAdminEndpoint<TBody>,
   isData: (value: unknown) => value is TData,
+  retryTransientRead = true,
 ): Promise<TData> {
   assertSafeEndpoint(endpoint);
   const config = readCommerceAdminConfig();
@@ -343,6 +344,17 @@ export async function requestCommerceAdmin<TData, TBody>(
   }
   if (!response.ok || !parsed.ok) {
     const failure = parsed.ok ? null : parsed;
+    // A fresh signed GET (with a fresh nonce) can recover a transient nonce
+    // persistence outage. Never retry writes or genuine 401 HMAC denials.
+    if (
+      retryTransientRead &&
+      endpoint.method === 'GET' &&
+      response.status === 503 &&
+      failure?.error.code === 'VERIFICATION_UNAVAILABLE' &&
+      failure.error.retryable
+    ) {
+      return requestCommerceAdmin(endpoint, isData, false);
+    }
     throw new CommerceAdminIntegrationError(
       'REMOTE_REJECTED',
       failure?.error.message || 'Commerce Admin API từ chối yêu cầu.',
