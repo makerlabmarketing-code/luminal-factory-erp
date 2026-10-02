@@ -8,7 +8,7 @@ vi.mock('server-only', () => ({}));
 
 const source = (file: string) => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
 
-describe('Commerce product catalog read-only foundation', () => {
+describe('Commerce product catalog catalog access foundation', () => {
   it('uses the signed product-only GET scope without reusing Hero permission', () => {
     expect(commerceProductEndpoints.list()).toMatchObject({
       method: 'GET',
@@ -31,7 +31,7 @@ describe('Commerce product catalog read-only foundation', () => {
     expect(productItems).not.toContain('/admin/commerce/homepage-hero');
   });
 
-  it('keeps Product requests server-owned and pages read-only', () => {
+  it('keeps Product requests server-owned and draft writes separate', () => {
     const adapter = source('services/server/commerceAdminProducts.ts');
     const page = source('app/admin/commerce/products/page.tsx');
     const route = source('app/api/admin/commerce/products/route.ts');
@@ -40,9 +40,10 @@ describe('Commerce product catalog read-only foundation', () => {
     expect(adapter).toContain('requestCommerceAdmin(');
     expect(adapter).toContain('value.every(isProductRecord)');
     expect(page).toContain('Danh mục sản phẩm');
-    expect(page).toContain('chưa hỗ trợ tạo, sửa, xuất bản');
+    expect(page).toContain("requireCommerceProductAccess('COMMERCE_PRODUCT_VIEW')");
     expect(page).not.toMatch(/onSubmit|fetch\(|createClient|serviceRole/);
     expect(route).toContain('listCommerceProducts()');
-    expect(route).not.toMatch(/export async function POST|PATCH|DELETE/);
+    expect(route).toContain("requireCommerceProductAccess('COMMERCE_PRODUCT_MANAGE')");
+    expect(route).not.toMatch(/export async function DELETE/);
   });
 });

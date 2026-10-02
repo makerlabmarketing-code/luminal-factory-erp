@@ -229,7 +229,7 @@ export default function HomepageHeroManagerClient() {
         setLoading(false);
       }
     },
-    [showToast],
+    [showToast, setDraft],
   );
 
   useEffect(() => {

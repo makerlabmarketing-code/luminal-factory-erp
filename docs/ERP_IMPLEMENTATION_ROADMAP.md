@@ -1,5 +1,31 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-10-02 — Commerce Product draft manager
+
+Status: `APPLICATION_COMPLETE / READY_FOR_PROTECTED_REVIEW`.
+
+The Product list now supports authorized draft create/edit through the existing
+Commerce management API, Vietnamese search/status filtering, safe error states
+and local composition when integration is disabled. Writes require the separate
+`COMMERCE_PRODUCT_MANAGE` capability and `commerce.product.write` scope; a view
+grant cannot write. Keycaps retain the informational/raffle rule. Confirmed
+server records reconcile into the list; identical retries retain operation IDs.
+Published/archived products have no edit action. Price, stock, publication and
+Colorway writes remain outside this slice.
+
+Validation: 118 Vitest files / 873 tests, lint, TypeScript and production build
+pass. Build uses public build-only Supabase placeholders. Rendered access/state
+checks pass; authenticated browser and real persistence smoke remain pending.
+A pre-existing Hero callback compiler-lint failure was repaired by including its
+stable `setDraft` dependency. No Hero behavior changes.
+
+Details and rollback: [Product draft slice](../specs/commerce/product-draft-management.md).
+Protected PR review and production approval remain required. Non-owner manage
+permission and machine write-scope provisioning are separate reviewed gates;
+no runtime configuration or production data was changed. Next feature: Colorway
+management contract and UI, preserving Commerce ownership and stable Product IDs.
+
+
 ## 2026-10-01 — Live Hero material and preview settings
 
 Reported preview settings were hard to observe because changing settings

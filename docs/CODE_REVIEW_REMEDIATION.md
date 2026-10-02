@@ -408,3 +408,19 @@ Stream-transport message/envelope compatibility passes with no external email.
 Preview matches Commerce static orientation and saved presentation controls.
 Browser visual verification remains unavailable due Chrome download failures.
 No production integration activation, secrets, schema or permission changes.
+
+
+## 2026-10-02 Product draft management review
+
+The only open ERP PR at task start was #218 (targeted Product view grant).
+Its review comments returned no findings; it remains outside this application
+slice. Self-review and repository tests verify server-owned writes, separate
+manage authorization, validation parity with Commerce, draft-only downstream
+RPC behavior and retained operation IDs. No actionable P0/P1 finding remains
+in this slice. New implementation-PR reviews must still be checked after push.
+
+A full lint run found `react-hooks/preserve-manual-memoization` in the existing
+Hero load callback. Classification: ACTIONABLE / FIXED. Including the captured
+stable `setDraft` setter in callback dependencies clears lint while preserving
+behavior. Full checks pass after the repair. No permission grant, live API call,
+SQL, credential, runtime activation or production delivery was performed.
