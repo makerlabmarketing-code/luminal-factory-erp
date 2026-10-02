@@ -6,13 +6,15 @@ export const HOMEPAGE_HERO_ASSET_MAX_BYTES = 10 * 1024 * 1024;
 export type CommerceAdminCapability =
   | 'COMMERCE_HOMEPAGE_HERO_VIEW'
   | 'COMMERCE_HOMEPAGE_HERO_MANAGE'
-  | 'COMMERCE_PRODUCT_VIEW';
+  | 'COMMERCE_PRODUCT_VIEW'
+  | 'COMMERCE_PRODUCT_MANAGE';
 
 export type CommerceAdminScope =
   | 'commerce.hero.read'
   | 'commerce.hero.write'
   | 'commerce.hero.publish'
-  | 'commerce.product.read';
+  | 'commerce.product.read'
+  | 'commerce.product.write';
 
 export type CommerceAdminHttpMethod = 'GET' | 'POST' | 'PATCH';
 
@@ -220,10 +222,7 @@ export const homepageHeroEndpoints = {
   },
 };
 
-/**
- * Product catalog is read-only in the first ERP batch.
- * Direct write/publish methods require separately provisioned permission scopes.
- */
+/** Commerce remains authoritative; draft writes use a dedicated capability. */
 export interface CommerceProductRecord {
   id: string;
   slug: string;
@@ -237,7 +236,28 @@ export interface CommerceProductRecord {
   updated_at: string;
 }
 
+export interface CommerceProductDraft {
+  slug: string;
+  name: string;
+  description: string | null;
+  productType: 'artisan_keycap' | 'collectible_object' | 'custom_object' | 'other';
+  releaseType: 'direct' | 'preorder' | 'informational';
+}
+
+export interface CommerceProductDraftMutation {
+  operationId: string;
+  draft: CommerceProductDraft;
+}
+
 export const commerceProductEndpoints = {
+  create(body: CommerceProductDraftMutation): CommerceAdminEndpoint<CommerceProductDraftMutation> {
+    return { capability: 'COMMERCE_PRODUCT_MANAGE', scope: 'commerce.product.write',
+      method: 'POST', path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/products`, body };
+  },
+  update(id: string, body: CommerceProductDraftMutation): CommerceAdminEndpoint<CommerceProductDraftMutation> {
+    return { capability: 'COMMERCE_PRODUCT_MANAGE', scope: 'commerce.product.write',
+      method: 'PATCH', path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/products/${encodeURIComponent(id)}`, body };
+  },
   list(): CommerceAdminEndpoint {
     return {
       capability: 'COMMERCE_PRODUCT_VIEW',
