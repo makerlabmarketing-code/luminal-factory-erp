@@ -424,3 +424,13 @@ Hero load callback. Classification: ACTIONABLE / FIXED. Including the captured
 stable `setDraft` setter in callback dependencies clears lint while preserving
 behavior. Full checks pass after the repair. No permission grant, live API call,
 SQL, credential, runtime activation or production delivery was performed.
+
+## 2026-10-03 — E-006
+
+REVIEW_SOURCE_UNAVAILABLE: Codex Code Review workflow findings were not exposed.
+Open ERP #222 / Commerce #110 comments were empty; no completed slice was reopened.
+Available static/self-review findings fixed: compare normalized response content
+by field (JSONB key order differs); validate target/locale/revision; qualify outer
+RLS columns; reject stale writes and protect local unsaved input; keep approved
+snapshots separate and public-reader runtime default-off. No known P0/P1 remains
+in the prepared application. Native/hosted SQL and owner UI checks remain gates.
