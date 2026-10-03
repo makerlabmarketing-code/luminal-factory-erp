@@ -4,6 +4,7 @@ import type { CommerceProductRecord } from '../lib/commerce-admin/contracts';
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock('@/lib/commerce-admin/mutation-retry', () => import('../lib/commerce-admin/mutation-retry'));
 vi.mock('@/lib/commerce-admin/product-input', () => import('../lib/commerce-admin/product-input'));
+vi.mock('@/lib/commerce-admin/colorway-input', () => import('../lib/commerce-admin/colorway-input'));
 import ProductManagerClient from '../app/admin/commerce/products/ProductManagerClient';
 const product: CommerceProductRecord = { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Meowhe', slug: 'meowhe', description: null, product_type: 'artisan_keycap', release_type: 'informational', status: 'draft', published_at: null, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z' };
 describe('Product manager access and list states', () => {

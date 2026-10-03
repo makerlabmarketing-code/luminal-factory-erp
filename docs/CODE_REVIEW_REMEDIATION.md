@@ -424,3 +424,19 @@ Hero load callback. Classification: ACTIONABLE / FIXED. Including the captured
 stable `setDraft` setter in callback dependencies clears lint while preserving
 behavior. Full checks pass after the repair. No permission grant, live API call,
 SQL, credential, runtime activation or production delivery was performed.
+
+
+## E-005 local self-review (2026-10-02)
+
+FIXED: clearing Product selection after aborting a Colorway read now resets the
+loading state. Retained mutation IDs, server permissions and parent/inactive
+response validation reviewed. Focused 12 tests, full lint and TypeScript pass.
+No current E-005 PR review exists; runtime build and SQL verification remain
+blocked/pending. No delivery-complete or Production claim is made.
+
+
+E-005 verification resumed 2026-10-03: runtime restriction resolved; ERP build
+passed, Commerce full check passed and isolated PostgreSQL SQL fixture passed.
+SQL fixture fingerprints were corrected to the real 64-hex receipt constraint;
+active-state and metadata-preservation coverage was added. Two-session and live
+owner smoke remain explicitly pending, not inferred from local tests.

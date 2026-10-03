@@ -1142,3 +1142,15 @@ denied-auth/replay audit on 2026-09-29 as ledger
 `20260929020944_add_bounded_commerce_admin_denial_audit`; RLS/grants and
 rollback-scoped fixtures passed. No paid branch or new Supabase project
 will be created. No real handshake has run and both runtime flags remain off.
+
+
+## E-005 — application checks passed, SQL/live review pending (2026-10-03)
+
+Coordination sheet row E-005 is the primary shared roadmap. API and ERP
+Colorway manager are ready for PR review. ERP full tests/lint/TypeScript/build
+pass; Commerce full check passes (346 tests). Isolated PostgreSQL SQL smoke
+and rollback pass, with single-connection limitations documented in
+`specs/commerce/colorway-draft-management.md`. Exact SQL approval/two-session
+verification and ordered Commerce→ERP rollout remain gates. Owner manual UI
+smoke is deferred until available; it does not block independent draft work.
+No real Colorway creation, production SQL, merge or deployment yet.
