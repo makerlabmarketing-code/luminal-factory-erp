@@ -1142,3 +1142,23 @@ denied-auth/replay audit on 2026-09-29 as ledger
 `20260929020944_add_bounded_commerce_admin_denial_audit`; RLS/grants and
 rollback-scoped fixtures passed. No paid branch or new Supabase project
 will be created. No real handshake has run and both runtime flags remain off.
+
+## 2026-10-03 — E-006 catalog translation drafts
+
+Execution and approvals follow [the shared coordination Sheet](https://docs.google.com/spreadsheets/d/1R9HKuFyYe4xrYbvVD-6abV1Br-_c6Jia6G9O0geKCxY/edit),
+row E-006. This repository mirrors technical evidence; read the Sheet before
+selecting work in every roadmap continuation, including a new conversation.
+
+Prepared Product EN/VI editor, exact revision/idempotent draft writes and signed
+read/write routes, including a nested Colorway contract. ERP interface stays
+Vietnamese; translation content uses the chosen language. Draft readiness does
+not publish. Commerce owns draft and approved-snapshot persistence.
+
+See [content-translations.md](../specs/commerce/content-translations.md).
+No live SQL/data, new grants/flags/secrets or Production deployment.
+E-005 remains at its separate SQL review gate (ERP #222 / Commerce #110);
+Product translation work is independent, Colorway editor wiring follows E-005.
+Exact SQL review, hosted preflight, native two-session verification and controlled
+create/reload/edit smoke precede rollout Commerce then ERP. Publication and
+public-reader activation remain separate gates. Rollback revokes feature access
+and preserves drafts/snapshots/receipts.
