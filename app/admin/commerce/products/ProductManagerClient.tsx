@@ -6,6 +6,8 @@ import type { CommerceProductDraft, CommerceProductRecord } from '@/lib/commerce
 import { createCommerceMutationRetry } from '@/lib/commerce-admin/mutation-retry';
 import { isProductRecord, parseCommerceProductDraft, PRODUCT_RELEASE_LABELS, PRODUCT_STATUS_LABELS, PRODUCT_TYPE_LABELS } from '@/lib/commerce-admin/product-input';
 
+import ColorwayManagerClient from './ColorwayManagerClient';
+
 const emptyDraft = (): CommerceProductDraft => ({ name: '', slug: '', description: '', productType: 'artisan_keycap', releaseType: 'informational' });
 const inputClass = 'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100';
 const buttonClass = 'rounded-md border border-slate-700 px-3 py-2 text-sm disabled:opacity-40';
@@ -103,6 +105,7 @@ export default function ProductManagerClient({ initialProducts, canManage, integ
         </div>
         {visible.length === 0 ? <p className="p-6 text-sm text-slate-400">{products.length ? 'Không tìm thấy sản phẩm phù hợp.' : loadError ? 'Danh sách chưa tải được.' : 'Chưa có sản phẩm trong danh mục.'}</p> : <div className="overflow-x-auto"><table className="w-full min-w-[740px] text-left text-sm"><thead className="text-slate-400"><tr>{['Sản phẩm', 'Loại', 'Cách phát hành', 'Trạng thái', 'Cập nhật', 'Thao tác'].map(label => <th key={label} scope="col" className="p-4 font-medium">{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-800">{visible.map(product => <tr key={product.id}><td className="p-4"><div className="font-medium">{product.name}</div><div className="text-xs text-slate-400">{product.slug}</div></td><td className="p-4">{PRODUCT_TYPE_LABELS[product.product_type as keyof typeof PRODUCT_TYPE_LABELS] ?? 'Chưa xác định'}</td><td className="p-4">{PRODUCT_RELEASE_LABELS[product.release_type as keyof typeof PRODUCT_RELEASE_LABELS] ?? 'Chưa xác định'}</td><td className="p-4">{PRODUCT_STATUS_LABELS[product.status]}</td><td className="p-4 text-xs text-slate-400">{Number.isNaN(Date.parse(product.updated_at)) ? 'Không xác định' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(product.updated_at))}</td><td className="p-4">{canManage && product.status === 'draft' && <button type="button" className={buttonClass} disabled={busy} onClick={() => selectProduct(product)}>Chỉnh sửa</button>}</td></tr>)}</tbody></table></div>}
       </div>
+      <ColorwayManagerClient products={products} canManage={canManage} integrationEnabled={integrationEnabled} />
     </div>
   );
 }
