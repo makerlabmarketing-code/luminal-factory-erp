@@ -424,3 +424,39 @@ Hero load callback. Classification: ACTIONABLE / FIXED. Including the captured
 stable `setDraft` setter in callback dependencies clears lint while preserving
 behavior. Full checks pass after the repair. No permission grant, live API call,
 SQL, credential, runtime activation or production delivery was performed.
+
+## 2026-10-03 — E-006
+
+REVIEW_SOURCE_UNAVAILABLE: Codex Code Review workflow findings were not exposed.
+Open ERP #222 / Commerce #110 comments were empty; no completed slice was reopened.
+Available static/self-review findings fixed: compare normalized response content
+by field (JSONB key order differs); validate target/locale/revision; qualify outer
+RLS columns; reject stale writes and protect local unsaved input; keep approved
+snapshots separate and public-reader runtime default-off. No known P0/P1 remains
+in the prepared application. Native/hosted SQL and owner UI checks remain gates.
+
+## E-005 local self-review (2026-10-02)
+
+FIXED: clearing Product selection after aborting a Colorway read now resets the
+loading state. Retained mutation IDs, server permissions and parent/inactive
+response validation reviewed. Focused 12 tests, full lint and TypeScript pass.
+No current E-005 PR review exists; runtime build and SQL verification remain
+blocked/pending. No delivery-complete or Production claim is made.
+
+
+E-005 verification resumed 2026-10-03: runtime restriction resolved; ERP build
+passed, Commerce full check passed and isolated PostgreSQL SQL fixture passed.
+SQL fixture fingerprints were corrected to the real 64-hex receipt constraint;
+active-state and metadata-preservation coverage was added. Two-session and live
+owner smoke remain explicitly pending, not inferred from local tests.
+
+## 2026-10-05 — E-006 Colorway editor wiring
+
+Current four implementation PRs have no inline review threads. External Codex
+review findings remain unavailable; self-review, tests and static checks are
+the available sources. E-005/E-006 merge conflicts retain both components,
+specifications and validation history. FIXED: translation target keys and read/
+write paths now include optional Colorway UUID; parent-bound list validation
+and aborted read guards prevent cross-entity save confirmation. Missing list
+leaves Product translation usable. No production/grant/secret change. 900 tests,
+lint, TypeScript and build pass; authenticated hosted editor remains unverified.

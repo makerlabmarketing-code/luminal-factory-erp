@@ -1142,3 +1142,47 @@ denied-auth/replay audit on 2026-09-29 as ledger
 `20260929020944_add_bounded_commerce_admin_denial_audit`; RLS/grants and
 rollback-scoped fixtures passed. No paid branch or new Supabase project
 will be created. No real handshake has run and both runtime flags remain off.
+
+## 2026-10-03 — E-006 catalog translation drafts
+
+Execution and approvals follow [the shared coordination Sheet](https://docs.google.com/spreadsheets/d/1R9HKuFyYe4xrYbvVD-6abV1Br-_c6Jia6G9O0geKCxY/edit),
+row E-006. This repository mirrors technical evidence; read the Sheet before
+selecting work in every roadmap continuation, including a new conversation.
+
+Prepared Product EN/VI editor, exact revision/idempotent draft writes and signed
+read/write routes, including a nested Colorway contract. ERP interface stays
+Vietnamese; translation content uses the chosen language. Draft readiness does
+not publish. Commerce owns draft and approved-snapshot persistence.
+
+See [content-translations.md](../specs/commerce/content-translations.md).
+No live SQL/data, new grants/flags/secrets or Production deployment.
+E-005 remains at its separate SQL review gate (ERP #222 / Commerce #110);
+Product translation work is independent, Colorway editor wiring follows E-005.
+Exact SQL review, hosted preflight, native two-session verification and controlled
+create/reload/edit smoke precede rollout Commerce then ERP. Publication and
+public-reader activation remain separate gates. Rollback revokes feature access
+and preserves drafts/snapshots/receipts.
+
+## E-005 — application checks passed, SQL/live review pending (2026-10-03)
+
+Coordination sheet row E-005 is the primary shared roadmap. API and ERP
+Colorway manager are ready for PR review. ERP full tests/lint/TypeScript/build
+pass; Commerce full check passes (346 tests). Isolated PostgreSQL SQL smoke
+and rollback pass, with single-connection limitations documented in
+`specs/commerce/colorway-draft-management.md`. Exact SQL approval/two-session
+verification and ordered Commerce→ERP rollout remain gates. Owner manual UI
+smoke is deferred until available; it does not block independent draft work.
+No real Colorway creation, production SQL, merge or deployment yet.
+
+## 2026-10-05 — E-005/E-006 continuation
+
+E-006 branch incorporates the existing E-005 ERP application changes, retaining
+both feature scopes and their original PRs. Translation editor now selects
+Product or parent-bound Colorway and EN/VI, protects unsaved input, aborts stale
+reads and validates exact saved entity/revision/content. No source facts or
+public snapshots change. Focused route/target checks and full 120 files / 900
+tests, lint, TypeScript and build pass. Build-only fake public Supabase config
+does not constitute real authenticated smoke. Commerce has disposable native
+PostgreSQL 17 concurrency jobs; wait for CI before claiming concurrency PASS.
+Production DDL approval and authenticated persistence remain required; ordered
+E-005 Commerce→ERP then E-006 Commerce→ERP rollout, no bypass of any gate.

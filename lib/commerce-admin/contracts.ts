@@ -267,3 +267,20 @@ export const commerceProductEndpoints = {
     };
   },
 };
+
+export interface CommerceColorwayDraft { name: string; slug: string; description: string | null }
+export interface CommerceColorwayMutation { operationId: string; draft: CommerceColorwayDraft }
+export interface CommerceColorwayRecord {
+  name: string; slug: string | null; description: string | null;
+  id: string; product_id: string; is_active: boolean; created_at: string; updated_at: string;
+}
+export const commerceColorwayEndpoints = {
+  list(id: string): CommerceAdminEndpoint {
+    return { capability: 'COMMERCE_PRODUCT_VIEW', scope: 'commerce.product.read', method: 'GET',
+      path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/products/${encodeURIComponent(id)}/colorways` };
+  },
+  save(id: string, variantId: string | null, body: CommerceColorwayMutation): CommerceAdminEndpoint<CommerceColorwayMutation> {
+    return { capability: 'COMMERCE_PRODUCT_MANAGE', scope: 'commerce.product.write', method: variantId ? 'PATCH' : 'POST',
+      path: `${COMMERCE_ADMIN_MANAGEMENT_PREFIX}/products/${encodeURIComponent(id)}/colorways${variantId ? `/${encodeURIComponent(variantId)}` : ''}`, body };
+  },
+};
