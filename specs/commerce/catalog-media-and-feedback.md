@@ -27,7 +27,7 @@ POST .../media/upload-ticket. Reads include short-lived private previews; write 
 exclude tokens/URLs. No object deletion or public publication operation exists.
 
 Storage/SQL ownership and complete forward/validation/rollback/preflight package:
-https://github.com/makerlabmarketing-code/luminal-factory-commerce/blob/feat/catalog-media-gallery-20261005/specs/commerce/catalog-media-drafts.md
+https://github.com/makerlabmarketing-code/luminal-factory-commerce/blob/0cf35bd7b4c44abd2efa027b7507e6c3a257bd40/specs/commerce/catalog-media-drafts.md
 
 COMMERCE_CATALOG_MEDIA_ENABLED is server-only and defaults false. Keep it off until
 the exact Commerce SQL package is approved and validated. Earlier E-005/E-006 SQL
