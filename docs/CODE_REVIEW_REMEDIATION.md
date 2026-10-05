@@ -460,3 +460,15 @@ write paths now include optional Colorway UUID; parent-bound list validation
 and aborted read guards prevent cross-entity save confirmation. Missing list
 leaves Product translation usable. No production/grant/secret change. 900 tests,
 lint, TypeScript and build pass; authenticated hosted editor remains unverified.
+
+
+## 2026-10-05 — catalog media and feedback
+
+External Code Review workflow findings are not exposed. Open source contains only
+the parked ERP grant PR; new media implementation PR threads must be inspected
+before merge. Self-review FIXED: validate confirmed target/revision/content by field
+rather than JSONB key order; bind private upload/preview paths; deny before service
+access; verify real image bytes; keep drafts and files private; retain soft-removal
+metadata for restore; suppress aborted-read notifications; limit corner toast stack.
+Full checks pass locally. SQL package remains draft-only pending exact production
+approval; no live storage/schema/grant/data mutation is performed in this slice.

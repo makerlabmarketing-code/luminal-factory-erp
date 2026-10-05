@@ -205,6 +205,7 @@ export default function HomepageHeroManagerClient() {
         setHeroes(nextHeroes);
         setAssets(nextAssets);
         setIntegrationDisabled(false);
+        if (showSpinner) showToast('Đã tải dữ liệu', 'Cấu hình Hero và danh sách tệp đã được cập nhật.', 'success');
 
         const selected =
           nextHeroes.find((hero) => hero.id === preferredHeroId) ||

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { CommerceColorwayRecord, CommerceProductRecord } from '@/lib/commerce-admin/contracts';
 import { isColorwayRecord } from '@/lib/commerce-admin/colorway-input';
+import { useCommerceFeedback } from '@/lib/commerce-admin/use-commerce-feedback';
 import { createCommerceMutationRetry } from '@/lib/commerce-admin/mutation-retry';
 import { emptyTranslation, isTranslationLocale, matchesTranslationTarget, parseTranslationDraft, translationEditorPath, translationTargetKey, TRANSLATION_FIELDS, TRANSLATION_LANGUAGE_LABELS, type TranslationContent, type TranslationDraft, type TranslationLocale } from '@/lib/commerce-admin/translation-input';
 
@@ -27,7 +28,7 @@ export default function TranslationManagerClient({ products, canManage, integrat
   const loaded = loadedKey === selectedKey;
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
+  const { message, setMessage, success, error, loaded: notifyLoaded } = useCommerceFeedback();
   const [refresh, setRefresh] = useState(0);
   const lock = useRef(false);
   const retry = useRef(createCommerceMutationRetry());
@@ -72,16 +73,17 @@ export default function TranslationManagerClient({ products, canManage, integrat
         const row = result.translation;
         const next = row ? parseTranslationDraft({ content: row.content, ready: row.ready })! : blank;
         setDraft(next); setBaseline(JSON.stringify(next)); setRevision(row?.revision ?? 0); setLoadedKey(translationTargetKey(target));
-      }).catch(() => { if (!abort.signal.aborted) setMessage('Chưa tải được bản dịch. Tải lại trước khi chỉnh sửa.'); })
+        notifyLoaded('Nội dung bản dịch đã được tải.');
+      }).catch(() => { if (!abort.signal.aborted) error('Chưa tải được bản dịch. Tải lại trước khi chỉnh sửa.'); })
       .finally(() => { if (!abort.signal.aborted) setLoading(false); });
     return () => abort.abort();
-  }, [productId, variantId, locale, integrationEnabled, refresh, targetExists]);
+  }, [productId, variantId, locale, integrationEnabled, refresh, targetExists, notifyLoaded, error, setMessage]);
   function discardAllowed() { return !lock.current && (!dirty || window.confirm('Bản dịch chưa được lưu. Bạn có muốn bỏ thay đổi?')); }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (lock.current || !canEdit || !loaded || !integrationEnabled || !product) return;
     const normalized = parseTranslationDraft(draft);
-    if (!normalized) { setMessage('Vui lòng nhập tên và mô tả trước khi đánh dấu sẵn sàng duyệt.'); return; }
+    if (!normalized) { error('Vui lòng nhập tên và mô tả trước khi đánh dấu sẵn sàng duyệt.'); return; }
     const target = { productId, variantId, locale };
     const path = translationEditorPath(target);
     const payload = { expectedRevision: revision, draft: normalized };
@@ -90,13 +92,13 @@ export default function TranslationManagerClient({ products, canManage, integrat
     try {
       const response = await fetch(path, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ operationId, ...payload }) });
       const result: unknown = await response.json();
-      if (!response.ok) { setMessage(response.status === 409 ? 'Bản dịch đã thay đổi. Sao chép nội dung cần giữ rồi tải lại trước khi lưu.' : response.status === 403 ? 'Bạn không có quyền lưu bản dịch.' : 'Chưa lưu được bản dịch. Nội dung được giữ lại để thử lại.'); return; }
+      if (!response.ok) { error(response.status === 409 ? 'Bản dịch đã thay đổi. Sao chép nội dung cần giữ rồi tải lại trước khi lưu.' : response.status === 403 ? 'Bạn không có quyền lưu bản dịch.' : 'Chưa lưu được bản dịch. Nội dung được giữ lại để thử lại.'); return; }
       if (!result || typeof result !== 'object' || !('success' in result) || result.success !== true || !('translation' in result) || !matchesTranslationTarget(result.translation, target)) throw new Error('invalid_save');
       const saved = result.translation;
       if (saved.revision !== revision + 1 || saved.ready !== normalized.ready || Object.keys(TRANSLATION_FIELDS).some(key => saved.content[key as keyof TranslationContent] !== normalized.content[key as keyof TranslationContent])) throw new Error('invalid_save');
       retry.current.confirm(operationId); setDraft(normalized); setBaseline(JSON.stringify(normalized)); setRevision(result.translation.revision);
-      setMessage('Đã lưu bản nháp dịch. Nội dung công khai chưa thay đổi.');
-    } catch { setMessage('Chưa xác nhận được kết quả lưu. Thử lại với cùng nội dung để tránh ghi trùng.'); }
+      success('Đã lưu bản nháp dịch. Nội dung công khai chưa thay đổi.');
+    } catch { error('Chưa xác nhận được kết quả lưu. Thử lại với cùng nội dung để tránh ghi trùng.'); }
     finally { lock.current = false; setBusy(false); }
   }
   return <section className="admin-card space-y-4 p-5" aria-labelledby="translation-heading">

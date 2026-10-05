@@ -17,7 +17,7 @@ export default async function CommerceProductsPage() {
       try { products = await listCommerceProducts(); }
       catch { loadError = 'Không thể tải danh mục sản phẩm. Vui lòng tải lại danh sách.'; }
     }
-    return <ProductManagerClient initialProducts={products} canManage={canManage} integrationEnabled={integrationEnabled} loadError={loadError} />;
+    return <ProductManagerClient initialProducts={products} canManage={canManage} integrationEnabled={integrationEnabled} loadError={loadError} mediaEnabled={process.env.COMMERCE_CATALOG_MEDIA_ENABLED === 'true'} />;
   } catch (error) {
     return <div className="admin-page"><h1 className="admin-page-title">Danh mục sản phẩm</h1><p role="alert" className="admin-card mt-4 p-5 text-sm">{error instanceof AuthFlowError ? error.message : 'Không thể xác minh quyền truy cập sản phẩm.'}</p></div>;
   }
