@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { CommerceProductRecord } from '../lib/commerce-admin/contracts';
+vi.mock('@/component/NotificationContext', () => ({ useNotification: () => ({ showToast: vi.fn(), showConfirm: vi.fn() }) }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock('@/lib/commerce-admin/mutation-retry', () => import('../lib/commerce-admin/mutation-retry'));
 vi.mock('@/lib/commerce-admin/product-input', () => import('../lib/commerce-admin/product-input'));
 vi.mock('@/lib/commerce-admin/translation-input', () => import('../lib/commerce-admin/translation-input'));
 vi.mock('@/lib/commerce-admin/colorway-input', () => import('../lib/commerce-admin/colorway-input'));
+vi.mock('@/lib/commerce-admin/use-commerce-feedback', () => import('../lib/commerce-admin/use-commerce-feedback'));
+vi.mock('@/lib/commerce-admin/media-input', () => import('../lib/commerce-admin/media-input'));
+vi.mock('@/lib/commerce-admin/prepare-media-file', () => import('../lib/commerce-admin/prepare-media-file'));
 import ProductManagerClient from '../app/admin/commerce/products/ProductManagerClient';
 const product: CommerceProductRecord = { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Meowhe', slug: 'meowhe', description: null, product_type: 'artisan_keycap', release_type: 'informational', status: 'draft', published_at: null, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z' };
 describe('Product manager access and list states', () => {

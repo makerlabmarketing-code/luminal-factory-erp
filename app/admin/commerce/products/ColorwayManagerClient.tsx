@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { CommerceColorwayDraft, CommerceColorwayRecord, CommerceProductRecord } from '@/lib/commerce-admin/contracts';
 import { isColorwayRecord, parseColorwayDraft } from '@/lib/commerce-admin/colorway-input';
+import { useCommerceFeedback } from '@/lib/commerce-admin/use-commerce-feedback';
 import { createCommerceMutationRetry } from '@/lib/commerce-admin/mutation-retry';
 
 const inputClass = 'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm';
@@ -17,7 +18,7 @@ export default function ColorwayManagerClient({ products, canManage, integration
   const [original, setOriginal] = useState('');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
+  const { message, setMessage, success, error, loaded } = useCommerceFeedback();
   const [reload, setReload] = useState(0);
   const lock = useRef(false);
   const retry = useRef(createCommerceMutationRetry());
@@ -38,11 +39,11 @@ export default function ColorwayManagerClient({ products, canManage, integration
       .then(async response => {
         const result: unknown = await response.json();
         if (!response.ok || !result || typeof result !== 'object' || !('success' in result) || result.success !== true || !('colorways' in result) || !Array.isArray(result.colorways) || result.colorways.length > 200 || !result.colorways.every(row => isColorwayRecord(row) && row.product_id === productId)) throw new Error('invalid');
-        if (!controller.signal.aborted) setRows(result.colorways);
-      }).catch(() => { if (!controller.signal.aborted) setMessage('Không thể tải phối màu. Vui lòng tải lại.'); })
+        if (!controller.signal.aborted) { setRows(result.colorways); loaded('Danh sách phối màu đã được cập nhật.'); }
+      }).catch(() => { if (!controller.signal.aborted) error('Không thể tải phối màu. Vui lòng tải lại.'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [productId, integrationEnabled, reload]);
+  }, [productId, integrationEnabled, reload, loaded, error, setMessage]);
   function mayLeave() { return !lock.current && (!dirty || window.confirm('Phối màu chưa được lưu. Bạn có muốn bỏ thay đổi?')); }
   function choose(next: string) {
     if (!mayLeave()) return;
@@ -51,14 +52,14 @@ export default function ColorwayManagerClient({ products, canManage, integration
   function edit(row?: CommerceColorwayRecord) {
     if (!editable || !mayLeave()) return;
     const next = row ? parseColorwayDraft({ name: row.name, slug: row.slug ?? '', description: row.description }) : empty();
-    if (!next) { setMessage('Phối màu cũ chưa có đường dẫn hợp lệ. Cần kiểm tra dữ liệu trước khi chỉnh sửa.'); return; }
+    if (!next) { error('Phối màu cũ chưa có đường dẫn hợp lệ. Cần kiểm tra dữ liệu trước khi chỉnh sửa.'); return; }
     setDraft(next); setVariantId(row?.id ?? null); setOriginal(JSON.stringify(next)); setMessage('');
   }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (lock.current || !editable || loading) return;
     const normalized = parseColorwayDraft(draft);
-    if (!normalized) { setMessage('Vui lòng kiểm tra tên và đường dẫn phối màu.'); return; }
+    if (!normalized) { error('Vui lòng kiểm tra tên và đường dẫn phối màu.'); return; }
     lock.current = true; setBusy(true); setMessage('');
     const path = `/api/admin/commerce/products/${encodeURIComponent(productId)}/colorways${variantId ? `/${encodeURIComponent(variantId)}` : ''}`;
     const method = variantId ? 'PATCH' : 'POST';
@@ -67,7 +68,7 @@ export default function ColorwayManagerClient({ products, canManage, integration
       const response = await fetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ operationId, draft: normalized }) });
       const result: unknown = await response.json();
       if (!response.ok || !result || typeof result !== 'object' || !('success' in result) || result.success !== true) {
-        setMessage(response.status === 409 ? 'Đường dẫn đã được dùng hoặc sản phẩm không còn là bản nháp. Kiểm tra lại trước khi lưu.' : response.status === 403 ? 'Bạn không có quyền lưu phối màu.' : 'Không thể lưu phối màu. Thông tin đã được giữ để thử lại.'); return;
+        error(response.status === 409 ? 'Đường dẫn đã được dùng hoặc sản phẩm không còn là bản nháp. Kiểm tra lại trước khi lưu.' : response.status === 403 ? 'Bạn không có quyền lưu phối màu.' : 'Không thể lưu phối màu. Thông tin đã được giữ để thử lại.'); return;
       }
       const row = 'colorway' in result ? result.colorway : null;
       if (!isColorwayRecord(row) || row.product_id !== productId || row.is_active || (variantId && row.id !== variantId)) throw new Error('invalid');
@@ -75,8 +76,8 @@ export default function ColorwayManagerClient({ products, canManage, integration
       if (!confirmed) throw new Error('invalid');
       retry.current.confirm(operationId);
       setRows(current => [row, ...current.filter(existing => existing.id !== row.id)]);
-      setVariantId(row.id); setDraft(confirmed); setOriginal(JSON.stringify(confirmed)); setMessage('Đã lưu bản nháp phối màu.');
-    } catch { setMessage('Chưa xác nhận kết quả lưu. Thử lại với cùng thông tin để tránh tạo trùng phối màu.'); }
+      setVariantId(row.id); setDraft(confirmed); setOriginal(JSON.stringify(confirmed)); success('Đã lưu bản nháp phối màu.');
+    } catch { error('Chưa xác nhận kết quả lưu. Thử lại với cùng thông tin để tránh tạo trùng phối màu.'); }
     finally { lock.current = false; setBusy(false); }
   }
   return <section className="admin-card space-y-4 p-5" aria-labelledby="colorway-heading">

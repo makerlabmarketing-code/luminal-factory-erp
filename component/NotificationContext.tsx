@@ -50,7 +50,7 @@ export function NotificationProvider({
     options: ToastOptions = {}
   ) => {
     const id = ++nextToastId.current;
-    setToasts((current) => [...current, {
+    setToasts((current) => [...current.slice(-3), {
       id,
       title,
       desc,
