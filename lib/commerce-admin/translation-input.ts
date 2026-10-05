@@ -52,6 +52,12 @@ export function isTranslationRecord(value: unknown): value is TranslationRecord 
 export function matchesTranslationTarget(value: unknown, target: TranslationTarget): value is TranslationRecord {
   return isTranslationRecord(value) && value.productId === target.productId && value.variantId === target.variantId && value.locale === target.locale;
 }
+export function translationTargetKey(target: TranslationTarget): string {
+  return `${target.productId}:${target.variantId ?? 'product'}:${target.locale}`;
+}
+export function translationEditorPath(target: TranslationTarget): string {
+  return `/api/admin/commerce/products/${encodeURIComponent(target.productId)}${target.variantId ? `/colorways/${encodeURIComponent(target.variantId)}` : ''}/translations/${target.locale}`;
+}
 export function translationEndpoint(target: TranslationTarget, mutation?: TranslationMutation): CommerceAdminEndpoint<TranslationMutation> {
   const path = `/api/admin/v1/products/${encodeURIComponent(target.productId)}${target.variantId ? `/colorways/${encodeURIComponent(target.variantId)}` : ''}/translations/${target.locale}`;
   return { path, method: mutation ? 'PATCH' : 'GET', capability: mutation ? 'COMMERCE_PRODUCT_MANAGE' : 'COMMERCE_PRODUCT_VIEW', scope: mutation ? 'commerce.product.write' : 'commerce.product.read', ...(mutation ? { body: mutation } : {}) };

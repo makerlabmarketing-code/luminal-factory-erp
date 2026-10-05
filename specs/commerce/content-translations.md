@@ -18,7 +18,13 @@ replace another selection; save remains disabled until that target's read is
 confirmed. Unsaved changes warn before changing Product/language/reloading and
 protect browser unload. Local offline composition is clearly not persistent.
 
-Nested Colorway API is prepared independently; editor wiring waits for E-005.
+The editor now offers Product content or an existing Colorway selected from a
+parent-bound, validated list. Product/Colorway/language reads use distinct keys;
+switching aborts older reads and requires unsaved-change confirmation. The shared
+panel supports draft translations for active variants too: source/public content
+is unaffected. A failed Colorway list leaves Product translation available.
+E-005 application code is merged into this feature branch; Production delivery
+still requires the separately approved E-005 SQL and Commerce rollout first.
 No permission grants, database credentials or browser Commerce transport.
 
 Required tests/lint/type-check/build and diff review precede draft PR delivery.
@@ -41,3 +47,13 @@ revokes feature access while preserving translation data/receipts.
   shared slug/price and translation-service failure fallback PASS.
 - Hosted preflight, native two-session concurrency and authenticated owner editor
   smoke remain unperformed. No Production SQL/runtime/secrets/data changed.
+
+## Continuation — 2026-10-05
+
+Colorway selector and editor wiring are prepared with focused parent/entity/locale
+and signed-route regression coverage. Production read-only preflight verifies
+two draft Products, one published Product, one Variant; translation tables/RPC
+are absent and public variant writes remain denied. PostgreSQL 17 concurrency
+and rollback now have a disposable CI job in Commerce; await its result before
+claiming that gate passes. Exact Production SQL approval and authenticated
+create/reload/edit remain required. No migration, live write or public publish.

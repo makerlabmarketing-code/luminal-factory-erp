@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emptyTranslation, matchesTranslationTarget, parseTranslationDraft, parseTranslationMutation, translationEndpoint } from '../lib/commerce-admin/translation-input';
+import { emptyTranslation, matchesTranslationTarget, parseTranslationDraft, parseTranslationMutation, translationEditorPath, translationEndpoint, translationTargetKey } from '../lib/commerce-admin/translation-input';
 const runtime = vi.hoisted(() => ({ access: vi.fn(), read: vi.fn(), save: vi.fn(), transport: vi.fn() }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/commerce-admin/translation-input', () => import('../lib/commerce-admin/translation-input'));
@@ -37,6 +37,16 @@ describe('translation ownership, readiness and parser limits', () => {
     expect(matchesTranslationTarget({ ...row, locale: 'en' }, target)).toBe(false);
     expect(matchesTranslationTarget({ ...row, variantId: id }, target)).toBe(false);
   });
+  it('keeps Product, Colorway and language drafts in distinct editor targets', () => {
+    const colorway = { ...target, variantId: '550e8400-e29b-41d4-a716-446655440020' };
+    expect(translationEditorPath(target)).toBe(`/api/admin/commerce/products/${id}/translations/vi`);
+    expect(translationEditorPath(colorway)).toBe(`/api/admin/commerce/products/${id}/colorways/${colorway.variantId}/translations/vi`);
+    const targets = [target, colorway, { ...colorway, locale: 'en' as const }, { ...colorway, productId: colorway.variantId }];
+    expect(new Set(targets.map(translationTargetKey)).size).toBe(targets.length);
+    expect(translationEndpoint(colorway).path.replace('/api/admin/v1/', '/api/admin/commerce/')).toBe(translationEditorPath(colorway));
+    expect(matchesTranslationTarget({ ...row, variantId: colorway.variantId }, colorway)).toBe(true);
+    expect(matchesTranslationTarget({ ...row, variantId: colorway.variantId, productId: colorway.variantId }, colorway)).toBe(false);
+  });
 });
 describe('translation transport response validation', () => {
   it('confirms revision and content without depending on JSON key order', async () => {
@@ -73,5 +83,16 @@ describe('ERP translation route authorization and forwarding', () => {
     expect((await handleErpTranslationRoute(request(), params, true)).status).toBe(200);
     expect(runtime.access).toHaveBeenCalledWith('COMMERCE_PRODUCT_MANAGE');
     expect(runtime.transport.mock.calls[0][0].body).toEqual(mutation);
+  });
+  it('forwards Colorway reads and writes with the same parent and locale', async () => {
+    const variantId = '550e8400-e29b-41d4-a716-446655440020';
+    const colorwayParams = Promise.resolve({ id, variantId, locale: 'vi' });
+    runtime.access.mockResolvedValue({}); runtime.transport.mockResolvedValue({ ...row, variantId });
+    expect((await handleErpTranslationRoute(new Request('https://erp.test'), colorwayParams, false)).status).toBe(200);
+    expect(runtime.access).toHaveBeenLastCalledWith('COMMERCE_PRODUCT_VIEW');
+    expect(runtime.transport.mock.calls[0][0].path).toBe(`/api/admin/v1/products/${id}/colorways/${variantId}/translations/vi`);
+    expect((await handleErpTranslationRoute(request(), colorwayParams, true)).status).toBe(200);
+    expect(runtime.access).toHaveBeenLastCalledWith('COMMERCE_PRODUCT_MANAGE');
+    expect(runtime.transport.mock.calls[1][0].body).toEqual(mutation);
   });
 });
