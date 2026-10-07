@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { CommerceProductDraft, CommerceProductRecord } from '@/lib/commerce-admin/contracts';
 import { useCommerceFeedback } from '@/lib/commerce-admin/use-commerce-feedback';
@@ -15,16 +16,17 @@ const emptyDraft = (): CommerceProductDraft => ({ name: '', slug: '', descriptio
 const inputClass = 'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100';
 const buttonClass = 'rounded-md border border-slate-700 px-3 py-2 text-sm disabled:opacity-40';
 
-export default function ProductManagerClient({ initialProducts, canManage, integrationEnabled, loadError, mediaEnabled = false }: {
-  initialProducts: CommerceProductRecord[]; canManage: boolean; integrationEnabled: boolean; loadError: string | null; mediaEnabled?: boolean;
+export default function ProductManagerClient({ initialProducts, canManage, integrationEnabled, loadError, mediaEnabled = false, editor = false, selectedProduct = null, informationUpdateEnabled = false }: {
+  initialProducts: CommerceProductRecord[]; canManage: boolean; integrationEnabled: boolean; loadError: string | null; mediaEnabled?: boolean; editor?: boolean; selectedProduct?: CommerceProductRecord | null; informationUpdateEnabled?: boolean;
 }) {
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<CommerceProductDraft | null>(null);
-  const [savedDraft, setSavedDraft] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(selectedProduct?.id ?? null);
+  const initialDraft = selectedProduct ? parseCommerceProductDraft({ name: selectedProduct.name, slug: selectedProduct.slug, description: selectedProduct.description, productType: selectedProduct.product_type, releaseType: selectedProduct.release_type }) : editor ? emptyDraft() : null;
+  const [draft, setDraft] = useState<CommerceProductDraft | null>(initialDraft);
+  const [savedDraft, setSavedDraft] = useState(JSON.stringify(initialDraft));
   const [busy, setBusy] = useState(false);
   const { message, setMessage, success, error, loaded } = useCommerceFeedback();
   const lock = useRef(false);
@@ -37,6 +39,11 @@ export default function ProductManagerClient({ initialProducts, canManage, integ
     else if (refreshRequested.current) loaded('Danh sách sản phẩm đã được cập nhật.');
     refreshRequested.current = false; setRefreshing(false);
   }, [initialProducts, loadError, error, loaded]);
+  const activeProduct = products.find(product => product.id === editingId) ?? selectedProduct;
+  const nonDraft = !!activeProduct && activeProduct.status !== 'draft';
+  const editable = canManage && (!nonDraft || informationUpdateEnabled);
+  const childGuards = useRef<Record<string, { dirty: boolean; busy: boolean }>>({});
+  const updateGuard = useCallback((key: string, state: { dirty: boolean; busy: boolean }) => { childGuards.current[key] = state; }, []);
   const dirty = draft !== null && JSON.stringify(draft) !== savedDraft;
   useEffect(() => {
     if (!dirty) return;
@@ -45,21 +52,15 @@ export default function ProductManagerClient({ initialProducts, canManage, integ
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  function selectProduct(product?: CommerceProductRecord) {
-    if (lock.current || (dirty && !window.confirm('Thông tin chưa được lưu. Bạn có muốn bỏ thay đổi?'))) return;
-    const next = product ? parseCommerceProductDraft({ name: product.name, slug: product.slug, description: product.description, productType: product.product_type, releaseType: product.release_type }) : emptyDraft();
-    setEditingId(product?.id ?? null);
-    setDraft(next);
-    setSavedDraft(JSON.stringify(next));
-    setMessage('');
-  }
   function cancel() {
-    if (lock.current || (dirty && !window.confirm('Thông tin chưa được lưu. Bạn có muốn bỏ thay đổi?'))) return;
-    setDraft(null); setEditingId(null); setMessage('');
+    const guards = Object.values(childGuards.current);
+    if (lock.current || guards.some(state => state.busy)) return;
+    if ((dirty || guards.some(state => state.dirty)) && !window.confirm('Thông tin chưa được lưu. Bạn có muốn bỏ thay đổi?')) return;
+    router.push('/admin/commerce/products');
   }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (lock.current || !canManage || !integrationEnabled) return;
+    if (lock.current || !editable || !integrationEnabled) return;
     const normalized = parseCommerceProductDraft(draft);
     if (!normalized) { error('Vui lòng kiểm tra tên, đường dẫn và cách phát hành sản phẩm.'); return; }
     lock.current = true; setBusy(true); setMessage('');
@@ -75,11 +76,12 @@ export default function ProductManagerClient({ initialProducts, canManage, integ
       }
       // Reconcile only the server-confirmed record; never claim a local draft persisted.
       const product = 'product' in result ? result.product : null;
-      if (!isProductRecord(product) || product.status !== 'draft' || !parseCommerceProductDraft({ name: product.name, slug: product.slug, description: product.description, productType: product.product_type, releaseType: product.release_type })) throw new Error('invalid_response');
+      if (!isProductRecord(product) || (editingId ? product.id !== editingId || product.status !== activeProduct?.status : product.status !== 'draft') || !parseCommerceProductDraft({ name: product.name, slug: product.slug, description: product.description, productType: product.product_type, releaseType: product.release_type })) throw new Error('invalid_response');
       retry.current.confirm(operationId);
       setProducts(current => [product, ...current.filter(row => row.id !== product.id)]);
       setEditingId(product.id); setDraft(normalized); setSavedDraft(JSON.stringify(normalized));
-      success('Đã lưu bản nháp sản phẩm.');
+      success(product.status === 'draft' ? 'Đã lưu bản nháp sản phẩm.' : product.status === 'published' ? 'Đã cập nhật thông tin sản phẩm trên website.' : 'Đã cập nhật thông tin. Sản phẩm vẫn được lưu trữ.');
+      if (!editingId) router.replace(`/admin/commerce/products/${encodeURIComponent(product.id)}`);
     } catch {
       error('Chưa xác nhận được kết quả lưu. Thử lại với cùng thông tin để tránh tạo trùng sản phẩm.');
     } finally { lock.current = false; setBusy(false); }
@@ -89,35 +91,38 @@ export default function ProductManagerClient({ initialProducts, canManage, integ
   return (
     <div className="admin-page space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h1 className="admin-page-title">Danh mục sản phẩm</h1><p className="mt-2 text-sm text-slate-400">Tạo và chỉnh sửa bản nháp sản phẩm trên Commerce. Keycap được bán qua raffle.</p></div>
-        <div className="flex gap-2"><button type="button" className={buttonClass} disabled={busy || refreshing} onClick={() => { refreshRequested.current = true; setRefreshing(true); router.refresh(); }}>{refreshing ? 'Đang tải…' : 'Tải lại danh sách'}</button>{canManage && <button type="button" className={buttonClass} disabled={busy} onClick={() => selectProduct()}>Tạo mới</button>}</div>
+        <div><h1 className="admin-page-title">{editor ? activeProduct?.name ?? 'Sản phẩm mới' : 'Danh mục sản phẩm'}</h1><p className="mt-2 text-sm text-slate-400">{editor ? activeProduct ? PRODUCT_STATUS_LABELS[activeProduct.status] : 'Tạo bản nháp trước khi bổ sung ảnh và phối màu.' : 'Chọn sản phẩm để xem và quản lý thông tin.'}</p></div>
+        <div className="flex gap-2">{editor ? <button type="button" className={buttonClass} disabled={busy} onClick={cancel}>Quay lại danh sách</button> : <><button type="button" className={buttonClass} disabled={busy || refreshing} onClick={() => { refreshRequested.current = true; setRefreshing(true); router.refresh(); }}>{refreshing ? 'Đang tải…' : 'Tải lại danh sách'}</button>{canManage && <Link className={buttonClass} href="/admin/commerce/products/new">Tạo mới</Link>}</>}</div>
       </div>
       {!integrationEnabled && <p role="status" className="admin-card p-4 text-sm text-amber-200">Kết nối Commerce đang tắt. Bạn có thể soạn bản nháp; lưu lên Commerce cần kết nối được kích hoạt.</p>}
       {loadError && <p role="alert" className="admin-card p-4 text-sm text-amber-200">{loadError}</p>}
       {message && <p role="status" aria-live="polite" className="admin-card p-4 text-sm">{message}</p>}
       {draft && <form onSubmit={save} className="admin-card space-y-4 p-5">
-        <h2 className="font-semibold">{editingId ? 'Chỉnh sửa bản nháp' : 'Sản phẩm mới'}</h2>
-        <fieldset disabled={busy} className="grid gap-4 md:grid-cols-2">
+        <h2 className="font-semibold">{editingId ? 'Thông tin sản phẩm' : 'Sản phẩm mới'}</h2>
+        <fieldset disabled={busy || !editable} className="grid gap-4 md:grid-cols-2">
           <label className="space-y-2 text-sm">Tên sản phẩm<input required maxLength={160} className={inputClass} value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
-          <label className="space-y-2 text-sm">Đường dẫn<input required maxLength={120} pattern="[a-z0-9]+(-[a-z0-9]+)*" className={inputClass} value={draft.slug} onChange={event => setDraft({ ...draft, slug: event.target.value })} /><span className="block text-xs text-slate-400">Chữ thường, số và dấu gạch ngang. Ví dụ: meowhe.</span></label>
-          <label className="space-y-2 text-sm">Loại sản phẩm<select className={inputClass} value={draft.productType} onChange={event => { const productType = event.target.value as CommerceProductDraft['productType']; setDraft({ ...draft, productType, releaseType: productType === 'artisan_keycap' ? 'informational' : draft.releaseType }); }}>{Object.entries(PRODUCT_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <label className="space-y-2 text-sm">Cách phát hành<select disabled={draft.productType === 'artisan_keycap'} className={inputClass} value={draft.releaseType} onChange={event => setDraft({ ...draft, releaseType: event.target.value as CommerceProductDraft['releaseType'] })}>{Object.entries(PRODUCT_RELEASE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="space-y-2 text-sm">Đường dẫn<input disabled={nonDraft} required maxLength={120} pattern="[a-z0-9]+(-[a-z0-9]+)*" className={inputClass} value={draft.slug} onChange={event => setDraft({ ...draft, slug: event.target.value })} /><span className="block text-xs text-slate-400">Chữ thường, số và dấu gạch ngang. Ví dụ: meowhe.</span></label>
+          <label className="space-y-2 text-sm">Loại sản phẩm<select disabled={nonDraft} className={inputClass} value={draft.productType} onChange={event => { const productType = event.target.value as CommerceProductDraft['productType']; setDraft({ ...draft, productType, releaseType: productType === 'artisan_keycap' ? 'informational' : draft.releaseType }); }}>{Object.entries(PRODUCT_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="space-y-2 text-sm">Cách phát hành<select disabled={nonDraft || draft.productType === 'artisan_keycap'} className={inputClass} value={draft.releaseType} onChange={event => setDraft({ ...draft, releaseType: event.target.value as CommerceProductDraft['releaseType'] })}>{Object.entries(PRODUCT_RELEASE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="space-y-2 text-sm md:col-span-2">Mô tả<textarea maxLength={5000} rows={5} className={inputClass} value={draft.description ?? ''} onChange={event => setDraft({ ...draft, description: event.target.value })} /></label>
         </fieldset>
-        <p className="text-xs text-slate-400">Lưu nháp chưa hiển thị sản phẩm công khai. Giá, tồn kho và phối màu được quản lý ở bước tiếp theo.</p>
-        <div className="flex gap-2"><button className={buttonClass} disabled={busy || !integrationEnabled}>{busy ? 'Đang lưu…' : 'Lưu nháp'}</button><button type="button" className={buttonClass} disabled={busy} onClick={cancel}>Hủy</button></div>
+        <p className="text-xs text-slate-400">{nonDraft ? activeProduct?.status === 'published' ? 'Cập nhật tên và mô tả sẽ hiển thị trên website. Đường dẫn, loại và cách phát hành được giữ nguyên.' : 'Cập nhật thông tin giữ nguyên trạng thái lưu trữ; sản phẩm không được xuất bản lại.' : 'Lưu nháp chưa hiển thị sản phẩm công khai.'}</p>
+        {nonDraft && !informationUpdateEnabled && canManage && <p role="status" className="text-sm text-amber-200">Thông tin hiện chỉ xem. Chức năng cập nhật sản phẩm đã xuất bản/lưu trữ đang chờ triển khai thay đổi dữ liệu Commerce.</p>}
+        <div className="flex gap-2">{editable && <button className={buttonClass} disabled={busy || !integrationEnabled}>{busy ? 'Đang lưu…' : nonDraft ? 'Lưu thay đổi' : 'Lưu nháp'}</button>}<button type="button" className={buttonClass} disabled={busy} onClick={cancel}>Hủy</button></div>
       </form>}
-      <div className="admin-card overflow-hidden">
+      {!editor && <div className="admin-card overflow-hidden">
         <div className="flex flex-wrap items-end gap-3 border-b border-slate-800 p-4">
           <label className="flex-1 space-y-1 text-sm">Tìm sản phẩm<input className={inputClass} value={query} onChange={event => setQuery(event.target.value)} placeholder="Tên hoặc đường dẫn" /></label>
           <label className="space-y-1 text-sm">Trạng thái<select className={inputClass} value={status} onChange={event => setStatus(event.target.value)}><option value="">Tất cả</option>{Object.entries(PRODUCT_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <span className="text-xs text-slate-400">{visible.length} / {products.length} sản phẩm</span>
         </div>
-        {visible.length === 0 ? <p className="p-6 text-sm text-slate-400">{products.length ? 'Không tìm thấy sản phẩm phù hợp.' : loadError ? 'Danh sách chưa tải được.' : 'Chưa có sản phẩm trong danh mục.'}</p> : <div className="overflow-x-auto"><table className="w-full min-w-[740px] text-left text-sm"><thead className="text-slate-400"><tr>{['Sản phẩm', 'Loại', 'Cách phát hành', 'Trạng thái', 'Cập nhật', 'Thao tác'].map(label => <th key={label} scope="col" className="p-4 font-medium">{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-800">{visible.map(product => <tr key={product.id}><td className="p-4"><div className="font-medium">{product.name}</div><div className="text-xs text-slate-400">{product.slug}</div></td><td className="p-4">{PRODUCT_TYPE_LABELS[product.product_type as keyof typeof PRODUCT_TYPE_LABELS] ?? 'Chưa xác định'}</td><td className="p-4">{PRODUCT_RELEASE_LABELS[product.release_type as keyof typeof PRODUCT_RELEASE_LABELS] ?? 'Chưa xác định'}</td><td className="p-4">{PRODUCT_STATUS_LABELS[product.status]}</td><td className="p-4 text-xs text-slate-400">{Number.isNaN(Date.parse(product.updated_at)) ? 'Không xác định' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(product.updated_at))}</td><td className="p-4">{canManage && product.status === 'draft' && <button type="button" className={buttonClass} disabled={busy} onClick={() => selectProduct(product)}>Chỉnh sửa</button>}</td></tr>)}</tbody></table></div>}
-      </div>
-      <MediaManagerClient products={products} canManage={canManage} integrationEnabled={integrationEnabled} mediaEnabled={mediaEnabled} />
-      <details><summary className="admin-card cursor-pointer p-4 text-sm">Bản dịch bổ sung (tùy chọn)</summary><TranslationManagerClient products={products} canManage={canManage} integrationEnabled={integrationEnabled} /></details>
-      <ColorwayManagerClient products={products} canManage={canManage} integrationEnabled={integrationEnabled} />
+        {visible.length === 0 ? <p className="p-6 text-sm text-slate-400">{products.length ? 'Không tìm thấy sản phẩm phù hợp.' : loadError ? 'Danh sách chưa tải được.' : 'Chưa có sản phẩm trong danh mục.'}</p> : <div className="overflow-x-auto"><table className="w-full min-w-[740px] text-left text-sm"><thead className="text-slate-400"><tr>{['Sản phẩm', 'Loại', 'Cách phát hành', 'Trạng thái', 'Cập nhật', 'Thao tác'].map(label => <th key={label} scope="col" className="p-4 font-medium">{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-800">{visible.map(product => <tr key={product.id}><td className="p-4"><div className="font-medium">{product.name}</div><div className="text-xs text-slate-400">{product.slug}</div></td><td className="p-4">{PRODUCT_TYPE_LABELS[product.product_type as keyof typeof PRODUCT_TYPE_LABELS] ?? 'Chưa xác định'}</td><td className="p-4">{PRODUCT_RELEASE_LABELS[product.release_type as keyof typeof PRODUCT_RELEASE_LABELS] ?? 'Chưa xác định'}</td><td className="p-4">{PRODUCT_STATUS_LABELS[product.status]}</td><td className="p-4 text-xs text-slate-400">{Number.isNaN(Date.parse(product.updated_at)) ? 'Không xác định' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(product.updated_at))}</td><td className="p-4"><Link className={buttonClass} href={`/admin/commerce/products/${encodeURIComponent(product.id)}`}>{canManage && (product.status === 'draft' || informationUpdateEnabled) ? 'Chỉnh sửa' : 'Xem chi tiết'}</Link></td></tr>)}</tbody></table></div>}
+      </div>}
+      {editor && activeProduct && <div className="space-y-5">
+        <MediaManagerClient key={`media-${activeProduct.id}`} products={[activeProduct]} fixedProductId={activeProduct.id} onGuardChange={updateGuard} canManage={canManage} integrationEnabled={integrationEnabled} mediaEnabled={mediaEnabled} />
+        <details><summary className="admin-card cursor-pointer p-4 text-sm">Bản dịch bổ sung (tùy chọn)</summary><TranslationManagerClient key={`translation-${activeProduct.id}`} products={[activeProduct]} fixedProductId={activeProduct.id} onGuardChange={updateGuard} canManage={canManage} integrationEnabled={integrationEnabled} /></details>
+        <ColorwayManagerClient key={`colorway-${activeProduct.id}`} products={[activeProduct]} fixedProductId={activeProduct.id} onGuardChange={updateGuard} canManage={canManage} integrationEnabled={integrationEnabled} />
+      </div>}
     </div>
   );
 }

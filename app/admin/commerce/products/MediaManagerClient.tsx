@@ -18,8 +18,8 @@ async function jsonRequest(path:string, method = 'GET', body?:unknown, signal?:A
   if (!result || typeof result !== 'object' || !('success' in result) || result.success !== true || !('media' in result)) throw new Error('Chưa xác nhận được kết quả. Nội dung được giữ lại để thử lại.');
   return result.media;
 }
-export default function MediaManagerClient({ products,canManage,integrationEnabled,mediaEnabled }: { products:CommerceProductRecord[];canManage:boolean;integrationEnabled:boolean;mediaEnabled:boolean }) {
-  const [productId,setProductId] = useState(''); const [variantId,setVariantId] = useState<string|null>(null);
+export default function MediaManagerClient({ products,canManage,integrationEnabled,mediaEnabled, fixedProductId, onGuardChange }: { products:CommerceProductRecord[];canManage:boolean;integrationEnabled:boolean;mediaEnabled:boolean;fixedProductId?:string;onGuardChange?:(key:string,state:{dirty:boolean;busy:boolean})=>void }) {
+  const [productId,setProductId] = useState(fixedProductId ?? ''); const [variantId,setVariantId] = useState<string|null>(null);
   const [colorways,setColorways] = useState<CommerceColorwayRecord[]>([]); const [variantsLoaded,setVariantsLoaded] = useState(false);
   const [manifest,setManifest] = useState<MediaManifest|null>(null); const [assets,setAssets] = useState<MediaAsset[]>([]); const [primaryId,setPrimaryId] = useState<string|null>(null);
   const [previews,setPreviews] = useState<{id:string;url:string}[]>([]); const [loading,setLoading] = useState(false); const [busy,setBusy] = useState(false); const [refresh,setRefresh] = useState(0);
@@ -33,6 +33,7 @@ export default function MediaManagerClient({ products,canManage,integrationEnabl
   function updateQueue() { if (mounted.current) setQueue([...queueRef.current]); }
   function clearQueue() { queueRef.current.forEach(j => URL.revokeObjectURL(j.preview)); queueRef.current=[]; setQueue([]); }
   function canLeave() { return !lock.current && (!dirty || window.confirm('Bộ ảnh chưa được lưu. Bạn có muốn bỏ thay đổi?')); }
+  useEffect(() => { onGuardChange?.('media', { dirty, busy }); return () => onGuardChange?.('media', { dirty: false, busy: false }); }, [dirty, busy, onGuardChange]);
   useEffect(() => { mounted.current=true; return () => { mounted.current=false; queueRef.current.forEach(j => URL.revokeObjectURL(j.preview)); }; },[]);
   useEffect(() => { if (!dirty) return; const warn = (e:BeforeUnloadEvent) => e.preventDefault(); window.addEventListener('beforeunload',warn); return () => window.removeEventListener('beforeunload',warn); },[dirty]);
   useEffect(() => {
@@ -106,7 +107,7 @@ export default function MediaManagerClient({ products,canManage,integrationEnabl
     <h2 id="media-heading" className="font-semibold">Ảnh sản phẩm và phối màu</h2>
     <p className="text-sm text-slate-400">Chọn nhiều ảnh trong một lượt. Ảnh được tối ưu và lưu nháp; website công khai chưa thay đổi.</p>
     {!mediaEnabled && <p role="status" className="text-sm text-amber-200">Tải ảnh nháp chưa được bật. Đang chờ hoàn tất phần lưu trữ ảnh.</p>}
-    <div className="grid gap-3 md:grid-cols-2"><label className="space-y-1 text-sm">Sản phẩm<select className={inputClass} disabled={busy || !mediaEnabled} value={productId} onChange={e => {if(canLeave()){clearQueue();setVariantId(null);setProductId(e.target.value);}}}><option value="">Chọn sản phẩm</option>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label className="space-y-1 text-sm">Bộ ảnh<select className={inputClass} disabled={busy || !variantsLoaded} value={variantId ?? ''} onChange={e => {if(canLeave()){clearQueue();setVariantId(e.target.value || null);}}}><option value="">Ảnh chung của sản phẩm</option>{colorways.map(v => <option key={v.id} value={v.id}>Phối màu: {v.name}</option>)}</select></label></div>
+    <div className="grid gap-3 md:grid-cols-2">{!fixedProductId && <label className="space-y-1 text-sm">Sản phẩm<select className={inputClass} disabled={busy || !mediaEnabled} value={productId} onChange={e => {if(canLeave()){clearQueue();setVariantId(null);setProductId(e.target.value);}}}><option value="">Chọn sản phẩm</option>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}<label className="space-y-1 text-sm">Bộ ảnh<select className={inputClass} disabled={busy || !variantsLoaded} value={variantId ?? ''} onChange={e => {if(canLeave()){clearQueue();setVariantId(e.target.value || null);}}}><option value="">Ảnh chung của sản phẩm</option>{colorways.map(v => <option key={v.id} value={v.id}>Phối màu: {v.name}</option>)}</select></label></div>
     {message && <p role="status" className="text-sm">{message}</p>}{loading && <p role="status">Đang tải bộ ảnh…</p>}
     {productId && mediaEnabled && <button type="button" className={buttonClass} disabled={busy || loading} onClick={() => {if(canLeave()){clearQueue();setRefresh(v => v+1);}}}>Tải lại bộ ảnh</button>}
     {manifest && <><p className="text-sm">{active.length} / 20 ảnh · {writable ? 'Bản nháp' : 'Chỉ xem'}</p>

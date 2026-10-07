@@ -27,4 +27,43 @@ describe('Product manager access and list states', () => {
     const empty = renderToStaticMarkup(<ProductManagerClient initialProducts={[]} canManage={false} integrationEnabled loadError={null} />);
     expect(empty).toContain('Chưa có sản phẩm trong danh mục');
   });
+  it('keeps all product editors out of the list and links each product to its own route', () => {
+    const list = renderToStaticMarkup(<ProductManagerClient initialProducts={[product]} canManage integrationEnabled loadError={null} />);
+    expect(list).toContain(`/admin/commerce/products/${product.id}`);
+    expect(list).toContain('/admin/commerce/products/new');
+    expect(list).not.toContain('Ảnh sản phẩm và phối màu');
+    expect(list).not.toContain('Bản dịch bổ sung');
+    expect(list).not.toContain('Phối màu theo sản phẩm');
+    expect(list).not.toContain('<form');
+  });
+  it('shows only the selected product editors without a product picker or list', () => {
+    const detail = renderToStaticMarkup(<ProductManagerClient initialProducts={[product]} selectedProduct={product} editor canManage integrationEnabled mediaEnabled loadError={null} />);
+    expect(detail).toContain('Thông tin sản phẩm');
+    expect(detail).toContain('Ảnh sản phẩm và phối màu');
+    expect(detail).toContain('Bản dịch bổ sung');
+    expect(detail).toContain('Phối màu theo sản phẩm');
+    expect(detail).not.toContain('Chọn sản phẩm');
+    expect(detail).not.toContain('Tìm sản phẩm');
+    expect(detail).not.toContain('<table');
+    expect(detail).toContain('Quay lại danh sách');
+  });
+  it.each(['published', 'archived'] as const)('gates %s information writes while still allowing detail access', status => {
+    const selected = { ...product, status };
+    const pending = renderToStaticMarkup(<ProductManagerClient initialProducts={[selected]} selectedProduct={selected} editor canManage integrationEnabled loadError={null} />);
+    expect(pending).toContain('Thông tin hiện chỉ xem');
+    expect(pending).not.toContain('Lưu thay đổi');
+    const enabled = renderToStaticMarkup(<ProductManagerClient initialProducts={[selected]} selectedProduct={selected} editor canManage informationUpdateEnabled integrationEnabled loadError={null} />);
+    expect(enabled).toContain('Lưu thay đổi');
+    expect(enabled).toContain('disabled="" required="" maxLength="120"');
+    const viewer = renderToStaticMarkup(<ProductManagerClient initialProducts={[selected]} selectedProduct={selected} editor canManage={false} informationUpdateEnabled integrationEnabled loadError={null} />);
+    expect(viewer).not.toContain('Lưu thay đổi');
+  });
+  it('requires a confirmed product before showing media, colorway or translation editors on create', () => {
+    const create = renderToStaticMarkup(<ProductManagerClient initialProducts={[]} editor canManage integrationEnabled loadError={null} />);
+    expect(create).toContain('Sản phẩm mới');
+    expect(create).toContain('Lưu nháp');
+    expect(create).not.toContain('Chọn sản phẩm');
+    expect(create).not.toContain('Ảnh sản phẩm và phối màu');
+    expect(create).not.toContain('<table');
+  });
 });

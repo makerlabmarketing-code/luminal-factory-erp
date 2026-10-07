@@ -8,10 +8,10 @@ import { createCommerceMutationRetry } from '@/lib/commerce-admin/mutation-retry
 const inputClass = 'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm';
 const buttonClass = 'rounded-md border border-slate-700 px-3 py-2 text-sm disabled:opacity-40';
 const empty = (): CommerceColorwayDraft => ({ name: '', slug: '', description: '' });
-export default function ColorwayManagerClient({ products, canManage, integrationEnabled }: {
-  products: CommerceProductRecord[]; canManage: boolean; integrationEnabled: boolean;
+export default function ColorwayManagerClient({ products, canManage, integrationEnabled, fixedProductId, onGuardChange }: {
+  products: CommerceProductRecord[]; canManage: boolean; integrationEnabled: boolean; fixedProductId?: string; onGuardChange?: (key: string, state: { dirty: boolean; busy: boolean }) => void;
 }) {
-  const [productId, setProductId] = useState('');
+  const [productId, setProductId] = useState(fixedProductId ?? '');
   const [rows, setRows] = useState<CommerceColorwayRecord[]>([]);
   const [draft, setDraft] = useState<CommerceColorwayDraft | null>(null);
   const [variantId, setVariantId] = useState<string | null>(null);
@@ -25,6 +25,7 @@ export default function ColorwayManagerClient({ products, canManage, integration
   const product = products.find(row => row.id === productId);
   const editable = canManage && product?.status === 'draft' && integrationEnabled;
   const dirty = draft !== null && JSON.stringify(draft) !== original;
+  useEffect(() => { onGuardChange?.('colorway', { dirty, busy }); return () => onGuardChange?.('colorway', { dirty: false, busy: false }); }, [dirty, busy, onGuardChange]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -83,7 +84,7 @@ export default function ColorwayManagerClient({ products, canManage, integration
   return <section className="admin-card space-y-4 p-5" aria-labelledby="colorway-heading">
     <h2 id="colorway-heading" className="font-semibold">Phối màu theo sản phẩm</h2>
     <p className="text-sm text-slate-400">Mỗi phối màu thuộc một sản phẩm. Bản nháp chưa hiển thị công khai; chỉ sửa phối màu chưa kích hoạt của sản phẩm nháp.</p>
-    <label className="block space-y-2 text-sm">Sản phẩm<select className={inputClass} value={productId} disabled={busy} onChange={event => choose(event.target.value)}><option value="">Chọn sản phẩm</option>{products.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+    {!fixedProductId && <label className="block space-y-2 text-sm">Sản phẩm<select className={inputClass} value={productId} disabled={busy} onChange={event => choose(event.target.value)}><option value="">Chọn sản phẩm</option>{products.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>}
     {!integrationEnabled && <p role="status">Kết nối Commerce đang tắt.</p>}
     {productId && integrationEnabled && <div className="flex flex-wrap gap-2">
       <button type="button" className={buttonClass} disabled={busy || loading} onClick={() => { if (mayLeave()) { setDraft(null); setReload(value => value + 1); } }}>Tải lại phối màu</button>

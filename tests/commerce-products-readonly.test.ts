@@ -33,14 +33,14 @@ describe('Commerce product catalog catalog access foundation', () => {
 
   it('keeps Product requests server-owned and draft writes separate', () => {
     const adapter = source('services/server/commerceAdminProducts.ts');
-    const page = source('app/admin/commerce/products/page.tsx');
+    const page = source('app/admin/commerce/products/ProductWorkspace.tsx');
     const route = source('app/api/admin/commerce/products/route.ts');
 
     expect(adapter).toMatch(/^import 'server-only';/);
     expect(adapter).toContain('requestCommerceAdmin(');
     expect(adapter).toContain('value.every(isProductRecord)');
     expect(page).toContain('Danh mục sản phẩm');
-    expect(page).toContain("requireCommerceProductAccess('COMMERCE_PRODUCT_VIEW')");
+    expect(page).toContain("requireCommerceProductAccess(create ? 'COMMERCE_PRODUCT_MANAGE' : 'COMMERCE_PRODUCT_VIEW')");
     expect(page).not.toMatch(/onSubmit|fetch\(|createClient|serviceRole/);
     expect(route).toContain('listCommerceProducts()');
     expect(route).toContain("requireCommerceProductAccess('COMMERCE_PRODUCT_MANAGE')");

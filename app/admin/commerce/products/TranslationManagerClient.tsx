@@ -8,10 +8,10 @@ import { emptyTranslation, isTranslationLocale, matchesTranslationTarget, parseT
 
 const inputClass = 'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100';
 const buttonClass = 'rounded-md border border-slate-700 px-3 py-2 text-sm disabled:opacity-40';
-export default function TranslationManagerClient({ products, canManage, integrationEnabled }: {
-  products: CommerceProductRecord[]; canManage: boolean; integrationEnabled: boolean;
+export default function TranslationManagerClient({ products, canManage, integrationEnabled, fixedProductId, onGuardChange }: {
+  products: CommerceProductRecord[]; canManage: boolean; integrationEnabled: boolean; fixedProductId?: string; onGuardChange?: (key: string, state: { dirty: boolean; busy: boolean }) => void;
 }) {
-  const [productId, setProductId] = useState('');
+  const [productId, setProductId] = useState(fixedProductId ?? '');
   const [variantId, setVariantId] = useState<string | null>(null);
   const [colorways, setColorways] = useState<CommerceColorwayRecord[]>([]);
   const [colorwayProductId, setColorwayProductId] = useState('');
@@ -37,6 +37,7 @@ export default function TranslationManagerClient({ products, canManage, integrat
   const variant = colorwayProductId === productId ? colorways.find(row => row.id === variantId) : undefined;
   const targetExists = Boolean(product) && (variantId === null || Boolean(variant));
   const canEdit = canManage && targetExists && product?.status !== 'archived';
+  useEffect(() => { onGuardChange?.('translation', { dirty, busy }); return () => onGuardChange?.('translation', { dirty: false, busy: false }); }, [dirty, busy, onGuardChange]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -104,7 +105,7 @@ export default function TranslationManagerClient({ products, canManage, integrat
   return <section className="admin-card space-y-4 p-5" aria-labelledby="translation-heading">
     <div><h2 id="translation-heading" className="font-semibold">Bản dịch sản phẩm và phối màu</h2><p className="mt-1 text-sm text-slate-400">Soạn tiếng Anh và tiếng Việt cho sản phẩm hoặc từng phối màu. Lưu nháp hoặc đánh dấu sẵn sàng duyệt chưa đưa nội dung lên website.</p></div>
     <div className="grid gap-3 md:grid-cols-3">
-      <label className="space-y-1 text-sm">Sản phẩm<select className={inputClass} disabled={busy} value={productId} onChange={event => { if (discardAllowed()) { setVariantId(null); setProductId(event.target.value); } }}><option value="">Chọn sản phẩm</option>{products.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+      {!fixedProductId && <label className="space-y-1 text-sm">Sản phẩm<select className={inputClass} disabled={busy} value={productId} onChange={event => { if (discardAllowed()) { setVariantId(null); setProductId(event.target.value); } }}><option value="">Chọn sản phẩm</option>{products.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>}
       <label className="space-y-1 text-sm">Nội dung cần dịch<select className={inputClass} disabled={busy || !productId || colorwaysLoading || colorwayProductId !== productId} value={variantId ?? ''} onChange={event => { if ((event.target.value === '' || colorways.some(row => row.id === event.target.value)) && discardAllowed()) setVariantId(event.target.value || null); }}><option value="">Sản phẩm chung</option>{colorwayProductId === productId && colorways.map(row => <option key={row.id} value={row.id}>Phối màu: {row.name}</option>)}</select></label>
       <label className="space-y-1 text-sm">Ngôn ngữ<select className={inputClass} disabled={busy} value={locale} onChange={event => { if (isTranslationLocale(event.target.value) && discardAllowed()) setLocale(event.target.value); }}>{Object.entries(TRANSLATION_LANGUAGE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
     </div>

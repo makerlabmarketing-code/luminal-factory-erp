@@ -13,7 +13,9 @@ without introducing an ERP copy of catalog data.
 - `POST /api/admin/commerce/products` maps to Commerce
   `POST /api/admin/v1/products`; `PATCH .../{id}` maps to Commerce PATCH.
 - The existing Commerce RPC updates only rows whose status is `draft`.
-  Published and archived rows have no editor action.
+  Published and archived products now have a separate detail view. Information
+  writes remain gated until the reviewed RPC extension is deployed; see
+  `product-workspace.md`.
 - Fields: name, slug, description, product type, release type. Validation
   matches the existing Commerce draft schema, rejects unexpected fields,
   and requires artisan keycaps to use `informational` releases via raffle.
