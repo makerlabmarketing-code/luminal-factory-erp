@@ -472,3 +472,14 @@ access; verify real image bytes; keep drafts and files private; retain soft-remo
 metadata for restore; suppress aborted-read notifications; limit corner toast stack.
 Full checks pass locally. SQL package remains draft-only pending exact production
 approval; no live storage/schema/grant/data mutation is performed in this slice.
+
+## 2026-10-07 — ERP logo/rim sync
+
+Explicit owner-requested UI scope. No implementation PR exists for this slice;
+REVIEW_SOURCE_UNAVAILABLE for hosted Codex review. Self-review and repository
+validation: shared sized Next Image logo, decorative alt on duplicated branding,
+neutral border-only palette changes preserve semantic statuses and native keyboard
+focus. No authentication, data, permission, migration or dependency changes.
+903 tests, lint, TypeScript and build PASS; local build uses public placeholders
+because scratch has no Supabase configuration. Existing unrelated draft PR is not
+part of this change. Delivery follows owner's standing main-only/auto-deploy request.

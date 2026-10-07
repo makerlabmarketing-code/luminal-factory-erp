@@ -1186,3 +1186,20 @@ does not constitute real authenticated smoke. Commerce has disposable native
 PostgreSQL 17 concurrency jobs; wait for CI before claiming concurrency PASS.
 Production DDL approval and authenticated persistence remain required; ordered
 E-005 Commerce→ERP then E-006 Commerce→ERP rollout, no bypass of any gate.
+
+## 2026-10-07 — Logo và viền đồng bộ Commerce
+
+Owner yêu cầu cập nhật logo mới và viền ERP theo Commerce đã duyệt. Dùng đúng
+PNG trong suốt 1024px của Commerce (SHA-256 `059681ae9208db00062e8084ac1699bdacde6d5576e8d8a1e210cb0ca1c310c1`),
+đường dẫn có phiên bản để tránh logo cache cũ. Một component dùng chung phục vụ
+cổng đăng nhập, form đăng nhập, sidebar Admin, header Staff và lõi loading.
+Viền trung tính slate-700/800 và shell chuyển sang vàng trầm; form đăng nhập dùng
+khung kim loại gradient tĩnh. Giữ nguyên nền, màu trạng thái, hover hành động,
+focus-visible, permission và luồng nghiệp vụ; không thêm lớp viền hoặc animation.
+
+Validation: 903 tests PASS; lint PASS; TypeScript PASS; production build PASS với
+public placeholder build-only (scratch thiếu cấu hình Supabase, không đọc/đổi secret).
+Production build thật và UI gateway/login sẽ xác minh sau delivery. Admin/Staff
+sau đăng nhập và mobile vẫn cần owner nghiệm thu. Self-review: logo sizing cố định,
+Next Image tối ưu theo kích thước hiển thị; không đổi query/API/state hoặc dependencies.
+Rollback: revert thay đổi UI/logo/token/Tailwind này; không có SQL hay data rollback.

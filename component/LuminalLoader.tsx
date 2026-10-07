@@ -1,3 +1,5 @@
+import { LuminalLogo } from './LuminalLogo';
+
 interface LuminalLoaderProps {
   message?: string;
   compact?: boolean;
@@ -15,7 +17,7 @@ export function LuminalLoadingMark({ compact = false }: Pick<LuminalLoaderProps,
         <span className="luminal-loader__tile luminal-loader__tile--three" />
         <span className="luminal-loader__tile luminal-loader__tile--four" />
       </div>
-      <span className="luminal-loader__core">LF</span>
+      <span className="luminal-loader__core"><LuminalLogo size={compact ? 24 : 32} decorative /></span>
     </div>
   );
 }

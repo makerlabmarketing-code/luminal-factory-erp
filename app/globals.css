@@ -5,8 +5,13 @@
 
 :root {
   color-scheme: dark;
-  --admin-accent: 59 130 246;
-  --admin-border: 30 41 59;
+  --admin-accent: 46 112 232;
+  --luminal-resin-cyan: 73 204 242;
+  --luminal-rim-control: 139 109 65;
+  --luminal-rim-muted: 88 70 44;
+  --luminal-rim-gradient: linear-gradient(135deg, #8f6531 0%, #e8c574 16%, #fbefb5 24%, #ba8740 38%, #654222 51%, #d4aa58 67%, #f4dfa0 79%, #936432 100%);
+  --luminal-rim-bevel: inset 0 1px 0 rgb(247 230 168 / .1), inset 0 -1px 0 rgb(107 69 36 / .24);
+  --admin-border: var(--luminal-rim-muted);
   --admin-canvas: 2 6 23;
   --admin-sidebar: 15 23 42;
   --admin-header: 2 6 23;
@@ -81,4 +86,13 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .admin-shell table th { letter-spacing: .04em; font-weight: 600; }
 .admin-shell table tbody tr { transition: background-color 150ms ease; }
 .admin-shell input:disabled, .admin-shell select:disabled, .admin-shell textarea:disabled, .admin-shell button:disabled { cursor: not-allowed; }
+/* Static logo metal; blue remains reserved for actions and keyboard focus. */
+:is(.admin-card, .admin-table-shell, .admin-panel, .project-panel, .project-page-header, .admin-dialog, .admin-command-panel) {
+  box-shadow: var(--luminal-rim-bevel), 0 1px 2px rgb(0 0 0 / .25);
+}
+.admin-sidebar { border-right-color: rgb(var(--luminal-rim-control) / .75); }
+.admin-header { border-bottom-color: rgb(var(--luminal-rim-control) / .75); }
+.luminal-brand-rim { border-color: transparent; background: linear-gradient(rgb(var(--admin-surface)), rgb(var(--admin-surface))) padding-box, var(--luminal-rim-gradient) border-box; }
+.luminal-loader__core { border-color: rgb(var(--luminal-rim-control)); box-shadow: var(--luminal-rim-bevel); }
+.luminal-loader__tile { border-color: rgb(var(--luminal-resin-cyan) / .5); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

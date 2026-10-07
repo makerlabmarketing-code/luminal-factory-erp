@@ -30,6 +30,7 @@ import {
   type AdminNavigationIcon,
 } from "@/lib/navigation/admin";
 import AdminLogoutButton from "@/app/admin/AdminLogoutButton";
+import { LuminalLogo } from "@/component/LuminalLogo";
 
 const ICONS: Record<AdminNavigationIcon, ElementType> = {
   dashboard: LayoutDashboard,
@@ -72,13 +73,16 @@ function AppSidebar({
         className={`admin-sidebar fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex h-16 items-center justify-between border-b px-5">
-          <div>
-            <p className="text-sm font-extrabold tracking-[0.12em] text-blue-400">
-              {ERP_UI_TEXT.brand.name}
-            </p>
-            <p className="mt-0.5 text-[10px] font-medium text-slate-500">
-              {ERP_UI_TEXT.brand.description}
-            </p>
+          <div className="flex min-w-0 items-center gap-3">
+            <LuminalLogo size={36} decorative />
+            <div>
+              <p className="text-sm font-extrabold tracking-[0.12em] text-slate-100">
+                {ERP_UI_TEXT.brand.name}
+              </p>
+              <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                {ERP_UI_TEXT.brand.description}
+              </p>
+            </div>
           </div>
           <button
             type="button"

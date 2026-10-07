@@ -9,6 +9,12 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      borderColor: {
+        slate: {
+          700: 'rgb(var(--luminal-rim-control) / <alpha-value>)',
+          800: 'rgb(var(--luminal-rim-muted) / <alpha-value>)',
+        },
+      },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic':

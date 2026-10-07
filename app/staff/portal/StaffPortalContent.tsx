@@ -12,6 +12,7 @@ import type { StaffPortalTab } from '@/lib/types/staff';
 import type { Employee } from '@/lib/types/employee';
 import type { Facility } from '@/lib/types/facility';
 import type { SystemMetadataOption } from '@/lib/system-metadata-defaults';
+import { LuminalLogo } from '@/component/LuminalLogo';
 
 interface StaffPortalContentProps {
   workerData: Employee;
@@ -77,10 +78,8 @@ export default function StaffPortalContent({
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-5 text-slate-100 bg-slate-950 min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] font-sans select-none">
       <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center justify-between shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-purple-600/10 border border-purple-500/20 text-purple-400 rounded-xl">
-            <User className="w-4 h-4" />
-          </div>
+        <div className="flex min-w-0 items-center gap-3">
+          <LuminalLogo size={36} />
           <div>
             <h2 className="text-xs font-black text-slate-100">{worker?.full_name}</h2>
             <p className="text-[10px] text-slate-500 font-mono mt-0.5">{worker?.title || 'Kỹ thuật viên'}</p>

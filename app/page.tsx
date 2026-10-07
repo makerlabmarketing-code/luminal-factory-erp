@@ -1,5 +1,6 @@
 import { ArrowRight, BriefcaseBusiness, ShieldCheck } from 'lucide-react';
 import { LoadingLink, type GlobalLoadingMessage } from '@/component/GlobalLoading';
+import { LuminalLogo } from '@/component/LuminalLogo';
 
 const accountOptions = [
   {
@@ -31,9 +32,12 @@ export default function GatewayPage() {
     <main className="min-h-screen bg-slate-950 px-5 py-8 font-sans text-slate-100">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-5xl flex-col justify-center gap-8">
         <header className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-            Luminal Factory ERP
-          </p>
+          <div className="flex items-center gap-3">
+            <LuminalLogo size={48} decorative />
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-300">
+              Luminal Factory ERP
+            </p>
+          </div>
           <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
             Chọn khu vực đăng nhập
           </h1>

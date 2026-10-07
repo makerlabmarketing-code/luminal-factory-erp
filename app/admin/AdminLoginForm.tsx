@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { KeyRound } from 'lucide-react';
+import { LuminalLogo } from '@/component/LuminalLogo';
 import { ButtonLoadingState, useGlobalLoading } from '@/component/GlobalLoading';
 import { createClient } from '@/utils/supabase/client';
 import {
@@ -77,10 +77,10 @@ export default function AdminLoginForm({ message, nextPath }: AdminLoginFormProp
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 font-sans text-white">
-      <form onSubmit={handleSubmit} className="admin-card w-full max-w-sm space-y-5 p-6 sm:p-8">
+      <form onSubmit={handleSubmit} className="admin-card luminal-brand-rim w-full max-w-sm space-y-5 p-6 sm:p-8">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto border border-blue-500/20">
-            <KeyRound className="w-6 h-6" />
+          <div className="flex justify-center">
+            <LuminalLogo size={64} />
           </div>
           <h1 className="text-xl font-bold tracking-tight">Đăng nhập ERP</h1>
           <p className="text-xs text-slate-500">Truy cập khu vực vận hành Luminal Factory</p>
