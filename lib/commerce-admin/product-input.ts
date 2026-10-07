@@ -18,7 +18,7 @@ function record(value: unknown): value is Record<string, unknown> {
 function exactKeys(value: Record<string, unknown>, keys: readonly string[]) {
   return Object.keys(value).every(key => keys.includes(key));
 }
-export function parseCommerceProductDraft(value: unknown): CommerceProductDraft | null {
+export function parseCommerceProductDraft(value: unknown, preserveExistingRelease = false): CommerceProductDraft | null {
   if (!record(value) || !exactKeys(value, ['slug', 'name', 'description', 'productType', 'releaseType'])) return null;
   if (typeof value.slug !== 'string' || typeof value.name !== 'string') return null;
   const slug = value.slug.trim();
@@ -31,12 +31,12 @@ export function parseCommerceProductDraft(value: unknown): CommerceProductDraft 
   const releaseType = value.releaseType;
   if (productType !== 'artisan_keycap' && productType !== 'collectible_object' && productType !== 'custom_object' && productType !== 'other') return null;
   if (releaseType !== 'direct' && releaseType !== 'preorder' && releaseType !== 'informational') return null;
-  if (productType === 'artisan_keycap' && releaseType !== 'informational') return null;
+  if (!preserveExistingRelease && productType === 'artisan_keycap' && releaseType !== 'informational') return null;
   return { slug, name, description, productType, releaseType };
 }
-export function parseCommerceProductDraftMutation(value: unknown): CommerceProductDraftMutation | null {
+export function parseCommerceProductDraftMutation(value: unknown, preserveExistingRelease = false): CommerceProductDraftMutation | null {
   if (!record(value) || !exactKeys(value, ['operationId', 'draft']) || typeof value.operationId !== 'string' || !UUID_PATTERN.test(value.operationId)) return null;
-  const draft = parseCommerceProductDraft(value.draft);
+  const draft = parseCommerceProductDraft(value.draft, preserveExistingRelease);
   return draft ? { operationId: value.operationId, draft } : null;
 }
 

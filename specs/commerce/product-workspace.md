@@ -24,7 +24,8 @@ live database (read-only definition checked 07/10). The prepared Commerce
 `supabase/drafts/product-information-update/` package broadens information updates
 to published/archived products while preserving status/published_at and forbidding
 slug/product-type/release-type changes outside draft. Name and description are
-editable; prices, inventory, media publishing, colorway activation and re-publish
+editable; legacy non-draft release metadata is preserved without permitting new
+direct-sale keycaps; prices, inventory, media publishing, colorway activation and re-publish
 remain separate contracts. Existing service-role-only invocation, signed management
 transport, receipts and retry fingerprint rules are retained.
 

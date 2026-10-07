@@ -66,4 +66,11 @@ describe('Product manager access and list states', () => {
     expect(create).not.toContain('Ảnh sản phẩm và phối màu');
     expect(create).not.toContain('<table');
   });
+  it('can display a legacy published keycap without silently changing its release type', () => {
+    const selected = { ...product, status: 'published' as const, release_type: 'direct' };
+    const html = renderToStaticMarkup(<ProductManagerClient initialProducts={[selected]} selectedProduct={selected} editor canManage informationUpdateEnabled integrationEnabled loadError={null} />);
+    expect(html).toContain('Thông tin sản phẩm');
+    expect(html).toContain('value="direct" selected=""');
+    expect(html).toContain('Lưu thay đổi');
+  });
 });

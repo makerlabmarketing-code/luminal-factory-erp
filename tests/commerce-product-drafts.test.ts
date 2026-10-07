@@ -28,6 +28,12 @@ describe('Product draft wire validation', () => {
   it.each(['direct', 'preorder'])('rejects keycap release %s', releaseType => {
     expect(parseCommerceProductDraftMutation({ ...mutation, draft: { ...draft, releaseType } })).toBeNull();
   });
+  it('preserves legacy release metadata only under the explicit information-update parser', () => {
+    const legacy = { ...mutation, draft: { ...draft, releaseType: 'direct' } };
+    expect(parseCommerceProductDraftMutation(legacy)).toBeNull();
+    expect(parseCommerceProductDraftMutation(legacy, true)?.draft.releaseType).toBe('direct');
+    expect(parseCommerceProductDraftMutation({ ...legacy, draft: { ...legacy.draft, price: 1 } }, true)).toBeNull();
+  });
   it.each([
     { operationId: 'invalid' }, { extra: true },
     { draft: { ...draft, name: ' ' } }, { draft: { ...draft, slug: 'Meowhe/' } },

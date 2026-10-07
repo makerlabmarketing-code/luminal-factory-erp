@@ -8,7 +8,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     await requireCommerceProductAccess('COMMERCE_PRODUCT_MANAGE');
     const { id } = await params;
     if (!UUID_PATTERN.test(id)) return commerceAdminJson({ success: false, message: 'Mã sản phẩm không hợp lệ.' }, { status: 400 });
-    const mutation = parseCommerceProductDraftMutation(await request.json().catch(() => null));
+    const mutation = parseCommerceProductDraftMutation(await request.json().catch(() => null), process.env.COMMERCE_PRODUCT_INFORMATION_UPDATE_ENABLED === 'true');
     if (!mutation) return commerceAdminJson({ success: false, message: 'Thông tin sản phẩm không hợp lệ. Keycap chỉ được phát hành qua raffle.' }, { status: 400 });
     const product = await updateCommerceProductDraft(id, mutation);
     return commerceAdminJson({ success: true, product });

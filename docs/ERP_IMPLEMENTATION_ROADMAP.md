@@ -1216,12 +1216,13 @@ existing detail requires view; only selected record is serialized to detail.
 Published/archived detail access is available. Information saves are prepared
 behind default-off `COMMERCE_PRODUCT_INFORMATION_UPDATE_ENABLED`, pending reviewed
 Commerce RPC installation. Name/description only outside draft; lifecycle state,
-publication timestamp, slug/type/release remain stable. SQL forward/preflight/
+publication timestamp, slug/type/release remain stable, including legacy release
+metadata on existing non-drafts. SQL forward/preflight/
 validation/rollback package is under Commerce drafts, never automatic migrations.
 Embedded PostgreSQL validation passed including function rollback. No live SQL,
 flag, secret, permission or catalog-row change.
 
-Validation: 911 Vitest tests, lint and TypeScript passed. Production build uses
+Validation: 913 Vitest tests, lint and TypeScript passed. Production build uses
 throwaway public build configuration; deployment/native smoke evidence is tracked
 in the shared coordination sheet. Revert this application batch to restore the
 previous list/editor composition; no persisted data is deleted by code rollback.

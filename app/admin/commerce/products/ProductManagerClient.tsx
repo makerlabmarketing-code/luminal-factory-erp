@@ -24,7 +24,7 @@ export default function ProductManagerClient({ initialProducts, canManage, integ
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
   const [editingId, setEditingId] = useState<string | null>(selectedProduct?.id ?? null);
-  const initialDraft = selectedProduct ? parseCommerceProductDraft({ name: selectedProduct.name, slug: selectedProduct.slug, description: selectedProduct.description, productType: selectedProduct.product_type, releaseType: selectedProduct.release_type }) : editor ? emptyDraft() : null;
+  const initialDraft = selectedProduct ? parseCommerceProductDraft({ name: selectedProduct.name, slug: selectedProduct.slug, description: selectedProduct.description, productType: selectedProduct.product_type, releaseType: selectedProduct.release_type }, selectedProduct.status !== 'draft') : editor ? emptyDraft() : null;
   const [draft, setDraft] = useState<CommerceProductDraft | null>(initialDraft);
   const [savedDraft, setSavedDraft] = useState(JSON.stringify(initialDraft));
   const [busy, setBusy] = useState(false);
@@ -61,7 +61,7 @@ export default function ProductManagerClient({ initialProducts, canManage, integ
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (lock.current || !editable || !integrationEnabled) return;
-    const normalized = parseCommerceProductDraft(draft);
+    const normalized = parseCommerceProductDraft(draft, nonDraft);
     if (!normalized) { error('Vui lòng kiểm tra tên, đường dẫn và cách phát hành sản phẩm.'); return; }
     lock.current = true; setBusy(true); setMessage('');
     const path = editingId ? `/api/admin/commerce/products/${encodeURIComponent(editingId)}` : '/api/admin/commerce/products';
@@ -76,7 +76,7 @@ export default function ProductManagerClient({ initialProducts, canManage, integ
       }
       // Reconcile only the server-confirmed record; never claim a local draft persisted.
       const product = 'product' in result ? result.product : null;
-      if (!isProductRecord(product) || (editingId ? product.id !== editingId || product.status !== activeProduct?.status : product.status !== 'draft') || !parseCommerceProductDraft({ name: product.name, slug: product.slug, description: product.description, productType: product.product_type, releaseType: product.release_type })) throw new Error('invalid_response');
+      if (!isProductRecord(product) || (editingId ? product.id !== editingId || product.status !== activeProduct?.status : product.status !== 'draft') || !parseCommerceProductDraft({ name: product.name, slug: product.slug, description: product.description, productType: product.product_type, releaseType: product.release_type }, product.status !== 'draft')) throw new Error('invalid_response');
       retry.current.confirm(operationId);
       setProducts(current => [product, ...current.filter(row => row.id !== product.id)]);
       setEditingId(product.id); setDraft(normalized); setSavedDraft(JSON.stringify(normalized));
