@@ -1,14 +1,13 @@
 "use client";
 
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
 import {
   Edit3,
   CheckCircle2,
   KeyRound,
   Mail,
-  MoreHorizontal,
   Search,
   ShieldCheck,
   ShieldOff,
@@ -146,11 +145,6 @@ export default function AdminAccountsClient({
   const [pageSize, setPageSize] = useState(10);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const activeActionRef = useRef<string | null>(null);
-  const [openActionMenu, setOpenActionMenu] = useState<{
-    employeeId: string;
-    top: number;
-    right: number;
-  } | null>(null);
   const [editorAccount, setEditorAccount] =
     useState<AdminAccountDetailDto | null>(null);
   const [editorLoading, setEditorLoading] = useState(false);
@@ -200,24 +194,6 @@ export default function AdminAccountsClient({
     setPageSize(nextPageSize);
     setCurrentPage(1);
   };
-
-  const openMenuForAccount = (
-    account: AdminAccountListItem,
-    event: React.MouseEvent<HTMLButtonElement>,
-  ) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    setOpenActionMenu((current) =>
-      current?.employeeId === account.employeeId
-        ? null
-        : {
-            employeeId: account.employeeId,
-            top: rect.bottom + 8,
-            right: Math.max(16, window.innerWidth - rect.right),
-          },
-    );
-  };
-
-  const closeActionMenu = () => setOpenActionMenu(null);
 
   const refreshPage = () => {
     startTransition(() => { void refreshAccounts(); });
@@ -270,7 +246,6 @@ export default function AdminAccountsClient({
   };
 
   const openPermissionEditor = async (account: AdminAccountListItem) => {
-    closeActionMenu();
     setEditorLoading(true);
     setEditorAccount(null);
     setPermissionDraft(null);
@@ -413,7 +388,7 @@ export default function AdminAccountsClient({
             {currentPage}/{totalPages}
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left text-xs">
+            <CommonTable className="w-full min-w-[920px] text-left text-xs">
               <thead className="border-b border-slate-800 bg-slate-950 text-[10px] uppercase text-slate-400">
                 <tr>
                   <th className="p-4">Nhân sự</th>
@@ -480,33 +455,7 @@ export default function AdminAccountsClient({
                               ? "Đã thu hồi"
                               : "Chưa cấp truy cập"}
                         </td>
-                        <td className="p-4 text-right">
-                          <button
-                            type="button"
-                            onClick={(event) =>
-                              openMenuForAccount(account, event)
-                            }
-                            className="inline-flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 hover:bg-slate-800"
-                          >
-                            <MoreHorizontal className="h-3.5 w-3.5" />
-                            Thao tác
-                          </button>
-                          {openActionMenu?.employeeId === account.employeeId &&
-                            createPortal(
-                              <>
-                                <button
-                                  type="button"
-                                  aria-label="Đóng menu thao tác"
-                                  className="fixed inset-0 z-40 cursor-default bg-transparent"
-                                  onClick={closeActionMenu}
-                                />
-                                <div
-                                  className="fixed z-50 w-64 overflow-hidden rounded-lg border border-slate-800 bg-slate-950 py-1 text-left shadow-xl"
-                                  style={{
-                                    top: openActionMenu.top,
-                                    right: openActionMenu.right,
-                                  }}
-                                >
+                        <td className="p-4 text-right"><TableRowActions renderActions={function renderRowActions() { return <>
                                   <button
                                     type="button"
                                     disabled={
@@ -604,17 +553,13 @@ export default function AdminAccountsClient({
                                     Thu hồi toàn bộ quyền truy cập
                                   </button>
                                   </>}
-                                </div>
-                              </>,
-                              document.body,
-                            )}
-                        </td>
+                        </>; }} /></td>
                       </tr>
                     );
                   })
                 )}
               </tbody>
-            </table>
+            </CommonTable>
           </div>
           <div className="flex flex-col gap-3 border-t border-slate-800 bg-slate-950/40 px-5 py-3 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
             <div>

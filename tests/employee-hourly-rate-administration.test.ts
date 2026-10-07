@@ -37,7 +37,7 @@ describe('Admin employee hourly-rate administration', () => {
     expect(updateBody).toMatch(/requireAdminEmployeePermission\('EMPLOYEE_MANAGE'\)/);
     expect(updateBody).toMatch(/hasOwnProperty\.call\(input, 'hourlyRate'\)/);
     expect(updateBody).toMatch(/hasPermission\(actor, 'FINANCE_VIEW'\)/);
-    expect(updateBody).toMatch(/persistAdminEmployee\(supabaseAdmin, employeeId, payload, trace\)/);
+    expect(updateBody).toMatch(/persistAdminEmployee\(supabaseAdmin, employeeId, payload, trace, String\(actor.employee.id\)\)/);
     expect(updateBody).not.toMatch(/from\('attendance'|from\('payroll_|settle_monthly_payroll/);
   });
 

@@ -121,7 +121,7 @@ describe('employee admin list and account actions slice', () => {
     expect(detailClient).toMatch(/Tài khoản & phân quyền/);
     expect(detailClient).toMatch(/Dự án được phân công/);
     expect(detailClient).toMatch(/Chấm công tháng hiện tại/);
-    expect(detailClient).toMatch(/Chưa có nguồn audit nhân sự được triển khai/);
+    expect(detailClient).toContain('ActivityHistory entity="employee"');
     expect(loadingSource).toMatch(/CenteredPageLoading/);
     expect(serviceSource).toMatch(/EmployeeDetailDto/);
     expect(serviceSource).toMatch(/requireEmployeeReadCapabilities\(\)/);
@@ -167,7 +167,7 @@ describe('employee admin list and account actions slice', () => {
     expect(clientSource).toMatch(/href=\{`\/admin\/employees\/\$\{employee\.employeeId\}`\}/);
     expect(clientSource).toMatch(/Xem chi tiết/);
     expect(clientSource).not.toMatch(/Sửa nhanh/);
-    expect(clientSource).toMatch(/MoreVertical/);
+    expect(clientSource).toMatch(/TableRowActions/);
   });
 
   it('gates employee mutations and account actions with separate permissions', () => {

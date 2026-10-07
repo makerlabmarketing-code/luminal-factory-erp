@@ -1,5 +1,6 @@
 'use client';
 
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
@@ -10,7 +11,6 @@ import {
   Edit2,
   KeyRound,
   Mail,
-  MoreVertical,
   Search,
   ShieldOff,
   UserRound,
@@ -154,7 +154,6 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
   } | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const activeActionRef = useRef<string | null>(null);
-  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [savingEmployee, setSavingEmployee] = useState(false);
   const savingEmployeeRef = useRef(false);
   const [isPending, startTransition] = useTransition();
@@ -389,7 +388,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
+            <CommonTable className="w-full text-left text-xs text-slate-300">
               <thead className="border-b border-slate-800 bg-slate-950 text-[10px] uppercase text-slate-400">
                 <tr>
                   <th className="p-4">Nhân sự</th>
@@ -447,22 +446,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                             </span>
                           </div>
                         </td>
-                        <td className="p-4">
-                          <div className="relative flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setOpenActionMenuId((current) =>
-                                  current === employee.employeeId ? null : employee.employeeId
-                                )
-                              }
-                              className="inline-flex items-center justify-center rounded-md border border-slate-800 bg-slate-950 p-2 text-slate-300 hover:bg-slate-800"
-                              aria-label="Mở thao tác nhân sự"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </button>
-                            {openActionMenuId === employee.employeeId && (
-                              <div className="absolute right-0 top-9 z-20 w-64 rounded-lg border border-slate-800 bg-slate-950 p-2 shadow-2xl">
+                        <td className="p-4"><TableRowActions renderActions={function renderRowActions() { return <>
                                 <Link
                                   href={`/admin/employees/${employee.employeeId}`}
                                   prefetch={false}
@@ -476,7 +460,6 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        setOpenActionMenuId(null);
                                         confirmDeactivate(employee);
                                       }}
                                       className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold text-red-300 hover:bg-red-950/40"
@@ -490,7 +473,6 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                                   <Link
                                     href={`/admin/employees/${employee.employeeId}`}
                                     prefetch={false}
-                                    onClick={() => setOpenActionMenuId(null)}
                                     className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-800"
                                   >
                                     <AccountIcon className="h-3.5 w-3.5" />
@@ -502,7 +484,6 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                                     type="button"
                                     disabled={accountAction.disabled || isPending || Boolean(activeActionKey)}
                                     onClick={() => {
-                                      setOpenActionMenuId(null);
                                       runAction(employee, accountAction.path!, 'Đã gửi yêu cầu');
                                     }}
                                     className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
@@ -516,7 +497,6 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                                     type="button"
                                     disabled={isPending || Boolean(activeActionKey)}
                                     onClick={() => {
-                                      setOpenActionMenuId(null);
                                       runAction(employee, 'connect-account', 'Đã kết nối tài khoản');
                                     }}
                                     className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
@@ -525,16 +505,13 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                                     Kết nối tài khoản hiện có
                                   </button>
                                 )}
-                              </div>
-                            )}
-                          </div>
-                        </td>
+                        </>; }} /></td>
                       </tr>
                     );
                   })
                 )}
               </tbody>
-            </table>
+            </CommonTable>
           </div>
 
           {filtered.length > 0 && (

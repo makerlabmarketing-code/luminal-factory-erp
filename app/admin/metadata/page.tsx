@@ -1,5 +1,6 @@
 // app/admin/metadata/page.tsx
 "use client";
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useState, useEffect, useCallback } from "react";
 import { useNotification } from "@/component/NotificationContext";
 import {
@@ -435,7 +436,7 @@ export default function MetadataManagement() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300 table-fixed min-w-[600px]">
+          <CommonTable className="w-full text-left text-xs text-slate-300 table-fixed min-w-[600px]">
             <thead className="bg-slate-950 text-slate-500 border-b border-slate-800 uppercase text-[10px] tracking-wider font-semibold">
               <tr>
                 {tableHeaders.map((header) => (
@@ -481,7 +482,7 @@ export default function MetadataManagement() {
                         />
                       </td>
                     ))}
-                    <td className="p-3 text-center">
+                    <td className="p-3 text-center"><TableRowActions renderActions={function renderRowActions() { return <>
                       <button
                         onClick={() => handleRemoveRow(row.__globalIndex)}
                         disabled={isFallbackCategory || activeCategory?.is_active === false || saving}
@@ -489,12 +490,12 @@ export default function MetadataManagement() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                    </td>
+                    </>; }} /></td>
                   </tr>
                 ))
               )}
             </tbody>
-          </table>
+          </CommonTable>
         </div>
 
         {/* THANH PHÂN TRANG */}

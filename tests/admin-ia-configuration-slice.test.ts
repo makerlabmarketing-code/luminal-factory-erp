@@ -44,7 +44,7 @@ describe("administration information architecture correction slice", () => {
     expect(client).toMatch(/<option value=\{20\}>20<\/option>/);
     expect(client).toMatch(/<option value=\{50\}>50<\/option>/);
     expect(client).toMatch(/pageAccounts\.map/);
-    expect(client).toMatch(/createPortal/);
+    expect(client).toMatch(/TableRowActions/);
     expect(client).toMatch(
       /account\.hasStaffWorkspace[\s\S]*Thu hồi quyền truy cập cổng nhân viên[\s\S]*Cấp quyền truy cập cổng nhân viên/,
     );

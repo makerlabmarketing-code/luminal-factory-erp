@@ -37,6 +37,7 @@ export interface FinanceAttachment {
 }
 
 export interface AdminLedgerMutationInput {
+  correctionReason?: string;
   type: string;
   subType?: string | null;
   category: string;

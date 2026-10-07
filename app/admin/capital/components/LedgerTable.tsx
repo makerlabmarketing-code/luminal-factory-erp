@@ -1,4 +1,5 @@
 'use client';
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { Fragment, useState } from 'react';
 import { Check, Edit2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon, X, ArrowDownLeft, ArrowUpRight, RefreshCcw } from 'lucide-react';
 import type { FinancialLedgerEntry } from '@/lib/types/finance';
@@ -6,6 +7,9 @@ import type { FinancialLedgerEntry } from '@/lib/types/finance';
 type LedgerRow = FinancialLedgerEntry & { linkedChild?: FinancialLedgerEntry | null };
 
 interface LedgerTableProps {
+  activityEnabled: boolean;
+  canUpdate: boolean;
+  onHistory: (item: LedgerRow) => void;
   data: LedgerRow[];
   onTogglePaid: (id: number | string, currentStatus: boolean) => void;
   onOpenEdit: (item: LedgerRow) => void;
@@ -21,6 +25,7 @@ interface LedgerTableProps {
 
 export default function LedgerTable({
   data,
+  activityEnabled, canUpdate, onHistory,
   onTogglePaid,
   onOpenEdit,
   onGenerateQr,
@@ -57,7 +62,7 @@ export default function LedgerTable({
 
   return (
     <div className="overflow-x-auto">
-    <table className="min-w-[1180px] w-full text-left text-xs text-slate-300">
+    <CommonTable className="min-w-[1180px] w-full text-left text-xs text-slate-300">
       <thead className="bg-slate-950 text-[10px] uppercase tracking-wide text-slate-400">
         <tr>
           <th className="w-[27%] p-4">Khoản mục</th>
@@ -116,7 +121,7 @@ export default function LedgerTable({
                     </span>
                   ) : (
                     <button
-                      disabled={isOrphanedCounterEntry}
+                      disabled={isOrphanedCounterEntry || !canUpdate || (activityEnabled && Boolean(l.is_paid))}
                       onClick={() => onTogglePaid(l.id, Boolean(l.is_paid))}
                       className={`whitespace-nowrap rounded border px-2.5 py-1.5 text-[10px] font-black ${isOrphanedCounterEntry ? 'cursor-not-allowed opacity-60' : ''} ${l.is_paid ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-amber-500/20 bg-amber-500/10 text-amber-500'}`}
                     >
@@ -125,10 +130,12 @@ export default function LedgerTable({
                   )}
                 </td>
                 <td className="p-4 text-right font-mono font-bold text-slate-200">{Number(l.amount).toLocaleString()} đ</td>
-                <td className="whitespace-nowrap p-4 text-center">
+                <td className="whitespace-nowrap p-4 text-center"><TableRowActions renderActions={function renderRowActions() { return <>
                   <div className="flex flex-nowrap items-center justify-center gap-2">
                     {isReimbursement ? (
-                      isOwnReimbursement ? (
+                      l.reimbursement_status === 'PAID' && activityEnabled && canUpdate ? (
+                        <button type="button" onClick={()=>onOpenEdit(l)} className="admin-button-secondary">Điều chỉnh</button>
+                      ) : isOwnReimbursement ? (
                         <span className="text-[11px] text-slate-500">Không tự duyệt</span>
                       ) : l.reimbursement_status === 'SUBMITTED' ? (
                         <>
@@ -149,14 +156,15 @@ export default function LedgerTable({
                       </span>
                     ) : (
                       <>
+                        <button type="button" disabled={!canUpdate} onClick={() => onOpenEdit(l)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-800 bg-blue-950 px-3 py-2 text-[11px] font-bold text-blue-300 transition hover:bg-blue-900"><Edit2 className="h-3.5 w-3.5"/> Chỉnh sửa</button>
                         {!l.is_paid && (
                           <button type="button" onClick={() => onGenerateQr(l)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-cyan-800 bg-cyan-950 px-3 py-2 text-[11px] font-bold text-cyan-300 transition hover:bg-cyan-900"><QrCode className="h-3.5 w-3.5"/> Mã QR</button>
                         )}
-                        <button type="button" onClick={() => onOpenEdit(l)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-800 bg-blue-950 px-3 py-2 text-[11px] font-bold text-blue-300 transition hover:bg-blue-900"><Edit2 className="h-3.5 w-3.5"/> Chỉnh sửa</button>
                       </>
                     )}
                   </div>
-                </td>
+                    <button type="button" onClick={()=>onHistory(l)} className="admin-button-secondary">Lịch sử</button>
+                </>; }} /></td>
               </tr>
 
               {/* === DÒNG SỔ RA (BẢN GHI ĐỐI ỨNG) === */}
@@ -187,7 +195,7 @@ export default function LedgerTable({
           );
         })}
       </tbody>
-    </table>
+    </CommonTable>
     </div>
   );
 }

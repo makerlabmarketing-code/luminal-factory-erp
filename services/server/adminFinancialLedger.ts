@@ -1,4 +1,5 @@
 import 'server-only';
+import { activityHistoryEnabled } from './activityGate';
 
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import {
@@ -275,6 +276,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     'FINANCE_VIEW',
     'FINANCE_APPROVE',
     'FINANCE_PAY',
+    'FINANCE_UPDATE',
   ]);
   if (!grantedPermissions.ok) {
     throw new AuthFlowError({
@@ -368,6 +370,8 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     companyBankAccount: process.env.COMPANY_BANK_ACCOUNT || '',
     transactionTypes: financeMetadata.transactionTypes,
     contributionTypes: financeMetadata.contributionTypes,
+    activityHistoryEnabled: activityHistoryEnabled(),
+    canUpdate: grantedPermissions.permissionCodes.includes('FINANCE_UPDATE'),
     extendedSchemaEnabled: extendedLedgerEnabled(),
     attachmentsEnabled: extendedLedgerEnabled() && attachmentWritesEnabled(),
     projects,
@@ -455,9 +459,10 @@ export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: bool
   await requireFinance('FINANCE_UPDATE');
   await requireExtendedLedgerSchema();
   const admin = createSupabaseAdminClient();
-  const { data: target, error: targetError } = await admin.from('financial_ledger').select('id, type, category').eq('id', ledgerId).maybeSingle();
+  const { data: target, error: targetError } = await admin.from('financial_ledger').select('id, type, category, is_paid').eq('id', ledgerId).maybeSingle();
   if (targetError) persistenceError('Không thể tải giao dịch cần cập nhật trạng thái.');
   if (!target) resourceNotFound('Không tìm thấy giao dịch cần cập nhật trạng thái.');
+  if (activityHistoryEnabled() && target.is_paid && !isPaid) resourceConflict('Điều chỉnh bản ghi đã trả phải giữ nguyên trạng thái thanh toán.');
   if (target.type === 'HOAN_UNG') resourceConflict('Phiếu hoàn ứng chỉ được xác nhận thanh toán qua quy trình hoàn ứng.');
   if (isManagedCounterRow(target.type, target.category)) resourceConflict('Dòng đối ứng chỉ do hệ thống quản lý.');
   const values = extendedLedgerEnabled() ? { is_paid: isPaid, payment_status: isPaid ? 'PAID' : 'UNPAID', updated_at: new Date().toISOString() } : { is_paid: isPaid };

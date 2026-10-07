@@ -911,7 +911,7 @@ export async function updateEmployee(employeeId: string, input: EmployeeMutation
   let persisted: EmployeeAccountRow | null = null;
   let readbackError: unknown = null;
   try {
-    const result = await persistAdminEmployee(supabaseAdmin, employeeId, payload, trace);
+    const result = await persistAdminEmployee(supabaseAdmin, employeeId, payload, trace, String(actor.employee.id));
     persisted = result.data as EmployeeAccountRow | null;
     readbackError = result.readbackError;
   } catch (error) {

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
@@ -19,6 +19,35 @@ function client(params: { mutation?: unknown; mutationThrow?: unknown; readback?
 }
 
 describe('admin employee production mutation diagnostics', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('uses the verified actor and atomic RPC when history is enabled', async () => {
+    vi.stubEnv('ERP_ACTIVITY_HISTORY_ENABLED', 'true');
+    const fake = client();
+    const rpc = vi.fn(async () => ({ error: null }));
+    const trace = { requestReachedSupabase: false, rowUpdated: false };
+    await persistAdminEmployee({ ...fake.supabase, rpc } as never, '3', { phone: '0901234567' }, trace, '7');
+    expect(rpc).toHaveBeenCalledWith('update_erp_record_with_history', {
+      p_entity: 'employee', p_id: '3', p_patch: { phone: '0901234567' }, p_actor_id: '7', p_reason: null,
+    });
+    expect(fake.update).not.toHaveBeenCalled();
+    expect(trace.rowUpdated).toBe(true);
+  });
+
+  it('never falls back to an unaudited update after an audit failure or missing actor', async () => {
+    vi.stubEnv('ERP_ACTIVITY_HISTORY_ENABLED', 'true');
+    const fake = client();
+    const rpc = vi.fn(async () => ({ error: { code: '23514' } }));
+    const trace = { requestReachedSupabase: false, rowUpdated: false };
+    await expect(persistAdminEmployee({ ...fake.supabase, rpc } as never, '3', { phone: '0901234567' }, trace, '7'))
+      .rejects.toMatchObject({ failureStage: 'core_mutation' });
+    expect(trace.rowUpdated).toBe(false);
+    await expect(persistAdminEmployee({ ...fake.supabase, rpc } as never, '3', { phone: '0901234567' }, trace))
+      .rejects.toMatchObject({ failureStage: 'query_construction' });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(fake.update).not.toHaveBeenCalled();
+  });
+
   it('sends only the normalized phone column and targets only employee 3', async () => {
     const fake = client();
     const trace = { requestReachedSupabase: false, rowUpdated: false };

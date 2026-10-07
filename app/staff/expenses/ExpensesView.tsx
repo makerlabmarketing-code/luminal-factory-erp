@@ -1,5 +1,6 @@
 'use client';
 
+import { CommonTable } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
@@ -289,7 +290,7 @@ export function StaffExpensesContent({
         </div>
 
         <div className="overflow-x-auto min-h-[300px]">
-          <table className="w-full text-left text-xs text-slate-300">
+          <CommonTable className="w-full text-left text-xs text-slate-300">
             <tbody className="divide-y divide-slate-800/60 font-medium text-[11px]">
               {paginatedExpenses.length === 0 ? (
                 <tr>
@@ -340,7 +341,7 @@ export function StaffExpensesContent({
                 ))
               )}
             </tbody>
-          </table>
+          </CommonTable>
         </div>
 
         {filteredExpenses.length > 0 && (

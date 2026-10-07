@@ -1,5 +1,6 @@
 'use client';
 
+import { CommonTable } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -203,7 +204,7 @@ export default function ProductionOrdersPage() {
             </div>
 
             <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-[980px] w-full text-left text-xs">
+              <CommonTable className="min-w-[980px] w-full text-left text-xs">
                 <thead className="border-b border-slate-800 bg-slate-950/50 text-slate-500">
                   <tr><th className="px-4 py-3">Lệnh sản xuất</th><th className="px-4 py-3">Dự án / mẫu màu</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3">Giai đoạn</th><th className="px-4 py-3">Sản lượng</th><th className="px-4 py-3">Hạn hoàn thành</th></tr>
                 </thead>
@@ -219,7 +220,7 @@ export default function ProductionOrdersPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </CommonTable>
             </div>
           </>
         ) : (

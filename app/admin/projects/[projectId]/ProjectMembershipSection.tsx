@@ -1,5 +1,6 @@
 'use client';
 
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { AlertTriangle, History, RefreshCw, UserPlus, Users } from 'lucide-react';
 import { OperationalState } from '@/component/OperationalState';
 import type { ProjectMemberDTO, ProjectMembershipSummaryDTO } from '@/lib/types/project-membership';
@@ -59,14 +60,14 @@ function MemberActions({
 }: Pick<ProjectMembershipSectionProps, 'canManageMembers' | 'memberActionLoading' | 'onChangeRole' | 'onRevokeMember'> & { member: ProjectMemberDTO }) {
   const disabled = !canManageMembers || memberActionLoading;
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <TableRowActions renderActions={function renderMemberActions() { return <>
       <button type="button" disabled={disabled} onClick={() => onChangeRole(member)} className="min-h-11 rounded border border-slate-700 px-3 py-2 font-bold text-slate-300 hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40">
         Đổi vai trò
       </button>
       <button type="button" disabled={disabled} onClick={() => onRevokeMember(member)} className="min-h-11 rounded border border-amber-800 px-3 py-2 font-bold text-amber-200 hover:border-amber-600 disabled:cursor-not-allowed disabled:opacity-40">
         Thu hồi
       </button>
-    </div>
+    </>; }} />
   );
 }
 
@@ -142,7 +143,7 @@ export function ProjectMembershipSection({
           ) : activeMembers.length > 0 ? (
             <>
               <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[760px] text-left text-xs">
+              <CommonTable className="w-full min-w-[760px] text-left text-xs">
                 <thead className="text-slate-500"><tr className="border-b border-slate-800"><th className="py-2 pr-3">Nhân viên</th><th className="py-2 pr-3">Chức vụ</th><th className="py-2 pr-3">Vai trò</th><th className="py-2 pr-3">Ngày tham gia</th><th className="py-2">Thao tác</th></tr></thead>
                 <tbody className="divide-y divide-slate-800">
                   {activeMembers.map((member) => (
@@ -155,7 +156,7 @@ export function ProjectMembershipSection({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </CommonTable>
               </div>
               <div className="space-y-3 md:hidden">
                 {activeMembers.map((member) => (

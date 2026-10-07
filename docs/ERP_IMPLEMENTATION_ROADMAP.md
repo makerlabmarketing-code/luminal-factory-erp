@@ -1226,3 +1226,27 @@ Validation: 913 Vitest tests, lint and TypeScript passed. Production build uses
 throwaway public build configuration; deployment/native smoke evidence is tracked
 in the shared coordination sheet. Revert this application batch to restore the
 previous list/editor composition; no persisted data is deleted by code rollback.
+
+### 2026-10-07 — E009: shared list tables and compact activity history
+
+User-directed slice: all 16 HTML table screens use CommonTable; screen-owned
+JSX callbacks define actions, with overflow in the common portal menu. Existing
+account/employee menus now use the same owner; domain filtering, pagination,
+permissions and responsive card alternatives remain in their screens.
+
+Employee history and finance paid-correction UI/API are wired behind default-off
+ERP_ACTIVITY_HISTORY_ENABLED. Service-only atomic RPC and compact employee/ledger
+triggers are prepared under supabase/drafts/common-activity-history, including
+preflight, validation, rollback and compatibility/backfill/privacy notes. Paid
+reimbursement corrections preserve workflow actors/status/payment date and require
+a reason. History records field changes instead of full JSON/file snapshots;
+personnel private values are redacted. Legacy writes without trusted actor context
+are explicitly labelled unknown/system. Other modules are not yet captured.
+
+922 application tests pass; disposable PGlite checks cover CREATE/UPDATE/DELETE,
+no-op suppression, redaction, trusted actor, paid-state preservation, protected
+fields, browser denial, atomic audit failure and rollback retaining records.
+Application lint/TypeScript/build and native production evidence are recorded in
+coordination sheet E-009. NEW PRODUCTION SQL NOT RUN; history gate stays off until
+explicit owner approval, read-only postflight and activation. Forward SQL SHA256:
+861b3c48c976072dfd50c4bb1b2f70fabb78148f5938e34efb0bc264ba69aa8e.

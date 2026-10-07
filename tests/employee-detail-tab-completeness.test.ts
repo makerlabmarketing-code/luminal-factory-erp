@@ -8,7 +8,7 @@ describe('Employee Detail business-tab completeness', () => {
   const service = read('services/server/adminEmployeeData.ts');
   const audit = read('docs/employee-detail-tab-audit.md');
   it('preserves the seven domain tabs and tab-owned dirty payloads', () => {
-    for (const label of ['Tổng quan', 'Thông tin công việc', 'Tài khoản & phân quyền', 'Dự án & công việc', 'Lịch làm & chấm công', 'Tài chính cá nhân', 'Lịch sử thay đổi']) expect(ui).toContain(label);
+    for (const label of ['Tổng quan', 'Thông tin công việc', 'Tài khoản & phân quyền', 'Dự án & công việc', 'Lịch làm & chấm công', 'Tài chính cá nhân', 'Lịch sử hoạt động']) expect(ui).toContain(label);
     expect(ui).toContain("overview: ['fullName', 'email', 'phone']");
     expect(ui).toContain("job: ['title', 'department', 'employmentStatus']");
     expect(ui).toContain("finance: ['bankName', 'bankAccountNumber', 'hourlyRate']");

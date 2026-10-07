@@ -1,6 +1,8 @@
 import type { AdminLedgerMutationInput, FinancialLedgerEntry } from '@/lib/types/finance';
 
 interface LedgerResponse {
+  activityHistoryEnabled: boolean;
+  canUpdate: boolean;
   ledger: FinancialLedgerEntry[];
   companyBankCode: string;
   companyBankAccount: string;

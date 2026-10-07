@@ -96,3 +96,18 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .luminal-loader__core { border-color: rgb(var(--luminal-rim-control)); box-shadow: var(--luminal-rim-bevel); }
 .luminal-loader__tile { border-color: rgb(var(--luminal-resin-cyan) / .5); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/* One table presentation for admin and staff lists. Width/alignment stay with columns. */
+.erp-common-table { width: 100%; border-collapse: collapse; text-align: left; font-size: .75rem !important; color: rgb(203 213 225); }
+.erp-common-table > thead { background: rgb(var(--admin-surface, 15 23 42)) !important; color: rgb(148 163 184); font-size: .6875rem !important; text-transform: none !important; }
+.erp-common-table > thead > tr > th { padding: .875rem 1rem !important; font-weight: 600 !important; letter-spacing: normal !important; border-bottom: 1px solid rgb(51 65 85 / .7); }
+.erp-common-table > tbody > tr > td { padding: .875rem 1rem !important; vertical-align: middle; }
+.erp-common-table > tbody > tr { border-bottom: 1px solid rgb(51 65 85 / .45); }
+.erp-common-table > tbody > tr:last-child { border-bottom: 0; }
+.erp-common-table > tbody > tr:hover { background-color: rgb(30 41 59 / .35); }
+.erp-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; white-space: nowrap; }
+.erp-row-actions > button, .erp-row-actions > a { min-height: 2.125rem; font-size: .6875rem; }
+.erp-row-actions-more { display: inline-flex; align-items: center; justify-content: center; width: 2.125rem; border: 1px solid rgb(51 65 85); border-radius: .5rem; color: rgb(203 213 225); background: rgb(15 23 42); }
+.erp-row-actions-more:focus-visible, .erp-row-actions-panel :is(button,a):focus-visible { outline: 2px solid rgb(96 165 250); outline-offset: 2px; }
+.erp-row-actions-panel { position: fixed; z-index: 999998; width: 14rem; max-height: calc(100vh - 1rem); overflow-y: auto; padding: .5rem; display: flex; flex-direction: column; gap: .375rem; border: 1px solid rgb(71 85 105); border-radius: .75rem; background: rgb(15 23 42); box-shadow: 0 12px 32px rgb(0 0 0 / .4); }
+.erp-row-actions-panel > :is(button,a) { width: 100%; min-height: 2.25rem; display: flex; align-items: center; justify-content: flex-start; gap: .5rem; font-size: .75rem; padding: .5rem .75rem; }

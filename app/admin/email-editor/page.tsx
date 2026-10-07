@@ -1,5 +1,6 @@
 // app/admin/email-editor/page.tsx
 'use client';
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import { Archive, Mail, Plus, Trash2, Edit2, X, Save, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RefreshCcw, RotateCcw, Send, Sparkles } from 'lucide-react';
@@ -283,7 +284,7 @@ export default function AdminEmailTemplates() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
+            <CommonTable className="w-full text-left text-xs text-slate-300">
               <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase text-[10px] tracking-wider">
                 <tr><th className="p-4 w-1/4">Thuộc Phân Hệ</th><th className="p-4 w-1/3">Tên Gọi Kịch Bản</th><th className="p-4 text-center w-32">Thao tác</th></tr>
               </thead>
@@ -295,16 +296,16 @@ export default function AdminEmailTemplates() {
                   <tr key={t.id} onClick={() => setSelectedPreview(t)} className={`transition cursor-pointer ${t.is_active === false ? 'opacity-60' : ''} ${selectedPreview?.id === t.id ? 'bg-purple-950/20 text-purple-300 font-bold border-l-2 border-purple-500' : 'hover:bg-slate-950/10'}`}>
                     <td className="p-4"><span className="bg-slate-950 border border-slate-800 px-2 py-1 rounded text-purple-400 font-mono font-bold text-[10px] block w-fit">{t.group_type}</span></td>
                     <td className="p-4 text-slate-200 font-bold">{t.template_name}{t.is_active === false && <span className="ml-2 rounded bg-amber-950/60 px-2 py-0.5 text-[9px] text-amber-300">Ngừng hoạt động</span>}</td>
-                    <td className="p-4 text-center space-x-1 font-sans" onClick={(e) => e.stopPropagation()}>
+                    <td className="p-4 text-center space-x-1 font-sans" onClick={(e) => e.stopPropagation()}><TableRowActions renderActions={function renderRowActions() { return <>
                       {t.is_active !== false && <button onClick={() => handleTriggerTestMailModal(t)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-purple-400 hover:bg-purple-900/30 transition" title="Gửi thử"><Send className="w-3.5 h-3.5"/></button>}
                       {t.is_active !== false && <button onClick={() => handleOpenEdit(t)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-800 transition" title="Sửa"><Edit2 className="w-3.5 h-3.5"/></button>}
                       {lifecycleEnabled && <button onClick={() => handleLifecycleChange(t)} className={`p-1.5 bg-slate-950 border border-slate-800 rounded-lg transition ${t.is_active === false ? 'text-emerald-400' : 'text-amber-400'}`} title={t.is_active === false ? 'Kích hoạt lại' : 'Ngừng hoạt động'}>{t.is_active === false ? <RotateCcw className="w-3.5 h-3.5"/> : <Archive className="w-3.5 h-3.5"/>}</button>}
                       {canPermanentlyDelete && (!lifecycleEnabled || t.is_active === false) && <button onClick={() => handleDelete(t.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500 hover:bg-red-950/20 transition" title="Xóa vĩnh viễn"><Trash2 className="w-3.5 h-3.5"/></button>}
-                    </td>
+                    </>; }} /></td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </CommonTable>
           </div>
 
           {/* PHÂN TRANG */}

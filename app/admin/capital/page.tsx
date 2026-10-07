@@ -2,6 +2,8 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
+import ActivityHistoryDialog from '@/component/ActivityHistoryDialog';
+import { validateCorrectionReason } from '@/lib/activity-history';
 import { supabase } from '@/utils/supabase/client';
 import { useNotification } from '@/component/NotificationContext';
 import { useGlobalLoading } from '@/component/GlobalLoading';
@@ -217,6 +219,13 @@ export default function AdminFinancialLedger() {
 
   // Edit States Chỉnh Sửa
   const [showEditModal, setShowEditModal] = useState(false);
+  const [activityEnabled, setActivityEnabled] = useState(false);
+  const [canUpdateLedger, setCanUpdateLedger] = useState(false);
+  const [historyId, setHistoryId] = useState<string | null>(null);
+  const [editCorrectionReason, setEditCorrectionReason] = useState('');
+  const [editingPaid, setEditingPaid] = useState(false);
+  const [editingReimbursement, setEditingReimbursement] = useState(false);
+  useEffect(() => { const linkedId = new URLSearchParams(window.location.search).get('ledgerId'); if (linkedId && /^[1-9]\d{0,18}$/.test(linkedId)) setHistoryId(linkedId); }, []);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editType, setEditType] = useState('CHI_PHI');
   const [editSubType, setEditSubType] = useState<'TIEN_MAT' | 'HIEN_VAT'>('TIEN_MAT');
@@ -258,6 +267,8 @@ export default function AdminFinancialLedger() {
 
   const applyLedgerResult = useCallback((ledgerResult: Awaited<ReturnType<typeof loadAdminFinancialLedger>>) => {
     setLedger(ledgerResult.ledger);
+    setActivityEnabled(ledgerResult.activityHistoryEnabled);
+    setCanUpdateLedger(ledgerResult.canUpdate);
     setExtendedSchemaEnabled(ledgerResult.extendedSchemaEnabled);
     setAttachmentsEnabled(ledgerResult.attachmentsEnabled);
     setProjects(ledgerResult.projects);
@@ -480,6 +491,9 @@ export default function AdminFinancialLedger() {
     if (!Number.isFinite(numericId)) return;
 
     setEditingId(numericId);
+    setEditingPaid(Boolean(item.is_paid));
+    setEditingReimbursement(item.type === 'HOAN_UNG');
+    setEditCorrectionReason('');
     setEditType(item.type || 'CHI_PHI');
     setEditCategory(item.category || '');
     setEditAmount(formatCurrency(String(item.amount || '')));
@@ -509,6 +523,10 @@ export default function AdminFinancialLedger() {
     if (editPendingFiles.length > 0 && !attachmentsEnabled) return showToast('Kho chứng từ chưa sẵn sàng', 'Vui lòng chờ kho riêng tư được kiểm tra và kích hoạt.', 'error');
     const input = mutationInput({ type: editType, subType: editSubType, category: editCategory, amount: editAmount, monthInput: editMonthInput, reporterId: editReporter, beneficiaryEmployeeId: editBeneficiaryEmployeeId, beneficiaryExternalName: editBeneficiaryExternalName, transactionDate: editTransactionDate, description: editDescription, projectId: editProjectId, isPaid: editIsPaid, expenseSource: editExpenseSource });
     if (!input) return;
+    if (activityEnabled && editingPaid) {
+      try { input.correctionReason = validateCorrectionReason(editCorrectionReason); }
+      catch { return showToast('Cần lý do điều chỉnh', 'Nhập lý do từ 5 đến 500 ký tự.', 'error'); }
+    }
     submitLock.current = true;
     setIsSubmitting(true);
     showGlobalLoading('Đang lưu thay đổi...');
@@ -742,7 +760,7 @@ export default function AdminFinancialLedger() {
           <LedgerTable
             data={currentLedgerData}
             onTogglePaid={handleTogglePaid}
-            onOpenEdit={handleOpenEdit}
+            onOpenEdit={handleOpenEdit} activityEnabled={activityEnabled} canUpdate={canUpdateLedger} onHistory={(item) => setHistoryId(String(item.id))}
             onGenerateQr={handleGenerateVietQR}
             reimbursementCapabilities={reimbursementCapabilities}
             activeReimbursementActionId={activeReimbursementActionId}
@@ -900,6 +918,7 @@ export default function AdminFinancialLedger() {
                 <select
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200"
                   value={editType}
+                  disabled={activityEnabled && editingPaid}
                   onChange={e => {
                     const val = e.target.value;
                     setEditType(val);
@@ -962,6 +981,7 @@ export default function AdminFinancialLedger() {
                 <select
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200"
                   value={editReporter}
+                  disabled={activityEnabled && editingReimbursement}
                   onChange={e => setEditReporter(e.target.value)}
                 >
                   <option value="">Chưa xác định</option>
@@ -973,12 +993,12 @@ export default function AdminFinancialLedger() {
               </section>
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
                 <h4 className="font-bold text-emerald-300">Người liên quan</h4>
-                <div><label className="text-slate-400">Người hưởng lợi:</label><select disabled={!extendedSchemaEnabled} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={editBeneficiaryEmployeeId} onChange={e => { setEditBeneficiaryEmployeeId(e.target.value); if (e.target.value) setEditBeneficiaryExternalName(''); }}><option value="">Chưa xác định / bên ngoài</option>{employees.map(employee => <option key={employee.id} value={String(employee.id)}>{employee.full_name}</option>)}</select></div>
-                <div><label className="text-slate-400">Người hưởng lợi bên ngoài:</label><input disabled={!extendedSchemaEnabled || Boolean(editBeneficiaryEmployeeId)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={editBeneficiaryExternalName} onChange={e => setEditBeneficiaryExternalName(e.target.value)} /></div>
+                <div><label className="text-slate-400">Người hưởng lợi:</label><select disabled={!extendedSchemaEnabled || (activityEnabled && editingReimbursement)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={editBeneficiaryEmployeeId} onChange={e => { setEditBeneficiaryEmployeeId(e.target.value); if (e.target.value) setEditBeneficiaryExternalName(''); }}><option value="">Chưa xác định / bên ngoài</option>{employees.map(employee => <option key={employee.id} value={String(employee.id)}>{employee.full_name}</option>)}</select></div>
+                <div><label className="text-slate-400">Người hưởng lợi bên ngoài:</label><input disabled={!extendedSchemaEnabled || Boolean(editBeneficiaryEmployeeId) || (activityEnabled && editingReimbursement)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 disabled:opacity-60" value={editBeneficiaryExternalName} onChange={e => setEditBeneficiaryExternalName(e.target.value)} /></div>
               </section>
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
                 <h4 className="font-bold text-cyan-300">Thanh toán</h4>
-              <div className="pt-2"><label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-blue-500 transition"><input type="checkbox" checked={editIsPaid} onChange={e => setEditIsPaid(e.target.checked)} className="accent-blue-500 w-4 h-4 cursor-pointer" /><span className="text-slate-300 font-bold">Đã thanh toán</span></label></div>
+              <div className="pt-2"><label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-blue-500 transition"><input type="checkbox" checked={editIsPaid} disabled={activityEnabled && editingPaid} onChange={e => setEditIsPaid(e.target.checked)} className="accent-blue-500 w-4 h-4 cursor-pointer" /><span className="text-slate-300 font-bold">Đã thanh toán</span></label></div>
               </section>
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
                 <h4 className="font-bold text-purple-300">Chứng từ</h4>
@@ -1019,6 +1039,7 @@ export default function AdminFinancialLedger() {
                 <p className="text-[11px] text-slate-400">Chờ duyệt, Từ chối, Đã thanh toán và lịch sử kiểm toán sẽ được ghi qua biên máy chủ sau khi gói schema/RLS được duyệt.</p>
               </section>
             </div>
+            {activityEnabled && editingPaid && <label className="block space-y-2"><span className="text-slate-300">Lý do điều chỉnh bản ghi đã trả <span className="text-red-300">*</span></span><textarea value={editCorrectionReason} onChange={event=>setEditCorrectionReason(event.target.value)} minLength={5} maxLength={500} className="admin-field" /><span className="block text-slate-500">Lịch sử ghi phần thay đổi và lý do. Trạng thái thanh toán giữ nguyên.</span></label>}
             {editError && (
               <div role="alert" className="rounded-xl border border-red-500/40 bg-red-950/30 p-3 text-red-200">
                 <p className="font-bold">{editError.message}</p>
@@ -1030,6 +1051,7 @@ export default function AdminFinancialLedger() {
         </div>
       )}
 
+      {historyId && <ActivityHistoryDialog entityId={historyId} onClose={()=>setHistoryId(null)} />}
       {/* POPUP VIETQR DETAILED */}
       {showQrModal && activeQrTarget && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">

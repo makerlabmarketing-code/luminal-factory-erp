@@ -1,5 +1,6 @@
 'use client';
 
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -610,7 +611,7 @@ export default function AdminProjectManagement() {
           </div>
 
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full text-left text-xs">
+            <CommonTable className="w-full text-left text-xs">
               <thead className="bg-slate-950 text-slate-400 uppercase text-[10px]">
                 <tr>
                   <th className="p-4">Dự án / dòng sản phẩm</th>
@@ -644,11 +645,11 @@ export default function AdminProjectManagement() {
                       </td>
                       <td className="p-4 text-amber-300 font-mono">{project.targetDate || '-'}</td>
                       <td className="p-4 text-slate-300 max-w-xs truncate">{project.nextAction}</td>
-                      <td className="p-4 text-center" onClick={(event) => event.stopPropagation()}>
+                      <td className="p-4 text-center" onClick={(event) => event.stopPropagation()}><TableRowActions renderActions={function renderRowActions() { return <>
                         <button aria-label={`Huỷ dự án ${project.name}`} disabled={cancellingProjectId !== null} onClick={() => handleCancelProject(project)} className="text-slate-500 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40">
                           <Archive className="w-4 h-4" />
                         </button>
-                      </td>
+                      </>; }} /></td>
                     </tr>
                   );
                 })}
@@ -658,7 +659,7 @@ export default function AdminProjectManagement() {
                   </tr>
                 )}
               </tbody>
-            </table>
+            </CommonTable>
           </div>
 
           <div className="divide-y divide-slate-800 md:hidden">

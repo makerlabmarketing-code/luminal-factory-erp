@@ -1,4 +1,6 @@
 import 'server-only';
+import { activityHistoryEnabled } from './activityGate';
+import { validateCorrectionReason } from '@/lib/activity-history';
 
 import {
   ledgerUpdateRequiresAtomicLink,
@@ -15,6 +17,7 @@ type OriginalLedgerRow = {
   type: string | null;
   category: string | null;
   requested_by: string | null;
+  is_paid?: boolean | null;
 };
 
 function extendedLedgerEnabled() {
@@ -153,13 +156,13 @@ export async function updateAdminFinancialLedgerAtomicAware(
   ledgerId: number,
   body: Record<string, unknown>
 ) {
-  await requireFinanceUpdate();
+  const auth = await requireFinanceUpdate();
   const input = validatedMutation(body);
   const admin = createSupabaseAdminClient();
 
   const { data, error } = await admin
     .from('financial_ledger')
-    .select('id, type, category, requested_by')
+    .select('id, type, category, requested_by, is_paid')
     .eq('id', ledgerId)
     .maybeSingle();
   if (error) persistenceError('Không thể tải giao dịch cần cập nhật.');
@@ -174,6 +177,32 @@ export async function updateAdminFinancialLedgerAtomicAware(
     type: input.type,
     expenseSourceId: input.expenseSourceId,
   });
+
+  if (activityHistoryEnabled()) {
+    let reason: string | null = null;
+    if (original.is_paid) {
+      try { reason = validateCorrectionReason(body.correctionReason); }
+      catch { throw new AuthFlowError({status:400,code:'payload_validation_failed',message:'Vui lòng nhập lý do điều chỉnh (5–500 ký tự).',failureStage:'validation'}); }
+      if (!input.isPaid || input.type !== original.type) conflict('Giữ nguyên loại và trạng thái của giao dịch đã trả.');
+    }
+    await requireExtendedReferences(input);
+    const requestedBy = original.type === 'HOAN_UNG' ? original.requested_by : await resolveRequestedBy(input, original.requested_by);
+    const patch = {
+      type:input.type, sub_type:input.type==='VON_GOP' ? input.subType : null,
+      category:input.category, amount:input.amount, requested_by:requestedBy,
+      month_period:input.monthPeriod, is_paid:input.isPaid,
+      should_have_link:shouldHaveLink, update_extended:extendedLedgerEnabled(),
+      ...(extendedLedgerEnabled() ? {transaction_date:input.transactionDate,description:input.description,project_id:input.projectId,beneficiary_employee_id:input.beneficiaryEmployeeId,beneficiary_external_name:input.beneficiaryExternalName,payer_employee_id:input.payerEmployeeId} : {}),
+    };
+    const result = await admin.rpc('update_erp_record_with_history', {p_entity:'ledger',p_id:ledgerId,p_patch:patch,p_actor_id:auth.employee.id,p_reason:reason});
+    if(result.error) {
+      if(result.error.code==='22023') conflict('Điều chỉnh không hợp lệ hoặc đã đổi thông tin được bảo vệ của phiếu hoàn ứng.');
+      if(result.error.code==='P0002') notFound('Không tìm thấy giao dịch.');
+      if(result.error.code==='21000'||result.error.code==='23505') conflict('Dòng đối ứng chưa nhất quán. Vui lòng kiểm tra trước khi sửa.');
+      persistenceError('Không thể lưu giao dịch cùng lịch sử. Không có thay đổi nào được ghi.');
+    }
+    return {success:true as const};
+  }
 
   if (!needsAtomicLink) {
     return updateAdminFinancialLedger(ledgerId, body);

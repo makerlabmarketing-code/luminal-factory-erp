@@ -1,5 +1,6 @@
 'use client';
 
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import MonthPicker from '@/component/MonthPicker';
 import { businessMonthFromInstant, formatBusinessMonthInput } from '@/lib/business-date';
@@ -231,7 +232,7 @@ export default function AdminPayrollPage() {
             <p className="text-sm text-slate-400">Đang tải bảng lương...</p>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-slate-800">
-              <table className="w-full text-left text-sm">
+              <CommonTable className="w-full text-left text-sm">
                 <thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">Nhân viên</th><th>Giờ / ca</th><th>Lương tính</th><th>Điều chỉnh</th><th>Thực nhận</th><th>Trạng thái</th><th /></tr></thead>
                 <tbody>
                   {rows.map((row) => (
@@ -242,14 +243,14 @@ export default function AdminPayrollPage() {
                       <td>{money.format(row.adjustmentTotal)}</td>
                       <td className="font-bold">{money.format(row.finalPayableAmount)}</td>
                       <td>{row.settlementStatus === 'SETTLED' ? 'Đã quyết toán' : 'Chưa quyết toán'}</td>
-                      <td className="p-3">
+                      <td className="p-3"><TableRowActions renderActions={function renderRowActions() { return <>
                         {row.settlementStatus === 'UNSETTLED' && readiness?.canSettle && <button disabled={activeAction !== null || selectedMonthBeforeStart} title={selectedMonthBeforeStart ? `Chỉ được quyết toán từ ${readiness.firstSettlementMonth}` : undefined} onClick={() => void settle(row.employeeId)} className="rounded-lg bg-blue-600 px-3 py-2 font-bold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">{activeAction === `settle:${row.employeeId}` ? 'Đang xác nhận...' : selectedMonthBeforeStart ? 'Ngoài kỳ' : 'Xác nhận'}</button>}
                         {row.settlementStatus === 'SETTLED' && row.settlementId && readiness?.canAdjust && <button disabled={activeAction !== null} onClick={() => void adjust(row.settlementId!)} className="rounded-lg border border-slate-600 px-3 py-2 font-bold hover:bg-slate-800 disabled:opacity-60">{activeAction === `adjust:${row.settlementId}` ? 'Đang điều chỉnh...' : 'Điều chỉnh'}</button>}
-                      </td>
+                      </>; }} /></td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </CommonTable>
               {rows.length === 0 && <p className="p-8 text-center text-slate-400">Không có dữ liệu lương trong tháng đã chọn.</p>}
             </div>
           )}

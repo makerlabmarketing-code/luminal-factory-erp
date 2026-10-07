@@ -1,5 +1,6 @@
 'use client';
 
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -1244,7 +1245,7 @@ export default function ProjectDetailPage() {
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="hidden w-full min-w-[900px] text-left text-xs md:table">
+                    <CommonTable className="hidden w-full min-w-[900px] text-left text-xs md:table">
                       <thead className="text-slate-500">
                         <tr className="border-b border-slate-800">
                           <th className="py-2 pr-3">Tên công việc</th>
@@ -1271,17 +1272,17 @@ export default function ProjectDetailPage() {
                             <td className="py-3 pr-3">{getTaskLastUpdateLabel(task)}</td>
                             <td className="py-3 pr-3">{getTaskProgressLabel(task)}</td>
                             <td className="py-3 pr-3">{getTaskCommentLabel(task)}</td>
-                            <td className="py-3">
+                            <td className="py-3"><TableRowActions renderActions={function renderRowActions() { return <>
                               {isTaskAssignmentDTO(task) && canManageTasks ? (
                                 <button type="button" onClick={() => handleStartEditTask(task)} className="rounded border border-slate-700 px-2 py-1 font-bold text-slate-300">
                                   Sửa
                                 </button>
                               ) : 'Chỉ xem'}
-                            </td>
+                            </>; }} /></td>
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </CommonTable>
                     <div className="space-y-3 md:hidden">
                       {selectedPhase.tasks.map((task) => (
                         <article key={getTaskKey(task)} className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs">

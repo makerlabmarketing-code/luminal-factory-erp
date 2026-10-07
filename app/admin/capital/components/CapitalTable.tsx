@@ -1,3 +1,4 @@
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { Edit2, Trash2, QrCode, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
 
 interface CapitalTableProps {
@@ -45,7 +46,7 @@ export default function CapitalTable(props: CapitalTableProps) {
         />
       </div>
       
-      <table className="w-full text-left text-xs text-slate-300">
+      <CommonTable className="w-full text-left text-xs text-slate-300">
         <thead className="bg-slate-950 text-slate-400 uppercase text-[9px]">
           <tr>
             <th className="p-4">Khoản Mục</th>
@@ -69,23 +70,23 @@ export default function CapitalTable(props: CapitalTableProps) {
                 </button>
               </td>
               <td className="p-4 text-right font-mono font-bold text-slate-200">{Number(l.amount).toLocaleString()} đ</td>
-              <td className="p-4 text-center space-x-1">
+              <td className="p-4 text-center space-x-1"><TableRowActions renderActions={function renderRowActions() { return <>
                 {!l.is_paid && (
-                  <button onClick={() => props.handleGenerateVietQR(l)} className="p-1.5 bg-cyan-950 border border-cyan-800 rounded-lg text-cyan-400">
+                  <button type="button" aria-label="Mã QR" onClick={() => props.handleGenerateVietQR(l)} className="p-1.5 bg-cyan-950 border border-cyan-800 rounded-lg text-cyan-400">
                     <QrCode className="w-3.5 h-3.5"/>
                   </button>
                 )}
-                <button onClick={() => props.handleOpenEdit(l)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400">
+                <button type="button" aria-label="Chỉnh sửa" onClick={() => props.handleOpenEdit(l)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400">
                   <Edit2 className="w-3.5 h-3.5"/>
                 </button>
-                <button onClick={() => props.handleDeleteLedger(l.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500">
+                <button type="button" aria-label="Xóa giao dịch" onClick={() => props.handleDeleteLedger(l.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-red-500">
                   <Trash2 className="w-3.5 h-3.5"/>
                 </button>
-              </td>
+              </>; }} /></td>
             </tr>
           ))}
         </tbody>
-      </table>
+      </CommonTable>
       
       {/* Phân trang */}
       {props.totalFiltered > 0 && (

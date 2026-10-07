@@ -71,7 +71,7 @@ describe('project detail stepper and task assignee display', () => {
     expect(detailPage).toMatch(/<article key=\{getTaskKey\(task\)\}/);
     expect(detailPage).toMatch(/<TaskMobileField label="Người phụ trách" value=\{getTaskAssigneeLabel\(task\)\} \/>/);
     expect(detailPage).toMatch(/className="mt-3 w-full rounded border border-slate-700 px-2 py-2 font-bold text-slate-300"/);
-    expect(membershipSection).toMatch(/<table className="w-full min-w-\[760px\] text-left text-xs">/);
+    expect(membershipSection).toMatch(/<CommonTable className="w-full min-w-\[760px\] text-left text-xs">/);
     expect(membershipSection).toContain("member.isAssignable ? 'Có thể giao việc' : 'Không khả dụng'");
   });
 

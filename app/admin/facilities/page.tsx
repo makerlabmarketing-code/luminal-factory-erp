@@ -1,5 +1,6 @@
 // app/admin/facilities/page.tsx
 'use client';
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useEffect, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import { fetchCoordinatesFromAddress, type GeocodeMatch } from '@/ultis/geocoding';
@@ -212,7 +213,7 @@ export default function AdminFacilitiesManagement() {
       {hasFacilityStatus && <label className="flex items-center gap-2 text-xs text-slate-400"><input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} /> Hiện cả cơ sở ngừng hoạt động</label>}
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <table className="w-full text-left text-xs text-slate-300">
+        <CommonTable className="w-full text-left text-xs text-slate-300">
           <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px]">
             <tr>
               <th className="p-4 w-[25%]">Tên Cơ Sở / Chi Nhánh</th>
@@ -256,15 +257,15 @@ export default function AdminFacilitiesManagement() {
                   <td className="p-4 font-mono font-bold text-blue-400">{b.lng ?? 'Chưa cập nhật'}</td>
                   <td className="p-4 font-bold text-amber-400 font-mono">{b.radius == null ? 'Chưa cập nhật' : `${b.radius} mét`}</td>
                   {hasFacilityStatus && <td className="p-4 text-slate-400">{b.isActive ? 'Đang hoạt động' : 'Ngừng hoạt động'}</td>}
-                  <td className="p-4 text-center space-x-1">
+                  <td className="p-4 text-center space-x-1"><TableRowActions renderActions={function renderRowActions() { return <>
                     <button disabled={!canManageFacilities} onClick={() => handleOpenEdit(b)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-blue-400 hover:bg-slate-800 transition disabled:opacity-40" title="Chỉnh sửa"><Edit2 className="w-3.5 h-3.5" /></button>
                     {b.isActive && <button disabled={!canManageFacilities} onClick={() => handleDelete(b.id)} className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-amber-400 hover:bg-amber-950/20 transition disabled:opacity-40" title="Ngừng hoạt động"><Trash2 className="w-3.5 h-3.5" /></button>}
-                  </td>
+                  </>; }} /></td>
                 </tr>
               ))
             )}
           </tbody>
-        </table>
+        </CommonTable>
       </div>
 
       {showModal && (

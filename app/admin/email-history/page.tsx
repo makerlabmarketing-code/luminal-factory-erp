@@ -1,5 +1,6 @@
 'use client';
 
+import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
@@ -136,7 +137,7 @@ export default function AdminEmailHistoryLog() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
+          <CommonTable className="w-full text-left text-xs text-slate-300">
             <thead className="border-b border-slate-800 bg-slate-950 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="w-1/6 p-4">Thời gian gửi</th>
@@ -163,13 +164,13 @@ export default function AdminEmailHistoryLog() {
                       <span className="mx-auto flex w-fit items-center gap-1 rounded-md border border-red-500/20 bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-400"><XCircle className="h-3 w-3" /> THẤT BẠI</span>
                     )}
                   </td>
-                  <td className="p-4 text-center">
+                  <td className="p-4 text-center"><TableRowActions renderActions={function renderRowActions() { return <>
                     <button onClick={() => setSelectedLog(item)} className="rounded-lg border border-slate-800 bg-slate-950 p-1.5 text-slate-400 transition hover:text-white" title="Xem chi tiết"><Eye className="h-3.5 w-3.5" /></button>
-                  </td>
+                  </>; }} /></td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </CommonTable>
         </div>
 
         <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-800 bg-slate-950/50 p-4 font-mono text-xs text-slate-400 md:flex-row">

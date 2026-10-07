@@ -1,5 +1,6 @@
 'use client';
 
+import { CommonTable } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
@@ -601,7 +602,7 @@ export function StaffAttendanceContent({
         </div>
 
         <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full min-w-[640px] text-left text-[11px]">
+          <CommonTable className="w-full min-w-[640px] text-left text-[11px]">
             <thead className="bg-slate-900/80 text-slate-500 uppercase tracking-wider">
               <tr>
                 <th className="px-3 py-2 font-black">Ngày</th>
@@ -646,7 +647,7 @@ export function StaffAttendanceContent({
                 })
               )}
             </tbody>
-          </table>
+          </CommonTable>
         </div>
 
         <DataTablePagination page={safeHistoryPage} pageSize={HISTORY_ITEMS_PER_PAGE} total={attendanceHistory.length} onPageChange={setHistoryPage} />

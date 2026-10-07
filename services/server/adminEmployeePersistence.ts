@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { activityHistoryEnabled } from './activityGate';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type AdminEmployeeDatabaseUpdate = Partial<{
@@ -66,14 +67,18 @@ export function sanitizeAdminMutationFailure(error: unknown) {
 }
 
 export async function persistAdminEmployee(
-  supabase: Pick<SupabaseClient, 'from'>,
+  supabase: Pick<SupabaseClient, 'from'> & Partial<Pick<SupabaseClient, 'rpc'>>,
   employeeId: string,
   payload: AdminEmployeeDatabaseUpdate,
-  trace: AdminMutationTrace
+  trace: AdminMutationTrace,
+  actorEmployeeId?: string
 ) {
   let mutationQuery: unknown;
   try {
-    mutationQuery = supabase.from('employees').update(payload).eq('id', employeeId);
+    if (activityHistoryEnabled()) {
+      if (!supabase.rpc || !actorEmployeeId) throw new Error('activity_context_missing');
+      mutationQuery = supabase.rpc('update_erp_record_with_history', { p_entity:'employee', p_id:employeeId, p_patch:payload, p_actor_id:actorEmployeeId, p_reason:null });
+    } else mutationQuery = supabase.from('employees').update(payload).eq('id', employeeId);
   } catch (error) {
     throw Object.assign(new Error('employee_query_construction_failed', { cause: error }), { failureStage: 'query_construction', diagnosticCause: error });
   }
