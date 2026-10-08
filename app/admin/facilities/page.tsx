@@ -213,7 +213,8 @@ export default function AdminFacilitiesManagement() {
       {hasFacilityStatus && <label className="flex items-center gap-2 text-xs text-slate-400"><input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} /> Hiện cả cơ sở ngừng hoạt động</label>}
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <CommonTable className="w-full text-left text-xs text-slate-300">
+        <div className="overflow-x-auto overscroll-x-contain" tabIndex={0} role="region" aria-label="Danh sách cơ sở làm việc">
+        <CommonTable className="min-w-[800px] text-left text-xs text-slate-300">
           <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px]">
             <tr>
               <th className="p-4 w-[25%]">Tên Cơ Sở / Chi Nhánh</th>
@@ -266,6 +267,7 @@ export default function AdminFacilitiesManagement() {
             )}
           </tbody>
         </CommonTable>
+        </div>
       </div>
 
       {showModal && (

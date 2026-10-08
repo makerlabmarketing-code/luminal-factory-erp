@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
 import {
   ArrowLeftRight,
   Box,
@@ -52,13 +52,72 @@ function AppSidebar({
   open,
   canSwitchWorkspace,
   onClose,
+  backgroundRef,
 }: {
+  backgroundRef: React.RefObject<HTMLDivElement | null>;
   groups: readonly AdminNavigationGroup[];
   open: boolean;
   canSwitchWorkspace: boolean;
   onClose: () => void;
 }) {
   const pathname = usePathname();
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
+    const background = backgroundRef.current;
+    if (!sidebar || !background) return;
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    const previousInert = background.inert;
+    let modalActive = false;
+    const focusable = () => Array.from(sidebar.querySelectorAll<HTMLElement>(
+      'a[href], button:not(:disabled), input:not(:disabled), [tabindex="0"]',
+    )).filter((element) => element.getClientRects().length > 0);
+    const syncLayout = () => {
+      modalActive = open && !desktop.matches;
+      sidebar.inert = !open && !desktop.matches;
+      background.inert = modalActive || previousInert;
+      document.body.style.overflow = modalActive ? "hidden" : previousOverflow;
+      if (modalActive) {
+        sidebar.setAttribute("role", "dialog");
+        sidebar.setAttribute("aria-modal", "true");
+        (focusable()[0] ?? sidebar).focus();
+      } else {
+        sidebar.removeAttribute("role");
+        sidebar.removeAttribute("aria-modal");
+        if (desktop.matches && open) onClose();
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!modalActive) return;
+      if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first) { event.preventDefault(); sidebar.focus(); return; }
+      if (!sidebar.contains(document.activeElement) || (event.shiftKey && document.activeElement === first)) {
+        event.preventDefault(); (event.shiftKey ? last : first).focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    syncLayout();
+    desktop.addEventListener("change", syncLayout);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      desktop.removeEventListener("change", syncLayout);
+      document.removeEventListener("keydown", handleKeyDown);
+      sidebar.inert = false;
+      sidebar.removeAttribute("role");
+      sidebar.removeAttribute("aria-modal");
+      background.inert = previousInert;
+      document.body.style.overflow = previousOverflow;
+      if (open && previousFocus?.isConnected && previousFocus.getClientRects().length > 0) previousFocus.focus();
+    };
+  }, [open, onClose, backgroundRef]);
 
   return (
     <>
@@ -70,6 +129,9 @@ function AppSidebar({
         />
       ) : null}
       <aside
+        ref={sidebarRef}
+        tabIndex={-1}
+        aria-label={ERP_UI_TEXT.navigation.ariaLabel}
         className={`admin-sidebar fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex h-16 items-center justify-between border-b px-5">
@@ -279,7 +341,7 @@ function AppHeader({
         </p>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <button type="button" onClick={onOpenCommandMenu} className="admin-search-button" aria-keyshortcuts="Control+K Meta+K">
+        <button type="button" onClick={onOpenCommandMenu} className="admin-search-button" aria-label={ERP_UI_TEXT.commandMenu.open} aria-keyshortcuts="Control+K Meta+K">
           <Search className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">{ERP_UI_TEXT.commandMenu.open}</span>
           <kbd className="hidden rounded border border-slate-700 px-1.5 py-0.5 text-[9px] font-medium text-slate-500 md:inline">
@@ -309,11 +371,14 @@ export function AdminAppShell({
 }) {
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [commandMenuOpen, setCommandMenuOpen] = useState(false);
+  const backgroundRef = useRef<HTMLDivElement>(null);
+  const closeNavigation = useCallback(() => setMobileNavigationOpen(false), []);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        setMobileNavigationOpen(false);
         setCommandMenuOpen((current) => !current);
       }
     };
@@ -328,9 +393,10 @@ export function AdminAppShell({
         groups={navigationGroups}
         open={mobileNavigationOpen}
         canSwitchWorkspace={canSwitchWorkspace}
-        onClose={() => setMobileNavigationOpen(false)}
+        onClose={closeNavigation}
+        backgroundRef={backgroundRef}
       />
-      <div className="min-w-0 lg:pl-64">
+      <div ref={backgroundRef} className="min-w-0 lg:pl-64">
         <AppHeader
           groups={navigationGroups}
           onOpenNavigation={() => setMobileNavigationOpen(true)}
