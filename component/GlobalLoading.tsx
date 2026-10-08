@@ -150,7 +150,7 @@ function GlobalLoadingOverlay({
         if (event.key === 'Tab') event.preventDefault();
       }}
     >
-      <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-2xl border border-blue-400/20 bg-slate-900/95 px-6 py-8 text-center shadow-2xl shadow-blue-950/40">
+      <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-2xl border luminal-brand-rim bg-slate-900/95 px-6 py-8 text-center shadow-2xl shadow-blue-950/40">
         <LuminalLoadingMark />
         <p className="text-sm font-bold text-white">{message}</p>
       </div>

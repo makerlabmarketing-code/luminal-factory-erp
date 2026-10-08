@@ -11,13 +11,9 @@ export function LuminalLoadingMark({ compact = false }: Pick<LuminalLoaderProps,
       className={compact ? 'luminal-loader luminal-loader--compact' : 'luminal-loader'}
       aria-hidden="true"
     >
-      <div className="luminal-loader__orbit">
-        <span className="luminal-loader__tile luminal-loader__tile--one" />
-        <span className="luminal-loader__tile luminal-loader__tile--two" />
-        <span className="luminal-loader__tile luminal-loader__tile--three" />
-        <span className="luminal-loader__tile luminal-loader__tile--four" />
-      </div>
-      <span className="luminal-loader__core"><LuminalLogo size={compact ? 24 : 32} decorative /></span>
+      <span className="luminal-loader__resin" />
+      <span className="luminal-loader__core"><LuminalLogo size={compact ? 32 : 64} decorative /></span>
+      <span className="luminal-loader__rail"><span className="luminal-loader__light" /></span>
     </div>
   );
 }

@@ -1,0 +1,5 @@
+## 2026-10-08 — Logo resin loading animation
+
+Owner-requested UI-only change: the shared loader now displays the approved gold/blue logo, a restrained blue breathing light and an indeterminate blue sweep on a static gold rail. Commerce has a locale-wide route fallback plus the same mark in its 3D loading state; ERP's existing route, compact and action-overlay callers inherit the mark. ERP uses a smaller mark and quicker cycle. No new dependency, data/API/migration change, percentage claim or artificial loading delay is introduced. Reduced-motion users see a static logo/rail; completion/unmount remains owned by the existing loading boundaries. The repositories contain independent presentation implementations; neither imports the other repository.
+
+Validation: lint, TypeScript and all existing tests pass (Commerce 376; ERP 922). Commerce production build passes; ERP build requires build-only placeholder public Supabase values in this environment, with production credentials left to Vercel. Rollback: revert this bounded loading change. Production confirmation is recorded after deployment rather than assumed from local checks.

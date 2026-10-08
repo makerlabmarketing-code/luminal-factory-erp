@@ -119,7 +119,7 @@ describe('global loading foundation', () => {
     expect(loaderSource).toMatch(/LuminalLoadingMark/);
     expect(loaderSource).toMatch(/role="status"/);
     expect(loaderSource).toMatch(/aria-busy="true"/);
-    expect(globalStyles).toMatch(/luminal-loader__orbit/);
+    expect(globalStyles).toMatch(/luminal-loader__rail/);
     expect(globalStyles).toMatch(/prefers-reduced-motion: reduce/);
   });
 
