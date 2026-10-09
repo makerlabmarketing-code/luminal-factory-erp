@@ -184,8 +184,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
         (employee.email || '').toLowerCase().includes(query);
       const matchesStatus = statusFilter === 'ALL'
         || (statusFilter === 'ACTIVE_EMPLOYEES' && employee.employmentStatus === 'ACTIVE')
-        || (statusFilter === 'INACTIVE_EMPLOYEES' && employee.employmentStatus !== 'ACTIVE')
-        || employee.accountConnectionStatus === statusFilter;
+        || (statusFilter === 'INACTIVE_EMPLOYEES' && employee.employmentStatus !== 'ACTIVE');
 
       return matchesText && matchesStatus;
     });
@@ -355,6 +354,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
             </span>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <select
+                aria-label="Lọc trạng thái nhân sự"
                 className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300 outline-none"
                 value={statusFilter}
                 onChange={(event) => {
@@ -365,11 +365,6 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
                 <option value="ACTIVE_EMPLOYEES">Nhân sự đang hoạt động</option>
                 <option value="INACTIVE_EMPLOYEES">Nhân sự ngừng hoạt động</option>
                 <option value="ALL">Tất cả nhân sự</option>
-                {Object.entries(accountStatusLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
               </select>
               <div className="relative sm:w-72">
                 <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
