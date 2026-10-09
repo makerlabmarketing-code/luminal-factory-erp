@@ -2,6 +2,8 @@
 
 ## Trạng thái và phạm vi
 
+Ngày 09/10/2026, owner đã duyệt E-009 trên sheet và trong hội thoại. Gói `forward.sql` đã áp dụng nguyên vẹn vào ERP Production dưới migration `20261009064809_erp_common_activity_history`. Postflight RLS/quyền/trigger/index đạt; `ERP_ACTIVITY_HISTORY_ENABLED=true` chỉ bật cho Production. Không chạy lại forward trên database đã có kho lịch sử. Bằng chứng và giới hạn kiểm thử tại `docs/common-activity-history-production-evidence.md`.
+
 Bảng chung áp dụng cho 16 màn có bảng HTML; dữ liệu, bộ lọc, phân trang và kiểm tra quyền vẫn thuộc từng màn. `TableRowActions` nhận callback JSX do màn khai báo; tối đa hai thao tác hiện trực tiếp, nhiều hơn thì giữ thao tác đầu và đưa phần còn lại vào `…`. Menu dùng portal tránh bị cắt bởi vùng cuộn, hỗ trợ Escape, đóng khi click/focus ra ngoài. Không có phụ thuộc mới.
 
 Lịch sử mới dành cho hồ sơ nhân sự và sổ thu chi. Hồ sơ nhân sự hiển thị thay đổi của hồ sơ đó và hoạt động thu chi do nhân sự thực hiện nếu người xem có quyền tài chính. Các phân hệ khác chưa được ghi vào kho này. Không tạo lại lịch sử quá khứ.
