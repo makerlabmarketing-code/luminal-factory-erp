@@ -1,10 +1,11 @@
 'use client';
 
 import { CommonTable } from '@/component/data-table/CommonTable';
+import { SectionLoadingState } from '@/component/LuminalLoader';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
-import { DataTableError, DataTablePagination, DataTableShell, DataTableSkeleton } from '@/component/data-table/DataTable';
+import { DataTableError, DataTablePagination, DataTableShell } from '@/component/data-table/DataTable';
 import { LogIn, LogOut, RefreshCcw, AlertTriangle, CheckCircle2, Building2 } from 'lucide-react';
 import {
   businessDateFromDateInput,
@@ -545,9 +546,9 @@ export function StaffAttendanceContent({
           </div>
         )}
 
-        <DataTableShell label="Lịch sử chấm công" height="compact" isRefreshing={fetching && attendanceHistory.length > 0}>
+        <DataTableShell label="Lịch sử chấm công" height="compact" brandedRefresh isRefreshing={fetching && attendanceHistory.length > 0}>
           {fetching && attendanceHistory.length === 0 ? (
-            <DataTableSkeleton rows={HISTORY_ITEMS_PER_PAGE} columns={5} />
+            <SectionLoadingState message="Đang tải lịch sử chấm công..." />
           ) : fetchError ? (
             <DataTableError message={fetchError} onRetry={() => void loadAttendanceData(historyMonthInput)} />
           ) : (

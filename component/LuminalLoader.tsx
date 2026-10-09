@@ -38,3 +38,10 @@ export function CenteredPageLoading({
     </main>
   );
 }
+
+export function SectionLoadingState({ message = 'Đang tải dữ liệu...' }: { message?: string }) {
+  return <div className="flex min-h-[14rem] flex-col items-center justify-center gap-4 px-4 py-8 text-center" role="status" aria-live="polite" aria-busy="true">
+    <LuminalLoadingMark />
+    <p className="text-sm text-slate-300">{message}</p>
+  </div>;
+}

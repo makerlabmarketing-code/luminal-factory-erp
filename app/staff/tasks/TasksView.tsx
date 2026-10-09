@@ -5,6 +5,7 @@ import type {
   WorkflowSetting,
   WorkflowTask,
 } from '@/lib/types/workflow';
+import { SectionLoadingState } from '@/component/LuminalLoader';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
@@ -220,11 +221,7 @@ export function StaffTasksContent({
   }, [allWorkflowTasks, workerId, workerName]);
 
   if (loading) {
-    return (
-      <div className="text-center p-6 text-xs text-slate-500 font-mono">
-        <RefreshCcw className="w-4 h-4 animate-spin text-purple-500 mx-auto mb-2" /> Đang tải ma trận đầu việc...
-      </div>
-    );
+    return <SectionLoadingState message="Đang tải công việc của bạn..." />;
   }
 
   return (

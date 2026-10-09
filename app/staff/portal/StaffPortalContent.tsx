@@ -1,7 +1,8 @@
 'use client';
 
+import { SectionLoadingState } from '@/component/LuminalLoader';
 import { useEffect, useMemo, useState } from 'react';
-import { Banknote, BriefcaseBusiness, ClipboardList, Clock, LayoutDashboard, RefreshCcw, User } from 'lucide-react';
+import { Banknote, BriefcaseBusiness, ClipboardList, Clock, LayoutDashboard, User } from 'lucide-react';
 import { LoadingLink } from '@/component/GlobalLoading';
 import { StaffAttendanceContent } from '../attendance/AttendanceView';
 import { StaffTasksContent } from '../tasks/TasksView';
@@ -68,11 +69,7 @@ export default function StaffPortalContent({
   );
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex justify-center items-center text-slate-400 text-xs font-mono">
-        <RefreshCcw className="w-4 h-4 animate-spin mr-2 text-purple-500" /> Đang dựng cấu trúc trạm đồng bộ...
-      </div>
-    );
+    return <SectionLoadingState message="Đang mở khu vực nhân viên..." />;
   }
 
   return (

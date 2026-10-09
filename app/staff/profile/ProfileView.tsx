@@ -1,8 +1,9 @@
 'use client';
 
+import { SectionLoadingState } from '@/component/LuminalLoader';
 import { useEffect, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
-import { Briefcase, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { Briefcase, ShieldCheck } from 'lucide-react';
 import type { Facility } from '@/lib/types/facility';
 import type { Employee } from '@/lib/types/employee';
 import type { SystemMetadataOption } from '@/lib/system-metadata-defaults';
@@ -69,11 +70,7 @@ export function StaffProfileContent({
   };
 
   if (loading) {
-    return (
-      <div className="text-center p-6 text-xs text-slate-500 font-mono">
-        <RefreshCcw className="w-4 h-4 animate-spin text-blue-500 mx-auto mb-2" /> Đang tải hồ sơ...
-      </div>
-    );
+    return <SectionLoadingState message="Đang tải hồ sơ..." />;
   }
 
   if (!worker) {

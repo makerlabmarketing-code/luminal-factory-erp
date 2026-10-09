@@ -1,6 +1,7 @@
 'use client';
 
 import { CommonTable } from '@/component/data-table/CommonTable';
+import { SectionLoadingState } from '@/component/LuminalLoader';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
@@ -12,7 +13,6 @@ import {
   ChevronRight,
   FileUp,
   Image as ImageIcon,
-  RefreshCcw,
   Search,
 } from 'lucide-react';
 import type { FinancialLedgerEntry } from '@/lib/types/finance';
@@ -174,11 +174,7 @@ export function StaffExpensesContent({
   }, [searchTerm, monthInput]);
 
   if (loading) {
-    return (
-      <div className="text-center p-6 text-xs text-slate-500 font-mono">
-        <RefreshCcw className="w-4 h-4 animate-spin text-emerald-500 mx-auto mb-2" /> Đang tải dữ liệu chi tiêu...
-      </div>
-    );
+    return <SectionLoadingState message="Đang tải dữ liệu chi tiêu..." />;
   }
 
   if (loadError) {

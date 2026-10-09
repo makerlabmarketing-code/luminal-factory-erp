@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { LuminalLoadingMark } from '@/component/LuminalLoader';
 import { AlertTriangle, ChevronLeft, ChevronRight, RefreshCcw } from 'lucide-react';
 
 export const DATA_TABLE_PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
@@ -20,12 +21,14 @@ export function DataTableShell({
   isRefreshing = false,
   label,
   className = '',
+  brandedRefresh = false,
 }: {
   children: ReactNode;
   height?: DataTableHeight;
   isRefreshing?: boolean;
   label: string;
   className?: string;
+  brandedRefresh?: boolean;
 }) {
   return (
     <section
@@ -35,7 +38,7 @@ export function DataTableShell({
     >
       {isRefreshing && (
         <div className="pointer-events-none absolute right-3 top-3 z-20 inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/95 px-3 py-1.5 text-[10px] font-bold text-slate-300" role="status" aria-live="polite">
-          <RefreshCcw className="h-3 w-3 animate-spin" /> Đang cập nhật...
+          {brandedRefresh ? <LuminalLoadingMark compact /> : <RefreshCcw className="h-3 w-3 animate-spin" />} Đang cập nhật...
         </div>
       )}
       {children}
