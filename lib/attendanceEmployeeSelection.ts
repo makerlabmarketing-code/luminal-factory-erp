@@ -6,6 +6,14 @@ export interface AttendanceEmployeeSelection {
   displayName: string;
 }
 
+/** Keep the complete directory for historical records; filter only picker options. */
+export function getAttendanceFilterEmployees(employees: Employee[]): Employee[] {
+  return employees.filter((employee) => {
+    const status = String(employee.status || '').trim().toUpperCase();
+    return employee.is_active !== false && !['INACTIVE', 'LOCKED', 'DISABLED', 'DELETED', 'ARCHIVED'].includes(status);
+  });
+}
+
 /**
  * Attendance relationships use employees.id. Never fall back to an email,
  * auth user id, or display name when the stable row id is unavailable.

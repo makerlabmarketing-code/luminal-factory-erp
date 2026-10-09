@@ -5,6 +5,7 @@ export interface Employee {
     email?: string | null;
     title?: string | null;
     status?: string | null;
+    is_active?: boolean | null;
     qr_token?: string | null;
     branch?: string | null;
     branch_code?: string | null;

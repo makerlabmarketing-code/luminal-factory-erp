@@ -23,7 +23,7 @@ export const ATTENDANCE_SELECT =
 export const ATTENDANCE_LOG_SELECT =
   'id, employee_id, check_in_time, check_out_time, hours_worked, earnings_today, status';
 export const EMPLOYEE_SELECT =
-  'id, full_name, title, status';
+  'id, full_name, title, status, is_active';
 export const SHIFT_SELECT = 'id, shift_name, start_time, end_time';
 
 export type AttendanceFailureStage =

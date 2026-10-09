@@ -16,6 +16,7 @@ import {
 } from '@/lib/business-date';
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
+import { getAttendanceFilterEmployees } from '@/lib/attendanceEmployeeSelection';
 import {
   type AttendanceScopeSummary,
   calculateFinalizedAttendanceSummary,
@@ -205,7 +206,10 @@ export default function AdminAttendanceManagement() {
       }
       if (requestId !== loadRequestIdRef.current) return;
 
-      setEmployees(payload.employees || []);
+      const nextEmployees = payload.employees || [];
+      setEmployees(nextEmployees);
+      const nextFilterEmployees = getAttendanceFilterEmployees(nextEmployees);
+      setFilterEmployeeId((selectedId) => nextFilterEmployees.some((employee) => String(employee.id) === selectedId) ? selectedId : '');
 
       setShifts(payload.shifts || []);
       setAttendanceRecords(payload.attendanceRecords || []);
@@ -278,6 +282,7 @@ export default function AdminAttendanceManagement() {
       monthInput,
     });
   const selectedMonthSummary = scopeSummary.selectedMonth;
+  const filterEmployees = useMemo(() => getAttendanceFilterEmployees(employees), [employees]);
   const outsideMonthSummary = scopeSummary.outsideSelectedMonth;
   const { firstWeekday: firstDayOfMonth, daysInMonth } = businessMonthCalendar(currentBusinessMonth);
 
@@ -301,7 +306,7 @@ export default function AdminAttendanceManagement() {
               onChange={e => setFilterEmployeeId(e.target.value)}
             >
               <option value="" className="bg-slate-900 text-slate-400">Tất cả nhân sự</option>
-              {employees.map(e => <option key={e.id} value={e.id} className="bg-slate-900 text-slate-200">{e.full_name}</option>)}
+              {filterEmployees.map(e => <option key={e.id} value={e.id} className="bg-slate-900 text-slate-200">{e.full_name}</option>)}
             </select>
           </div>
 
