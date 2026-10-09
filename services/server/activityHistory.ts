@@ -2,6 +2,7 @@ import 'server-only';
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import { AuthFlowError, hasPermission, requireWorkspaceAccess } from './auth';
 import { activityHref, type ActivityEntity, type ActivityEvent } from '@/lib/activity-history';
+import { collectActivityReferenceIds, formatActivityReferenceChanges } from '@/lib/activity-history-labels';
 
 export { activityHistoryEnabled } from './activityGate';
 import { activityHistoryEnabled } from './activityGate';
@@ -20,9 +21,18 @@ export async function getActivityHistory(entity: ActivityEntity, entityId: strin
   if(before) query=query.lt('id',before);
   const {data,error}=await query;
   if(error) throw new AuthFlowError({status:503,code:'service_unavailable',message:'Không thể tải lịch sử. Vui lòng thử lại.',failureStage:'persistence'});
-  const rows=data || [], ids=Array.from(new Set(rows.map(row=>row.actor_employee_id).filter(Boolean)));
+  const rows=(data || []).slice(0,50);
+  const references=collectActivityReferenceIds(rows.filter(row=>row.entity==='ledger').map(row=>row.changes_text));
+  const ids=Array.from(new Set([...rows.map(row=>row.actor_employee_id).filter(Boolean).map(String),...references.employee]));
   const names=new Map<string,string>();
   if(ids.length) { const result=await admin.from('employees').select('id,full_name').in('id',ids); if(result.error) throw new AuthFlowError({status:503,code:'service_unavailable',message:'Không thể tải người thao tác.',failureStage:'persistence'}); for(const row of result.data||[]) names.set(String(row.id),row.full_name); }
-  const events:ActivityEvent[]=rows.slice(0,50).map(row=>({id:String(row.id),occurredAt:row.occurred_at,actorName:row.actor_employee_id ? names.get(String(row.actor_employee_id))||'Nhân sự không còn trong danh sách' : 'Hệ thống / không xác định người thao tác',action:row.action,entity:row.entity,entityId:String(row.entity_id),screen:row.screen,summary:row.summary,changesText:row.changes_text,href:activityHref(row.entity,String(row.entity_id))}));
-  return {enabled:true,events,nextCursor:rows.length>50 ? events[events.length-1].id : null};
+  const projectNames=new Map<string,string>();
+  if(references.project.length) {
+    // FINANCE_VIEW already exposes these project names in the ledger selector.
+    const result=await admin.from('projects').select('id,project_name').in('id',references.project);
+    if(result.error) throw new AuthFlowError({status:503,code:'service_unavailable',message:'Không thể tải tên dự án trong lịch sử.',failureStage:'persistence'});
+    for(const row of result.data||[]) projectNames.set(String(row.id),row.project_name);
+  }
+  const events:ActivityEvent[]=rows.map(row=>({id:String(row.id),occurredAt:row.occurred_at,actorName:row.actor_employee_id ? names.get(String(row.actor_employee_id))||'Nhân sự không còn trong danh sách' : 'Hệ thống / không xác định người thao tác',action:row.action,entity:row.entity,entityId:String(row.entity_id),screen:row.screen,summary:row.summary,changesText:row.entity==='ledger' ? formatActivityReferenceChanges(row.changes_text,{project:projectNames,employee:names}) : row.changes_text,href:activityHref(row.entity,String(row.entity_id))}));
+  return {enabled:true,events,nextCursor:(data || []).length>50 ? events[events.length-1].id : null};
 }

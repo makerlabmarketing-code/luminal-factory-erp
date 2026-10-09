@@ -22,6 +22,13 @@ Owner duyệt ngày 09/10/2026: sheet Điều phối, E-009, Quyết định = C
 
 ## Dung lượng và phạm vi
 
+### Sửa tên tham chiếu trong lịch sử ngày 09/10/2026
+
+- Owner báo lịch sử hiển thị `Dự án: null → 9`. Read-only Production xác nhận sự kiện #1, giao dịch #115, dự án #9 có tên `Meowhe 1`.
+- Service đọc lịch sử lấy tên hiện tại từ `projects.project_name` và `employees.full_name` cho cả giá trị trước/sau của trường chọn dự án, người thực hiện, người hưởng lợi, người chi trả. Hiển thị tên kèm ID để phân biệt tên trùng; `null` thành `Chưa chọn`; bản ghi đã xóa giữ ID và ghi rõ không còn trong danh sách.
+- Giữ nguyên audit text trong database, quyền FINANCE_VIEW/EMPLOYEE_VIEW, phân trang 50 dòng, che dữ liệu riêng tư nhân sự và nguyên văn lý do. Tên là tên hiện tại, không phải ảnh chụp tên tại thời điểm thao tác. Không backfill hoặc sửa dữ liệu thật.
+- Kiểm thử hồi quy bao gồm tên trùng, tham chiếu đã xóa, cả hai phía thay đổi và lý do nhiều dòng giống cú pháp audit. Rollback bằng revert thay đổi service/helper; không cần rollback SQL.
+
 Ghi ID/thời điểm/người thao tác/entity/thao tác/màn/tóm tắt và text thay đổi tối đa 8 KiB. Không lưu snapshot, file hoặc giá trị riêng tư hồ sơ. Link dựng từ ID khi đọc. Hồ sơ nhân sự và sổ thu chi có lịch sử; các phân hệ khác chưa được ghi vào kho này.
 
 ## Rollback
