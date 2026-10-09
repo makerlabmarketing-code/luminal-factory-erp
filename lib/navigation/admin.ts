@@ -63,6 +63,7 @@ export const ADMIN_NAVIGATION_GROUPS: readonly AdminNavigationGroup[] = [
         icon: "commerceProducts",
         anyPermission: ["COMMERCE_PRODUCT_VIEW"],
       },
+      { name: 'Raffle', path: '/admin/commerce/raffles', icon: 'commerceProducts', anyPermission: ['COMMERCE_RAFFLE_VIEW'] },
       {
         name: ERP_UI_TEXT.navigation.items.homepageHero,
         path: "/admin/commerce/homepage-hero",
