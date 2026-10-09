@@ -893,7 +893,7 @@ export default function AdminFinancialLedger() {
               </section>
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
                 <h4 className="font-bold text-amber-300">Phê duyệt và lịch sử</h4>
-                <p className="text-[11px] text-slate-400">Chờ duyệt, Từ chối, Đã thanh toán và lịch sử kiểm toán sẽ được ghi qua biên máy chủ sau khi gói schema/RLS được duyệt.</p>
+                <p className="text-[11px] text-slate-400">{activityEnabled ? 'Thay đổi thông tin giao dịch được ghi vào lịch sử. Điều chỉnh bản ghi đã trả cần có lý do.' : 'Lịch sử hoạt động chưa được bật.'}</p>
               </section>
             </div>
             <div className="pt-2 border-t border-slate-800 flex gap-2"><button type="button" onClick={() => setShowAddModal(false)} disabled={isSubmitting} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition disabled:opacity-60">Hủy</button><button type="button" onClick={handleInsertLedger} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg disabled:opacity-60">{isSubmitting ? 'Đang ghi...' : 'Ghi sổ'}</button></div>
@@ -1036,7 +1036,7 @@ export default function AdminFinancialLedger() {
               </section>
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 lg:col-span-2">
                 <h4 className="font-bold text-amber-300">Phê duyệt và lịch sử</h4>
-                <p className="text-[11px] text-slate-400">Chờ duyệt, Từ chối, Đã thanh toán và lịch sử kiểm toán sẽ được ghi qua biên máy chủ sau khi gói schema/RLS được duyệt.</p>
+                <p className="text-[11px] text-slate-400">{activityEnabled ? 'Thay đổi thông tin giao dịch được ghi vào lịch sử. Điều chỉnh bản ghi đã trả cần có lý do.' : 'Lịch sử hoạt động chưa được bật.'}</p>
               </section>
             </div>
             {activityEnabled && editingPaid && <label className="block space-y-2"><span className="text-slate-300">Lý do điều chỉnh bản ghi đã trả <span className="text-red-300">*</span></span><textarea value={editCorrectionReason} onChange={event=>setEditCorrectionReason(event.target.value)} minLength={5} maxLength={500} className="admin-field" /><span className="block text-slate-500">Lịch sử ghi phần thay đổi và lý do. Trạng thái thanh toán giữ nguyên.</span></label>}

@@ -18,6 +18,7 @@ Owner duyệt ngày 09/10/2026: sheet Điều phối, E-009, Quyết định = C
 - Security Advisor: không cảnh báo mới cho hai hàm. INFO RLS/no-policy trên kho audit là chủ đích default-deny, đã đối chiếu quyền browser bị thu hồi. Các WARN thuộc các hàm/Auth đã có, không thay đổi trong slice này.
 - Mã ứng dụng ac1646c: 924 tests, lint, typecheck, build đã đạt trước khi bật cấu hình. Kiểm tra UI sau deploy và bằng chứng deployment cập nhật trong sheet E-009.
 - Giao dịch chỉnh sửa có ghi thực trên Production chưa được smoke bằng dữ liệu thật; kiểm tra nguyên tử/PAID thực hiện ở database tạm.
+- Production `3eaf4eb`, deployment `dpl_3B8C5twa6qtLESKJPJ98kzGJtefn` READY: tab lịch sử nhân sự và hộp lịch sử giao dịch tải được, hiển thị kho trống. Khoản hoàn ứng PAID kỳ 09/2026 có nút Điều chỉnh; người hưởng/người thực hiện/loại và trạng thái thanh toán bị khóa. Thiếu lý do bị chặn ngay ở form (5–500 ký tự), không gửi chỉnh sửa thật. Dòng mô tả chờ SQL cũ được thay bằng nội dung theo gate đang bật.
 
 ## Dung lượng và phạm vi
 
