@@ -5,6 +5,7 @@ export const HOMEPAGE_HERO_ASSET_MAX_BYTES = 10 * 1024 * 1024;
 
 export type CommerceAdminCapability =
   | 'COMMERCE_RAFFLE_VIEW'
+  | 'COMMERCE_RAFFLE_MANAGE'
   | 'COMMERCE_RAFFLE_ENTRY_VIEW'
   | 'COMMERCE_HOMEPAGE_HERO_VIEW'
   | 'COMMERCE_HOMEPAGE_HERO_MANAGE'
@@ -13,6 +14,7 @@ export type CommerceAdminCapability =
 
 export type CommerceAdminScope =
   | 'commerce.raffle.read'
+  | 'commerce.raffle.write'
   | 'commerce.raffle.entry.read'
   | 'commerce.hero.read'
   | 'commerce.hero.write'

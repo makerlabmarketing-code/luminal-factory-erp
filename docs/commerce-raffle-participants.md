@@ -25,3 +25,32 @@ publishing. New email queue, cron SQL, sender setup and live mail verification
 are governed by Commerce's `supabase/drafts/comeback-entry-email/README.md`.
 This participant screen does not select winners, collect payment or alter
 entries.
+
+10 October 2026: `/admin/commerce/raffles/:id` separates information editing
+from the participant list. The dedicated `COMMERCE_RAFFLE_MANAGE` permission
+allows title, summary, participation rules and the opening/closing window to
+be saved through the existing signed `commerce.raffle.write` PATCH contract.
+ERP rechecks the record before sending a write and offers editing only for
+unpublished, non-test DRAFT records. Commerce's existing `manage_raffle` RPC
+remains authoritative, including its entrant conflict rules. There is no new
+SQL, permission grant, publication action, price edit or email activation.
+
+The API rejects cross-origin requests, malformed JSON, extra mutation fields,
+invalid dates and bodies over 64 KB. Dates display and convert explicitly in
+UTC+7. Network retries of unchanged information reuse their operation ID;
+unsaved changes warn on reload and internal link navigation. History/back
+navigation and concurrent edits by another operator are not locked. The
+existing Commerce RPC has no revision/CAS guard, so avoid simultaneous edits
+or publication by multiple operators; ERP preflight is not an atomic lock.
+
+Validation: focused parser/service tests cover date boundaries, write scope,
+metadata preservation and access/state denial; repository lint, TypeScript,
+test suite and production build are required before delivery. Production UI
+checks are read-only and do not change the Comeback schedule or draft.
+`REVIEW_SOURCE_UNAVAILABLE`: no current external Code Review findings were
+supplied; available review sources are static analysis, tests and self-review.
+
+Rollback: revert this ERP app-only change. No database rollback is needed and
+existing raffle or participant records are retained. Check list/participant
+reads and permission denial after rollback. Colorway association, authoritative
+80 USD price, publication and the email SQL gate remain separate dependencies.
