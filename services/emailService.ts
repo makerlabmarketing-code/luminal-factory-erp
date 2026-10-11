@@ -2,6 +2,7 @@ import 'server-only';
 
 import nodemailer from 'nodemailer';
 import { createServerSupabaseClient } from '@/utils/supabase/server';
+import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import { mergeAttendanceRecords, isAttendanceRecordOverdue } from '@/services/attendanceService';
 import { businessDateFromInstant, formatBusinessDateInput } from '@/lib/business-date';
 import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
@@ -11,13 +12,13 @@ export const EMAIL_SERVER_ENVIRONMENT_KEYS = [
   'EMAIL_DELIVERY_ENABLED', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM_NAME',
 ] as const;
 
-type EmailFailureCode = 'DELIVERY_DISABLED' | 'PROVIDER_NOT_CONFIGURED' | 'INVALID_TEMPLATE' | 'MISSING_PLACEHOLDERS' | 'PROVIDER_AUTH' | 'PROVIDER_NETWORK' | 'PROVIDER_REJECTED';
+type EmailFailureCode = 'DELIVERY_DISABLED' | 'PROVIDER_NOT_CONFIGURED' | 'INVALID_TEMPLATE' | 'MISSING_PLACEHOLDERS' | 'PROVIDER_AUTH' | 'PROVIDER_NETWORK' | 'PROVIDER_REJECTED' | 'INVALID_RECIPIENT';
 export class EmailDeliveryError extends Error {
   constructor(public readonly code: EmailFailureCode, message: string, public readonly status = 422) { super(message); this.name = 'EmailDeliveryError'; }
 }
 
 interface EmailTemplateRecord { id: number; group_type?: string | null; template_name?: string | null; subject?: string | null; html_content?: string | null; body?: string | null; }
-interface EmailHistoryRecord { recipient: string; subject: string; group_type: string; body: string; status: 'SUCCESS' | 'FAILED'; sent_at: string; error_message?: string | null; }
+interface EmailHistoryRecord { recipient: string; subject: string; group_type: string; body: string; status: 'SUCCESS' | 'FAILED'; sent_at: string; }
 const PLACEHOLDER = /{{\s*([A-Za-z0-9_]+)\s*}}|\[([A-Za-z0-9_]+)\]/g;
 
 export function sanitizeEmailCorrelationId(value?: string): string {
@@ -34,8 +35,11 @@ export function renderEmailTemplate(template: Pick<EmailTemplateRecord, 'subject
   if (!subjectSource || !htmlSource) throw new EmailDeliveryError('INVALID_TEMPLATE', 'Mẫu email cần có tiêu đề và nội dung.');
   const placeholders = getTemplatePlaceholders(subjectSource, htmlSource);
   const missingPlaceholders = placeholders.filter((key) => !String(variables[key] ?? '').trim());
-  const replace = (input: string) => input.replace(PLACEHOLDER, (_, curly, square) => variables[curly || square] ?? '');
-  return { subject: replace(subjectSource), html: replace(htmlSource), missingPlaceholders, placeholders };
+  const replace = (input: string, html: boolean) => input.replace(PLACEHOLDER, (_, curly, square) => {
+    const value = variables[curly || square] ?? '';
+    return html ? value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!)) : value.replace(/[\r\n]/g, ' ');
+  });
+  return { subject: replace(subjectSource, false), html: replace(htmlSource, true), missingPlaceholders, placeholders };
 }
 function stripHtmlTags(value: string) { return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); }
 function getRequiredEnvValue(key: typeof EMAIL_SERVER_ENVIRONMENT_KEYS[number]) { return String(process.env[key] || '').trim(); }
@@ -46,11 +50,11 @@ export function getSmtpConfig() {
   const user = getRequiredEnvValue('SMTP_USER'); const pass = getRequiredEnvValue('SMTP_PASS').replace(/\s+/g, '');
   const missing = [!host && 'SMTP_HOST', !port && 'SMTP_PORT', !user && 'SMTP_USER', !pass && 'SMTP_PASS'].filter(Boolean);
   if (missing.length) throw new EmailDeliveryError('PROVIDER_NOT_CONFIGURED', `Chưa cấu hình dịch vụ gửi email. Biến server còn thiếu: ${missing.join(', ')}.`, 503);
-  if (port < 1 || port > 65535) throw new EmailDeliveryError('PROVIDER_NOT_CONFIGURED', 'SMTP_PORT không hợp lệ.', 503);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new EmailDeliveryError('PROVIDER_NOT_CONFIGURED', 'SMTP_PORT không hợp lệ.', 503);
   return { host, port, user, pass, fromName: getRequiredEnvValue('SMTP_FROM_NAME') || 'Luminal ERP', secure: port === 465 };
 }
 export async function getEmailTemplateById(templateId: number): Promise<EmailTemplateRecord> {
-  let query = createServerSupabaseClient()
+  let query = createSupabaseAdminClient()
     .from('email_templates')
     .select('id, group_type, template_name, subject, html_content, body')
     .eq('id', templateId);
@@ -61,7 +65,7 @@ export async function getEmailTemplateById(templateId: number): Promise<EmailTem
   return data as EmailTemplateRecord;
 }
 export async function getEmailTemplateByGroup(groupType: string): Promise<EmailTemplateRecord> {
-  let query = createServerSupabaseClient()
+  let query = createSupabaseAdminClient()
     .from('email_templates')
     .select('id, group_type, template_name, subject, html_content, body')
     .eq('group_type', groupType);
@@ -71,14 +75,53 @@ export async function getEmailTemplateByGroup(groupType: string): Promise<EmailT
   if (!data) throw new EmailDeliveryError('INVALID_TEMPLATE', `Chưa cấu hình mẫu email đang hoạt động cho nhóm ${groupType}.`, 404);
   return data as EmailTemplateRecord;
 }
-async function logEmailHistory(payload: EmailHistoryRecord) { const { error } = await createServerSupabaseClient().from('email_history').insert([{ ...payload, error_message: payload.error_message || null }]); if (error) console.error('[erp-email-history]', { failure: 'history_write_failed', code: String(error.code || 'unknown') }); }
+async function logEmailHistory(payload: EmailHistoryRecord): Promise<boolean> {
+  try {
+    const { error } = await createSupabaseAdminClient().from('email_history').insert([payload]);
+    if (!error) return true;
+    console.error('[erp-email-history]', { failure: 'history_write_failed', code: String(error.code || 'unknown') });
+  } catch {
+    console.error('[erp-email-history]', { failure: 'history_write_failed' });
+  }
+  return false;
+}
+export function isSingleEmailAddress(value: string): boolean {
+  return /^[^\s@<>,;"\r\n]+@[^\s@<>,;"\r\n]+\.[^\s@<>,;"\r\n]+$/.test(value);
+}
 function classifyProviderFailure(error: unknown): EmailDeliveryError { const record = error as { code?: string; responseCode?: number }; if (record?.code === 'EAUTH') return new EmailDeliveryError('PROVIDER_AUTH', 'Dịch vụ gửi email từ chối xác thực.', 502); if (/ETIMEDOUT|ESOCKET|ECONNREFUSED|ENOTFOUND/.test(record?.code || '')) return new EmailDeliveryError('PROVIDER_NETWORK', 'Không thể kết nối dịch vụ gửi email.', 502); return new EmailDeliveryError('PROVIDER_REJECTED', 'Dịch vụ gửi email từ chối yêu cầu.', 502); }
 async function sendWithTemplate(params: { template: EmailTemplateRecord; recipient: string; variables?: Record<string, string>; correlationId?: string }) {
-  const correlationId = sanitizeEmailCorrelationId(params.correlationId); const config = getSmtpConfig();
+  const correlationId = sanitizeEmailCorrelationId(params.correlationId);
+  const recipient = params.recipient.trim();
+  if (!isSingleEmailAddress(recipient)) throw new EmailDeliveryError('INVALID_RECIPIENT', 'Email người nhận không hợp lệ.');
+  const config = getSmtpConfig();
   const rendered = renderEmailTemplate(params.template, params.variables || {});
   if (rendered.missingPlaceholders.length) throw new EmailDeliveryError('MISSING_PLACEHOLDERS', `Thiếu giá trị cho biến: ${rendered.missingPlaceholders.join(', ')}.`);
-  try { const result = await nodemailer.createTransport({ host: config.host, port: config.port, secure: config.secure, auth: { user: config.user, pass: config.pass } }).sendMail({ from: `"${config.fromName}" <${config.user}>`, to: params.recipient, subject: rendered.subject, html: rendered.html, text: stripHtmlTags(rendered.html), headers: { 'X-Correlation-ID': correlationId } }); await logEmailHistory({ recipient: params.recipient, subject: rendered.subject, group_type: params.template.group_type || 'SYSTEM', body: rendered.html, status: 'SUCCESS', sent_at: new Date().toISOString() }); console.info('[erp-email-delivery]', { correlationId, outcome: 'success', templateId: params.template.id }); return { messageId: result.messageId, subject: rendered.subject, correlationId };
-  } catch (error) { const failure = classifyProviderFailure(error); await logEmailHistory({ recipient: params.recipient, subject: rendered.subject, group_type: params.template.group_type || 'SYSTEM', body: rendered.html, status: 'FAILED', sent_at: new Date().toISOString(), error_message: failure.code }); console.error('[erp-email-delivery]', { correlationId, outcome: 'failed', failureCode: failure.code, templateId: params.template.id }); throw failure; }
+  let messageId: string;
+  try {
+    const result = await nodemailer.createTransport({
+      host: config.host, port: config.port, secure: config.secure,
+      requireTLS: !config.secure, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
+      auth: { user: config.user, pass: config.pass },
+    }).sendMail({
+      from: { name: config.fromName, address: config.user }, to: recipient,
+      subject: rendered.subject, html: rendered.html, text: stripHtmlTags(rendered.html),
+      headers: { 'X-Correlation-ID': correlationId },
+    });
+    if (!result.accepted?.some((address: string | { address: string }) =>
+      (typeof address === 'string' ? address : address.address).toLowerCase() === recipient.toLowerCase())) {
+      throw new EmailDeliveryError('PROVIDER_REJECTED', 'Dịch vụ gửi email từ chối người nhận.', 502);
+    }
+    messageId = result.messageId;
+  } catch (error) {
+    const failure = error instanceof EmailDeliveryError ? error : classifyProviderFailure(error);
+    await logEmailHistory({ recipient, subject: rendered.subject, group_type: params.template.group_type || 'SYSTEM', body: rendered.html, status: 'FAILED', sent_at: new Date().toISOString() });
+    console.error('[erp-email-delivery]', { correlationId, outcome: 'failed', failureCode: failure.code, templateId: params.template.id });
+    throw failure;
+  }
+  // An SMTP acceptance must never be treated as a failed send merely because logging failed.
+  const historyRecorded = await logEmailHistory({ recipient, subject: rendered.subject, group_type: params.template.group_type || 'SYSTEM', body: rendered.html, status: 'SUCCESS', sent_at: new Date().toISOString() });
+  console.info('[erp-email-delivery]', { correlationId, outcome: 'success', templateId: params.template.id, historyRecorded });
+  return { messageId, subject: rendered.subject, correlationId, historyRecorded };
 }
 export async function sendTemplateEmail(params: { templateId: number; recipient: string; variables?: Record<string, string>; correlationId?: string }) { return sendWithTemplate({ ...params, template: await getEmailTemplateById(params.templateId) }); }
 export async function sendTemplateEmailByGroup(params: { groupType: string; recipient: string; variables?: Record<string, string>; correlationId?: string }) { return sendWithTemplate({ ...params, template: await getEmailTemplateByGroup(params.groupType) }); }

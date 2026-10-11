@@ -1,6 +1,7 @@
 import type { AdminLedgerMutationInput, FinancialLedgerEntry } from '@/lib/types/finance';
 
 interface LedgerResponse {
+  salaryPaymentEmailEnabled: boolean;
   activityHistoryEnabled: boolean;
   canUpdate: boolean;
   ledger: FinancialLedgerEntry[];
@@ -59,11 +60,15 @@ export async function updateAdminFinancialLedger(ledgerId: number | string, inpu
   await payload(response);
 }
 
-export async function setAdminFinancialLedgerPaid(ledgerId: number | string, isPaid: boolean) {
+export async function setAdminFinancialLedgerPaid(ledgerId: number | string, isPaid: boolean, salaryMonth?: string) {
   const response = await fetch(`/api/admin/finance/ledger/${ledgerId}`, {
-    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isPaid }),
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isPaid, salaryMonth }),
   });
-  await payload(response);
+  return await payload(response) as { success: boolean; notification?: { status: import('@/lib/salary-payment').SalaryEmailStatus; message: string } };
+}
+
+export async function retrySalaryLedgerEmail(ledgerId: number | string) {
+  return await payload(await fetch(`/api/admin/finance/ledger/${ledgerId}`, { method: 'POST', credentials: 'include' })) as { notification: { status: import('@/lib/salary-payment').SalaryEmailStatus; message: string } };
 }
 
 export async function uploadAdminLedgerAttachment(ledgerId: number | string, file: File) {

@@ -1,5 +1,6 @@
 import 'server-only';
 import { activityHistoryEnabled } from './activityGate';
+import { confirmSalaryLedgerPayment, isSalaryLedger, salaryPaymentEmailEnabled, salaryEmailStatuses } from './salaryPaymentEmail';
 
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
 import {
@@ -364,8 +365,10 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     attachmentCount: Array.from(attachments.values()).reduce((total, entries) => total + entries.length, 0),
   });
 
+  const emailStatuses = await salaryEmailStatuses(rows.map((row) => row.id));
   return {
     success: true as const,
+    salaryPaymentEmailEnabled: salaryPaymentEmailEnabled(),
     companyBankCode: process.env.COMPANY_BANK_CODE || 'MB',
     companyBankAccount: process.env.COMPANY_BANK_ACCOUNT || '',
     transactionTypes: financeMetadata.transactionTypes,
@@ -382,6 +385,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     },
     ledger: rows.map((row) => ({
       ...resolveLedgerPeople(row, employeeNames),
+      salaryEmailStatus: emailStatuses.get(String(row.id)) || null,
       attachments: attachments.get(String(row.id)) || (row.bill_url ? [{ id: `legacy:${row.id}`, originalFilename: 'Chứng từ cũ', mimeType: 'application/octet-stream', sizeBytes: 0, legacyUrl: row.bill_url }] : []),
     })),
   };
@@ -391,6 +395,7 @@ export async function createAdminFinancialLedger(body: Record<string, unknown>) 
   const auth = await requireFinance('FINANCE_CREATE');
   await requireExtendedLedgerSchema();
   let input = validatedMutation(body);
+  if (salaryPaymentEmailEnabled() && input.isPaid && isSalaryLedger(input)) resourceConflict('Tạo khoản lương chưa trả trước, rồi xác nhận Đã trả để ghi nhận email.');
   if (extendedLedgerEnabled() && !input.idempotencyKey) {
     throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Thiếu mã chống ghi trùng của giao dịch.', failureStage: 'validation' });
   }
@@ -455,16 +460,21 @@ export async function updateAdminFinancialLedger(ledgerId: number, body: Record<
   return { success: true as const };
 }
 
-export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: boolean) {
+export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: boolean, salaryMonth?: unknown) {
   await requireFinance('FINANCE_UPDATE');
   await requireExtendedLedgerSchema();
   const admin = createSupabaseAdminClient();
-  const { data: target, error: targetError } = await admin.from('financial_ledger').select('id, type, category, is_paid').eq('id', ledgerId).maybeSingle();
+  const { data: targetData, error: targetError } = await admin.from('financial_ledger').select('id, type, category, is_paid' + (salaryPaymentEmailEnabled() ? ', source_type' : '')).eq('id', ledgerId).maybeSingle();
+  const target = targetData as { id: number; type: FinancialLedgerEntry['type']; category: string; is_paid: boolean; source_type?: string | null } | null;
   if (targetError) persistenceError('Không thể tải giao dịch cần cập nhật trạng thái.');
   if (!target) resourceNotFound('Không tìm thấy giao dịch cần cập nhật trạng thái.');
   if (activityHistoryEnabled() && target.is_paid && !isPaid) resourceConflict('Điều chỉnh bản ghi đã trả phải giữ nguyên trạng thái thanh toán.');
   if (target.type === 'HOAN_UNG') resourceConflict('Phiếu hoàn ứng chỉ được xác nhận thanh toán qua quy trình hoàn ứng.');
-  if (isManagedCounterRow(target.type, target.category)) resourceConflict('Dòng đối ứng chỉ do hệ thống quản lý.');
+  if (isManagedCounterRow(target.type ?? null, target.category)) resourceConflict('Dòng đối ứng chỉ do hệ thống quản lý.');
+  if (salaryPaymentEmailEnabled() && isSalaryLedger(target)) {
+    if (!isPaid) resourceConflict('Không đổi khoản lương đã trả về chưa trả.');
+    return confirmSalaryLedgerPayment(ledgerId, salaryMonth);
+  }
   const values = extendedLedgerEnabled() ? { is_paid: isPaid, payment_status: isPaid ? 'PAID' : 'UNPAID', updated_at: new Date().toISOString() } : { is_paid: isPaid };
   const { data, error } = await admin.from('financial_ledger').update(values).eq('id', ledgerId).select('id').maybeSingle();
   if (error) persistenceError('Không thể cập nhật trạng thái thanh toán.');

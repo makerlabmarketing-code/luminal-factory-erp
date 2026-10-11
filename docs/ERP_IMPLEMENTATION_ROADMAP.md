@@ -1250,3 +1250,7 @@ Application lint/TypeScript/build and native production evidence are recorded in
 coordination sheet E-009. NEW PRODUCTION SQL NOT RUN; history gate stays off until
 explicit owner approval, read-only postflight and activation. Forward SQL SHA256:
 861b3c48c976072dfd50c4bb1b2f70fabb78148f5938e34efb0bc264ba69aa8e.
+
+## E-010 · Salary payment notification (11/10/2026)
+
+Owner selected **Sổ thu chi → Đã trả → employee email**, keeping payroll settlement separate. Application and immutable notification draft complete; activation is `LIVE_APPROVAL_REQUIRED`. SMTP/history drift fixed; 954 tests and local SQL transaction/rollback checks passed. Full package: `supabase/drafts/salary-payment-email/README.md`. Production has no SMTP config or salary template. Do not mark the flow live verified, infer a salary month from ledger period, send retroactive wages, or activate automatic delivery before exact SQL/configuration/controlled-recipient approval. Existing E-009 history is deployed; only its aggregate owner acceptance remains outstanding.
