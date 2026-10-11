@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { AuthFlowError } from '@/services/server/auth';
 import { setAdminFinancialLedgerPaid } from '@/services/server/adminFinancialLedger';
+import { retrySalaryLedgerEmail } from '@/services/server/salaryPaymentEmail';
 import { updateAdminFinancialLedgerAtomicAware } from '@/services/server/adminFinancialLedgerAtomic';
 
 function id(value: string): number {
@@ -35,10 +36,16 @@ export async function PUT(request: Request, props: { params: Promise<{ ledgerId:
 export async function PATCH(request: Request, props: { params: Promise<{ ledgerId: string }> }) {
   const params = await props.params;
   try {
-    const body = await jsonBody(request) as { isPaid?: unknown };
+    const body = await jsonBody(request) as { isPaid?: unknown; salaryMonth?: unknown };
     if (typeof body.isPaid !== 'boolean') throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Trạng thái thanh toán không hợp lệ.', failureStage: 'validation' });
-    return NextResponse.json(await setAdminFinancialLedgerPaid(id(params.ledgerId), body.isPaid));
+    return NextResponse.json(await setAdminFinancialLedgerPaid(id(params.ledgerId), body.isPaid, body.salaryMonth));
   } catch (error) {
     return failure(error);
   }
+}
+
+export async function POST(_request: Request, props: { params: Promise<{ ledgerId: string }> }) {
+  const params = await props.params;
+  try { return NextResponse.json(await retrySalaryLedgerEmail(id(params.ledgerId)), { headers: { 'Cache-Control': 'no-store' } }); }
+  catch (error) { return failure(error); }
 }

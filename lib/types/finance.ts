@@ -24,6 +24,7 @@ export interface FinancialLedgerEntry {
   source_type?: string | null;
   source_reference?: string | null;
   attachments?: FinanceAttachment[];
+  salaryEmailStatus?: import('../salary-payment').SalaryEmailStatus | null;
 }
 
 export interface FinanceAttachment {

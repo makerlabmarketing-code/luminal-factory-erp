@@ -1,4 +1,5 @@
 'use client';
+import { SALARY_EMAIL_LABELS, isSalaryLedger } from '@/lib/salary-payment';
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { Fragment, useState } from 'react';
 import { Check, Edit2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon, X, ArrowDownLeft, ArrowUpRight, RefreshCcw } from 'lucide-react';
@@ -7,6 +8,8 @@ import type { FinancialLedgerEntry } from '@/lib/types/finance';
 type LedgerRow = FinancialLedgerEntry & { linkedChild?: FinancialLedgerEntry | null };
 
 interface LedgerTableProps {
+  salaryMailEnabled: boolean;
+  onRetrySalaryEmail: (id: number | string) => void;
   activityEnabled: boolean;
   canUpdate: boolean;
   onHistory: (item: LedgerRow) => void;
@@ -25,6 +28,7 @@ interface LedgerTableProps {
 
 export default function LedgerTable({
   data,
+  salaryMailEnabled, onRetrySalaryEmail,
   activityEnabled, canUpdate, onHistory,
   onTogglePaid,
   onOpenEdit,
@@ -121,13 +125,14 @@ export default function LedgerTable({
                     </span>
                   ) : (
                     <button
-                      disabled={isOrphanedCounterEntry || !canUpdate || (activityEnabled && Boolean(l.is_paid))}
+                      disabled={isOrphanedCounterEntry || !canUpdate || (salaryMailEnabled && isSalaryLedger(l) && !reimbursementCapabilities.canPay) || (activityEnabled && Boolean(l.is_paid))}
                       onClick={() => onTogglePaid(l.id, Boolean(l.is_paid))}
                       className={`whitespace-nowrap rounded border px-2.5 py-1.5 text-[10px] font-black ${isOrphanedCounterEntry ? 'cursor-not-allowed opacity-60' : ''} ${l.is_paid ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-amber-500/20 bg-amber-500/10 text-amber-500'}`}
                     >
                       {l.is_paid ? 'Đã trả' : 'Treo nợ'}
                     </button>
                   )}
+                  {l.salaryEmailStatus && <p className="mt-1 text-[10px] text-slate-400">{SALARY_EMAIL_LABELS[l.salaryEmailStatus]}</p>}
                 </td>
                 <td className="p-4 text-right font-mono font-bold text-slate-200">{Number(l.amount).toLocaleString()} đ</td>
                 <td className="whitespace-nowrap p-4 text-center"><TableRowActions renderActions={function renderRowActions() { return <>
@@ -163,6 +168,7 @@ export default function LedgerTable({
                       </>
                     )}
                   </div>
+                    {salaryMailEnabled && canUpdate && reimbursementCapabilities.canPay && (l.salaryEmailStatus === 'PENDING' || l.salaryEmailStatus === 'BLOCKED') && <button type="button" onClick={() => onRetrySalaryEmail(l.id)} className="admin-button-secondary">Thử gửi email</button>}
                     <button type="button" onClick={()=>onHistory(l)} className="admin-button-secondary">Lịch sử</button>
                 </>; }} /></td>
               </tr>

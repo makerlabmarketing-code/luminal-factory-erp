@@ -1,5 +1,6 @@
 import 'server-only';
 import { activityHistoryEnabled } from './activityGate';
+import { isSalaryLedger, salaryPaymentEmailEnabled } from './salaryPaymentEmail';
 import { validateCorrectionReason } from '@/lib/activity-history';
 
 import {
@@ -17,6 +18,7 @@ type OriginalLedgerRow = {
   type: string | null;
   category: string | null;
   requested_by: string | null;
+  source_type?: string | null;
   is_paid?: boolean | null;
 };
 
@@ -162,12 +164,13 @@ export async function updateAdminFinancialLedgerAtomicAware(
 
   const { data, error } = await admin
     .from('financial_ledger')
-    .select('id, type, category, requested_by, is_paid')
+    .select('id, type, category, requested_by, is_paid' + (salaryPaymentEmailEnabled() ? ', source_type' : ''))
     .eq('id', ledgerId)
     .maybeSingle();
   if (error) persistenceError('Không thể tải giao dịch cần cập nhật.');
   const original = data as OriginalLedgerRow | null;
   if (!original) notFound('Không tìm thấy giao dịch cần cập nhật.');
+  if (salaryPaymentEmailEnabled() && !original.is_paid && input.isPaid && (isSalaryLedger(original) || isSalaryLedger(input))) conflict('Xác nhận khoản lương qua nút Đã trả để ghi nhận tháng lương và email.');
   if (isManagedCounterRow(original)) conflict('Dòng đối ứng chỉ do hệ thống quản lý.');
 
   const linkCount = await existingLinkCount(original);

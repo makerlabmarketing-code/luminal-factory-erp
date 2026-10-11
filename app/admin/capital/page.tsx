@@ -1,5 +1,7 @@
 // app/admin/capital/page.tsx
 'use client';
+import { isSalaryLedger, normalizeSalaryMonth } from '@/lib/salary-payment';
+import { retrySalaryLedgerEmail } from '@/services/adminFinancialLedgerService';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import ActivityHistoryDialog from '@/component/ActivityHistoryDialog';
@@ -170,6 +172,7 @@ function LedgerTableLoadingState() {
 export default function AdminFinancialLedger() {
   const { showToast } = useNotification();
   const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
+  const [salaryMailEnabled, setSalaryMailEnabled] = useState(false);
   const [ledger, setLedger] = useState<FinancialLedgerEntry[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [transactionTypes, setTransactionTypes] = useState<SystemMetadataOption[]>(() => [...DEFAULT_FINANCIAL_TRANSACTION_TYPES]);
@@ -267,6 +270,7 @@ export default function AdminFinancialLedger() {
 
   const applyLedgerResult = useCallback((ledgerResult: Awaited<ReturnType<typeof loadAdminFinancialLedger>>) => {
     setLedger(ledgerResult.ledger);
+    setSalaryMailEnabled(ledgerResult.salaryPaymentEmailEnabled);
     setActivityEnabled(ledgerResult.activityHistoryEnabled);
     setCanUpdateLedger(ledgerResult.canUpdate);
     setExtendedSchemaEnabled(ledgerResult.extendedSchemaEnabled);
@@ -553,16 +557,40 @@ export default function AdminFinancialLedger() {
     }
   };
 
+  const handleRetrySalaryEmail = async (id: number | string) => {
+    if (paymentActionLock.current) return;
+    paymentActionLock.current = true;
+    try {
+      const result = await retrySalaryLedgerEmail(id);
+      showToast('Thông báo lương', result.notification.message, 'info');
+      await refreshLedger();
+    } catch (error) { showToast('Chưa gửi email', error instanceof Error ? error.message : 'Tải lại để kiểm tra kết quả.', 'error'); }
+    finally { paymentActionLock.current = false; }
+  };
+
   const handleTogglePaid = async (id: number | string, currentStatus: boolean) => {
     if (paymentActionLock.current) return;
+    const row = ledger.find((entry) => String(entry.id) === String(id));
+    let salaryMonth: string | undefined;
+    if (salaryMailEnabled && row && isSalaryLedger(row) && !currentStatus) {
+      const chosen = prompt('Tháng lương đã chuyển tiền (MM/YYYY). Nhập đúng tháng lương, có thể khác kỳ sổ:');
+      if (chosen === null) return;
+      if (!normalizeSalaryMonth(chosen)) return showToast('Tháng lương không hợp lệ', 'Nhập theo MM/YYYY.', 'error');
+      salaryMonth = chosen.trim();
+      if (!confirm(`Xác nhận đã chuyển ${Number(row.amount).toLocaleString('vi-VN')} đồng lương tháng ${salaryMonth} cho ${row.beneficiary_name || 'Người hưởng lợi'} và gửi thông báo email?`)) return;
+    }
     paymentActionLock.current = true;
     showGlobalLoading('Đang lưu thay đổi...');
     try {
-      await setAdminFinancialLedgerPaid(id, !currentStatus);
+      const result = await setAdminFinancialLedgerPaid(id, !currentStatus, salaryMonth);
       setLedger(prev => prev.map(l => l.id === id ? { ...l, is_paid: !currentStatus } : l));
-      showToast('Đổi trạng thái', 'Đã cập nhật trạng thái tất toán.', 'info');
+      showToast('Đã cập nhật thanh toán', result.notification?.message || 'Đã cập nhật trạng thái tất toán.', result.notification?.status === 'BLOCKED' || result.notification?.status === 'UNKNOWN' ? 'info' : 'success');
+      if (result.notification) {
+        try { await refreshLedger(); }
+        catch { showToast('Đã ghi nhận thanh toán', 'Chưa tải lại được trạng thái email. Không xác nhận thanh toán lần nữa.', 'info'); }
+      }
     } catch (error) {
-      showToast('Không thể đổi trạng thái', 'Dữ liệu chưa được cập nhật. Vui lòng thử lại.', 'error');
+      showToast('Không thể đổi trạng thái', error instanceof Error ? error.message : 'Không thể kiểm tra kết quả. Tải lại sổ trước khi thử lại.', 'error');
     } finally {
       paymentActionLock.current = false;
       hideGlobalLoading();
@@ -759,6 +787,8 @@ export default function AdminFinancialLedger() {
         ) : (
           <LedgerTable
             data={currentLedgerData}
+            salaryMailEnabled={salaryMailEnabled}
+            onRetrySalaryEmail={handleRetrySalaryEmail}
             onTogglePaid={handleTogglePaid}
             onOpenEdit={handleOpenEdit} activityEnabled={activityEnabled} canUpdate={canUpdateLedger} onHistory={(item) => setHistoryId(String(item.id))}
             onGenerateQr={handleGenerateVietQR}

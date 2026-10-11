@@ -35,3 +35,7 @@ This slice does not authorize bulk sends, automatic production delivery, enablin
 - Confirm a Staff/non-authorized account receives denial.
 - Confirm rapid double-click results in only one provider request.
 - Re-disable immediately if provider authentication, network, rejection, or history recording validation fails.
+
+## Salary payment notification
+
+E-010 uses the individual salary expense's **Đã trả** action, never payroll settlement alone. `SALARY_PAYMENT_EMAIL_ENABLED` defaults off; SQL, template, provider and controlled smoke prerequisites are documented in `supabase/drafts/salary-payment-email/README.md`. SMTP acceptance and inbox delivery are different outcomes. A history write failure must not lead to a duplicate resend. Current history insert uses only the seven deployed columns; classified SMTP errors stay in sanitized application logs.
