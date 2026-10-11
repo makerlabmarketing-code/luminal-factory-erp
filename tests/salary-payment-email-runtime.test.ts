@@ -18,7 +18,7 @@ vi.mock('@/utils/supabase/admin', () => ({ createSupabaseAdminClient: () => ({ r
 } }) }));
 import { confirmSalaryLedgerPayment } from '../services/server/salaryPaymentEmail';
 const environment={...process.env};
-beforeEach(() => { vi.clearAllMocks();state.permission=true;state.queue.status='PENDING';state.snapshots=[];process.env.SALARY_PAYMENT_EMAIL_ENABLED='true';state.rpc.mockResolvedValue({data:state.queue.id,error:null});state.send.mockResolvedValue({messageId:'accepted',historyRecorded:true}); });
+beforeEach(() => { vi.clearAllMocks();state.permission=true;state.queue.status='PENDING';state.queue.recipient='staff@example.test';state.snapshots=[];process.env.SALARY_PAYMENT_EMAIL_ENABLED='true';state.rpc.mockResolvedValue({data:state.queue.id,error:null});state.send.mockResolvedValue({messageId:'accepted',historyRecorded:true}); });
 afterEach(() => {process.env={...environment};});
 describe('salary payment commit and notification outcomes', () => {
   it('denies permission and missing month before payment or provider requests',async()=>{
@@ -51,5 +51,10 @@ describe('salary payment commit and notification outcomes', () => {
   it('lets concurrent confirmations reserve only one SMTP attempt',async()=>{
     await Promise.all([confirmSalaryLedgerPayment(106,'06/2026'),confirmSalaryLedgerPayment(106,'06/2026')]);
     expect(state.send).toHaveBeenCalledTimes(1);
+  });
+  it('uses the recipient locked by the claim when a pre-attempt repair races with loading',async()=>{
+    state.smtp.mockImplementationOnce(()=>{state.queue.recipient='repaired@example.test';});
+    await confirmSalaryLedgerPayment(106,'06/2026');
+    expect(state.send.mock.calls[0][0].recipient).toBe('repaired@example.test');
   });
 });

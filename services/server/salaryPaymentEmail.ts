@@ -59,10 +59,11 @@ async function dispatchSalaryEmail(queueId: string): Promise<SalaryEmailResult> 
     await admin.from('salary_payment_emails').update({ status: 'BLOCKED', failure_code: reason }).eq('id', queueId).in('status', ['PENDING', 'BLOCKED']);
     return { status: 'BLOCKED', message: 'Đã ghi nhận thanh toán; email chưa gửi. Kiểm tra email nhân sự, mẫu email và cấu hình gửi.' };
   }
-  const claimed = await admin.from('salary_payment_emails').update({ status: 'SENDING', attempted_at: new Date().toISOString(), failure_code: null }).eq('id', queueId).in('status', ['PENDING', 'BLOCKED']).select('id').maybeSingle();
+  const claimed = await admin.from('salary_payment_emails').update({ status: 'SENDING', attempted_at: new Date().toISOString(), failure_code: null }).eq('id', queueId).in('status', ['PENDING', 'BLOCKED']).select(QUEUE_SELECT).maybeSingle();
   if (claimed.error || !claimed.data) return { status: 'SENDING', message: 'Đã ghi nhận thanh toán; thông báo đang được xử lý. Không gửi lại.' };
   try {
-    const result = await sendTemplateEmail({ templateId, recipient: row.recipient!, variables, correlationId: queueId });
+    // Use the recipient locked by the claim: another pre-attempt repair may have changed it since loading.
+    const result = await sendTemplateEmail({ templateId, recipient: (claimed.data as SalaryQueueRow).recipient!, variables, correlationId: queueId });
     const recorded = await admin.from('salary_payment_emails').update({ status: 'ACCEPTED', message_id: result.messageId, history_recorded: result.historyRecorded }).eq('id', queueId).eq('status', 'SENDING');
     return recorded.error
       ? { status: 'UNKNOWN', message: 'Dịch vụ email đã nhận yêu cầu, nhưng chưa lưu được kết quả. Không gửi lại; cần kiểm tra lịch sử.' }
