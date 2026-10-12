@@ -2,6 +2,12 @@
 
 Application scope approved by the owner: Sổ thu chi → Đã trả → email to the employee beneficiary. Settlement is a separate amount-finalization step. Application delivery/merge is allowed; the production SQL and automatic email activation remain separate gates.
 
+## Production approval · 12/10/2026
+
+Owner approved the exact SQL package with “duyệt r đó chạy thôi”. The unchanged forward SQL is promoted to `supabase/migrations/20261012013842_salary_payment_email.sql` for the protected-main GitHub Integration delivery path. Preflight: ERP ACTIVE_HEALTHY, queue/RPC absent, no salary template, deployed columns and service-role grants match. SHA-256 remains the exact approved value below; PGlite checks pass. Application #225/#226 is already Production READY; 955 tests pass.
+
+Production still has no SMTP_HOST/PORT/USER/PASS or EMAIL_DELIVERY_ENABLED. SQL approval is recorded; outbound email remains disabled until operator configures SMTP and a controlled recipient/fixture is identified. Do not use real salary entries as test fixtures. Postflight evidence belongs to the coordination sheet E-010; do not claim inbox delivery from SQL success.
+
 ## Findings verified read-only
 
 - ERP Production at audit: `46a073bea6bb2ae5d448d5f40657c56050c8c078`, deployment `dpl_HUX72DunYAN6BHkgFtYjMMiX4a1W`, READY.
