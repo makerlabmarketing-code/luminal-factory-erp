@@ -10,6 +10,7 @@ import { getSmtpConfig, renderEmailTemplate, sendTemplateEmail } from '../servic
 const environment = { ...process.env };
 beforeEach(() => {
   vi.clearAllMocks();
+  delete process.env.SMTP_FROM_EMAIL;
   Object.assign(process.env, { EMAIL_DELIVERY_ENABLED: 'true', SMTP_HOST: 'smtp.example.test', SMTP_PORT: '587', SMTP_USER: 'sender@example.test', SMTP_PASS: 'fake-test-only' });
   state.transport.mockReturnValue({ sendMail: state.send });
   state.send.mockResolvedValue({ accepted: ['staff@example.test'], messageId: 'receipt-1' });
@@ -22,6 +23,18 @@ describe('SMTP delivery and history runtime', () => {
     expect(await send()).toMatchObject({ historyRecorded: true, messageId: 'receipt-1' });
     expect(Object.keys(state.insert.mock.calls[0][0][0]).sort()).toEqual(['body','group_type','recipient','sent_at','status','subject']);
     expect(state.transport.mock.calls[0][0]).toMatchObject({ requireTLS: true, connectionTimeout: 10000, socketTimeout: 15000 });
+  });
+  it('separates Resend SMTP credentials from the sender address', async () => {
+    process.env.SMTP_USER = 'resend';
+    process.env.SMTP_FROM_EMAIL = 'hr@luminalfactory.com';
+    await send();
+    expect(state.transport.mock.calls[0][0].auth.user).toBe('resend');
+    expect(state.send.mock.calls[0][0].from.address).toBe('hr@luminalfactory.com');
+  });
+  it('rejects a non-email SMTP username without an explicit sender before sending', async () => {
+    process.env.SMTP_USER = 'resend';
+    await expect(send()).rejects.toMatchObject({ code: 'PROVIDER_NOT_CONFIGURED' });
+    expect(state.transport).not.toHaveBeenCalled();
   });
   it('does not reclassify SMTP acceptance when history persistence fails', async () => {
     state.insert.mockRejectedValue(new Error('history unavailable'));
