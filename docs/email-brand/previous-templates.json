@@ -1,0 +1,47 @@
+[
+  {
+    "id": 7,
+    "group_type": "RAFFLE_ENTRY_RECEIVED",
+    "template_name": "Raffle - Entry received",
+    "subject": "Luminal Factory · Raffle entry received",
+    "html_content": "<p>Hi {{customer_name}},</p><p>Your raffle entry has been received successfully.</p><p>This entry is not an order and does not guarantee a purchase.</p><p>We will contact you again only if your entry advances in the raffle flow.</p><p>Luminal Factory</p>",
+    "body": "Hi {{customer_name}}, your raffle entry has been received successfully. This entry is not an order and does not guarantee a purchase.",
+    "is_active": true
+  },
+  {
+    "id": 8,
+    "group_type": "RAFFLE_WINNER_PAYMENT_REQUEST",
+    "template_name": "Raffle - Winner payment request",
+    "subject": "Luminal Factory · Winner payment request · {{order_id}}",
+    "html_content": "<p>Hi {{customer_name}},</p><p>Your raffle entry has been confirmed as a winner allocation.</p><p>Order reference: <strong>{{order_id}}</strong></p><p>Total amount due: <strong>{{amount}}</strong></p><p>Please follow the payment instructions provided by Luminal Factory. Payment is considered complete only after our team verifies receipt.</p><p>Luminal Factory</p>",
+    "body": "Hi {{customer_name}}. Winner payment request for {{order_id}}. Total amount due: {{amount}}.",
+    "is_active": true
+  },
+  {
+    "id": 9,
+    "group_type": "RAFFLE_PAYMENT_CONFIRMED",
+    "template_name": "Raffle - Payment confirmed",
+    "subject": "Luminal Factory · Payment confirmed · {{order_id}}",
+    "html_content": "<p>Hi {{customer_name}},</p><p>We have confirmed payment for order <strong>{{order_id}}</strong>.</p><p>Confirmed amount: <strong>{{amount}}</strong></p><p>Your keycap is now moving into fulfillment. Delivery timing will be communicated by the Luminal Factory team.</p><p>Thank you.</p>",
+    "body": "Hi {{customer_name}}. Payment for {{order_id}} has been confirmed. Amount: {{amount}}.",
+    "is_active": true
+  },
+  {
+    "id": 10,
+    "group_type": "RAFFLE_ALLOCATION_CANCELLED",
+    "template_name": "Raffle - Allocation cancelled",
+    "subject": "Luminal Factory · Raffle allocation update · {{order_id}}",
+    "html_content": "<p>Hi {{customer_name}},</p><p>Your raffle allocation for reference <strong>{{order_id}}</strong> has been cancelled.</p><p>If you believe this is unexpected, please contact Luminal Factory support.</p>",
+    "body": "Hi {{customer_name}}. Your raffle allocation for {{order_id}} has been cancelled.",
+    "is_active": true
+  },
+  {
+    "id": 11,
+    "group_type": "SALARY_PAYMENT_CONFIRMED",
+    "template_name": "Lương — Đã xác nhận thanh toán",
+    "subject": "Luminal Factory · Đã thanh toán lương {{salary_month}}",
+    "html_content": "<p>Chào {{employee_name}},</p><p>Luminal Factory đã xác nhận thanh toán lương tháng <strong>{{salary_month}}</strong>.</p><p>Số tiền: <strong>{{amount}} đồng</strong><br>Ngày xác nhận: {{payment_date}}<br>Mã khoản chi: {{ledger_id}}</p><p>Bạn vui lòng kiểm tra tài khoản nhận tiền và liên hệ người quản lý nếu có sai lệch.</p><p>Luminal Factory</p>",
+    "body": "Chào {{employee_name}}, Luminal Factory đã xác nhận thanh toán lương tháng {{salary_month}}, số tiền {{amount}} đồng, ngày {{payment_date}}, khoản chi {{ledger_id}}. Vui lòng kiểm tra tài khoản và liên hệ người quản lý nếu có sai lệch.",
+    "is_active": true
+  }
+]
