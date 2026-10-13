@@ -9,6 +9,7 @@ ERP business notifications use a server-only SMTP provider. This boundary is sep
 - `SMTP_PORT`
 - `SMTP_USER`
 - `SMTP_PASS` — secret; never expose with a `NEXT_PUBLIC_` prefix.
+- `SMTP_FROM_EMAIL` — sender address on the verified provider domain; required when SMTP_USER is not an email (Resend uses `resend`).
 - `SMTP_FROM_NAME` — optional display name; defaults to `Luminal ERP`.
 
 When the gate is enabled but provider values are absent, Admin receives **Chưa cấu hình dịch vụ gửi email** plus the missing server variable names. The application does not crash and does not expose values.

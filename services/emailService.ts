@@ -9,7 +9,7 @@ import type { AttendanceRecord, Shift } from '@/lib/types/attendance';
 import type { Employee } from '@/lib/types/employee';
 
 export const EMAIL_SERVER_ENVIRONMENT_KEYS = [
-  'EMAIL_DELIVERY_ENABLED', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM_NAME',
+  'EMAIL_DELIVERY_ENABLED', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM_EMAIL', 'SMTP_FROM_NAME',
 ] as const;
 
 type EmailFailureCode = 'DELIVERY_DISABLED' | 'PROVIDER_NOT_CONFIGURED' | 'INVALID_TEMPLATE' | 'MISSING_PLACEHOLDERS' | 'PROVIDER_AUTH' | 'PROVIDER_NETWORK' | 'PROVIDER_REJECTED' | 'INVALID_RECIPIENT';
@@ -51,7 +51,9 @@ export function getSmtpConfig() {
   const missing = [!host && 'SMTP_HOST', !port && 'SMTP_PORT', !user && 'SMTP_USER', !pass && 'SMTP_PASS'].filter(Boolean);
   if (missing.length) throw new EmailDeliveryError('PROVIDER_NOT_CONFIGURED', `Chưa cấu hình dịch vụ gửi email. Biến server còn thiếu: ${missing.join(', ')}.`, 503);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new EmailDeliveryError('PROVIDER_NOT_CONFIGURED', 'SMTP_PORT không hợp lệ.', 503);
-  return { host, port, user, pass, fromName: getRequiredEnvValue('SMTP_FROM_NAME') || 'Luminal ERP', secure: port === 465 };
+  const fromEmail = getRequiredEnvValue('SMTP_FROM_EMAIL') || user;
+  if (!isSingleEmailAddress(fromEmail)) throw new EmailDeliveryError('PROVIDER_NOT_CONFIGURED', 'SMTP_FROM_EMAIL cần là địa chỉ email hợp lệ thuộc tên miền gửi đã xác thực.', 503);
+  return { host, port, user, pass, fromEmail, fromName: getRequiredEnvValue('SMTP_FROM_NAME') || 'Luminal ERP', secure: port === 465 };
 }
 export async function getEmailTemplateById(templateId: number): Promise<EmailTemplateRecord> {
   let query = createSupabaseAdminClient()
@@ -103,7 +105,7 @@ async function sendWithTemplate(params: { template: EmailTemplateRecord; recipie
       requireTLS: !config.secure, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
       auth: { user: config.user, pass: config.pass },
     }).sendMail({
-      from: { name: config.fromName, address: config.user }, to: recipient,
+      from: { name: config.fromName, address: config.fromEmail }, to: recipient,
       subject: rendered.subject, html: rendered.html, text: stripHtmlTags(rendered.html),
       headers: { 'X-Correlation-ID': correlationId },
     });
