@@ -7,14 +7,14 @@ function source(path: string) {
 
 describe('project phase template metadata persistence', () => {
   it('passes application-layer template metadata from project create into phase persistence', () => {
-    const pageSource = source('app/admin/projects/page.tsx');
+    const pageSource = source('lib/project-checklist.ts');
     const serviceSource = source('services/workflowService.ts');
     const repositorySource = source('services/repositories/workflowRepository.ts');
 
     expect(pageSource).toMatch(/stage_type: stage\.type/);
-    expect(pageSource).toMatch(/colorway_name: colorwayName\.trim\(\)/);
+    expect(pageSource).toMatch(/colorway_name: params\.colorwayName\.trim\(\)/);
     expect(serviceSource).toMatch(/phases: params\.phases/);
-    expect(repositorySource).toMatch(/phases: params\.phases \|\| \[\]/);
+    expect(repositorySource).toMatch(/phases: checklist\.phases/);
     expect(repositorySource).toMatch(/body: JSON\.stringify/);
   });
 

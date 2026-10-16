@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
+import { staffTaskActions } from '@/lib/staff-task-actions';
 import { canTransitionTaskStatus } from '@/services/taskAssignmentFoundation';
 import { AuthFlowError, requireWorkspaceAccess } from '@/services/server/auth';
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
@@ -45,7 +46,7 @@ type PhaseRow = {
   status: string | null;
 };
 
-const UPDATE_KEYS = new Set(['taskId', 'status', 'deadline', 'note']);
+const UPDATE_KEYS = new Set(['taskId', 'status', 'deadline', 'note', 'expectedStatus']);
 
 function jsonNoStore(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
@@ -76,6 +77,7 @@ function requestedNormalizedStatus(value: unknown): NormalizedTaskStatus {
   if (value === 'TODO') return 'READY';
   if (value === 'DOING') return 'IN_PROGRESS';
   if (value === 'DONE') return 'COMPLETED';
+  if (typeof value === 'string' && ['BACKLOG', 'READY', 'IN_PROGRESS', 'PENDING_REVIEW', 'REVISION_REQUIRED', 'APPROVED', 'BLOCKED', 'ON_HOLD', 'COMPLETED', 'CANCELLED'].includes(value)) return value as NormalizedTaskStatus;
   throw new AuthFlowError({
     status: 422,
     code: 'payload_validation_failed',
@@ -178,6 +180,7 @@ async function loadAssignedWorkflow(employeeId: number, employeeName: string): P
       assignedToText: employeeName,
       currentPhaseText: phase?.name || 'Chưa xếp giai đoạn',
       status: toLegacyStatus(task.status),
+      rawStatus: task.status || 'READY',
       deadline: dateOnly(task.deadline),
       estimationDate: dateOnly(task.deadline),
       note: '',
@@ -235,7 +238,7 @@ export async function PATCH(request: NextRequest) {
     const taskId = Number(body.taskId);
     if (!Number.isInteger(taskId) || taskId <= 0) throw new AuthFlowError({ status: 422, code: 'payload_validation_failed', message: 'Mã công việc không hợp lệ.', failureStage: 'payload_validation' });
     const note = typeof body.note === 'string' ? body.note.trim() : '';
-    if (!note) throw new AuthFlowError({ status: 422, code: 'payload_validation_failed', message: 'Vui lòng nhập nội dung báo cáo tiến độ.', failureStage: 'payload_validation' });
+    if (body.note !== undefined && typeof body.note !== 'string') throw new AuthFlowError({ status: 422, code: 'payload_validation_failed', message: 'Ghi chú không hợp lệ.', failureStage: 'payload_validation' });
 
     const supabase = createSupabaseAdminClient();
     const taskResult = await supabase
@@ -259,34 +262,22 @@ export async function PATCH(request: NextRequest) {
 
     const currentStatus = task.status || 'READY';
     const requestedStatus = requestedNormalizedStatus(body.status);
-    const updatePayload: Record<string, unknown> = { updated_by_employee_id: employeeId, updated_at: new Date().toISOString() };
-    if (toLegacyStatus(currentStatus) !== body.status) {
-      if (!canTransitionTaskStatus(currentStatus, requestedStatus)) {
-        throw new AuthFlowError({ status: 422, code: 'payload_validation_failed', message: 'Chuyển trạng thái công việc không hợp lệ.', failureStage: 'payload_validation' });
-      }
-      updatePayload.status = requestedStatus;
-      if (requestedStatus === 'COMPLETED') updatePayload.completed_at = new Date().toISOString();
+    if (body.expectedStatus !== undefined && requestedNormalizedStatus(body.expectedStatus) !== currentStatus) throw new AuthFlowError({ status: 409, code: 'payload_validation_failed', message: 'Công việc vừa thay đổi. Hãy tải lại.', failureStage: 'payload_validation' });
+    if (requestedStatus === 'BLOCKED' && !note) throw new AuthFlowError({ status: 422, code: 'payload_validation_failed', message: 'Vui lòng ghi ngắn gọn bạn đang vướng gì.', failureStage: 'payload_validation' });
+    if (currentStatus !== requestedStatus && (!canTransitionTaskStatus(currentStatus, requestedStatus) || !staffTaskActions(currentStatus).some((action) => action.status === requestedStatus))) {
+      throw new AuthFlowError({ status: 422, code: 'payload_validation_failed', message: 'Chuyển trạng thái công việc không hợp lệ.', failureStage: 'payload_validation' });
     }
-
-    const nextDeadline = validatedDeadline(body.deadline);
-    if (dateOnly(task.deadline) !== dateOnly(nextDeadline)) updatePayload.deadline = nextDeadline;
-
-    if (Object.keys(updatePayload).length > 2) {
-      const updateResult = await supabase.from('tasks').update(updatePayload).eq('id', taskId).eq('assignee_employee_id', employeeId);
-      if (updateResult.error) throw new Error(`task_update:${updateResult.error.code ?? 'unknown'}`);
-    }
-
-    const commentResult = await supabase.from('task_comments').insert([{ project_id: Number(task.project_id), task_id: taskId, employee_id: employeeId, body: note }]);
-    if (commentResult.error) throw new Error(`task_comment:${commentResult.error.code ?? 'unknown'}`);
-
-    return jsonNoStore({
-      success: true,
-      task: {
-        taskId,
-        status: toLegacyStatus((updatePayload.status as NormalizedTaskStatus | undefined) || currentStatus),
-        deadline: body.deadline === null ? '' : String(body.deadline || dateOnly(task.deadline)),
-      },
+    const { data, error } = await supabase.rpc('update_staff_checklist_task', {
+      p_task_id: taskId, p_employee_id: employeeId, p_expected_status: currentStatus,
+      p_next_status: requestedStatus, p_note: note || null,
+      p_deadline: Object.hasOwn(body, 'deadline') ? validatedDeadline(body.deadline) : null,
+      p_change_deadline: Object.hasOwn(body, 'deadline'),
     });
+    if (error) throw new AuthFlowError({ status: 503, code: 'admin_verification_failed', message: 'Chức năng cập nhật checklist chưa sẵn sàng. Vui lòng thử lại sau.', failureStage: 'persistence' });
+    const result = data as { success?: boolean; status?: NormalizedTaskStatus; deadline?: string | null; code?: string; message?: string } | null;
+    if (!result?.success) throw new AuthFlowError({ status: result?.code === 'stale_task' ? 409 : 422, code: 'payload_validation_failed', message: result?.message || 'Không thể cập nhật công việc. Hãy tải lại.', failureStage: 'payload_validation' });
+    return jsonNoStore({ success: true, task: { taskId, status: toLegacyStatus(result.status || requestedStatus), rawStatus: result.status || requestedStatus, deadline: dateOnly(result.deadline) } });
+
   } catch (error) {
     return safeError(error);
   }

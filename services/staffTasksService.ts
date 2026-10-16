@@ -10,6 +10,7 @@ export function parseWorkflowDescription(description?: string | null): WorkflowD
     const parsed = JSON.parse(description || '{}') as WorkflowDescription;
 
     return {
+      ...parsed,
       project_drive_link: parsed.project_drive_link || '',
       project_deadline: parsed.project_deadline || '',
       tasks_list: Array.isArray(parsed.tasks_list) ? parsed.tasks_list : [],
@@ -73,7 +74,7 @@ export function buildWorkflowEditMaps(workflowItems: WorkflowSetting[]): {
 
     parsed.tasks_list?.forEach((task, index) => {
       editableTasks[`${item.key}_TASK_${index}`] = {
-        status: task.status || 'TODO',
+        status: task.rawStatus || task.status || 'TODO',
         deadline: task.deadline || '',
         note: '',
       };
@@ -166,22 +167,22 @@ export async function updateStaffWorkflowTask(params: {
   }
 
   const note = params.bufferedTask.note.trim();
-  if (!note) {
-    throw new Error('Vui lòng nhập nội dung báo cáo tiến độ.');
-  }
 
   const response = await fetch('/api/staff/tasks', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       taskId: task.id,
+      expectedStatus: task.rawStatus || task.status,
       status: params.bufferedTask.status,
-      deadline: params.bufferedTask.deadline || null,
+      ...(params.bufferedTask.deadline !== (task.deadline || '')
+        ? { deadline: params.bufferedTask.deadline || null } : {}),
       note,
     }),
   });
   const payload = await response.json().catch(() => null) as {
-    task?: { status?: string; deadline?: string };
+    task?: { status?: string; rawStatus?: string; deadline?: string };
+    warning?: string;
     message?: string;
   } | null;
 
@@ -192,9 +193,11 @@ export async function updateStaffWorkflowTask(params: {
   parsed.tasks_list[params.taskIndex] = {
     ...task,
     status: payload?.task?.status || params.bufferedTask.status,
+    rawStatus: payload?.task?.rawStatus || task.rawStatus,
     deadline: payload?.task?.deadline ?? params.bufferedTask.deadline,
-    note: '',
+    note: payload?.warning ? note : '',
   };
+  if (payload?.warning) throw new Error(payload.warning);
 
   return JSON.stringify(parsed);
 }

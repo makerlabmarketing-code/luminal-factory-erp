@@ -13,8 +13,8 @@ describe('task comment textarea', () => {
     const staffTasksView = source('app/staff/tasks/TasksView.tsx');
 
     expect(staffTasksView).toMatch(/<textarea/);
-    expect(staffTasksView).toMatch(/rows=\{4\}/);
-    expect(staffTasksView).toMatch(/Nhập báo cáo tiến độ gửi sếp/);
+    expect(staffTasksView).toMatch(/rows=\{2\}/);
+    expect(staffTasksView).toMatch(/Chỉ cần ghi khi có vướng mắc/);
     expect(staffTasksView).not.toMatch(/type="number"[\s\S]{0,240}taskBuffer\.note/);
   });
 
@@ -22,9 +22,9 @@ describe('task comment textarea', () => {
     const staffTasksView = source('app/staff/tasks/TasksView.tsx');
 
     expect(staffTasksView).toMatch(/savingTaskKey/);
-    expect(staffTasksView).toMatch(/if \(savingTaskKey === targetKey\) return/);
-    expect(staffTasksView).toMatch(/if \(!bufferedData\.note\.trim\(\)\)/);
-    expect(staffTasksView).toMatch(/disabled=\{isSavingThisTask\}/);
+    expect(staffTasksView).toMatch(/if \(taskSaveLockRef\.current\) return/);
+    expect(staffTasksView).toMatch(/bufferedData\.status === 'BLOCKED' && !bufferedData\.note\.trim\(\)/);
+    expect(staffTasksView).toMatch(/disabled=\{savingTaskKey !== null\}/);
   });
 
   it('trims only on submit, resets after success, and keeps content on error', () => {

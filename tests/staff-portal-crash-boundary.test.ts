@@ -113,7 +113,7 @@ describe('staff portal crash boundary', () => {
     expect(payroll).toMatch(/setError/);
     expect(payroll).toMatch(/Thử lại/);
     expect(tasks).toMatch(/catch \(error\)/);
-    expect(tasks).toMatch(/showToast\('Thất bại'/);
+    expect(tasks).toMatch(/showToast\('Không thể cập nhật'/);
     expect(tasks).not.toMatch(/throw new Error/);
   });
 });

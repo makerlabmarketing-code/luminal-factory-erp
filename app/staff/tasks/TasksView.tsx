@@ -5,6 +5,7 @@ import type {
   WorkflowSetting,
   WorkflowTask,
 } from '@/lib/types/workflow';
+import { STAFF_TASK_LABELS, staffTaskActions, staffTaskStatus } from '@/lib/staff-task-actions';
 import { SectionLoadingState } from '@/component/LuminalLoader';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -58,6 +59,7 @@ export function StaffTasksContent({
   const [editableTasks, setEditableTasks] = useState<Record<string, EditableWorkflowTask>>({});
   const [savingTaskKey, setSavingTaskKey] = useState<string | null>(null);
   const refreshLockRef = useRef(false);
+  const taskSaveLockRef = useRef(false);
 
   const loadTasksData = useCallback(async () => {
     if (!workerData) {
@@ -130,19 +132,21 @@ export function StaffTasksContent({
     }));
   };
 
-  const handleSaveSpecificTask = async (item: WorkflowSetting, taskIdx: number) => {
+  const handleSaveSpecificTask = async (item: WorkflowSetting, taskIdx: number, nextStatus?: string) => {
     const targetKey = `${item.key}_TASK_${taskIdx}`;
-    if (savingTaskKey === targetKey) return;
+    if (taskSaveLockRef.current) return;
 
     try {
-      const bufferedData = editableTasks[targetKey];
+      const bufferedData = editableTasks[targetKey] ? { ...editableTasks[targetKey], ...(nextStatus ? { status: nextStatus } : {}) } : undefined;
 
       if (!bufferedData) return;
-      if (!bufferedData.note.trim()) {
-        showToast('Thiếu bình luận', 'Vui lòng nhập nội dung bình luận.', 'error');
+      if (bufferedData.status === 'BLOCKED' && !bufferedData.note.trim()) {
+        handleBufferChange(item.key, taskIdx, 'status', 'BLOCKED');
+        showToast('Báo vướng', 'Ghi ngắn gọn bạn đang vướng gì rồi bấm Lưu.', 'info');
         return;
       }
 
+      taskSaveLockRef.current = true;
       setSavingTaskKey(targetKey);
       const updatedDescription = await updateStaffWorkflowTask({
         item,
@@ -167,6 +171,7 @@ export function StaffTasksContent({
         ...prev,
         [targetKey]: {
           ...prev[targetKey],
+          status: bufferedData.status,
           note: '',
         },
       }));
@@ -174,8 +179,9 @@ export function StaffTasksContent({
       showToast('Đồng bộ thành công', '✓ Đã cập nhật tiến độ việc con trực tiếp lên hệ thống!', 'success');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể cập nhật đầu việc.';
-      showToast('Thất bại', message, 'error');
+      showToast('Không thể cập nhật', message, 'error');
     } finally {
+      taskSaveLockRef.current = false;
       setSavingTaskKey(null);
     }
   };
@@ -484,25 +490,11 @@ export function StaffTasksContent({
                                   </p>
                                 </div>
 
-                                <select
-                                  disabled={!isAssignedToMe}
-                                  value={taskBuffer.status}
-                                  onChange={(event) =>
-                                    handleBufferChange(
-                                      phase.key,
-                                      task.__globalIdx,
-                                      'status',
-                                      event.target.value
-                                    )
-                                  }
-                                  className="text-[10px] border border-slate-800 rounded-lg p-1.5 font-black bg-slate-950 text-slate-200 focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  <option value="TODO">⏳ CHỜ LÀM</option>
-                                  <option value="DOING">⚡ ĐANG LÀM</option>
-                                  <option value="DONE">✓ ĐÃ XONG</option>
-                                </select>
+                                <span className="text-xs text-cyan-200">{STAFF_TASK_LABELS[staffTaskStatus(task.rawStatus || task.status)]}</span>
                               </div>
 
+                              {isAssignedToMe && <div className="flex flex-wrap gap-2">{staffTaskActions(staffTaskStatus(task.rawStatus || task.status)).map((action) => <button type="button" key={action.status} disabled={savingTaskKey !== null} onClick={() => void handleSaveSpecificTask(phase, task.__globalIdx, action.status)} className="min-h-10 rounded-lg border border-slate-700 bg-slate-950 px-3 text-xs font-semibold text-slate-100 disabled:opacity-50">{action.label}</button>)}</div>}
+                              <details open={taskBuffer.status === 'BLOCKED'}><summary className="cursor-pointer text-xs text-slate-400">Ghi chú hoặc điều chỉnh hạn (tùy chọn)</summary>
                               <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                                 <div className="md:col-span-1">
                                   <label className="text-[9px] text-slate-500 font-bold block mb-1 uppercase">
@@ -528,12 +520,12 @@ export function StaffTasksContent({
 
                                 <div className="md:col-span-3">
                                   <label className="text-[9px] text-slate-500 font-bold block mb-1 uppercase">
-                                    Tiến độ báo cáo sếp:
+                                    Ghi chú:
                                   </label>
 
                                   <textarea
                                     disabled={!isAssignedToMe || isSavingThisTask}
-                                    rows={4}
+                                    rows={2}
                                     className="w-full resize-y bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                     value={taskBuffer.note}
                                     onChange={(event) =>
@@ -546,7 +538,7 @@ export function StaffTasksContent({
                                     }
                                     placeholder={
                                       isAssignedToMe
-                                        ? 'Nhập báo cáo tiến độ gửi sếp...'
+                                        ? 'Chỉ cần ghi khi có vướng mắc hoặc thông tin bổ sung.'
                                         : 'Chỉ xem - Không có quyền cập nhật tiến độ'
                                     }
                                   />
@@ -556,13 +548,14 @@ export function StaffTasksContent({
                               {isAssignedToMe && (
                                 <button
                                   type="button"
-                                  disabled={isSavingThisTask}
+                                  disabled={savingTaskKey !== null}
                                   onClick={() => handleSaveSpecificTask(phase, task.__globalIdx)}
                                   className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 text-white py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex justify-center items-center gap-1 shadow transition cursor-pointer mt-1"
                                 >
                                   <Save size={12} /> {isSavingThisTask ? 'Đang lưu...' : 'Lưu Cập Nhật'}
                                 </button>
                               )}
+                              </details>
                             </div>
                           );
                         })}

@@ -36,7 +36,7 @@ describe('streamlined project creation and loading', () => {
 
   it('shows accessible inline validation and focuses the first invalid field', () => {
     expect(page).toContain('Vui lòng nhập tên dự án.');
-    expect(page).toContain('Vui lòng chọn colorway.');
+    expect(page).toContain('Phối màu (tùy chọn)');
     expect(page).toContain('Vui lòng chọn hạn hoàn thành.');
     expect(page).toContain('Vui lòng chọn người phụ trách dự án.');
     expect(page).toMatch(/aria-invalid=\{Boolean\(formErrors\.projectName\)\}/);
