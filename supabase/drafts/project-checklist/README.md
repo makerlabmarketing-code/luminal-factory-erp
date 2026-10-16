@@ -1,6 +1,8 @@
 # Project checklist SQL review package
 
-Status: DRAFT, explicit production approval pending. No execution performed.
+Status: user approved the exact package on 2026-10-16. Forward SQL promoted
+unchanged to supabase/migrations/20261016062344_project_checklist_atomic.sql.
+Production application and postflight verification pending.
 Forward SHA-256: `13e50bdb351004fe4436ed998fe5755dd24c92a1e9b964eafd418919eb7cf259`.
 
 ## Scope and compatibility

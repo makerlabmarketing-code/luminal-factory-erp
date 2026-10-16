@@ -29,14 +29,16 @@ legacy tasks are not backfilled or converted.
 
 ## Deployment gate
 
-Not deployed. Production read-only inspection confirmed the existing project RPC
+SQL package approved by the user on 2026-10-16 (“tiếp tục đi”) in response to
+the exact package approval request. Approved forward SQL is promoted byte-for-byte
+to supabase/migrations/20261016062344_project_checklist_atomic.sql. Production
+application and database verification are pending. Read-only inspection confirmed the existing project RPC
 and template management RPC; no published templates exist. Project workflow and
 phase template environment flags are currently unset. Draft SQL lives under
 supabase/drafts/project-checklist, outside automatic migration delivery.
 
-Before merge, obtain explicit approval for that exact SQL, promote only forward
-SQL to supabase/migrations, review the PR, and use the configured Supabase GitHub
-integration. Do not deploy this app ahead of the staff RPC: staff updates depend
+Approval and promotion are complete; review the PR and use the configured
+Supabase GitHub integration. Do not deploy this app ahead of the staff RPC: staff updates depend
 on it. After migration validation, enable PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED
 and PHASE_TEMPLATES_ENABLED with the intended deployment and existing grants.
 

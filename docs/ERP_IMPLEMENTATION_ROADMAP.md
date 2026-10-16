@@ -2,7 +2,7 @@
 
 ## 2026-10-16 — E-011: Project checklist and reusable project templates
 
-Status: `IMPLEMENTED / SQL_APPROVAL_PENDING / NOT_LIVE`.
+Status: `IMPLEMENTED / SQL_APPROVED / RELEASE_PENDING`.
 
 User-approved direction: minimize data entry; create from a dropdown recipe,
 assign once per stage, show task exceptions only when needed, and offer a
@@ -12,14 +12,14 @@ still requires the existing manager approval workflow.
 
 The draft SQL package extends the existing atomic project RPC and adds atomic
 staff updates and safe template snapshots. No production SQL, feature flag,
-permission grant or live fixture was changed. Delivery must remain a draft until
-the exact SQL package is approved and promoted to the migrations directory.
+permission grant or live fixture was changed. The user approved the linked SQL package on 2026-10-16. Forward SQL is now
+promoted unchanged to migration 20261016062344; release verification is pending.
 
 Validation: 969 Vitest tests; isolated PostgreSQL checks for template cloning,
 status/permission guards, transactional failure, guarded install and rollback.
 Lint, TypeScript and build results are recorded in the handoff below.
 
-Next: approve SQL, review/merge the migration with the app, verify grants and
+Next: review/merge the approved migration with the app, verify grants and
 activate project/template flags deliberately; then authenticated end-to-end
 checks with a designated disposable project. Existing saved templates reassign
 tasks to the new project manager; per-stage role mapping and relative schedule
