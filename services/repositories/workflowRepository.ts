@@ -1,8 +1,10 @@
+import { serializeProjectChecklist } from '@/lib/project-checklist';
 import { supabase } from '@/utils/supabase/client';
 import type {
   WorkflowPhase,
   WorkflowProject,
   WorkflowTask,
+  WorkflowPhaseFormInput,
 } from '@/lib/types/workflow';
 
 type GenericRow = Record<string, unknown>;
@@ -334,10 +336,11 @@ export class WorkflowRepository {
     projectDeadline: string;
     startDate?: string;
     managerEmployeeId: number;
-    phases?: unknown[];
+    phases?: WorkflowPhaseFormInput[];
     createTemplateTasks?: boolean;
     templateVersionId?: number;
   }): Promise<{ project: { id: number; projectCode: string; name: string; colorway: string | null; projectDeadline: string | null; status: string | null }; projectId: number; projectCode: string; projectCreated: boolean; managerMembershipCreated: boolean; workflowCreated: boolean; phasesCreated: number; tasksCreated: number; warnings: string[] }> {
+    const checklist = serializeProjectChecklist(params.phases || []);
     return requestProjectMutation(
       '/api/admin/projects',
       {
@@ -348,8 +351,9 @@ export class WorkflowRepository {
           projectDeadline: params.projectDeadline,
           ...(params.startDate ? { startDate: params.startDate } : {}),
           managerEmployeeId: params.managerEmployeeId,
-          phases: params.phases || [],
-          tasks: params.createTemplateTasks ? (params.phases || []).flatMap((phase) => typeof phase === 'object' && phase && 'tasks' in phase && Array.isArray(phase.tasks) ? phase.tasks : []) : [],
+          phases: checklist.phases,
+          memberEmployeeIds: checklist.memberEmployeeIds,
+          tasks: params.createTemplateTasks ? checklist.tasks : [],
           status: 'PROCESSING',
           ...(params.templateVersionId ? { templateVersionId: params.templateVersionId } : {}),
         }),

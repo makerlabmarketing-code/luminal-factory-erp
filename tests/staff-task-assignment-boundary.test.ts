@@ -23,7 +23,7 @@ describe('Staff task assignment boundary', () => {
     expect(clientSource).toContain('taskId: task.id');
     expect(routeSource).toContain(".eq('id', taskId)");
     expect(routeSource).toContain(".eq('assignee_employee_id', employeeId)");
-    expect(routeSource).toContain(".from('task_comments').insert");
+    expect(routeSource).toContain(".rpc('update_staff_checklist_task'");
   });
 
   it('rejects project-level Drive mutation from the Staff surface', () => {

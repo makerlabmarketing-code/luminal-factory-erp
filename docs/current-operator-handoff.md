@@ -1,5 +1,12 @@
 # Current Operator Handoff
 
+## 2026-10-16 — E-011 checklist roadmap slice
+
+Implemented on the task branch; not live. SQL approval and authenticated smoke
+remain pending. See [checklist handoff](project-checklist-handoff.md) and the
+guarded package in `supabase/drafts/project-checklist`. Do not deploy the staff
+route before its atomic RPC is installed.
+
 ## 2026-10-01 — Live Hero material and preview settings
 
 Reported preview settings were hard to observe because changing settings

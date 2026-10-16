@@ -1,5 +1,33 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-10-16 — E-011: Project checklist and reusable project templates
+
+Status: `IMPLEMENTED / SQL_APPROVED / RELEASE_PENDING`.
+
+User-approved direction: minimize data entry; create from a dropdown recipe,
+assign once per stage, show task exceptions only when needed, and offer a
+“Dùng làm mẫu” checkbox. The form now implements this flow. Staff have contextual
+start/submit/block actions; normal updates do not require a report. Submission
+still requires the existing manager approval workflow.
+
+The draft SQL package extends the existing atomic project RPC and adds atomic
+staff updates and safe template snapshots. No production SQL, feature flag,
+permission grant or live fixture was changed. The user approved the linked SQL package on 2026-10-16. Forward SQL is now
+promoted unchanged to migration 20261016062344; release verification is pending.
+
+Validation: 969 Vitest tests; isolated PostgreSQL checks for template cloning,
+status/permission guards, transactional failure, guarded install and rollback.
+Lint, TypeScript and build results are recorded in the handoff below.
+
+Next: review/merge the approved migration with the app, verify grants and
+activate project/template flags deliberately; then authenticated end-to-end
+checks with a designated disposable project. Existing saved templates reassign
+tasks to the new project manager; per-stage role mapping and relative schedule
+presets remain a later enhancement. No conversion of old project data.
+
+Details: [E-011 handoff](project-checklist-handoff.md).
+
+
 ## 2026-10-02 — Commerce Product draft manager
 
 Status: `APPLICATION_COMPLETE / READY_FOR_PROTECTED_REVIEW`.

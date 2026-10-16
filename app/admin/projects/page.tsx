@@ -23,7 +23,10 @@ import { useNotification } from '@/component/NotificationContext';
 import { ScrollReveal } from '@/component/ScrollReveal';
 import { CenteredPageLoading, LuminalLoadingMark } from '@/component/LuminalLoader';
 import { ProjectMetricCard, ProjectPageHeader, ProjectPanel } from '@/component/project/ProjectPagePatterns';
+import { buildChecklistPhases, type ProjectChecklistStage } from '@/lib/project-checklist';
+import { ProjectChecklistEditor } from '@/component/project/ProjectChecklistEditor';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
+import { businessDateFromInstant, formatBusinessDateInput } from '@/lib/business-date';
 import { projectCodePreview } from '@/lib/project-code';
 import {
   cancelWorkflowProject,
@@ -49,13 +52,7 @@ type HealthState =
   | 'IN_REVIEW'
   | 'COMPLETED';
 
-interface StageTemplate {
-  name: string;
-  type: string;
-  weight: number;
-  requiresReview?: boolean;
-  taskNames: string[];
-}
+type StageTemplate = ProjectChecklistStage;
 
 interface StageRecord {
   item: WorkflowSetting;
@@ -346,7 +343,10 @@ export default function AdminProjectManagement() {
   const createProjectLockRef = useRef(false);
   const [cancellingProjectId, setCancellingProjectId] = useState<number | null>(null);
   const [creationStage, setCreationStage] = useState('');
-  const [taskDetails, setTaskDetails] = useState<Record<string, { employeeId: string; deadline: string; note: string }>>({});
+  const [canSaveProjectTemplate, setCanSaveProjectTemplate] = useState(false);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [projectPreset, setProjectPreset] = useState('artisan');
   const [draftStages, setDraftStages] = useState<StageTemplate[]>(() => PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage) => ({ ...stage, taskNames: [...stage.taskNames] })));
 
   const loadCreationOptions = () => {
@@ -363,6 +363,7 @@ export default function AdminProjectManagement() {
           employees?: Array<{ employeeId: number; fullName: string; title: string | null }>;
           workflowCreationAvailable?: boolean;
           phaseTemplatesEnabled?: boolean;
+          canSaveProjectTemplate?: boolean;
           phaseTemplateOptions?: PhaseTemplateOption[];
           message?: string;
         } | null;
@@ -370,6 +371,7 @@ export default function AdminProjectManagement() {
         setEmployeeCandidates(payload?.employees || []);
         setWorkflowCreationAvailable(payload?.workflowCreationAvailable === true);
         setPhaseTemplatesEnabled(payload?.phaseTemplatesEnabled === true);
+        setCanSaveProjectTemplate(payload?.canSaveProjectTemplate === true);
         setPhaseTemplateOptions(payload?.phaseTemplateOptions || []);
         creationOptionsLoadedRef.current = true;
         setEmployeeLoadState('success');
@@ -390,6 +392,7 @@ export default function AdminProjectManagement() {
 
   const openCreateModal = () => {
     setProjectCode(projectCodePreview(new Date()));
+    if (!projectStartDate) setProjectStartDate(formatBusinessDateInput(businessDateFromInstant(new Date())));
     setShowAddModal(true);
     void loadCreationOptions();
   };
@@ -453,7 +456,7 @@ export default function AdminProjectManagement() {
     today.setHours(0, 0, 0, 0);
     const errors: ProjectFormErrors = {};
     if (!projectName.trim()) errors.projectName = 'Vui lòng nhập tên dự án.';
-    if (!colorwayName.trim()) errors.colorwayName = 'Vui lòng chọn colorway.';
+
     if (!targetDate) errors.targetDate = 'Vui lòng chọn hạn hoàn thành.';
     else if (new Date(`${targetDate}T00:00:00`) < today) errors.targetDate = 'Hạn hoàn thành không được nhỏ hơn ngày hiện tại.';
     if (templateVersionId && !projectStartDate) errors.startDate = 'Vui lòng chọn ngày bắt đầu.';
@@ -471,33 +474,16 @@ export default function AdminProjectManagement() {
     setIsCreatingProject(true);
     setCreationStage('Đang tạo dự án...');
     try {
-      const stages = (workflowCreationAvailable && !templateVersionId ? draftStages : []).map((stage, index, allStages) => ({
-        name: stage.name,
-        colorway_name: colorwayName.trim(),
-        stage_type: stage.type,
-        stage_owner: employeeCandidates.find((employee) => String(employee.employeeId) === managerEmployeeId)?.fullName || '',
-        planned_end_date: initialDeadline(targetDate, index, allStages.length),
-        progress: 0,
-        next_action: stage.taskNames[0] || stage.name,
-        required_review: Boolean(stage.requiresReview),
-        tasks: stage.taskNames.map((taskName, taskIndex) => {
-          const details = taskDetails[`${index}-${taskIndex}`] || { employeeId: managerEmployeeId, deadline: '', note: '' };
-          const employeeId = Number(details.employeeId || managerEmployeeId);
-          return {
-            name: taskName,
-            assignee_id: employeeId,
-            assignee_name: employeeCandidates.find((employee) => employee.employeeId === employeeId)?.fullName || '',
-            deadline: details.deadline,
-            note: details.note,
-            status: 'TODO',
-          };
-        }),
-      }));
+      const stages = buildChecklistPhases({
+        stages: workflowCreationAvailable && !templateVersionId ? draftStages : [],
+        managerEmployeeId, colorwayName: colorwayName.trim() || 'Chung', employees: employeeCandidates,
+        defaultDeadline: (index, count) => initialDeadline(targetDate, index, count),
+      });
 
       setCreationStage('Đang tạo các giai đoạn...');
       const result = await createWorkflowProject({
         projectName: projectName.trim(),
-        colorwayName: colorwayName.trim(),
+        colorwayName: colorwayName.trim() || 'Chung',
         projectDeadline: targetDate,
         startDate: templateVersionId ? projectStartDate : undefined,
         phases: stages,
@@ -506,6 +492,23 @@ export default function AdminProjectManagement() {
         templateVersionId: templateVersionId ? Number(templateVersionId) : undefined,
       });
 
+      let templateWarning = '';
+      if (saveAsTemplate && result.workflowCreated) {
+        setCreationStage('Đang lưu mẫu cho lần sau...');
+        try {
+          const response = await fetch(`/api/admin/projects/${result.project.id}/template`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: templateName.trim() || projectName.trim() }),
+          });
+          const payload = await response.json().catch(() => null) as { message?: string } | null;
+          if (!response.ok) templateWarning = payload?.message || 'Mẫu chưa được xác nhận lưu. Dự án đã được tạo; không tạo lại.';
+          creationOptionsLoadedRef.current = false;
+        } catch { templateWarning = 'Dự án đã tạo. Chưa xác nhận lưu mẫu; kiểm tra trước khi thử lại.'; }
+      }
+      setSaveAsTemplate(false);
+      setTemplateName('');
+      setDraftStages(PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage) => ({ ...stage, taskNames: [...stage.taskNames] })));
+      setProjectPreset('artisan');
       setCreationStage('Đang hoàn tất...');
       setShowAddModal(false);
       setProjectName('');
@@ -528,6 +531,10 @@ export default function AdminProjectManagement() {
         },
         ...currentItems.filter((item) => item.project_id !== result.project.id),
       ]);
+      if (templateWarning) {
+        showToast('Dự án đã tạo', templateWarning, 'info', { actionLabel: 'Xem dự án', onAction: () => openProjectDetail(result.project.id) });
+        return;
+      }
       if (result.warnings.length > 0) {
         showToast('Dự án đã được tạo.', result.warnings[0].message, 'info', {
           actionLabel: 'Xem chi tiết',
@@ -772,7 +779,7 @@ export default function AdminProjectManagement() {
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-lg p-5 space-y-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto bg-slate-900 border border-slate-800 rounded-lg p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-sm font-black text-slate-100">Tạo dự án</h3>
@@ -791,8 +798,8 @@ export default function AdminProjectManagement() {
               </label>
               <label className="space-y-1" htmlFor="project-code"><span className="text-[11px] text-slate-400 font-bold">Mã dự án</span><input id="project-code" value={projectCode} readOnly aria-readonly="true" className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-sm text-slate-300" /><span className="block text-[10px] text-slate-500">Mã được tạo tự động và sẽ được xác nhận khi lưu.</span></label>
               <label className="space-y-1" htmlFor="project-colorway">
-                <span className="text-[11px] text-slate-400 font-bold">Colorway *</span>
-                <input ref={colorwayNameRef} id="project-colorway" aria-invalid={Boolean(formErrors.colorwayName)} aria-describedby={formErrors.colorwayName ? 'project-colorway-error' : undefined} value={colorwayName} onChange={(event) => { setColorwayName(event.target.value); setFormErrors((current) => ({ ...current, colorwayName: undefined })); }} className={`w-full bg-slate-950 border rounded-lg p-2 text-sm outline-none text-slate-100 ${formErrors.colorwayName ? 'border-red-500' : 'border-slate-800'}`} placeholder="Sakura" />
+                <span className="text-[11px] text-slate-400 font-bold">Phối màu (tùy chọn)</span>
+                <input ref={colorwayNameRef} id="project-colorway" aria-invalid={Boolean(formErrors.colorwayName)} aria-describedby={formErrors.colorwayName ? 'project-colorway-error' : undefined} value={colorwayName} onChange={(event) => { setColorwayName(event.target.value); setFormErrors((current) => ({ ...current, colorwayName: undefined })); }} className={`w-full bg-slate-950 border rounded-lg p-2 text-sm outline-none text-slate-100 ${formErrors.colorwayName ? 'border-red-500' : 'border-slate-800'}`} placeholder="Chưa phân phối màu: để trống" />
                 {formErrors.colorwayName && <p id="project-colorway-error" className="text-xs text-red-300">{formErrors.colorwayName}</p>}
               </label>
               <label className="space-y-1" htmlFor="project-deadline">
@@ -801,7 +808,7 @@ export default function AdminProjectManagement() {
                 {formErrors.targetDate && <p id="project-deadline-error" className="text-xs text-red-300">{formErrors.targetDate}</p>}
               </label>
               <label className="space-y-1 md:col-span-2" htmlFor="project-manager">
-                <span className="text-[11px] text-slate-400 font-bold">Project Manager *</span>
+                <span className="text-[11px] text-slate-400 font-bold">Người phụ trách dự án *</span>
                 {employeeLoadState === 'loading' && <p className="text-xs text-slate-400">Đang tải nhân sự...</p>}
                 {employeeLoadState === 'error' && <button type="button" onClick={loadCreationOptions} className="text-xs font-bold text-cyan-300">Không thể tải nhân sự. Thử lại</button>}
                 {employeeLoadState === 'success' && employeeCandidates.length === 0 && <p className="text-xs text-amber-300">Chưa có nhân sự đang hoạt động.</p>}
@@ -811,27 +818,22 @@ export default function AdminProjectManagement() {
                 </select>
                 {formErrors.managerEmployeeId && <p id="project-manager-error" className="text-xs text-red-300">{formErrors.managerEmployeeId}</p>}
               </label>
-              {phaseTemplatesEnabled && (
-                <label className="space-y-1 md:col-span-2" htmlFor="phase-template-version">
-                  <span className="text-[11px] font-bold text-slate-400">Mẫu giai đoạn</span>
-                  <select
-                    id="phase-template-version"
-                    value={templateVersionId}
-                    onChange={(event) => setTemplateVersionId(event.target.value)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-sm text-slate-100 outline-none"
-                  >
-                    <option value="">Tự thiết lập quy trình</option>
-                    {phaseTemplateOptions.map((template) => (
-                      <option key={template.versionId} value={template.versionId}>
-                        {template.name} — bản {template.versionNumber} ({template.stageCount} giai đoạn)
-                      </option>
-                    ))}
-                  </select>
-                  {phaseTemplateOptions.length === 0 && (
-                    <span className="block text-[10px] text-slate-500">Chưa có mẫu đã xuất bản.</span>
-                  )}
-                </label>
-              )}
+              <label className="space-y-1 md:col-span-2" htmlFor="phase-template-version">
+                <span className="text-[11px] font-bold text-slate-400">Tạo từ mẫu</span>
+                <select id="phase-template-version" value={templateVersionId || projectPreset} onChange={(event) => {
+                  const value = event.target.value;
+                  showConfirm('Đổi mẫu dự án?', 'Danh sách đang soạn sẽ được thay bằng mẫu bạn chọn. Thông tin tên, người phụ trách và hạn dự án được giữ lại.', () => {
+                    setTemplateVersionId(value === 'artisan' || value === 'blank' ? '' : value);
+                    setProjectPreset(value === 'blank' ? 'blank' : 'artisan');
+                    setDraftStages(value === 'blank' ? [] : PIPELINE_TEMPLATES.STANDARD_ARTISAN_KEYCAP.map((stage) => ({ ...stage, taskNames: [...stage.taskNames] })));
+                  });
+                }} className="admin-field w-full">
+                  <option value="artisan">Keycap artisan — quy trình có sẵn</option>
+                  <option value="blank">Dự án trống — tự thêm checklist</option>
+                  {phaseTemplatesEnabled && phaseTemplateOptions.map((template) => <option key={template.versionId} value={template.versionId}>{template.name} ({template.stageCount} giai đoạn)</option>)}
+                </select>
+                <span className="block text-xs text-slate-400">Chọn mẫu để có sẵn các bước; không cần nhập lại từng công việc.</span>
+              </label>
               {phaseTemplatesEnabled && templateVersionId && (
                 <label className="space-y-1 md:col-span-2" htmlFor="project-start-date">
                   <span className="text-[11px] font-bold text-slate-400">Ngày bắt đầu dự án *</span>
@@ -866,16 +868,13 @@ export default function AdminProjectManagement() {
                 <p className="mt-1 text-xs text-slate-300">Các giai đoạn và công việc sẽ được sao chép nguyên tử khi tạo dự án.</p>
               </div>
             ) : (
-              <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-950 p-3">
-                <div className="flex items-center justify-between"><p className="text-xs font-bold text-slate-300">Giai đoạn và công việc</p><button type="button" onClick={() => setDraftStages((current) => [...current, { name: `Giai đoạn ${current.length + 1}`, type: `CUSTOM_${current.length + 1}`, weight: 1, taskNames: [] }])} className="text-xs font-bold text-cyan-300">Thêm giai đoạn</button></div>
-                {draftStages.map((stage, index) => <div key={`${stage.type}-${index}`} className="rounded border border-slate-800 p-2">
-                  <div className="flex gap-2"><input aria-label={`Tên giai đoạn ${index + 1}`} value={stage.name} onChange={(event) => setDraftStages((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} className="min-w-0 flex-1 bg-slate-900 p-1 text-xs"/><button type="button" disabled={index === 0} onClick={() => setDraftStages((current) => { const next=[...current]; [next[index-1], next[index]]=[next[index], next[index-1]]; return next; })}>↑</button><button type="button" onClick={() => setDraftStages((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-red-300">Xóa</button></div>
-                  {stage.taskNames.map((taskName, taskIndex) => <div key={taskIndex} className="mt-1"><div className="flex gap-2"><input aria-label={`Công việc ${taskIndex + 1}`} value={taskName} onChange={(event) => setDraftStages((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, taskNames: item.taskNames.map((task, currentTaskIndex) => currentTaskIndex === taskIndex ? event.target.value : task) } : item))} className="min-w-0 flex-1 bg-slate-900 p-1 text-xs"/><button type="button" onClick={() => setDraftStages((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, taskNames: item.taskNames.filter((_, currentTaskIndex) => currentTaskIndex !== taskIndex) } : item))} className="text-xs text-red-300">Xóa</button></div><div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-3"><select aria-label={`Người làm công việc ${taskIndex + 1}`} value={taskDetails[`${index}-${taskIndex}`]?.employeeId || managerEmployeeId} onChange={(event) => setTaskDetails((current) => ({ ...current, [`${index}-${taskIndex}`]: { employeeId: event.target.value, deadline: current[`${index}-${taskIndex}`]?.deadline || '', note: current[`${index}-${taskIndex}`]?.note || '' } }))} className="bg-slate-900 p-1 text-xs">{employeeCandidates.map((employee) => <option key={employee.employeeId} value={employee.employeeId}>{employee.fullName}</option>)}</select><input aria-label={`Hạn công việc ${taskIndex + 1}`} type="date" value={taskDetails[`${index}-${taskIndex}`]?.deadline || ''} onChange={(event) => setTaskDetails((current) => ({ ...current, [`${index}-${taskIndex}`]: { employeeId: current[`${index}-${taskIndex}`]?.employeeId || managerEmployeeId, deadline: event.target.value, note: current[`${index}-${taskIndex}`]?.note || '' } }))} className="bg-slate-900 p-1 text-xs"/><input aria-label={`Ghi chú công việc ${taskIndex + 1}`} placeholder="Ghi chú" value={taskDetails[`${index}-${taskIndex}`]?.note || ''} onChange={(event) => setTaskDetails((current) => ({ ...current, [`${index}-${taskIndex}`]: { employeeId: current[`${index}-${taskIndex}`]?.employeeId || managerEmployeeId, deadline: current[`${index}-${taskIndex}`]?.deadline || '', note: event.target.value } }))} className="bg-slate-900 p-1 text-xs"/></div></div>)}
-                  <button type="button" onClick={() => setDraftStages((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, taskNames: [...item.taskNames, 'Công việc mới'] } : item))} className="mt-1 text-xs text-cyan-300">Thêm công việc</button>
-                </div>)}
-              </div>
+              <ProjectChecklistEditor stages={draftStages} onChange={setDraftStages} employees={employeeCandidates} managerEmployeeId={managerEmployeeId} projectDeadline={targetDate} />
             )}
 
+            {canSaveProjectTemplate && workflowCreationAvailable && <div className="space-y-2 rounded-lg border border-slate-700 p-3">
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saveAsTemplate} onChange={(event) => setSaveAsTemplate(event.target.checked)} />Dùng làm mẫu cho dự án mới</label>
+              {saveAsTemplate && <><label className="block text-xs text-slate-400">Tên mẫu<input value={templateName} maxLength={160} placeholder={projectName || 'Tên dự án sẽ được dùng làm tên mẫu'} onChange={(event) => setTemplateName(event.target.value)} className="admin-field mt-1 w-full" /></label><p className="text-xs text-slate-400">Chỉ lưu cấu trúc công việc. Lần sau dùng người phụ trách dự án mới; không sao chép ngày, ghi chú hay kết quả cũ.</p></>}
+            </div>}
             <div className="flex gap-2 border-t border-slate-800 pt-3">
               <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg p-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40">Hủy</button>
               <button disabled={isCreatingProject || employeeLoadState === 'loading'} onClick={handleCreateProject} className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg p-2 text-xs font-black">{isCreatingProject ? 'Đang lưu...' : 'Tạo dự án'}</button>

@@ -78,7 +78,7 @@ export function projectWorkflowCreationAvailable(): boolean {
 }
 
 export async function getProjectCreationOptions() {
-  await requireProjectManage();
+  const templateAuth = await requireProjectManage();
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from('employees')
@@ -100,6 +100,7 @@ export async function getProjectCreationOptions() {
     workflowCreationAvailable: projectWorkflowCreationAvailable(),
     phaseTemplatesEnabled: phaseTemplateCreationAvailable,
     phaseTemplateOptions,
+    canSaveProjectTemplate: phaseTemplateCreationAvailable && await hasPermission(templateAuth, 'PHASE_TEMPLATE_MANAGE'),
     employees,
   };
 }

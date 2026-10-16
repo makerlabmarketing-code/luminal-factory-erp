@@ -21,6 +21,7 @@ export interface WorkflowTask {
   issueNote?: string | null;
   createdAt?: string | null;
   status?: WorkflowTaskStatus;
+  rawStatus?: string;
   deadline?: string;
   note?: string;
 }
