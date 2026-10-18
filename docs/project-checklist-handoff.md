@@ -27,39 +27,40 @@ publication fails, the created project stays visible and is never recreated by
 an automatic retry. The warning links to that project. Existing projects and
 legacy tasks are not backfilled or converted.
 
-## Deployment gate
+## Production delivery — 2026-10-18
 
-SQL package approved by the user on 2026-10-16 (“tiếp tục đi”) in response to
-the exact package approval request. Approved forward SQL is promoted byte-for-byte
-to supabase/migrations/20261016062344_project_checklist_atomic.sql. Production
-application and database verification are pending. Read-only inspection confirmed the existing project RPC
-and template management RPC; no published templates exist. Project workflow and
-phase template environment flags are currently unset. Draft SQL lives under
-supabase/drafts/project-checklist, outside automatic migration delivery.
+The user explicitly authorized Migration API delivery after the configured
+GitHub Integration reported MIGRATIONS_FAILED and did not apply PR #231.
+The approved SQL was applied byte-for-byte through apply_migration; the API
+recorded version 20261018152856 (project_checklist_atomic). The repository
+migration filename now matches this observed version to prevent replay.
+SHA-256 remains 13e50bdb351004fe4436ed998fe5755dd24c92a1e9b964eafd418919eb7cf259.
 
-Approval and promotion are complete; review the PR and use the configured
-Supabase GitHub integration. Do not deploy this app ahead of the staff RPC: staff updates depend
-on it. After migration validation, enable PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED
-and PHASE_TEMPLATES_ENABLED with the intended deployment and existing grants.
+Postflight confirmed all three functions exist. Staff RPC is SECURITY INVOKER,
+service_role-only; anon/authenticated cannot execute. Template RPC has an empty
+search_path, denies anon, allows authenticated/service_role while retaining its
+session/workspace/permission checks. create_project_atomic retains its authenticated
+boundary. No backfill, employee grants or operational fixture data was created
+by the migration.
 
-Read-only postflight is validation.sql. Authenticated smoke still pending:
-create a designated disposable project; inherit and override assignments; save
-and select a template; verify no old people/dates/results; start/submit/block as
-assigned staff; approve via existing manager flow; deny an unrelated employee.
-Use two sessions to confirm stale updates. No live fixture has been created.
+Both PROJECT_WORKFLOW_ATOMIC_CREATE_ENABLED and PHASE_TEMPLATES_ENABLED were
+enabled for Production after postflight. The feature commit is 5899ad2b.
+Production deployment and authenticated smoke evidence are recorded in the shared
+coordination sheet; do not infer authenticated acceptance from build readiness.
+
+Authenticated acceptance includes creation with inherited and overridden stage
+assignments, saving/selecting a structure-only template, assigned staff transitions,
+manager approval, unrelated employee denial and stale updates across two sessions.
 
 ## Validation
 
-969 Vitest tests passed. Isolated PGlite PostgreSQL tests pass for create/task
-links, snapshot/apply, stale transition and role guards, failure rollback for
-comments and publication, guarded forward SQL and data-preserving rollback.
-PGlite fixtures stub auth/permissions and do not establish live RLS evidence.
-Lint, TypeScript, production build and git diff --check passed. Build used public
-build-only Supabase placeholders; no credentials were required.
-React review covered server authorization, stable stage identity, labelled
-controls, collapsed optional inputs, and event-driven writes.
+On 2026-10-18, after merge: 969 Vitest tests, lint, TypeScript, production build
+with public build-only Supabase placeholders and diff check passed. The prior
+isolated PostgreSQL suite passed before merge; it was not rerun in this session.
+Live database postflight passed as described above.
 
 Rollback: disable both flags, deploy the prior application, then use the reviewed
 rollback.sql. It restores the prior project function and removes the two new
-helpers, preserving projects, tasks, templates and history. Ordinary code revert
-alone does not undo template/project data already created.
+helpers, preserving projects, tasks, templates and history. Code revert does not
+remove operational data. GitHub Integration still needs separate repair; do not
+reset or replay its migration history blindly.
