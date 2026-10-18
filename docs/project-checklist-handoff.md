@@ -1,5 +1,19 @@
 # E-011 project checklist handoff
 
+## Active blocker — authenticated creation regression
+
+The continuation smoke after deployment found that the July Production activity
+constraint rejects PROJECT_CREATED, emitted by create_project_atomic. The entire
+creation rolls back; no test project/template was persisted. Production readiness
+must not be described as completed business acceptance. The local fixture had
+omitted the real constraint and has now been corrected to reproduce this failure.
+
+The minimal correction is prepared in supabase/drafts/project-checklist-activity:
+add PROJECT_CREATED while preserving all nine existing event types, with guarded
+forward SQL, read-only validation and data-preserving rollback. This is a new SQL
+package requiring approval; it is not covered by the previously applied function
+package. No Production constraint was changed during diagnosis.
+
 ## Approved behavior
 
 The user approved a checklist-first project flow and requested continuation.

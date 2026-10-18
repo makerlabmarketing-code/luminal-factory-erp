@@ -483,3 +483,15 @@ focus. No authentication, data, permission, migration or dependency changes.
 903 tests, lint, TypeScript and build PASS; local build uses public placeholders
 because scratch has no Supabase configuration. Existing unrelated draft PR is not
 part of this change. Delivery follows owner's standing main-only/auto-deploy request.
+
+## E-011 — authenticated creation / missing project activity event
+
+ACTIONABLE / SQL_APPROVAL_REQUIRED: live UI creation returns 422 and saves no
+project. The existing activity constraint permits nine events but the creation
+RPC emits PROJECT_CREATED. Rollback-only diagnostics isolate the failure; no live
+fixture remains. The SQL runtime fixture lacked this check and falsely passed.
+It now reproduces the atomic rollback before the correction and verifies create,
+template and staff paths after the guarded additive constraint repair. Rollback
+restores the original constraint before use and refuses after new audit history.
+The forward/rollback/validation package stays in drafts pending exact approval.
+PR #232 has no unresolved review threads; hosted Codex review is not exposed.
