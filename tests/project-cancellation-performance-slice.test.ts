@@ -61,7 +61,7 @@ describe('project cancellation UI and active list contract', () => {
 
     expect(detailPage).toMatch(/isProjectCancelled = String\(firstDescription\.project_status \|\| ''\)\.toUpperCase\(\) === 'CANCELLED'/);
     expect(detailPage).toMatch(/const canManageProject = hasProjectMutationAccess && !isProjectCancelled/);
-    expect(detailPage).toMatch(/disabled=\{isProjectCancelled \|\| isCancellingProject\}/);
+    expect(detailPage).toMatch(/disabled=\{!projectCapabilities\.canCancelProject \|\| isProjectCancelled \|\| isCancellingProject\}/);
     expect(detailPage).toMatch(/disabled=\{selectedPhase\.isLocked \|\| !canManageProject\}/);
     expect(detailPage).toMatch(/disabled=\{!canManageProject\}/);
     expect(detailPage).toMatch(/if \(isProjectCancelled \|\| isCancellingProject\) return/);

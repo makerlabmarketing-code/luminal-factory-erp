@@ -19,7 +19,8 @@ import {
   Save,
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
-import { ScrollReveal } from '@/component/ScrollReveal';
+import { ProjectWorkspaceTabs, type ProjectWorkspaceTab } from './ProjectWorkspaceTabs';
+import { ProjectActionDialog } from './ProjectActionDialog';
 import { ProjectMembershipSection } from './ProjectMembershipSection';
 import { ProjectTimelineSection } from './ProjectTimelineSection';
 import { OperationalState } from '@/component/OperationalState';
@@ -374,6 +375,13 @@ export default function ProjectDetailPage() {
   const [membershipAtomicMutationsEnabled, setMembershipAtomicMutationsEnabled] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [addMemberReason, setAddMemberReason] = useState('');
+  const [addMemberError, setAddMemberError] = useState('');
+  const [workspaceTab, setWorkspaceTab] = useState<ProjectWorkspaceTab>('work');
+  const [newPhaseOpen, setNewPhaseOpen] = useState(false);
+  const [newPhaseName, setNewPhaseName] = useState('');
+  const [newPhaseError, setNewPhaseError] = useState('');
+  const [phaseSaving, setPhaseSaving] = useState(false);
+  const phaseCreateLock = useRef(false);
   const [memberMutationIntent, setMemberMutationIntent] = useState<MemberMutationIntent | null>(null);
   const [memberMutationReason, setMemberMutationReason] = useState('');
   const [memberNextRoleCode, setMemberNextRoleCode] = useState<ProjectMemberDTO['roleCode']>('CONTRIBUTOR');
@@ -681,13 +689,21 @@ export default function ProjectDetailPage() {
 
   const openAddMemberModal = async () => {
     if (!canManageMembers) return;
-    setAddMemberReason('');
+    setAddMemberReason('Tham gia thực hiện dự án');
+    setAddMemberError('');
+    setMemberEmployeeId('');
+    setMemberRoleCode('CONTRIBUTOR');
     setAddMemberOpen(true);
     await loadCandidateEmployees();
   };
 
   const handleAddMember = async () => {
     if (!canManageMembers || memberActionLoading || memberMutationLockRef.current) return;
+    if (!memberEmployeeId || addMemberReason.trim().length < 10 || addMemberReason.trim().length > 500) {
+      setAddMemberError('Chọn nhân sự và nhập lý do từ 10 đến 500 ký tự.');
+      return;
+    }
+    setAddMemberError('');
     memberMutationLockRef.current = true;
     setMemberActionLoading(true);
     try {
@@ -702,9 +718,11 @@ export default function ProjectDetailPage() {
       setAddMemberOpen(false);
       setMemberEmployeeId('');
       setAddMemberReason('');
+      setCandidateEmployeesLoaded(false);
+      setCandidateEmployees([]);
       await refreshMembers();
     } catch (error) {
-      showToast('Không thể thêm thành viên.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
+      setAddMemberError(error instanceof Error ? error.message : 'Không thể thêm thành viên. Vui lòng thử lại.');
     } finally {
       memberMutationLockRef.current = false;
       setMemberActionLoading(false);
@@ -761,6 +779,35 @@ export default function ProjectDetailPage() {
       memberMutationLockRef.current = false;
       setMemberActionLoading(false);
     }
+  };
+
+  const openCreatePhase = () => {
+    if (!projectCapabilities.canManagePhases || isProjectCancelled || phaseLoadFailed) return;
+    setNewPhaseName('');
+    setNewPhaseError('');
+    setNewPhaseOpen(true);
+  };
+
+  const handleCreatePhase = async () => {
+    if (!projectCapabilities.canManagePhases || isProjectCancelled || phaseCreateLock.current) return;
+    if (!newPhaseName.trim()) { setNewPhaseError('Vui lòng nhập tên giai đoạn.'); return; }
+    phaseCreateLock.current = true;
+    setPhaseSaving(true);
+    setNewPhaseError('');
+    try {
+      const response = await fetch(`/api/admin/projects/${projectId}/phases`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phaseName: newPhaseName.trim(), orderIndex: Math.max(-1, ...projectDetail.phases.map(phase => phase.orderIndex)) + 1 }),
+      });
+      const payload = await response.json().catch(() => null) as { phaseId?: number; message?: string } | null;
+      if (!response.ok) throw new Error(payload?.message || 'Không thể tạo giai đoạn. Vui lòng thử lại.');
+      setNewPhaseOpen(false);
+      await refreshPhases();
+      if (payload?.phaseId) setSelectedPhaseId(payload.phaseId);
+      showToast('Đã thêm giai đoạn.', 'Giai đoạn mới được đặt ở cuối danh sách.', 'success');
+    } catch (error) {
+      setNewPhaseError(error instanceof Error ? error.message : 'Không thể tạo giai đoạn. Vui lòng thử lại.');
+    } finally { phaseCreateLock.current = false; setPhaseSaving(false); }
   };
 
   const handleStartEditPhase = (phase: PhaseRecord) => {
@@ -995,68 +1042,24 @@ export default function ProjectDetailPage() {
           )}
           title={projectDetail.name}
           description={<>Mã dự án {projectDetail.projectCode || `#${projectDetail.id}`} · Tạo lúc {formatDateTime(firstDescription.project_created_at)}</>}
-          actions={(
-            <>
-            <span className={`rounded-lg border px-3 py-2 text-xs ${isProjectCancelled ? 'border-red-800 bg-red-950/40 text-red-200' : 'border-slate-700 text-slate-300'}`}>
-              Trạng thái: {projectDetail.status || 'Chưa có dữ liệu'}
-            </span>
-            <button type="button" disabled={isProjectCancelled || isCancellingProject} onClick={handleCancelProject} className="inline-flex items-center gap-2 rounded-lg border border-amber-800 bg-amber-950/40 px-3 py-2 text-xs font-bold text-amber-200 hover:bg-amber-900/40 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900 disabled:text-slate-500">
-              <Archive className="h-4 w-4" /> Hủy dự án
-            </button>
-            <button type="button" disabled={!canManageProject || isProjectCancelled} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold text-slate-200 disabled:cursor-not-allowed disabled:opacity-50" title="Cần cổng ghi giai đoạn được duyệt">
-              <Plus className="h-4 w-4" /> Thêm giai đoạn
-            </button>
-            <button type="button" onClick={() => selectedPhase && handleStartCreateTask(selectedPhase)} disabled={!projectCapabilities.canManageTasks || !canCreateTasks || !selectedPhase || isProjectCancelled || taskLoadBlocked} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500" title={canCreateTasks ? 'Công việc luôn được tạo trong dự án và giai đoạn đã chọn' : 'Chức năng thêm công việc đang chờ kích hoạt.'}>
-              <Plus className="h-4 w-4" /> Thêm công việc
-            </button>
-            </>
-          )}
+          actions={<span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300">{projectDetail.status || 'Chưa có dữ liệu'}</span>}
         />
-
-        <ProjectPanel className="p-4 sm:p-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[10px] font-bold text-slate-500">Tiến độ dự án</p>
-              <p className="mt-1 text-2xl font-black text-cyan-300" id="project-progress-label">{projectDetail.progressPercent}%</p>
-              <div
-                className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-800 lg:w-96"
-                role="progressbar"
-                aria-labelledby="project-progress-label"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={projectDetail.progressPercent}
-              >
+        <ProjectPanel className="p-4">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-slate-400">
+            <div className="flex min-w-48 flex-1 items-center gap-3">
+              <span id="project-progress-label" className="shrink-0 font-bold text-cyan-200">{projectDetail.progressPercent}% hoàn thành</span>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-labelledby="project-progress-label" aria-valuemin={0} aria-valuemax={100} aria-valuenow={projectDetail.progressPercent}>
                 <div className="h-full rounded-full bg-cyan-400" style={{ width: `${projectDetail.progressPercent}%` }} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
-              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                <p className="text-slate-500">Giai đoạn</p>
-                <p className="font-bold text-slate-100">{completedPhaseCount}/{projectDetail.phases.length}</p>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                <p className="text-slate-500">Trạng thái</p>
-                <p className="font-bold text-slate-100">{projectDetail.status || 'Đang theo dõi'}</p>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                <p className="text-slate-500">Hạn tổng</p>
-                <p className="font-bold text-slate-100">{formatDate(firstDescription.project_deadline)}</p>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                <p className="text-slate-500">Hiện tại</p>
-                <p className="font-bold text-slate-100">{activePhase?.phaseName || 'Chưa có'}</p>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                <p className="text-slate-500">Bị vướng</p>
-                <p className="font-bold text-slate-100">{executionMetrics.blockedTasks}</p>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                <p className="text-slate-500">Quá hạn</p>
-                <p className="font-bold text-slate-100">{executionMetrics.overdueTasks}</p>
-              </div>
-            </div>
+            <span>{completedPhaseCount}/{projectDetail.phases.length} giai đoạn xong</span>
+            <span>Hạn tổng: <strong className="text-slate-200">{formatDate(firstDescription.project_deadline)}</strong></span>
+            {executionMetrics.blockedTasks > 0 && <span className="text-amber-200">Bị vướng: {executionMetrics.blockedTasks}</span>}
+            {executionMetrics.overdueTasks > 0 && <span className="text-red-200">Quá hạn: {executionMetrics.overdueTasks}</span>}
           </div>
         </ProjectPanel>
+
+        <ProjectWorkspaceTabs active={workspaceTab} onChange={setWorkspaceTab} memberCount={memberCount} />
 
         {isProjectCancelled && (
           <section className="rounded-lg border border-red-900 bg-red-950/25 p-4 text-xs text-red-100">
@@ -1064,7 +1067,7 @@ export default function ProjectDetailPage() {
           </section>
         )}
 
-        {taskLoadBlocked && (
+        {workspaceTab === 'work' && taskLoadBlocked && (
           <section data-error-code="task_load_failed" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-900 bg-amber-950/25 p-4 text-xs text-amber-100">
             <span>Nền tảng giao việc chưa sẵn sàng. Dữ liệu công việc cũ vẫn hiển thị ở chế độ chỉ xem; thông tin cốt lõi và giai đoạn vẫn có thể xem.</span>
             <button type="button" onClick={() => void refreshTasks()} className="rounded border border-amber-700 px-3 py-1.5 font-bold">Thử tải lại công việc</button>
@@ -1078,81 +1081,29 @@ export default function ProjectDetailPage() {
           </section>
         )}
 
-        <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-4">
-            <section className="rounded-lg border border-slate-800 bg-slate-900">
-              <div className="border-b border-slate-800 px-4 py-3">
-                <h2 className="text-sm font-black text-slate-100">Các giai đoạn</h2>
-                <p className="text-[11px] text-slate-500">Chọn giai đoạn để xem công việc.</p>
+        {workspaceTab === 'work' && (
+          <section role="tabpanel" id="project-panel-work" aria-labelledby="project-tab-work" tabIndex={0} className="grid items-start gap-4 outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 lg:grid-cols-[240px_minmax(0,1fr)]">
+            <nav aria-label="Giai đoạn dự án" className="min-w-0 rounded-lg border border-slate-800 bg-slate-900 p-3 lg:sticky lg:top-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-sm font-bold">Các giai đoạn</h2>
+                <span className="text-xs text-slate-500">{projectDetail.phases.length}</span>
               </div>
-              <div className="overflow-x-auto p-4 [scroll-snap-type:x_mandatory]">
-                <div className="flex min-w-max items-start">
-                  {projectDetail.phases.map((phase, index) => {
-                    const isSelected = selectedPhase?.item.phase_id === phase.item.phase_id;
-                    const circleClass = phase.status === 'COMPLETED'
-                      ? 'border-emerald-400 bg-emerald-500 text-slate-950'
-                      : phase.status === 'ACTIVE'
-                        ? 'border-cyan-300 bg-cyan-500 text-slate-950 ring-4 ring-cyan-400/20'
-                        : phase.status === 'BLOCKED'
-                          ? 'border-amber-300 bg-amber-500 text-slate-950'
-                          : phase.status === 'CANCELLED'
-                            ? 'border-red-500 bg-red-950 text-red-200'
-                            : 'border-slate-700 bg-slate-950 text-slate-500';
-                    const labelClass = phase.status === 'LOCKED'
-                      ? 'text-slate-500'
-                      : phase.status === 'ACTIVE'
-                        ? 'text-cyan-100'
-                        : 'text-slate-100';
-
-                    return (
-                      <div key={phase.item.key} className="flex items-start scroll-ml-4 [scroll-snap-align:start]">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPhaseId(phase.item.phase_id || null)}
-                          className={`group flex w-36 shrink-0 flex-col items-center gap-2 rounded-lg px-2 py-1 text-center outline-none transition hover:bg-slate-800/60 focus-visible:ring-2 focus-visible:ring-cyan-300 sm:w-44 ${isSelected ? 'bg-slate-800/70' : ''}`}
-                          aria-current={isSelected ? 'step' : undefined}
-                        >
-                          <span className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-xs font-black ${circleClass}`}>
-                            {phase.status === 'COMPLETED' ? <CheckCircle2 className="h-5 w-5" /> : phase.status === 'LOCKED' ? <Lock className="h-4 w-4" /> : phase.status === 'BLOCKED' ? <AlertTriangle className="h-4 w-4" /> : index + 1}
-                          </span>
-                          <span className={`line-clamp-2 min-h-[2.25rem] text-xs font-black leading-snug ${labelClass}`}>{phase.phaseName}</span>
-                          <span className={`text-[10px] ${phase.status === 'LOCKED' ? 'text-slate-600' : 'text-slate-400'}`}>{phaseStatusLabel(phase.status)}</span>
-                        </button>
-                        {index < projectDetail.phases.length - 1 && (
-                          <div className={`mt-5 h-0.5 w-10 shrink-0 sm:w-16 ${phase.status === 'COMPLETED' ? 'bg-emerald-400' : 'bg-slate-700'}`} />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {projectDetail.phases.length === 0 && (
-                  <OperationalState
-                    title="Dự án chưa có giai đoạn."
-                    description="Hãy thêm giai đoạn để bắt đầu."
-                  />
-                )}
+              <button type="button" onClick={openCreatePhase} disabled={!projectCapabilities.canManagePhases || isProjectCancelled || phaseLoadFailed} className="mb-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 text-xs font-bold text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"><Plus className="h-4 w-4" />Thêm giai đoạn</button>
+              <div className="flex gap-2 overflow-x-auto lg:flex-col">
+                {projectDetail.phases.map((phase, index) => (
+                  <button key={phase.item.key} type="button" onClick={() => setSelectedPhaseId(phase.item.phase_id || null)} aria-current={selectedPhase?.item.phase_id === phase.item.phase_id ? 'step' : undefined}
+                    className={`flex min-w-40 shrink-0 items-start gap-3 rounded-lg border p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 lg:w-full ${selectedPhase?.item.phase_id === phase.item.phase_id ? 'border-cyan-800 bg-cyan-950/40' : 'border-transparent hover:bg-slate-800'}`}>
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs text-slate-300">
+                      {phase.status === 'COMPLETED' ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : phase.status === 'LOCKED' ? <Lock className="h-4 w-4" /> : phase.status === 'BLOCKED' ? <AlertTriangle className="h-4 w-4 text-amber-300" /> : index + 1}
+                    </span>
+                    <span className="min-w-0"><span className="block break-words text-xs font-bold text-slate-100">{phase.phaseName}</span><span className="mt-1 block text-[11px] text-slate-400">{phaseStatusLabel(phase.status)}</span><span className="mt-1 block text-[11px] text-slate-500">{phase.completedTaskCount}/{phase.taskCount} việc xong</span></span>
+                  </button>
+                ))}
               </div>
-            </section>
-            <ScrollReveal>
-              <ProjectMembershipSection
-                projectId={projectId}
-                members={projectDetail.members}
-                summary={membershipSummary}
-                isInitialLoading={membershipInitialLoading}
-                isRefreshing={membershipRefreshing}
-                loadFailed={memberLoadFailed}
-                canManageMembers={canManageMembers}
-                mutationsEnabled={membershipAtomicMutationsEnabled}
-                hasManagementPermission={hasMemberManagementPermission}
-                memberActionLoading={memberActionLoading}
-                onRetry={() => void refreshMembers(projectDetail.members.length === 0)}
-                onAddMember={() => void openAddMemberModal()}
-                onChangeRole={(member) => void handleChangeRole(member)}
-                onRevokeMember={handleRevokeMember}
-              />
-            </ScrollReveal>
-
-            <ScrollReveal className="space-y-4" delayMs={40}>
+              {projectDetail.phases.length === 0 && <p className="py-3 text-xs text-slate-500">Thêm giai đoạn đầu tiên để bắt đầu.</p>}
+            </nav>
+            <div className="min-w-0 space-y-4">
+            {projectDetail.phases.length === 0 && <OperationalState title="Dự án chưa có giai đoạn." description="Chọn Thêm giai đoạn và nhập tên để bắt đầu." />}
               {selectedPhase && (
               <section className="rounded-lg border border-slate-800 bg-slate-900">
                 <div className="border-b border-slate-800 px-4 py-3">
@@ -1347,12 +1298,32 @@ export default function ProjectDetailPage() {
                 </div>
               </section>
               )}
-            </ScrollReveal>
-          </div>
+            </div>
+          </section>
+        )}
+        {workspaceTab === 'members' && <section role="tabpanel" id="project-panel-members" aria-labelledby="project-tab-members" tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
+              <ProjectMembershipSection
+                projectId={projectId}
+                members={projectDetail.members}
+                summary={membershipSummary}
+                isInitialLoading={membershipInitialLoading}
+                isRefreshing={membershipRefreshing}
+                loadFailed={memberLoadFailed}
+                canManageMembers={canManageMembers}
+                mutationsEnabled={membershipAtomicMutationsEnabled}
+                hasManagementPermission={hasMemberManagementPermission}
+                memberActionLoading={memberActionLoading}
+                onRetry={() => void refreshMembers(projectDetail.members.length === 0)}
+                onAddMember={() => void openAddMemberModal()}
+                onChangeRole={(member) => void handleChangeRole(member)}
+                onRevokeMember={handleRevokeMember}
+              />
 
-          <aside className="space-y-4 2xl:sticky 2xl:top-4 2xl:self-start">
+        </section>}
+        {workspaceTab === 'info' && <section role="tabpanel" id="project-panel-info" aria-labelledby="project-tab-info" tabIndex={0} className="grid items-start gap-4 outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 lg:grid-cols-2">
+
             <ProjectTimelineSection projectId={projectId} cancelled={isProjectCancelled} />
-            <details className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+            <details open className="rounded-lg border border-slate-800 bg-slate-900 p-4">
               <summary className="cursor-pointer text-sm font-black text-slate-100 focus-visible:outline-cyan-300">Thông tin dự án &amp; tài liệu</summary>
               <dl className="mt-3 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-1">
                 <div>
@@ -1388,7 +1359,7 @@ export default function ProjectDetailPage() {
               </dl>
             </details>
 
-            <details className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+            <details open className="rounded-lg border border-slate-800 bg-slate-900 p-4">
               <summary className="cursor-pointer text-sm font-black text-slate-100 focus-visible:outline-cyan-300">Phân bổ công việc thành viên</summary>
               <div className="mt-3 space-y-2 text-xs">
                 {executionMetrics.memberWorkload.slice(0, 5).map((workload) => (
@@ -1401,19 +1372,33 @@ export default function ProjectDetailPage() {
               </div>
             </details>
 
-          </aside>
-        </div>
+
+          <section className="rounded-lg border border-slate-800 p-4">
+            <h2 className="text-sm font-bold">Quản lý dự án</h2>
+            <p className="mt-2 text-xs text-slate-500">Hủy sẽ dừng thao tác mới; dữ liệu và lịch sử vẫn được giữ lại.</p>
+            <button type="button" disabled={!projectCapabilities.canCancelProject || isProjectCancelled || isCancellingProject} onClick={handleCancelProject} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-800 px-3 text-xs font-bold text-amber-200 disabled:opacity-40"><Archive className="h-4 w-4" />Hủy dự án</button>
+          </section>
+        </section>}
       </div>
+        {newPhaseOpen && <ProjectActionDialog titleId="create-phase-title" descriptionId="create-phase-description" busy={phaseSaving} onClose={() => setNewPhaseOpen(false)}>
+          <h2 id="create-phase-title" className="pr-8 text-base font-bold">Thêm giai đoạn</h2>
+          <p id="create-phase-description" className="mt-1 text-xs text-slate-400">Chỉ cần nhập tên. Giai đoạn sẽ được thêm ở cuối danh sách.</p>
+          <form onSubmit={event => { event.preventDefault(); void handleCreatePhase(); }} className="mt-5 space-y-4">
+            <div><label htmlFor="new-phase-name" className="mb-2 block text-xs font-bold">Tên giai đoạn</label><input id="new-phase-name" required value={newPhaseName} onChange={event => setNewPhaseName(event.target.value)} disabled={phaseSaving} placeholder="Ví dụ: In thử và kiểm tra" aria-invalid={Boolean(newPhaseError)} aria-describedby={newPhaseError ? 'new-phase-error' : undefined} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm outline-none focus:border-cyan-500" /></div>
+            {newPhaseError && <p id="new-phase-error" role="alert" className="text-xs text-red-300">{newPhaseError}</p>}
+            <div className="flex justify-end gap-2"><button type="button" disabled={phaseSaving} onClick={() => setNewPhaseOpen(false)} className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-bold">Hủy</button><button type="submit" disabled={phaseSaving} className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{phaseSaving ? 'Đang thêm…' : 'Thêm giai đoạn'}</button></div>
+          </form>
+        </ProjectActionDialog>}
         {addMemberOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-labelledby="add-member-title" aria-describedby="add-member-description">
-            <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
+          <ProjectActionDialog titleId="add-member-title" descriptionId="add-member-description" busy={memberActionLoading} onClose={() => setAddMemberOpen(false)}>
+            <form onSubmit={event => { event.preventDefault(); void handleAddMember(); }}>
               <div className="mb-4">
                 <h2 className="text-base font-black text-slate-100" id="add-member-title">Thêm thành viên dự án</h2>
-                <p className="text-xs text-slate-500" id="add-member-description">Chỉ tải danh sách nhân sự đang hoạt động khi mở hộp thoại.</p>
+                <p className="text-xs text-slate-500" id="add-member-description">Chọn người và vai trò để tham gia dự án.</p>
               </div>
               <div className="space-y-3">
                 <label htmlFor="project-member-employee" className="block text-xs font-bold text-slate-300">Nhân sự</label>
-                <select id="project-member-employee" value={memberEmployeeId} onChange={(event) => setMemberEmployeeId(event.target.value)} disabled={candidatesLoading || memberActionLoading} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100">
+                <select id="project-member-employee" required value={memberEmployeeId} onChange={(event) => setMemberEmployeeId(event.target.value)} disabled={candidatesLoading || memberActionLoading} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100">
                   <option value="">Chọn nhân sự</option>
                   {candidateEmployees.map((employee) => <option key={employee.employeeId} value={employee.employeeId}>{employee.fullName}{employee.title ? ` · ${employee.title}` : ''}</option>)}
                 </select>
@@ -1422,12 +1407,15 @@ export default function ProjectDetailPage() {
                 <select id="project-member-role" value={memberRoleCode} onChange={(event) => setMemberRoleCode(event.target.value as ProjectMemberDTO['roleCode'])} disabled={memberActionLoading} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100">
                   <option value="PROJECT_OWNER">Chủ dự án</option><option value="PROJECT_MANAGER">Quản lý dự án</option><option value="CREATIVE_LEAD">Lead sáng tạo</option><option value="CONTRIBUTOR">Thành viên</option>
                 </select>
-                <label htmlFor="project-member-add-reason" className="block text-xs font-bold text-slate-300">Lý do thay đổi</label>
-                <textarea id="project-member-add-reason" value={addMemberReason} onChange={(event) => setAddMemberReason(event.target.value)} minLength={10} maxLength={500} disabled={memberActionLoading} className="min-h-24 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100" placeholder="Nhập ít nhất 10 ký tự để lưu vào lịch sử kiểm toán." />
+                <label htmlFor="project-member-add-reason" className="block text-xs font-bold text-slate-300">Lý do tham gia</label>
+                <textarea id="project-member-add-reason" value={addMemberReason} onChange={(event) => setAddMemberReason(event.target.value)} required minLength={10} maxLength={500} aria-describedby="add-member-reason-help" aria-invalid={addMemberReason.trim().length < 10} disabled={memberActionLoading} className="min-h-24 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100" placeholder="Ví dụ: Tham gia thực hiện dự án" />
+                <p id="add-member-reason-help" className={`text-xs ${addMemberReason.trim().length < 10 ? 'text-amber-200' : 'text-slate-500'}`}>Lý do cần từ 10 đến 500 ký tự. Đã nhập {addMemberReason.trim().length}/500 ký tự; nội dung này sẽ được lưu vào lịch sử.</p>
+                {candidatesLoading && <p className="text-xs text-slate-400" role="status">Đang tải nhân sự…</p>}
+                {addMemberError && <p role="alert" className="text-xs text-red-300">{addMemberError}</p>}
               </div>
-              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setAddMemberOpen(false)} className="min-h-11 rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={!memberEmployeeId || addMemberReason.trim().length < 10 || memberActionLoading || candidatesLoading} onClick={handleAddMember} className="min-h-11 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Thêm thành viên'}</button></div>
-            </div>
-          </div>
+              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setAddMemberOpen(false)} className="min-h-11 rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="submit" disabled={!memberEmployeeId || memberActionLoading || candidatesLoading} className="min-h-11 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Thêm thành viên'}</button></div>
+            </form>
+          </ProjectActionDialog>
         )}
 
         {memberMutationIntent && (

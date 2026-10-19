@@ -9,24 +9,24 @@ function source(relativePath: string): string {
 }
 
 describe('project detail stepper and task assignee display', () => {
-  it('renders a horizontal stepper from all phases', () => {
+  it('renders every phase in responsive workspace navigation', () => {
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
 
     expect(detailPage).toMatch(/Các giai đoạn/);
     expect(detailPage).toMatch(/projectDetail\.phases\.map\(\(phase, index\)/);
     expect(detailPage).toMatch(/overflow-x-auto/);
-    expect(detailPage).toMatch(/scroll-snap-type:x_mandatory/);
+    expect(detailPage).toContain('aria-label="Giai đoạn dự án"');
   });
 
   it('shows completed, active, blocked, cancelled, and locked visual states', () => {
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
 
     expect(detailPage).toMatch(/phase\.status === 'COMPLETED'/);
-    expect(detailPage).toMatch(/<CheckCircle2 className="h-5 w-5" \/>/);
-    expect(detailPage).toMatch(/phase\.status === 'ACTIVE'/);
-    expect(detailPage).toMatch(/ring-4 ring-cyan-400\/20/);
+    expect(detailPage).toMatch(/<CheckCircle2 className="h-4 w-4 text-emerald-300" \/>/);
+    expect(detailPage).toContain("ACTIVE: 'Đang thực hiện'");
+    expect(detailPage).toContain('phaseStatusLabel(phase.status)');
     expect(detailPage).toMatch(/phase\.status === 'BLOCKED'/);
-    expect(detailPage).toMatch(/phase\.status === 'CANCELLED'/);
+    expect(detailPage).toContain("CANCELLED: 'Đã hủy'");
     expect(detailPage).toMatch(/phase\.status === 'LOCKED'/);
     expect(detailPage).toMatch(/<Lock className="h-4 w-4" \/>/);
   });
@@ -65,8 +65,8 @@ describe('project detail stepper and task assignee display', () => {
 
     expect(detailPage).toMatch(/function ProjectDetailField/);
     expect(detailPage).toMatch(/function TaskMobileField/);
-    expect(detailPage).toMatch(/2xl:grid-cols-\[minmax\(0,1fr\)_360px\]/);
-    expect(detailPage).toMatch(/2xl:sticky 2xl:top-4 2xl:self-start/);
+    expect(detailPage).toContain('lg:grid-cols-[240px_minmax(0,1fr)]');
+    expect(detailPage).toContain('lg:sticky lg:top-4');
     expect(detailPage).toMatch(/<dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-3">/);
     expect(detailPage).toMatch(/<article key=\{getTaskKey\(task\)\}/);
     expect(detailPage).toMatch(/<TaskMobileField label="Người phụ trách" value=\{getTaskAssigneeLabel\(task\)\} \/>/);
@@ -103,7 +103,7 @@ describe('project detail stepper and task assignee display', () => {
     expect(detailPage).toMatch(/const progressPercent = calculateProjectProgress\(phasesWithGates\.map\(\(phase\) => phase\.progressPercent\)\)/);
     expect(workflow).toMatch(/function calculatePhaseProgress/);
     expect(workflow).toMatch(/function calculateProjectProgress/);
-    expect(detailPage).toMatch(/Tiến độ dự án/);
+    expect(detailPage).toContain('id="project-progress-label"');
     expect(detailPage).toMatch(/currentPhaseId: activePhase\?\.item\.phase_id \|\| null/);
   });
 
