@@ -36,7 +36,7 @@ describe('phase schema alignment', () => {
     expect(phaseMutations).toMatch(/capabilities\.statusPersistenceAvailable[\s\S]*status, colorway_name/);
     expect(workflowService).toMatch(/phase_status_persistence_available/);
     expect(workflowService).toMatch(/phase_status_mutation_available/);
-    expect(detailPage).toMatch(/Trạng thái giai đoạn đang được hiển thị theo chế độ tương thích/);
+    expect(detailPage).toMatch(/!phaseStatusPersistenceAvailable && <p>Chuyển trạng thái giai đoạn đang chờ kích hoạt\./);
     expect(detailPage).toMatch(/data-rollout-state=\{phaseStatusMutationAvailable/);
     expect(detailPage).toMatch(/BLOCKED_BY_PHASE_WORKFLOW_ROLLOUT/);
   });

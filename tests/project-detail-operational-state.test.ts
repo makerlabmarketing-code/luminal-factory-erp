@@ -17,7 +17,8 @@ describe('project detail operational states', () => {
     expect(projectDetailSource).toMatch(/title="Không thể tải thông tin dự án"/);
     expect(projectDetailSource).toMatch(/title="Dự án chưa có giai đoạn\."/);
     expect(membershipSectionSource).toMatch(/title="Chưa có thành viên đang hoạt động\."/);
-    expect(projectDetailSource).toMatch(/title="Giai đoạn này chưa có công việc\."/);
+    expect(projectDetailSource).toMatch(/selectedPhase\.tasks\.length === 0 && <p[^>]*>Chưa có công việc trong giai đoạn này\./);
+    expect(projectDetailSource).toMatch(/selectedPhase\.tasks\.length > 0 && \([\s\S]*?<CommonTable/);
     expect(projectDetailSource).not.toMatch(/border-dashed border-slate-700 p-6 text-center text-xs text-slate-500">Chưa có thành viên dự án/);
   });
 

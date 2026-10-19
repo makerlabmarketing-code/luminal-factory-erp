@@ -52,8 +52,8 @@ describe('Corrective Slice 4 project execution workflow', () => {
     expect(projectDetail).toMatch(/getTaskPriorityLabel/);
     expect(projectDetail).toMatch(/getTaskDependencyLabel/);
     expect(projectDetail).toMatch(/getTaskLastUpdateLabel/);
-    expect(projectDetail).toMatch(/Số công việc/);
-    expect(projectDetail).toMatch(/Tải công việc thành viên/);
+    expect(projectDetail).toMatch(/Công việc hoàn thành/);
+    expect(projectDetail).toMatch(/Phân bổ công việc thành viên/);
     expect(projectDetail).toMatch(/Bị vướng/);
     expect(projectDetail).toMatch(/Quá hạn/);
     expect(projectDetail).toMatch(/activeProjectMembers/);

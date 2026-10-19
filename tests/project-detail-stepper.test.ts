@@ -12,7 +12,7 @@ describe('project detail stepper and task assignee display', () => {
   it('renders a horizontal stepper from all phases', () => {
     const detailPage = source('app/admin/projects/[projectId]/page.tsx');
 
-    expect(detailPage).toMatch(/Stepper giai đoạn/);
+    expect(detailPage).toMatch(/Các giai đoạn/);
     expect(detailPage).toMatch(/projectDetail\.phases\.map\(\(phase, index\)/);
     expect(detailPage).toMatch(/overflow-x-auto/);
     expect(detailPage).toMatch(/scroll-snap-type:x_mandatory/);
@@ -67,7 +67,7 @@ describe('project detail stepper and task assignee display', () => {
     expect(detailPage).toMatch(/function TaskMobileField/);
     expect(detailPage).toMatch(/2xl:grid-cols-\[minmax\(0,1fr\)_360px\]/);
     expect(detailPage).toMatch(/2xl:sticky 2xl:top-4 2xl:self-start/);
-    expect(detailPage).toMatch(/<dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-4">/);
+    expect(detailPage).toMatch(/<dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-3">/);
     expect(detailPage).toMatch(/<article key=\{getTaskKey\(task\)\}/);
     expect(detailPage).toMatch(/<TaskMobileField label="Người phụ trách" value=\{getTaskAssigneeLabel\(task\)\} \/>/);
     expect(detailPage).toMatch(/className="mt-3 w-full rounded border border-slate-700 px-2 py-2 font-bold text-slate-300"/);
