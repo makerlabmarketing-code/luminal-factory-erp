@@ -21,6 +21,7 @@ import {
 import { useNotification } from '@/component/NotificationContext';
 import { ProjectWorkspaceTabs, type ProjectWorkspaceTab } from './ProjectWorkspaceTabs';
 import { ProjectActionDialog } from './ProjectActionDialog';
+import { PhaseMembersSection } from './PhaseMembersSection';
 import { ProjectMembershipSection } from './ProjectMembershipSection';
 import { ProjectTimelineSection } from './ProjectTimelineSection';
 import { OperationalState } from '@/component/OperationalState';
@@ -1166,11 +1167,12 @@ export default function ProjectDetailPage() {
                     </div>
                   )}
 
-                  <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-3">
+                  <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                     <ProjectDetailField label="Hạn hoàn thành" value={formatDate(selectedPhase.description.stage_deadline || selectedPhase.description.project_deadline)} />
-                    <ProjectDetailField label="Người phụ trách" value={selectedPhase.description.stage_owner || 'Chưa gán'} />
                     <ProjectDetailField label="Công việc hoàn thành" value={`${selectedPhase.completedTaskCount}/${selectedPhase.taskCount}${selectedPhase.overdueTaskCount > 0 ? ` · ${selectedPhase.overdueTaskCount} quá hạn` : ''}`} />
                   </dl>
+
+                  {selectedPhase.item.phase_id && <PhaseMembersSection key={selectedPhase.item.phase_id} projectId={projectId} phaseId={selectedPhase.item.phase_id} members={members} canManage={projectCapabilities.canManagePhases && !isProjectCancelled} closed={isProjectCancelled || selectedPhase.status === 'COMPLETED' || selectedPhase.status === 'CANCELLED'} legacyOwner={selectedPhase.description.stage_owner} />}
 
                   <details key={selectedPhase.item.key} className="rounded-lg border border-slate-800 text-xs">
                     <summary className="cursor-pointer px-3 py-2 font-bold text-slate-400 focus-visible:outline-cyan-300">Chi tiết giai đoạn</summary>
