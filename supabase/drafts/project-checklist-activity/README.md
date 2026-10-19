@@ -1,4 +1,16 @@
-# E-011 corrective activity constraint — approval pending
+# E-011 corrective activity constraint — applied 2026-10-19
+
+## Production resolution — 2026-10-19
+
+User approved the exact correction and Migration API delivery. Applied version
+20261019024924_allow_project_created_activity_event; approved SQL hash unchanged.
+Postflight validated all ten event values. A rollback-only Production RPC probe
+created one project, phase and task and saved a structure template successfully.
+After rollback, reads confirmed zero TEST E011 projects/templates remain. This is
+live SQL contract evidence; authenticated UI, staff and two-session acceptance
+remain pending. The migration file matches the observed ledger version.
+
+
 
 Authenticated Production UI creation with one stage/task fails and saves no project.
 A read-only inspection found that create_project_atomic emits PROJECT_CREATED,
@@ -26,12 +38,11 @@ The earlier fixture omitted the check, explaining its false positive.
 
 ## Delivery and acceptance
 
-This package is unapproved and stays outside supabase/migrations. The earlier
-approval covered the checklist function package, not this constraint correction.
-After approval, recheck exact hash/baseline, apply once through the explicitly
-authorized delivery path and reconcile the observed ledger version in Git.
-Run validation.sql and repeat authenticated UI creation/save/reload/template
-selection and staff/manager acceptance; do not call build readiness acceptance.
+The correction was approved and applied once via Migration API on 2026-10-19.
+The matching forward file is recorded under supabase/migrations with the observed
+version. Do not replay the guarded forward SQL. Postflight and rollback-only RPC
+creation/template probes passed. Repeat authenticated UI creation/save/reload,
+template selection and staff/manager acceptance; build readiness is not acceptance.
 
 ## Rollback
 

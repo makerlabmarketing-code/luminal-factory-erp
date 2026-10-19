@@ -1,6 +1,17 @@
 # E-011 project checklist handoff
 
-## Active blocker — authenticated creation regression
+## Production resolution — 2026-10-19
+
+User approved the exact correction and Migration API delivery. Applied version
+20261019024924_allow_project_created_activity_event; approved SQL hash unchanged.
+Postflight validated all ten event values. A rollback-only Production RPC probe
+created one project, phase and task and saved a structure template successfully.
+After rollback, reads confirmed zero TEST E011 projects/templates remain. This is
+live SQL contract evidence; authenticated UI, staff and two-session acceptance
+remain pending. The migration file matches the observed ledger version.
+
+
+## Resolved database blocker — authenticated creation regression
 
 The continuation smoke after deployment found that the July Production activity
 constraint rejects PROJECT_CREATED, emitted by create_project_atomic. The entire
@@ -10,9 +21,8 @@ omitted the real constraint and has now been corrected to reproduce this failure
 
 The minimal correction is prepared in supabase/drafts/project-checklist-activity:
 add PROJECT_CREATED while preserving all nine existing event types, with guarded
-forward SQL, read-only validation and data-preserving rollback. This is a new SQL
-package requiring approval; it is not covered by the previously applied function
-package. No Production constraint was changed during diagnosis.
+forward SQL, read-only validation and data-preserving rollback. This correction required separate approval from the function package. The
+user supplied that approval on 2026-10-19; see the resolution above.
 
 ## Approved behavior
 
