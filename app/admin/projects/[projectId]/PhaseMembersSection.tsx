@@ -5,9 +5,9 @@ import { ProjectActionDialog } from './ProjectActionDialog';
 import type { ProjectMemberDTO } from '@/lib/types/project-membership';
 import { samePhaseMemberIds, type PhaseMember, type PhaseMembersResponse } from '@/lib/phase-members';
 
-export function PhaseMembersSection({ projectId, phaseId, members, canManage, closed, legacyOwner }: {
+export function PhaseMembersSection({ projectId, phaseId, members, membersReady, canManage, closed, legacyOwner }: {
   projectId: number; phaseId: number; members: ProjectMemberDTO[];
-  canManage: boolean; closed: boolean; legacyOwner?: string;
+  membersReady: boolean; canManage: boolean; closed: boolean; legacyOwner?: string;
 }) {
   const [roster, setRoster] = useState<PhaseMember[]>([]);
   const [enabled, setEnabled] = useState(false);
@@ -65,10 +65,10 @@ export function PhaseMembersSection({ projectId, phaseId, members, canManage, cl
   return <section className="rounded-lg border border-slate-800 p-3" aria-label="Người thực hiện giai đoạn">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h3 className="inline-flex items-center gap-2 text-xs font-bold text-slate-300"><Users className="h-4 w-4" />Người thực hiện</h3>
-      {canManage && <button type="button" disabled={!enabled || loading || loadError || closed} onClick={() => { setSelected(roster.map(member => member.employeeId)); setSaveError(''); setStale(false); setOpen(true); }} className="rounded-lg border border-cyan-800 px-3 py-2 text-xs font-bold text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40">Phân người</button>}
+      {canManage && <button type="button" disabled={!enabled || loading || loadError || !membersReady || closed} onClick={() => { setSelected(roster.map(member => member.employeeId)); setSaveError(''); setStale(false); setOpen(true); }} className="rounded-lg border border-cyan-800 px-3 py-2 text-xs font-bold text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40">Phân người</button>}
     </div>
     {loading ? <p role="status" className="mt-2 text-xs text-slate-500">Đang tải người thực hiện…</p> : loadError ? <div className="mt-2 flex items-center gap-3 text-xs text-amber-200" role="alert">Không thể tải phân công.<button type="button" onClick={() => setReload(value => value + 1)} className="underline">Thử lại</button></div> : !enabled ? <p className="mt-2 text-xs text-slate-500">Phân người theo giai đoạn đang chờ kích hoạt.</p> : <div className="mt-2 flex flex-wrap gap-2 text-xs">
-      {roster.map(member => <span key={member.employeeId} className="rounded-full bg-slate-800 px-3 py-1.5 text-slate-200">{member.fullName}{!eligible.some(candidate => candidate.employeeId === member.employeeId) && ' · Đã ngừng tham gia'}</span>)}
+      {roster.map(member => <span key={member.employeeId} className="rounded-full bg-slate-800 px-3 py-1.5 text-slate-200">{member.fullName}{membersReady && !eligible.some(candidate => candidate.employeeId === member.employeeId) && ' · Đã ngừng tham gia'}</span>)}
       {roster.length === 0 && <p className="text-slate-500">Chưa phân người cho giai đoạn này.</p>}
     </div>}
     {legacyOwner && <p className="mt-2 text-xs text-slate-500">Thông tin phụ trách cũ: {legacyOwner}. Chưa chuyển sang danh sách phân người.</p>}
