@@ -67,8 +67,8 @@ describe('project creation UX, detail actions, and request cleanup', () => {
 
     expect(detailPage).toMatch(/role="progressbar"/);
     expect(detailPage).toMatch(/aria-valuenow=\{projectDetail\.progressPercent\}/);
-    expect(detailPage).toMatch(/aria-labelledby="add-member-title"/);
-    expect(detailPage).toMatch(/aria-describedby="add-member-description"/);
+    expect(detailPage).toMatch(/titleId="add-member-title"/);
+    expect(detailPage).toMatch(/descriptionId="add-member-description"/);
     expect(detailPage).toMatch(/htmlFor="project-member-employee"/);
     expect(detailPage).toMatch(/id="project-member-employee"/);
     expect(detailPage).toMatch(/aria-labelledby="edit-task-title"/);
@@ -103,7 +103,7 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(projectDetail).toMatch(/>Giai đoạn: \{/);
     expect(projectDetail).toMatch(/Chi tiết giai đoạn/);
     expect(projectDetail).toMatch(/Chuyển trạng thái giai đoạn đang chờ kích hoạt/);
-    expect(projectDetail).toMatch(/hộp thoại/);
+    expect(source('app/admin/projects/[projectId]/ProjectActionDialog.tsx')).toContain('Đóng hộp thoại');
     expect(projectDetail).toMatch(/Người phụ trách phải là thành viên đang hoạt động/);
     expect(projectDetail).not.toMatch(/Task Assignment Foundation|Task legacy|Sequential workflow|membership ACTIVE|thành viên ACTIVE|cổng migration|read-only|derive read-only|hard delete membership|Server chưa có mutation|state machine/);
   });

@@ -460,9 +460,9 @@ export async function createPhase(
       stage_owner: optionalTextField(body, 'stageOwner'),
       planned_start_date: optionalDateField(body, 'plannedStartDate'),
       planned_end_date: optionalDateField(body, 'plannedEndDate'),
-      progress: optionalProgress(body),
+      progress: optionalProgress(body) ?? 0,
       next_action: optionalTextField(body, 'nextAction'),
-      required_review: optionalBooleanField(body, 'requiredReview'),
+      required_review: optionalBooleanField(body, 'requiredReview') ?? false,
     }])
     .select('id')
     .single();

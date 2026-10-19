@@ -64,6 +64,6 @@ describe('streamlined project creation and loading', () => {
     expect(detail).toMatch(/void refreshTasks\(\)/);
     expect(detail).toContain('project_core_timeout');
     expect(detail).toContain('Dự án chưa có giai đoạn.');
-    expect(detail).toContain('Hãy thêm giai đoạn để bắt đầu.');
+    expect(detail).toContain('Chọn Thêm giai đoạn và nhập tên để bắt đầu.');
   });
 });

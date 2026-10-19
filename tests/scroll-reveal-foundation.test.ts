@@ -25,12 +25,12 @@ describe('Scroll reveal foundation', () => {
     expect(globalStyles).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
   });
 
-  it('limits the project detail view to two meaningful reveal groups', () => {
+  it('keeps the interactive project workspace free of reveal wrappers', () => {
     const revealCount = projectDetailSource.match(/<ScrollReveal/g)?.length ?? 0;
 
-    expect(revealCount).toBe(2);
+    expect(revealCount).toBe(0);
     expect(projectDetailSource).toMatch(/<ProjectMembershipSection/);
-    expect(projectDetailSource).toMatch(/<ScrollReveal className="space-y-4" delayMs=\{40\}>/);
+    expect(projectDetailSource).toContain('<ProjectWorkspaceTabs');
     expect(projectDetailSource).not.toMatch(/delayMs=\{(?:1[3-9]\d|[2-9]\d{2,})\}/);
   });
 
