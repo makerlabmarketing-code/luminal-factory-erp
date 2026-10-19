@@ -31,8 +31,26 @@ await assert.rejects(db.exec(forward), /drift|already installed/);
 await db.exec('rollback');
 const payload = {projectName:'Fixture',projectCode:'LF-TEST-1',managerEmployeeId:1,projectDeadline:'2026-10-30',memberEmployeeIds:[2],phases:[{clientId:'a',name:'Sculpt',orderIndex:1,stageOwner:'Maker',plannedEndDate:'2026-10-24',requiresReview:true}],tasks:[{clientId:'a1',phaseClientId:'a',title:'Master',assigneeEmployeeId:2,deadline:'2026-10-24',status:'READY',requiresReview:true}]};
 const create = async p => (await db.query('select create_project_atomic($1::jsonb) as result',[JSON.stringify(p)])).rows[0].result;
+// Match Production, where the July constraint omitted PROJECT_CREATED.
+await db.exec(`alter table project_activity add constraint project_activity_activity_type_check check(activity_type in (
+ 'TASK_CREATED','TASK_UPDATED','TASK_ASSIGNED','STATUS_CHANGED','COMMENT_ADDED',
+ 'PRODUCTION_ORDER_CREATED','PRODUCTION_STAGE_ACTIVATED','PRODUCTION_STAGE_COMPLETED','PRODUCTION_STAGE_OVERRIDDEN'
+));`);
+const beforeFailure = (await db.query('select count(*)::int as n from projects')).rows[0].n;
+assert.equal((await create(payload)).code, 'project_create_failed');
+assert.equal((await db.query('select count(*)::int as n from projects')).rows[0].n, beforeFailure);
+const activityBaseline = (await db.query("select md5(pg_get_constraintdef(oid)) as hash from pg_constraint where conname='project_activity_activity_type_check'")).rows[0].hash;
+await db.exec((await read('../project-checklist-activity/forward.sql')).replace('f2e2d8dd312e75c84d51ac9aadb109fd', activityBaseline));
+await assert.rejects(db.exec((await read('../project-checklist-activity/forward.sql')).replace('f2e2d8dd312e75c84d51ac9aadb109fd', activityBaseline)), /drift/);
+await db.exec('rollback');
+await db.exec(await read('../project-checklist-activity/rollback.sql'));
+assert.equal((await db.query("select md5(pg_get_constraintdef(oid)) as hash from pg_constraint where conname='project_activity_activity_type_check'")).rows[0].hash, activityBaseline);
+await db.exec((await read('../project-checklist-activity/forward.sql')).replace('f2e2d8dd312e75c84d51ac9aadb109fd', activityBaseline));
 const first = await create(payload);
 assert.equal(first.success,true,JSON.stringify(first));
+await assert.rejects(db.exec(await read('../project-checklist-activity/rollback.sql')), /Rollback blocked/);
+await db.exec('rollback');
+assert.equal((await db.query("select count(*)::int as n from project_activity where activity_type='PROJECT_CREATED'")).rows[0].n, 1);
 assert.equal((await db.query('select stage_owner,required_review,planned_end_date::text from phases')).rows[0].stage_owner,'Maker');
 const task=(await db.query('select id,phase_id from tasks')).rows[0]; assert.ok(task.phase_id);
 const call = async (expected,next,note=null) => (await db.query('select update_staff_checklist_task($1,2,$2,$3,$4) as result',[task.id,expected,next,note])).rows[0].result;
