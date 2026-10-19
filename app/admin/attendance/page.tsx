@@ -6,7 +6,7 @@ import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
 import { DataTableError, DataTableShell, DataTableSkeleton } from '@/component/data-table/DataTable';
 import DailyAttendanceModal from './components/DailyAttendanceModal';
-import { Calendar as CalendarIcon, Clock, LayoutGrid, CreditCard, User } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, LayoutGrid, User } from 'lucide-react';
 import {
   businessDateFromDateInput,
   businessMonthCalendar,
@@ -312,15 +312,6 @@ export default function AdminAttendanceManagement() {
 
           <MonthPicker value={monthInput} onChange={setMonthInput} accent="purple" />
           
-          <button
-            type="button"
-            disabled
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[11px] font-bold text-slate-500 cursor-not-allowed"
-            title="Sẽ triển khai sau khi Project Management foundation hoàn thành"
-          >
-            <CreditCard className="w-4 h-4"/>
-            Quyết toán lương tháng
-          </button>
         </div>
       </div>
 

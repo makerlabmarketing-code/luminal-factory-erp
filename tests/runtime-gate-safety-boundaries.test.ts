@@ -89,7 +89,8 @@ describe('runtime gate server authority', () => {
     expect(projectPage).toMatch(/Thiết lập sau tại chi tiết dự án/);
     expect(projectDetail).toContain('Chức năng thêm công việc đang chờ kích hoạt.');
     expect(timeline).toContain('Bình luận và lịch sử hoạt động đang chờ kích hoạt.');
-    expect(attendancePage).toMatch(/disabled[\s\S]*Điều chỉnh chấm công đang chờ xác nhận/);
+    expect(attendancePage).toMatch(/!canAdjustAttendance && !loadError && \([\s\S]*?Điều chỉnh chấm công đang chờ xác nhận/);
+    expect(attendancePage).toContain('canAdjust={canAdjustAttendance}');
   });
 
   it('revokes direct browser execution from atomic RPC packages', () => {
