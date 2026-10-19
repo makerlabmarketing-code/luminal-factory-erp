@@ -1082,8 +1082,8 @@ export default function ProjectDetailPage() {
           <div className="space-y-4">
             <section className="rounded-lg border border-slate-800 bg-slate-900">
               <div className="border-b border-slate-800 px-4 py-3">
-                <h2 className="text-sm font-black text-slate-100">Stepper giai đoạn</h2>
-                <p className="text-[11px] text-slate-500">Trạng thái chỉ xem đang được tính từ thứ tự giai đoạn và dữ liệu hoàn thành hiện có.</p>
+                <h2 className="text-sm font-black text-slate-100">Các giai đoạn</h2>
+                <p className="text-[11px] text-slate-500">Chọn giai đoạn để xem công việc.</p>
               </div>
               <div className="overflow-x-auto p-4 [scroll-snap-type:x_mandatory]">
                 <div className="flex min-w-max items-start">
@@ -1155,11 +1155,6 @@ export default function ProjectDetailPage() {
             <ScrollReveal className="space-y-4" delayMs={40}>
               {selectedPhase && (
               <section className="rounded-lg border border-slate-800 bg-slate-900">
-                {!phaseStatusPersistenceAvailable && (
-                  <div className="border-b border-amber-900/60 bg-amber-950/30 px-4 py-3 text-xs text-amber-200" role="status">
-                    Trạng thái giai đoạn đang được hiển thị theo chế độ tương thích. Thao tác chuyển trạng thái bị khóa cho đến khi hoàn tất rollout Phase Workflow.
-                  </div>
-                )}
                 <div className="border-b border-slate-800 px-4 py-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -1168,7 +1163,6 @@ export default function ProjectDetailPage() {
                         <h2 className="text-sm font-black text-slate-100">{selectedPhase.phaseName}</h2>
                         <span className="rounded border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300">{phaseStatusLabel(selectedPhase.status)}</span>
                       </div>
-                      <p className="mt-1 text-[11px] text-slate-500">Thứ tự {selectedPhase.orderIndex} · Tạo lúc {formatDateTime(selectedPhase.description.phase_created_at)}</p>
                     </div>
                     <button type="button" onClick={() => handleStartCreateTask(selectedPhase)} disabled={!projectCapabilities.canManageTasks || !canCreateTasks || isProjectCancelled || selectedPhase.isLocked || taskLoadBlocked} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
                       <Plus className="h-4 w-4" /> Thêm công việc vào giai đoạn
@@ -1203,12 +1197,6 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
                 <div className="space-y-4 p-4">
-                  {selectedPhase.gateMessage && (
-                    <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-400">
-                      {selectedPhase.gateMessage}
-                    </div>
-                  )}
-
                   {editingPhaseId === selectedPhase.item.phase_id && (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_110px_auto]" aria-labelledby="edit-phase-title">
                       <p id="edit-phase-title" className="sr-only">Sửa thông tin giai đoạn đang chọn</p>
@@ -1227,36 +1215,41 @@ export default function ProjectDetailPage() {
                     </div>
                   )}
 
-                  <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-400">
-                    {canCreateTasks ? 'Công việc được lưu qua cổng giao dịch của dự án và giai đoạn đang chọn.' : 'Chức năng thêm công việc đang chờ kích hoạt.'}
-                  </div>
-
-                  <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
+                  <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-3">
                     <ProjectDetailField label="Hạn hoàn thành" value={formatDate(selectedPhase.description.stage_deadline || selectedPhase.description.project_deadline)} />
-                    <ProjectDetailField label="Người phụ trách giai đoạn" value={selectedPhase.description.stage_owner || 'Chưa gán'} />
-                    <ProjectDetailField label="Tiến độ giai đoạn" value={`${selectedPhase.progressPercent}%`} />
-                    <ProjectDetailField label="Số công việc" value={`${selectedPhase.taskCount} tổng · ${selectedPhase.completedTaskCount} xong · ${selectedPhase.overdueTaskCount} quá hạn`} />
-                    <ProjectDetailField label="Trạng thái giai đoạn" value={phaseStatusLabel(selectedPhase.status)} />
-                    <ProjectDetailField label="Hoạt động gần nhất" value={formatDateTime(selectedPhase.lastActivityAt)} />
+                    <ProjectDetailField label="Người phụ trách" value={selectedPhase.description.stage_owner || 'Chưa gán'} />
+                    <ProjectDetailField label="Công việc hoàn thành" value={`${selectedPhase.completedTaskCount}/${selectedPhase.taskCount}${selectedPhase.overdueTaskCount > 0 ? ` · ${selectedPhase.overdueTaskCount} quá hạn` : ''}`} />
                   </dl>
 
-                  <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-400">
-                    {selectedPhase.description.next_action || selectedPhase.description.stage_type || 'Chưa có mô tả giai đoạn.'}
-                  </div>
+                  <details key={selectedPhase.item.key} className="rounded-lg border border-slate-800 text-xs">
+                    <summary className="cursor-pointer px-3 py-2 font-bold text-slate-400 focus-visible:outline-cyan-300">Chi tiết giai đoạn</summary>
+                    <div className="space-y-3 border-t border-slate-800 p-3 text-slate-400">
+                      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <TaskMobileField label="Tiến độ" value={`${selectedPhase.progressPercent}%`} />
+                        <TaskMobileField label="Hoạt động gần nhất" value={formatDateTime(selectedPhase.lastActivityAt)} />
+                        <TaskMobileField label="Thứ tự" value={String(selectedPhase.orderIndex)} />
+                        <TaskMobileField label="Ngày tạo" value={formatDateTime(selectedPhase.description.phase_created_at)} />
+                      </dl>
+                      {(selectedPhase.description.next_action || selectedPhase.description.stage_type) && (
+                        <p>{selectedPhase.description.next_action || selectedPhase.description.stage_type}</p>
+                      )}
+                      {selectedPhase.gateMessage && <p>{selectedPhase.gateMessage}</p>}
+                      {!phaseStatusPersistenceAvailable && <p>Chuyển trạng thái giai đoạn đang chờ kích hoạt.</p>}
+                    </div>
+                  </details>
+                  {!canCreateTasks && <p className="text-xs text-slate-500">Chức năng thêm công việc đang chờ kích hoạt.</p>}
 
                   <div className="overflow-x-auto">
-                    <CommonTable className="hidden w-full min-w-[900px] text-left text-xs md:table">
+                    {selectedPhase.tasks.length > 0 && (
+                    <>
+                    <CommonTable className="hidden w-full min-w-[640px] text-left text-xs md:table">
                       <thead className="text-slate-500">
                         <tr className="border-b border-slate-800">
                           <th className="py-2 pr-3">Tên công việc</th>
                           <th className="py-2 pr-3">Người phụ trách</th>
                           <th className="py-2 pr-3">Hạn hoàn thành</th>
                           <th className="py-2 pr-3">Trạng thái</th>
-                          <th className="py-2 pr-3">Ưu tiên</th>
-                          <th className="py-2 pr-3">Phụ thuộc</th>
-                          <th className="py-2 pr-3">Cập nhật cuối</th>
-                          <th className="py-2 pr-3">Tiến độ</th>
-                          <th className="py-2 pr-3">Bình luận</th>
+                          <th className="py-2 pr-3">Chi tiết</th>
                           <th className="py-2">Thao tác</th>
                         </tr>
                       </thead>
@@ -1267,11 +1260,18 @@ export default function ProjectDetailPage() {
                             <td className="py-3 pr-3">{getTaskAssigneeLabel(task)}</td>
                             <td className="py-3 pr-3">{getTaskDeadlineLabel(task)}</td>
                             <td className="py-3 pr-3">{taskStatusLabel(getTaskStatusValue(task))}</td>
-                            <td className="py-3 pr-3">{getTaskPriorityLabel(task)}</td>
-                            <td className="py-3 pr-3">{getTaskDependencyLabel(task)}</td>
-                            <td className="py-3 pr-3">{getTaskLastUpdateLabel(task)}</td>
-                            <td className="py-3 pr-3">{getTaskProgressLabel(task)}</td>
-                            <td className="py-3 pr-3">{getTaskCommentLabel(task)}</td>
+                            <td className="py-3 pr-3 align-top">
+                              <details>
+                                <summary className="cursor-pointer text-cyan-300 focus-visible:outline-cyan-300">Xem thêm<span className="sr-only">: {getTaskTitle(task)}</span></summary>
+                                <dl className="mt-2 space-y-2">
+                                  <TaskMobileField label="Ưu tiên" value={getTaskPriorityLabel(task)} />
+                                  <TaskMobileField label="Phụ thuộc" value={getTaskDependencyLabel(task)} />
+                                  <TaskMobileField label="Cập nhật cuối" value={getTaskLastUpdateLabel(task)} />
+                                  <TaskMobileField label="Tiến độ" value={getTaskProgressLabel(task)} />
+                                  <TaskMobileField label="Bình luận" value={getTaskCommentLabel(task)} />
+                                </dl>
+                              </details>
+                            </td>
                             <td className="py-3"><TableRowActions renderActions={function renderRowActions() { return <>
                               {isTaskAssignmentDTO(task) && canManageTasks ? (
                                 <button type="button" onClick={() => handleStartEditTask(task)} className="rounded border border-slate-700 px-2 py-1 font-bold text-slate-300">
@@ -1292,14 +1292,19 @@ export default function ProjectDetailPage() {
                           </div>
                           <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <TaskMobileField label="Người phụ trách" value={getTaskAssigneeLabel(task)} />
-                            <TaskMobileField label="Người đóng gói" value={getTaskPackerLabel(task) || 'Chưa gán'} />
                             <TaskMobileField label="Hạn hoàn thành" value={getTaskDeadlineLabel(task)} />
-                            <TaskMobileField label="Ưu tiên" value={getTaskPriorityLabel(task)} />
-                            <TaskMobileField label="Phụ thuộc" value={getTaskDependencyLabel(task)} />
-                            <TaskMobileField label="Cập nhật cuối" value={getTaskLastUpdateLabel(task)} />
-                            <TaskMobileField label="Tiến độ" value={getTaskProgressLabel(task)} />
-                            <TaskMobileField label="Bình luận" value={getTaskCommentLabel(task)} />
                           </dl>
+                          <details className="mt-3">
+                            <summary className="cursor-pointer text-cyan-300 focus-visible:outline-cyan-300">Chi tiết công việc<span className="sr-only">: {getTaskTitle(task)}</span></summary>
+                            <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              <TaskMobileField label="Người đóng gói" value={getTaskPackerLabel(task) || 'Chưa gán'} />
+                              <TaskMobileField label="Ưu tiên" value={getTaskPriorityLabel(task)} />
+                              <TaskMobileField label="Phụ thuộc" value={getTaskDependencyLabel(task)} />
+                              <TaskMobileField label="Cập nhật cuối" value={getTaskLastUpdateLabel(task)} />
+                              <TaskMobileField label="Tiến độ" value={getTaskProgressLabel(task)} />
+                              <TaskMobileField label="Bình luận" value={getTaskCommentLabel(task)} />
+                            </dl>
+                          </details>
                           {isTaskAssignmentDTO(task) && canManageTasks && (
                             <button type="button" onClick={() => handleStartEditTask(task)} className="mt-3 w-full rounded border border-slate-700 px-2 py-2 font-bold text-slate-300">
                               Sửa
@@ -1308,12 +1313,9 @@ export default function ProjectDetailPage() {
                         </article>
                       ))}
                     </div>
-                    {selectedPhase.tasks.length === 0 && (
-                      <OperationalState
-                        title="Giai đoạn này chưa có công việc."
-                        description="Công việc con sẽ hiển thị ở đây sau khi nền tảng giao việc trả về dữ liệu theo giai đoạn."
-                      />
+                    </>
                     )}
+                    {selectedPhase.tasks.length === 0 && <p className="py-4 text-center text-sm text-slate-500">Chưa có công việc trong giai đoạn này.</p>}
                   </div>
                 </div>
               </section>
@@ -1350,8 +1352,8 @@ export default function ProjectDetailPage() {
 
           <aside className="space-y-4 2xl:sticky 2xl:top-4 2xl:self-start">
             <ProjectTimelineSection projectId={projectId} cancelled={isProjectCancelled} />
-            <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-              <h2 className="text-sm font-black text-slate-100">Thông tin dự án</h2>
+            <details className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+              <summary className="cursor-pointer text-sm font-black text-slate-100 focus-visible:outline-cyan-300">Thông tin dự án &amp; tài liệu</summary>
               <dl className="mt-3 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 xl:grid-cols-1">
                 <div>
                   <p className="text-slate-500">Mã dự án</p>
@@ -1384,10 +1386,10 @@ export default function ProjectDetailPage() {
                   <button type="button" disabled={!canManageProject} onClick={handleSaveDriveLink} className="w-full rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">Lưu thông tin</button>
                 </div>
               </dl>
-            </section>
+            </details>
 
-            <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-              <h2 className="text-sm font-black text-slate-100">Tải công việc thành viên</h2>
+            <details className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+              <summary className="cursor-pointer text-sm font-black text-slate-100 focus-visible:outline-cyan-300">Phân bổ công việc thành viên</summary>
               <div className="mt-3 space-y-2 text-xs">
                 {executionMetrics.memberWorkload.slice(0, 5).map((workload) => (
                   <div key={workload.employeeId} className="flex items-center justify-between rounded border border-slate-800 bg-slate-950 px-3 py-2">
@@ -1397,14 +1399,8 @@ export default function ProjectDetailPage() {
                 ))}
                 {executionMetrics.memberWorkload.length === 0 && <p className="text-slate-500">Chưa có công việc được giao.</p>}
               </div>
-            </section>
+            </details>
 
-            <section className="rounded-lg border border-amber-900 bg-amber-950/20 p-4 text-xs text-amber-100">
-              <div className="flex gap-2">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                <p>Quy trình tuần tự hiện chỉ cho xem. Cần cổng dữ liệu trạng thái và phụ thuộc trước khi cho sửa giai đoạn bị khóa.</p>
-              </div>
-            </section>
           </aside>
         </div>
       </div>

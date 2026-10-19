@@ -57,7 +57,7 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(service).toMatch(/project_created_at/);
     expect(service).toMatch(/phase_created_at/);
     expect(service).toMatch(/phase_order_index/);
-    expect(detailPage).toMatch(/Stepper giai đoạn/);
+    expect(detailPage).toMatch(/Các giai đoạn/);
     expect(detailPage).toMatch(/notFound\(\)/);
   });
 
@@ -98,11 +98,11 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(projectDetail).toMatch(/Nền tảng giao việc chưa sẵn sàng/);
     expect(projectDetail).toMatch(/Dữ liệu công việc cũ/);
     expect(projectDetail).toMatch(/Thêm thành viên/);
-    expect(projectDetail).toMatch(/nền tảng giao việc trả về dữ liệu theo giai đoạn/);
+    expect(projectDetail).toMatch(/Chưa có công việc trong giai đoạn này/);
     expect(projectDetail).toMatch(/Công việc cũ không có giai đoạn hiện tại/);
     expect(projectDetail).toMatch(/>Giai đoạn: \{/);
-    expect(projectDetail).toMatch(/Quy trình tuần tự hiện chỉ cho xem/);
-    expect(projectDetail).toMatch(/cổng dữ liệu trạng thái và phụ thuộc/);
+    expect(projectDetail).toMatch(/Chi tiết giai đoạn/);
+    expect(projectDetail).toMatch(/Chuyển trạng thái giai đoạn đang chờ kích hoạt/);
     expect(projectDetail).toMatch(/hộp thoại/);
     expect(projectDetail).toMatch(/Người phụ trách phải là thành viên đang hoạt động/);
     expect(projectDetail).not.toMatch(/Task Assignment Foundation|Task legacy|Sequential workflow|membership ACTIVE|thành viên ACTIVE|cổng migration|read-only|derive read-only|hard delete membership|Server chưa có mutation|state machine/);
