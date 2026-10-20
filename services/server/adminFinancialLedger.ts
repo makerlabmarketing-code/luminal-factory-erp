@@ -185,7 +185,7 @@ function mutationColumns(
     updated_at: new Date().toISOString(),
   };
   return mode === 'create'
-    ? { ...extended, creator_employee_id: Number(auth.employee.id), idempotency_key: input.idempotencyKey }
+    ? { ...extended, creator_employee_id: Number(auth.employee.id), idempotency_key: input.idempotencyKey, ...(input.isPaid ? { payment_confirmer_employee_id: Number(auth.employee.id), paid_at: new Date().toISOString() } : {}) }
     : extended;
 }
 
@@ -461,7 +461,7 @@ export async function updateAdminFinancialLedger(ledgerId: number, body: Record<
 }
 
 export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: boolean, salaryMonth?: unknown) {
-  await requireFinance('FINANCE_UPDATE');
+  const auth = await requireFinance('FINANCE_UPDATE');
   await requireExtendedLedgerSchema();
   const admin = createSupabaseAdminClient();
   const { data: targetData, error: targetError } = await admin.from('financial_ledger').select('id, type, category, is_paid' + (salaryPaymentEmailEnabled() ? ', source_type' : '')).eq('id', ledgerId).maybeSingle();
@@ -475,10 +475,11 @@ export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: bool
     if (!isPaid) resourceConflict('Không đổi khoản lương đã trả về chưa trả.');
     return confirmSalaryLedgerPayment(ledgerId, salaryMonth);
   }
-  const values = extendedLedgerEnabled() ? { is_paid: isPaid, payment_status: isPaid ? 'PAID' : 'UNPAID', updated_at: new Date().toISOString() } : { is_paid: isPaid };
-  const { data, error } = await admin.from('financial_ledger').update(values).eq('id', ledgerId).select('id').maybeSingle();
+  const values = extendedLedgerEnabled() ? { is_paid: isPaid, payment_status: isPaid ? 'PAID' : 'UNPAID', updated_at: new Date().toISOString(), ...(!target.is_paid && isPaid ? { payment_confirmer_employee_id: Number(auth.employee.id), paid_at: new Date().toISOString() } : {}) } : { is_paid: isPaid };
+  const update = admin.from('financial_ledger').update(values).eq('id', ledgerId);
+  const { data, error } = await (target.is_paid == null ? update.is('is_paid', null) : update.eq('is_paid', target.is_paid)).select('id').maybeSingle();
   if (error) persistenceError('Không thể cập nhật trạng thái thanh toán.');
-  if (!data) resourceNotFound('Không tìm thấy giao dịch cần cập nhật trạng thái.');
+  if (!data) resourceConflict('Trạng thái giao dịch đã thay đổi. Tải lại trước khi xác nhận.');
   return { success: true as const };
 }
 

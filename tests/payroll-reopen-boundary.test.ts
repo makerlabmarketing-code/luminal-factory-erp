@@ -11,7 +11,7 @@ vi.mock('@/utils/supabase/admin', () => ({createSupabaseAdminClient: vi.fn()}));
 import { reopenPayroll } from '../services/server/payroll';
 const prior=[process.env.PAYROLL_SETTLEMENT_ENABLED, process.env.PAYROLL_REOPEN_ENABLED];
 beforeEach(() => { vi.resetAllMocks(); state.permission.mockResolvedValue(true); state.rpc.mockResolvedValue({error:null}); process.env.PAYROLL_SETTLEMENT_ENABLED='true'; process.env.PAYROLL_REOPEN_ENABLED='true'; });
-afterEach(() => { for(const [i,key] of ['PAYROLL_SETTLEMENT_ENABLED','PAYROLL_REOPEN_ENABLED'].entries()) { if(prior[i]===undefined) delete process.env[key]; else process.env[key]=prior[i]; } });
+afterEach(() => { ['PAYROLL_SETTLEMENT_ENABLED','PAYROLL_REOPEN_ENABLED'].forEach((key,i) => { if(prior[i]===undefined) delete process.env[key]; else process.env[key]=prior[i]; }); });
 const id='11111111-1111-4111-8111-111111111111';
 describe('reopen payroll trusted boundary', () => {
  it('stays disabled until the reviewed schema rollout', async () => {
