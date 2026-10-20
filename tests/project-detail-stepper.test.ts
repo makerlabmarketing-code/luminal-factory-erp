@@ -67,7 +67,7 @@ describe('project detail stepper and task assignee display', () => {
     expect(detailPage).toMatch(/function TaskMobileField/);
     expect(detailPage).toContain('lg:grid-cols-[240px_minmax(0,1fr)]');
     expect(detailPage).toContain('lg:sticky lg:top-4');
-    expect(detailPage).toMatch(/<dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-3">/);
+    expect(detailPage).toMatch(/<dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">/);
     expect(detailPage).toMatch(/<article key=\{getTaskKey\(task\)\}/);
     expect(detailPage).toMatch(/<TaskMobileField label="Người phụ trách" value=\{getTaskAssigneeLabel\(task\)\} \/>/);
     expect(detailPage).toMatch(/className="mt-3 w-full rounded border border-slate-700 px-2 py-2 font-bold text-slate-300"/);

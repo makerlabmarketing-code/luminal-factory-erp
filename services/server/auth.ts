@@ -107,7 +107,16 @@ export type AuthFlowErrorCode =
   | 'project_cancelled'
   | 'phase_project_mismatch'
   | 'phase_invalid_action'
-  | 'phase_authorization_failed';
+  | 'phase_authorization_failed'
+  | 'phase_members_failed'
+  | 'phase_members_not_enabled'
+  | 'phase_members_stale'
+  | 'phase_members_not_project_member'
+  | 'phase_members_forbidden'
+  | 'phase_members_project_closed'
+  | 'phase_members_phase_closed'
+  | 'phase_members_phase_mismatch'
+  | 'phase_members_project_not_found';
 
 export type AuthFailureStage =
   | 'auth_get_user'
