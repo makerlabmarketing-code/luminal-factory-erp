@@ -116,7 +116,7 @@ export default function LedgerTable({
                     </div>
                   </div>
                 </td>
-                <td className="max-w-[180px] break-words p-4 text-slate-400">{l.payer_name || l.requested_by || 'Chưa xác định'}</td>
+                <td className="max-w-[180px] break-words p-4 text-slate-400">{!l.approver_name && !l.payment_confirmer_name && 'Chưa ghi nhận'}{l.approver_name && <span className="mt-1 block text-[10px]">Duyệt: {l.approver_name}</span>}{l.payment_confirmer_name && <span className="mt-1 block text-[10px]">Thanh toán: {l.payment_confirmer_name}</span>}</td>
                 <td className="max-w-[180px] break-words p-4 text-slate-300">{l.beneficiary_name || 'Chưa xác định'}</td>
                 <td className="p-4">
                   {isReimbursement ? (
@@ -186,7 +186,7 @@ export default function LedgerTable({
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 text-slate-500">{child.requested_by}</td>
+                  <td className="p-4 text-slate-500">Hệ thống</td>
                   <td className="p-4 text-slate-600">Không áp dụng</td>
                   <td className="p-4 opacity-50 pointer-events-none">
                     <button className="whitespace-nowrap rounded border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-black text-emerald-400">Đã trả</button>

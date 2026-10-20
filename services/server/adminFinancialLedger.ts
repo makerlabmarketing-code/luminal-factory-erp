@@ -185,7 +185,7 @@ function mutationColumns(
     updated_at: new Date().toISOString(),
   };
   return mode === 'create'
-    ? { ...extended, creator_employee_id: Number(auth.employee.id), idempotency_key: input.idempotencyKey }
+    ? { ...extended, creator_employee_id: Number(auth.employee.id), idempotency_key: input.idempotencyKey, ...(input.isPaid ? { payment_confirmer_employee_id: Number(auth.employee.id), paid_at: new Date().toISOString() } : {}) }
     : extended;
 }
 
@@ -296,7 +296,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
   }
   const admin = createSupabaseAdminClient();
   const baseColumns = 'id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at';
-  const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference';
+  const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, approver_employee_id, payment_confirmer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference';
   const { data, error } = await admin
     .from('financial_ledger')
     .select(baseColumns + (extendedLedgerEnabled() ? extendedColumns : ''))
@@ -325,7 +325,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
       ),
     };
   })();
-  const employeeIds = Array.from(new Set(rows.flatMap((row) => [row.beneficiary_employee_id, row.payer_employee_id]).filter((id): id is number | string => id != null)));
+  const employeeIds = Array.from(new Set(rows.flatMap((row) => [row.beneficiary_employee_id, row.payer_employee_id, row.approver_employee_id, row.payment_confirmer_employee_id]).filter((id): id is number | string => id != null)));
   const employeeNamesPromise = (async () => {
     const employeeNames = new Map<string, string>();
     if (employeeIds.length === 0) return employeeNames;
@@ -461,7 +461,7 @@ export async function updateAdminFinancialLedger(ledgerId: number, body: Record<
 }
 
 export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: boolean, salaryMonth?: unknown) {
-  await requireFinance('FINANCE_UPDATE');
+  const auth = await requireFinance('FINANCE_UPDATE');
   await requireExtendedLedgerSchema();
   const admin = createSupabaseAdminClient();
   const { data: targetData, error: targetError } = await admin.from('financial_ledger').select('id, type, category, is_paid' + (salaryPaymentEmailEnabled() ? ', source_type' : '')).eq('id', ledgerId).maybeSingle();
@@ -475,10 +475,11 @@ export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: bool
     if (!isPaid) resourceConflict('Không đổi khoản lương đã trả về chưa trả.');
     return confirmSalaryLedgerPayment(ledgerId, salaryMonth);
   }
-  const values = extendedLedgerEnabled() ? { is_paid: isPaid, payment_status: isPaid ? 'PAID' : 'UNPAID', updated_at: new Date().toISOString() } : { is_paid: isPaid };
-  const { data, error } = await admin.from('financial_ledger').update(values).eq('id', ledgerId).select('id').maybeSingle();
+  const values = extendedLedgerEnabled() ? { is_paid: isPaid, payment_status: isPaid ? 'PAID' : 'UNPAID', updated_at: new Date().toISOString(), ...(!target.is_paid && isPaid ? { payment_confirmer_employee_id: Number(auth.employee.id), paid_at: new Date().toISOString() } : {}) } : { is_paid: isPaid };
+  const update = admin.from('financial_ledger').update(values).eq('id', ledgerId);
+  const { data, error } = await (target.is_paid == null ? update.is('is_paid', null) : update.eq('is_paid', target.is_paid)).select('id').maybeSingle();
   if (error) persistenceError('Không thể cập nhật trạng thái thanh toán.');
-  if (!data) resourceNotFound('Không tìm thấy giao dịch cần cập nhật trạng thái.');
+  if (!data) resourceConflict('Trạng thái giao dịch đã thay đổi. Tải lại trước khi xác nhận.');
   return { success: true as const };
 }
 
