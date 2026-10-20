@@ -1,4 +1,5 @@
 import 'server-only';
+import { payrollAdjustmentInput } from '@/lib/payroll-input';
 
 import { createClient } from '@/utils/supabase/server';
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
@@ -32,6 +33,8 @@ export interface PayrollMonthDTO {
   settlementStatus: 'UNSETTLED' | 'SETTLED';
   settlementId: string | null;
   settledAt: string | null;
+  settledByName?: string | null;
+  reopeningHistory?: Array<{ reason: string; reopenedAt: string; actorName: string }>;
   approvedAdjustments: PayrollAdjustmentDTO[];
   adjustmentTotal: number;
   finalPayableAmount: number;
@@ -46,6 +49,7 @@ export interface PayrollReadinessDTO {
   canSettle: boolean;
   canAdjust: boolean;
   canConfigure: boolean;
+  canReopen?: boolean;
 }
 
 function payrollEnabled() {
@@ -127,6 +131,7 @@ export async function getAdminPayrollReadiness(): Promise<{ success: true; readi
         canSettle,
         canAdjust,
         canConfigure,
+        canReopen: canSettle && process.env.PAYROLL_REOPEN_ENABLED === 'true',
       },
     };
   }
@@ -142,6 +147,7 @@ export async function getAdminPayrollReadiness(): Promise<{ success: true; readi
       canSettle,
       canAdjust,
       canConfigure,
+      canReopen: canSettle && process.env.PAYROLL_REOPEN_ENABLED === 'true',
     },
   };
 }
@@ -198,7 +204,31 @@ export async function getAdminPayroll(month: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('list_monthly_payroll_for_admin', { p_month: `${validMonth(month)}-01` });
   if (error) throw new Error('Không thể tải dữ liệu lương tháng.');
-  return { success: true as const, capabilityEnabled: true, canSettle, canAdjust, payroll: (data || []).map((row: unknown) => mapPayroll(row as Record<string, unknown>)) };
+  const payroll: PayrollMonthDTO[] = (data || []).map((row: unknown) => mapPayroll(row as Record<string, unknown>));
+  const settlementIds = payroll.flatMap(row => row.settlementId ? [row.settlementId] : []);
+  if (settlementIds.length) {
+    const { data: actors, error: actorError } = await admin.from('payroll_settlements')
+      .select('id, employees!payroll_settlements_settled_by_employee_id_fkey(full_name)').in('id', settlementIds);
+    if (actorError) throw new Error('Không thể tải người chốt lương.');
+    const names = new Map((actors || []).map(row => {
+      const employee = Array.isArray(row.employees) ? row.employees[0] : row.employees;
+      return [String(row.id), employee?.full_name || null];
+    }));
+    for (const row of payroll) row.settledByName = row.settlementId ? names.get(row.settlementId) || null : null;
+  }
+  if (process.env.PAYROLL_REOPEN_ENABLED === 'true') {
+    const { data: reopened, error: reopenError } = await admin.from('payroll_settlement_reopenings')
+      .select('reason, reopened_at, employees!payroll_settlement_reopenings_actor_employee_id_fkey(full_name), payroll_settlements!inner(employee_id,payroll_month)')
+      .eq('payroll_settlements.payroll_month', `${validMonth(month)}-01`).order('reopened_at', { ascending: false });
+    if (reopenError) throw new Error('Không thể tải lịch sử mở lại kỳ lương.');
+    for (const item of reopened || []) {
+      const snapshot = Array.isArray(item.payroll_settlements) ? item.payroll_settlements[0] : item.payroll_settlements;
+      const actor = Array.isArray(item.employees) ? item.employees[0] : item.employees;
+      const row = payroll.find(candidate => candidate.employeeId === String(snapshot?.employee_id));
+      if (row) (row.reopeningHistory ||= []).push({ reason: item.reason, reopenedAt: item.reopened_at, actorName: actor?.full_name || 'Chưa ghi nhận' });
+    }
+  }
+  return { success: true as const, capabilityEnabled: true, canSettle, canAdjust, payroll };
 }
 
 export async function settlePayroll(employeeId: unknown, month: unknown) {
@@ -217,7 +247,7 @@ export async function settlePayroll(employeeId: unknown, month: unknown) {
         ? 'Nhân viên đã được quyết toán trong tháng này.'
         : historical
           ? 'Kỳ đã chọn nằm trước tháng quyết toán đầu tiên.'
-          : 'Không thể xác nhận quyết toán lương.',
+          : error.message.includes('payroll_unfinished_attendance') ? 'Nhân viên còn ca chưa chấm công ra. Hoàn tất ca trước khi chốt lương.' : 'Không thể xác nhận quyết toán lương.',
       failureStage: 'persistence',
     });
   }
@@ -227,11 +257,27 @@ export async function settlePayroll(employeeId: unknown, month: unknown) {
 export async function addPayrollAdjustment(settlementId: unknown, amount: unknown, reason: unknown) {
   await requireAdminPayrollPermission(PAYROLL_ADJUST_PERMISSION);
   ensureEnabled();
-  const numericAmount = Number(amount);
-  const cleanReason = typeof reason === 'string' ? reason.trim() : '';
-  if (!settlementId || !Number.isFinite(numericAmount) || numericAmount === 0 || cleanReason.length < 3) throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Số tiền và lý do điều chỉnh không hợp lệ.', failureStage: 'validation' });
+  let input: { amount: number; reason: string };
+  try { input = payrollAdjustmentInput(amount, reason); } catch (error) {
+    throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: (error as Error).message, failureStage: 'validation' });
+  }
+  if (typeof settlementId !== 'string' || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(settlementId)) throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Bản chốt không hợp lệ.', failureStage: 'validation' });
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc('create_payroll_adjustment', { p_settlement_id: String(settlementId), p_amount: numericAmount, p_reason: cleanReason });
+  const { data, error } = await supabase.rpc('create_payroll_adjustment', { p_settlement_id: String(settlementId), p_amount: input.amount, p_reason: input.reason });
   if (error) throw new Error('Không thể tạo điều chỉnh lương.');
   return { success: true as const, adjustmentId: String(data) };
+}
+
+export async function reopenPayroll(settlementId: unknown, reason: unknown) {
+  await requireAdminPayrollPermission(PAYROLL_SETTLEMENT_PERMISSION);
+  ensureEnabled();
+  if (process.env.PAYROLL_REOPEN_ENABLED !== 'true') throw new AuthFlowError({ status: 503, code: 'service_unavailable', message: 'Mở lại kỳ lương đang chờ kích hoạt.', failureStage: 'persistence' });
+  if (typeof settlementId !== 'string' || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(settlementId) || typeof reason !== 'string' || reason.trim().length < 10 || reason.trim().length > 1000) throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Chọn đúng bản chốt và nhập lý do từ 10 đến 1.000 ký tự.', failureStage: 'validation' });
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('reopen_monthly_payroll', { p_settlement_id: settlementId, p_reason: reason.trim() });
+  if (error) {
+    const message = error.message.includes('payroll_already_paid') ? 'Đã có khoản lương được trả trong tháng này. Không thể mở lại.' : error.message.includes('payroll_has_adjustments') ? 'Bản chốt đã có điều chỉnh. Cần đối soát trước khi mở lại.' : 'Không thể mở lại. Bản chốt có thể đã thay đổi hoặc bạn chưa đủ quyền.';
+    throw new AuthFlowError({ status: error.code === '42501' ? 403 : 409, code: 'payload_validation_failed', message, failureStage: 'persistence' });
+  }
+  return { success: true as const };
 }

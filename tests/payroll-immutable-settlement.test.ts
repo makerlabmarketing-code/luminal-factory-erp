@@ -76,11 +76,12 @@ describe('payroll runtime safeguards', () => {
   it('explains and blocks settlement before the immutable first month', () => {
     expect(adminPage).toContain('selectedMonthBeforeStart');
     expect(adminPage).toContain('chỉ được xem để đối chiếu');
-    expect(adminPage).toContain("selectedMonthBeforeStart ? 'Ngoài kỳ' : 'Xác nhận'");
+    expect(adminPage).toContain("selectedMonthBeforeStart ? 'Ngoài kỳ' : 'Chốt lương'");
   });
 
   it('updates successful settlement actions without reloading the whole table', () => {
     expect(adminPage).toContain("settlementStatus: 'SETTLED'");
-    expect(adminPage).toContain('approvedAdjustments: [...row.approvedAdjustments');
+    expect(adminPage).toContain('await loadPayroll()');
+    expect(adminPage).toContain('lần điều chỉnh');
   });
 });

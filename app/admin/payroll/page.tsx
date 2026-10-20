@@ -1,4 +1,5 @@
 'use client';
+import { PayrollActionDialog } from './PayrollActionDialog';
 
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -16,6 +17,8 @@ export default function AdminPayrollPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [setupLoading, setSetupLoading] = useState(true);
+  const [actionDialog, setActionDialog] = useState<{ row: PayrollMonthDTO; action: 'adjust' | 'reopen' } | null>(null);
+  const [success, setSuccess] = useState('');
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const lock = useRef(false);
   const requestSequence = useRef(0);
@@ -98,7 +101,7 @@ export default function AdminPayrollPage() {
       setError(`Không thể quyết toán kỳ ${month}. Hệ thống chỉ cho phép quyết toán từ ${readiness.firstSettlementMonth}.`);
       return;
     }
-    if (lock.current || !confirm('Xác nhận quyết toán? Bản gốc sẽ không thể sửa hoặc ghi đè.')) return;
+    if (lock.current || !confirm('Xác nhận chốt lương cho nhân viên này? Đây chưa phải thao tác thanh toán.')) return;
     lock.current = true;
     setActiveAction(`settle:${employeeId}`);
     try {
@@ -120,44 +123,6 @@ export default function AdminPayrollPage() {
     }
   }
 
-  async function adjust(settlementId: string) {
-    if (lock.current) return;
-    const amount = prompt('Nhập số tiền điều chỉnh (âm để khấu trừ):');
-    if (!amount) return;
-    const reason = prompt('Nhập lý do điều chỉnh (bắt buộc):');
-    if (!reason) return;
-    lock.current = true;
-    setActiveAction(`adjust:${settlementId}`);
-    try {
-      const response = await fetch('/api/admin/payroll', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'adjust', settlementId, amount, reason }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message);
-      const numericAmount = Number(amount);
-      setRows((current) => current.map((row) => row.settlementId === settlementId
-        ? {
-            ...row,
-            approvedAdjustments: [...row.approvedAdjustments, {
-              id: String(body.adjustmentId),
-              amount: numericAmount,
-              reason,
-              approvedAt: new Date().toISOString(),
-            }],
-            adjustmentTotal: row.adjustmentTotal + numericAmount,
-            finalPayableAmount: row.finalPayableAmount + numericAmount,
-          }
-        : row));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Không thể tạo điều chỉnh.');
-    } finally {
-      lock.current = false;
-      setActiveAction(null);
-    }
-  }
-
   const readyForPayroll = Boolean(readiness?.schemaReady && readiness.featureEnabled && readiness.configured && readiness.canView);
   const selectedMonthBeforeStart = Boolean(
     readiness?.firstSettlementMonth && month < readiness.firstSettlementMonth
@@ -167,7 +132,7 @@ export default function AdminPayrollPage() {
     <section className="space-y-5 p-5 sm:p-8">
       <div>
         <h1 className="text-xl font-bold">Quyết toán lương tháng</h1>
-        <p className="mt-1 text-sm text-slate-400">Bản quyết toán là ảnh chụp bất biến. Mọi sửa đổi được ghi thành điều chỉnh riêng.</p>
+        <p className="mt-1 text-sm text-slate-400">Chốt lương và thanh toán là hai bước riêng. Khoản cộng/trừ được lưu kèm lý do và lịch sử.</p>
       </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
@@ -218,11 +183,12 @@ export default function AdminPayrollPage() {
         )}
       </div>
 
+      {success && <p role="status" className="text-sm text-emerald-300">{success}</p>}
       {error && <div role="alert" className="rounded-lg border border-red-500/30 bg-red-950/30 p-3 text-sm text-red-200">{error}</div>}
 
       {readyForPayroll && (
         <>
-          <div className="max-w-xs"><MonthPicker value={month} onChange={setMonth} /></div>
+          <fieldset disabled={activeAction !== null} className="max-w-xs"><MonthPicker value={month} onChange={setMonth} /></fieldset>
           {selectedMonthBeforeStart && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">
               Kỳ {month} chỉ được xem để đối chiếu. Mốc quyết toán đầu tiên đã khóa ở {readiness?.firstSettlementMonth}, nên không thể xác nhận các kỳ cũ hơn.
@@ -237,15 +203,16 @@ export default function AdminPayrollPage() {
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.employeeId} className="border-t border-slate-800">
-                      <td className="p-3 font-medium">{row.employeeName}</td>
+                      <td className="p-3 font-medium">{row.employeeName}{Boolean(row.reopeningHistory?.length) && <details className="mt-1 text-xs text-slate-400"><summary className="cursor-pointer">Lịch sử mở lại ({row.reopeningHistory?.length})</summary><ul className="mt-2 space-y-2">{row.reopeningHistory?.map((item, index) => <li key={`${item.reopenedAt}:${index}`}>{item.actorName} · {new Date(item.reopenedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}<span className="block">{item.reason}</span></li>)}</ul></details>}</td>
                       <td>{row.workedHours} giờ / {row.calculatedShifts} ca</td>
                       <td>{money.format(row.baseSalary)}</td>
-                      <td>{money.format(row.adjustmentTotal)}</td>
+                      <td>{money.format(row.adjustmentTotal)}{row.approvedAdjustments.length > 0 && <details className="mt-1 text-xs text-slate-400"><summary className="cursor-pointer">{row.approvedAdjustments.length} lần điều chỉnh</summary><ul className="mt-2 space-y-2">{row.approvedAdjustments.map(item => <li key={item.id}>{money.format(item.amount)} · {item.reason}<span className="block">{new Date(item.approvedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span></li>)}</ul></details>}</td>
                       <td className="font-bold">{money.format(row.finalPayableAmount)}</td>
-                      <td>{row.settlementStatus === 'SETTLED' ? 'Đã quyết toán' : 'Chưa quyết toán'}</td>
+                      <td>{row.settlementStatus === 'SETTLED' ? 'Đã chốt lương' : 'Đang mở'}{row.settledAt && <span className="mt-1 block text-xs text-slate-400">Chốt: {row.settledByName || 'Chưa ghi nhận'} · {new Date(row.settledAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>}</td>
                       <td className="p-3"><TableRowActions renderActions={function renderRowActions() { return <>
-                        {row.settlementStatus === 'UNSETTLED' && readiness?.canSettle && <button disabled={activeAction !== null || selectedMonthBeforeStart} title={selectedMonthBeforeStart ? `Chỉ được quyết toán từ ${readiness.firstSettlementMonth}` : undefined} onClick={() => void settle(row.employeeId)} className="rounded-lg bg-blue-600 px-3 py-2 font-bold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">{activeAction === `settle:${row.employeeId}` ? 'Đang xác nhận...' : selectedMonthBeforeStart ? 'Ngoài kỳ' : 'Xác nhận'}</button>}
-                        {row.settlementStatus === 'SETTLED' && row.settlementId && readiness?.canAdjust && <button disabled={activeAction !== null} onClick={() => void adjust(row.settlementId!)} className="rounded-lg border border-slate-600 px-3 py-2 font-bold hover:bg-slate-800 disabled:opacity-60">{activeAction === `adjust:${row.settlementId}` ? 'Đang điều chỉnh...' : 'Điều chỉnh'}</button>}
+                        {row.settlementStatus === 'UNSETTLED' && readiness?.canSettle && <button disabled={activeAction !== null || selectedMonthBeforeStart} title={selectedMonthBeforeStart ? `Chỉ được quyết toán từ ${readiness.firstSettlementMonth}` : undefined} onClick={() => void settle(row.employeeId)} className="rounded-lg bg-blue-600 px-3 py-2 font-bold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">{activeAction === `settle:${row.employeeId}` ? 'Đang xác nhận...' : selectedMonthBeforeStart ? 'Ngoài kỳ' : 'Chốt lương'}</button>}
+                        {row.settlementStatus === 'SETTLED' && row.settlementId && readiness?.canReopen && <button disabled={activeAction !== null} onClick={() => setActionDialog({ row, action: 'reopen' })} className="rounded-lg border border-amber-700 px-3 py-2 font-bold text-amber-200 disabled:opacity-50">Mở lại kỳ lương</button>}
+                        {row.settlementStatus === 'SETTLED' && row.settlementId && readiness?.canAdjust && <button disabled={activeAction !== null} onClick={() => setActionDialog({ row, action: 'adjust' })} className="rounded-lg border border-slate-600 px-3 py-2 font-bold hover:bg-slate-800 disabled:opacity-60">{activeAction === `adjust:${row.settlementId}` ? 'Đang điều chỉnh...' : 'Điều chỉnh'}</button>}
                       </>; }} /></td>
                     </tr>
                   ))}
@@ -256,6 +223,7 @@ export default function AdminPayrollPage() {
           )}
         </>
       )}
+      {actionDialog && <PayrollActionDialog key={`${actionDialog.row.settlementId}:${actionDialog.action}`} {...actionDialog} onBusy={busy => { lock.current = busy; setActiveAction(busy ? actionDialog.action : null); }} onClose={() => setActionDialog(null)} onSaved={async () => { await loadPayroll(); setSuccess(actionDialog.action === 'reopen' ? 'Đã mở lại kỳ lương. Có thể chấm công tiếp và chốt lại.' : 'Đã lưu điều chỉnh tiền lương.'); }} />}
     </section>
   );
 }

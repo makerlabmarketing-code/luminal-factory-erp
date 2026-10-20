@@ -255,6 +255,9 @@ async function loadAttendancePayload(
 
 function toStaffAttendanceErrorResponse(error: unknown) {
   const correlationId = crypto.randomUUID();
+  if (error && typeof error === 'object' && 'message' in error && String(error.message).includes('payroll_period_closed')) {
+    return NextResponse.json({ error: 'Kỳ lương của tháng này đã chốt. Liên hệ quản lý để mở lại trước khi chấm công tiếp.', code: 'payroll_period_closed', correlationId }, { status: 409 });
+  }
 
   if (error instanceof StaffAttendanceError) {
     logStaffAttendanceBoundary({

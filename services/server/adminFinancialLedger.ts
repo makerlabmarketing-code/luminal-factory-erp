@@ -296,7 +296,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
   }
   const admin = createSupabaseAdminClient();
   const baseColumns = 'id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at';
-  const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference';
+  const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, approver_employee_id, payment_confirmer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference';
   const { data, error } = await admin
     .from('financial_ledger')
     .select(baseColumns + (extendedLedgerEnabled() ? extendedColumns : ''))
@@ -325,7 +325,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
       ),
     };
   })();
-  const employeeIds = Array.from(new Set(rows.flatMap((row) => [row.beneficiary_employee_id, row.payer_employee_id]).filter((id): id is number | string => id != null)));
+  const employeeIds = Array.from(new Set(rows.flatMap((row) => [row.beneficiary_employee_id, row.payer_employee_id, row.approver_employee_id, row.payment_confirmer_employee_id]).filter((id): id is number | string => id != null)));
   const employeeNamesPromise = (async () => {
     const employeeNames = new Map<string, string>();
     if (employeeIds.length === 0) return employeeNames;

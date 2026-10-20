@@ -40,6 +40,16 @@ describe('Admin financial ledger repair', () => {
     expect(linked.beneficiary_name).toBe('Lan');
   });
 
+  it('resolves actual approver and payment confirmer independently of submitter/payer', () => {
+    const row = resolveLedgerPeople({ id: 5, requested_by: 'Staff submitter', payer_employee_id: 2, approver_employee_id: 3, payment_confirmer_employee_id: 4 }, new Map([['2','Selected payer'],['3','Reviewer'],['4','Logged-in payer']]));
+    expect(row.approver_name).toBe('Reviewer');
+    expect(row.payment_confirmer_name).toBe('Logged-in payer');
+    const legacy = resolveLedgerPeople({ id: 6, requested_by: 'Staff', payer_employee_id: 2 }, new Map([['2','Payer']]));
+    expect(legacy.approver_name).toBeNull(); expect(legacy.payment_confirmer_name).toBeNull();
+    const missing = resolveLedgerPeople({ id: 7, requested_by: 'Staff', approver_employee_id: 999 }, new Map());
+    expect(missing.approver_name).toBeNull();
+  });
+
   it('uses safe stable attachment extensions', () => {
     expect(financeAttachmentExtension({ name: 'hoa-don.jpeg', type: 'image/jpeg' })).toBe('jpg');
     expect(financeAttachmentExtension({ name: 'phieu.pdf', type: 'application/pdf' })).toBe('pdf');

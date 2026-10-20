@@ -93,6 +93,8 @@ export function resolveLedgerPeople(
 
   return {
     ...entry,
+    approver_name: entry.approver_employee_id == null ? null : employeeNames.get(String(entry.approver_employee_id)) || null,
+    payment_confirmer_name: entry.payment_confirmer_employee_id == null ? null : employeeNames.get(String(entry.payment_confirmer_employee_id)) || null,
     beneficiary_name:
       (beneficiaryId ? employeeNames.get(beneficiaryId) : null) ||
       entry.beneficiary_external_name?.trim() ||

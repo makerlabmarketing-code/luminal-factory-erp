@@ -6,6 +6,7 @@ import {
   getAdminPayroll,
   getAdminPayrollReadiness,
   settlePayroll,
+  reopenPayroll,
 } from '@/services/server/payroll';
 
 function failure(error: unknown) {
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
     const body = await request.json() as Record<string, unknown>;
     if (body.action === 'configure') return NextResponse.json(await configurePayrollFirstMonth(body.month));
     if (body.action === 'settle') return NextResponse.json(await settlePayroll(body.employeeId, body.month));
+    if (body.action === 'reopen') return NextResponse.json(await reopenPayroll(body.settlementId, body.reason));
     if (body.action === 'adjust') return NextResponse.json(await addPayrollAdjustment(body.settlementId, body.amount, body.reason));
     return NextResponse.json({ success: false, message: 'Thao tác bảng lương không hợp lệ.' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
