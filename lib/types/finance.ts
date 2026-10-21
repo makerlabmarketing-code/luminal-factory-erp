@@ -1,4 +1,5 @@
 export interface FinancialLedgerEntry {
+  cancelled_at?: string | null;
   id: number | string;
   type?: string | null;
   sub_type?: string | null;

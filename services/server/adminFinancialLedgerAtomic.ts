@@ -190,7 +190,11 @@ export async function updateAdminFinancialLedgerAtomicAware(
     }
     await requireExtendedReferences(input);
     const requestedBy = original.type === 'HOAN_UNG' ? original.requested_by : await resolveRequestedBy(input, original.requested_by);
-    const patch = {
+    const patch = original.type === 'HOAN_UNG' ? {
+      type: original.type, category: input.category, amount: input.amount,
+      month_period: input.monthPeriod, is_paid: input.isPaid,
+      transaction_date: input.transactionDate, description: input.description, project_id: input.projectId,
+    } : {
       type:input.type, sub_type:input.type==='VON_GOP' ? input.subType : null,
       category:input.category, amount:input.amount, requested_by:requestedBy,
       month_period:input.monthPeriod, is_paid:input.isPaid,

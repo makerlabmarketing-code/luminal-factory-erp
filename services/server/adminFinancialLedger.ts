@@ -295,7 +295,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Kỳ báo cáo không hợp lệ.', failureStage: 'validation' });
   }
   const admin = createSupabaseAdminClient();
-  const baseColumns = 'id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at';
+  const baseColumns = 'id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at, cancelled_at';
   const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, approver_employee_id, payment_confirmer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference';
   const { data, error } = await admin
     .from('financial_ledger')
@@ -374,6 +374,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     transactionTypes: financeMetadata.transactionTypes,
     contributionTypes: financeMetadata.contributionTypes,
     activityHistoryEnabled: activityHistoryEnabled(),
+    canManageTestRecords: process.env.FINANCE_TEST_ARCHIVE_ENABLED === 'true' && (auth.employee.role || '').trim().toUpperCase() === 'OWNER' && grantedPermissions.permissionCodes.includes('FINANCE_UPDATE'),
     canUpdate: grantedPermissions.permissionCodes.includes('FINANCE_UPDATE'),
     extendedSchemaEnabled: extendedLedgerEnabled(),
     attachmentsEnabled: extendedLedgerEnabled() && attachmentWritesEnabled(),

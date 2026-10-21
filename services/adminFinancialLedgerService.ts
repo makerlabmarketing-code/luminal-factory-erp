@@ -1,6 +1,7 @@
 import type { AdminLedgerMutationInput, FinancialLedgerEntry } from '@/lib/types/finance';
 
 interface LedgerResponse {
+  canManageTestRecords: boolean;
   salaryPaymentEmailEnabled: boolean;
   activityHistoryEnabled: boolean;
   canUpdate: boolean;

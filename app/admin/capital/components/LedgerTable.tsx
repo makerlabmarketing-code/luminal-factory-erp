@@ -12,6 +12,8 @@ interface LedgerTableProps {
   onRetrySalaryEmail: (id: number | string) => void;
   activityEnabled: boolean;
   canUpdate: boolean;
+  canManageTestRecords: boolean;
+  onTestArchive: (item: LedgerRow) => void;
   onHistory: (item: LedgerRow) => void;
   data: LedgerRow[];
   onTogglePaid: (id: number | string, currentStatus: boolean) => void;
@@ -29,7 +31,7 @@ interface LedgerTableProps {
 export default function LedgerTable({
   data,
   salaryMailEnabled, onRetrySalaryEmail,
-  activityEnabled, canUpdate, onHistory,
+  activityEnabled, canUpdate, onHistory, canManageTestRecords, onTestArchive,
   onTogglePaid,
   onOpenEdit,
   onGenerateQr,
@@ -119,7 +121,7 @@ export default function LedgerTable({
                 <td className="max-w-[180px] break-words p-4 text-slate-400">{!l.approver_name && !l.payment_confirmer_name && 'Chưa ghi nhận'}{l.approver_name && <span className="mt-1 block text-[10px]">Duyệt: {l.approver_name}</span>}{l.payment_confirmer_name && <span className="mt-1 block text-[10px]">Thanh toán: {l.payment_confirmer_name}</span>}</td>
                 <td className="max-w-[180px] break-words p-4 text-slate-300">{l.beneficiary_name || 'Chưa xác định'}</td>
                 <td className="p-4">
-                  {isReimbursement ? (
+                  {l.cancelled_at ? <span>Đã xóa khỏi sổ</span> : isReimbursement ? (
                     <span className={`inline-flex whitespace-nowrap rounded border px-2.5 py-1.5 text-[10px] font-black ${l.reimbursement_status === 'PAID' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : l.reimbursement_status === 'APPROVED' ? 'border-blue-500/20 bg-blue-500/10 text-blue-300' : l.reimbursement_status === 'REJECTED' ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-400'}`}>
                       {l.reimbursement_status === 'PAID' ? 'Đã thanh toán' : l.reimbursement_status === 'APPROVED' ? 'Đã duyệt' : l.reimbursement_status === 'REJECTED' ? 'Đã từ chối' : 'Chờ duyệt'}
                     </span>
@@ -137,7 +139,7 @@ export default function LedgerTable({
                 <td className="p-4 text-right font-mono font-bold text-slate-200">{Number(l.amount).toLocaleString()} đ</td>
                 <td className="whitespace-nowrap p-4 text-center"><TableRowActions renderActions={function renderRowActions() { return <>
                   <div className="flex flex-nowrap items-center justify-center gap-2">
-                    {isReimbursement ? (
+                    {l.cancelled_at ? <span>Đã xóa khỏi sổ</span> : isReimbursement ? (
                       l.reimbursement_status === 'PAID' && activityEnabled && canUpdate ? (
                         <button type="button" onClick={()=>onOpenEdit(l)} className="admin-button-secondary">Điều chỉnh</button>
                       ) : isOwnReimbursement ? (
@@ -169,6 +171,7 @@ export default function LedgerTable({
                     )}
                   </div>
                     {salaryMailEnabled && canUpdate && reimbursementCapabilities.canPay && (l.salaryEmailStatus === 'PENDING' || l.salaryEmailStatus === 'BLOCKED') && <button type="button" onClick={() => onRetrySalaryEmail(l.id)} className="admin-button-secondary">Thử gửi email</button>}
+                    {canManageTestRecords && isReimbursement && !l.source_type && !l.source_reference && <button type="button" onClick={()=>onTestArchive(l)} className="admin-button-secondary">{l.cancelled_at ? 'Khôi phục' : 'Xóa bản ghi thử'}</button>}
                     <button type="button" onClick={()=>onHistory(l)} className="admin-button-secondary">Lịch sử</button>
                 </>; }} /></td>
               </tr>

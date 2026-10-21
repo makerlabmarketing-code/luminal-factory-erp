@@ -12,6 +12,7 @@ import { useGlobalLoading } from '@/component/GlobalLoading';
 import MonthPicker from '@/component/MonthPicker';
 import LedgerMetrics from './components/LedgerMetrics';
 import LedgerTable from './components/LedgerTable';
+import { TestLedgerDialog } from './TestLedgerDialog';
 import CapitalShareCard from './components/CapitalShareCard';
 import type { AdminLedgerMutationInput, ExpensePaymentSourceOption, FinanceAttachment, FinancialLedgerEntry } from '@/lib/types/finance';
 import {
@@ -224,6 +225,9 @@ export default function AdminFinancialLedger() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [activityEnabled, setActivityEnabled] = useState(false);
   const [canUpdateLedger, setCanUpdateLedger] = useState(false);
+  const [canManageTestRecords,setCanManageTestRecords]=useState(false);
+  const [showDeleted,setShowDeleted]=useState(false);
+  const [testRecord,setTestRecord]=useState<FinancialLedgerEntry|null>(null);
   const [historyId, setHistoryId] = useState<string | null>(null);
   const [editCorrectionReason, setEditCorrectionReason] = useState('');
   const [editingPaid, setEditingPaid] = useState(false);
@@ -273,6 +277,7 @@ export default function AdminFinancialLedger() {
     setSalaryMailEnabled(ledgerResult.salaryPaymentEmailEnabled);
     setActivityEnabled(ledgerResult.activityHistoryEnabled);
     setCanUpdateLedger(ledgerResult.canUpdate);
+    setCanManageTestRecords(Boolean(ledgerResult.canManageTestRecords));
     setExtendedSchemaEnabled(ledgerResult.extendedSchemaEnabled);
     setAttachmentsEnabled(ledgerResult.attachmentsEnabled);
     setProjects(ledgerResult.projects);
@@ -352,7 +357,7 @@ export default function AdminFinancialLedger() {
   }, [monthInput]);
 
   // Tìm kiếm dữ liệu
-  const filteredLedger = ledger.filter(l =>
+  const filteredLedger = ledger.filter(l => showDeleted ? Boolean(l.cancelled_at) : !l.cancelled_at).filter(l =>
     (l.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (l.requested_by || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (l.payer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -765,7 +770,7 @@ export default function AdminFinancialLedger() {
             totalVonHienVat={totalVonHienVat}
           />
 
-          <CapitalShareCard ledgerData={ledger} />
+          <CapitalShareCard ledgerData={ledger.filter(row=>!row.cancelled_at)} />
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="px-5 py-3 border-b border-slate-800 bg-slate-950/40 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -773,6 +778,7 @@ export default function AdminFinancialLedger() {
           <input type="text" placeholder="Tìm kiếm nội dung..." className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none w-full sm:w-64" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
 
+        {canManageTestRecords && <label className="mb-3 block text-sm"><input type="checkbox" checked={showDeleted} onChange={e=>{setShowDeleted(e.target.checked);setCurrentPage(1);}}/> Xem bản ghi đã xóa</label>}
         {loading ? (
           <LedgerTableLoadingState />
         ) : loadError ? (
@@ -785,17 +791,19 @@ export default function AdminFinancialLedger() {
             Không có giao dịch trong kỳ đã chọn.
           </div>
         ) : (
+          <>
           <LedgerTable
             data={currentLedgerData}
             salaryMailEnabled={salaryMailEnabled}
             onRetrySalaryEmail={handleRetrySalaryEmail}
             onTogglePaid={handleTogglePaid}
+            canManageTestRecords={canManageTestRecords} onTestArchive={setTestRecord}
             onOpenEdit={handleOpenEdit} activityEnabled={activityEnabled} canUpdate={canUpdateLedger} onHistory={(item) => setHistoryId(String(item.id))}
             onGenerateQr={handleGenerateVietQR}
             reimbursementCapabilities={reimbursementCapabilities}
             activeReimbursementActionId={activeReimbursementActionId}
             onTransitionReimbursement={handleTransitionReimbursement}
-          />
+          /></>
         )}
 
         {!loading && !loadError && filteredLedger.length > 0 && (
@@ -932,6 +940,7 @@ export default function AdminFinancialLedger() {
       )}
 
       {/* ================= MODAL CHỈNH SỬA ================= */}
+      {testRecord && <TestLedgerDialog row={testRecord} onClose={()=>setTestRecord(null)} onSaved={refreshLedger}/> }
       {showEditModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div role="dialog" aria-modal="true" aria-labelledby="edit-ledger-title" className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-4 text-xs text-slate-200 shadow-2xl">
