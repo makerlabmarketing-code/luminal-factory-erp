@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Info, CheckCircle2, HelpCircle, AlertCircle } from 'lucide-react';
+import { containModalFocus } from '@/lib/modal-focus';
 import { OVERLAY_Z_INDEX } from '@/lib/constants/overlays';
 
 type ToastType = 'success' | 'error' | 'info';
@@ -39,6 +40,7 @@ export function NotificationProvider({
   const nextToastId = useRef(0);
   const toastTimers = useRef<Map<number, number>>(new Map());
 
+  const confirmPanel = useRef<HTMLDivElement>(null);
   const [confirm, setConfirm] = useState<{ show: boolean; title: string; desc: string; onConfirm: () => void; cancelLabel: string; confirmLabel: string }>({
     show: false, title: '', desc: '', onConfirm: () => {}, cancelLabel: 'Hủy bỏ', confirmLabel: 'Xác nhận'
   });
@@ -98,14 +100,10 @@ export function NotificationProvider({
   useEffect(() => {
     if (!confirm.show) return undefined;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setConfirm((currentConfirm) => ({ ...currentConfirm, show: false }));
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    if (!confirmPanel.current) return undefined;
+    return containModalFocus(confirmPanel.current, {
+      onEscape: () => setConfirm((currentConfirm) => ({ ...currentConfirm, show: false })),
+    });
   }, [confirm.show]);
 
   const notificationLayer = (
@@ -160,6 +158,8 @@ export function NotificationProvider({
         <div
           className="fixed inset-0 isolate flex items-center justify-center bg-black/85 p-4 font-sans backdrop-blur-sm animate-fadeIn"
           style={{ zIndex: OVERLAY_Z_INDEX.confirmation }}
+          ref={confirmPanel}
+          tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-labelledby="global-confirm-title"

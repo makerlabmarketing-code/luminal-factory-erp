@@ -26,7 +26,8 @@ describe('project cancellation UI and active list contract', () => {
     expect(notification).toMatch(/bg-black\/85/);
     expect(notification).toMatch(/role="dialog"/);
     expect(notification).toMatch(/aria-modal="true"/);
-    expect(notification).toMatch(/event\.key === 'Escape'/);
+    expect(notification).toMatch(/containModalFocus\(confirmPanel\.current/);
+    expect(notification).toMatch(/onEscape:.*setConfirm/);
   });
 
   it('cancels projects through the archive endpoint without hard delete', () => {
