@@ -68,7 +68,7 @@ export default function LedgerTable({
 
   return (
     <div className="overflow-x-auto">
-    <CommonTable className="min-w-[1180px] w-full text-left text-xs text-slate-300">
+    <CommonTable className="min-w-[980px] w-full text-left text-xs text-slate-300">
       <thead className="bg-slate-950 text-[10px] uppercase tracking-wide text-slate-400">
         <tr>
           <th className="w-[27%] p-4">Khoản mục</th>
@@ -94,7 +94,7 @@ export default function LedgerTable({
           return (
             <Fragment key={l.id}>
               {/* === DÒNG CHA (GIAO DỊCH CHÍNH) === */}
-              <tr className={`hover:bg-slate-950/20 transition ${isExpanded ? 'bg-slate-950/40' : ''}`}>
+              <tr className={`hover:bg-slate-950/20 transition ${l.cancelled_at ? 'bg-slate-950/25' : isExpanded ? 'bg-slate-950/40' : ''}`}>
                 <td className="p-4 font-bold text-slate-200">
                   <div className="flex items-start gap-1.5">
                     {hasChild && (
@@ -121,7 +121,7 @@ export default function LedgerTable({
                 <td className="max-w-[180px] break-words p-4 text-slate-400">{!l.approver_name && !l.payment_confirmer_name && 'Chưa ghi nhận'}{l.approver_name && <span className="mt-1 block text-[10px]">Duyệt: {l.approver_name}</span>}{l.payment_confirmer_name && <span className="mt-1 block text-[10px]">Thanh toán: {l.payment_confirmer_name}</span>}</td>
                 <td className="max-w-[180px] break-words p-4 text-slate-300">{l.beneficiary_name || 'Chưa xác định'}</td>
                 <td className="p-4">
-                  {l.cancelled_at ? <span>Đã xóa khỏi sổ</span> : isReimbursement ? (
+                  {l.cancelled_at ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-600/60 bg-slate-800/70 px-2.5 py-1.5 text-[11px] font-medium text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />Đã xóa</span> : isReimbursement ? (
                     <span className={`inline-flex whitespace-nowrap rounded border px-2.5 py-1.5 text-[10px] font-black ${l.reimbursement_status === 'PAID' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : l.reimbursement_status === 'APPROVED' ? 'border-blue-500/20 bg-blue-500/10 text-blue-300' : l.reimbursement_status === 'REJECTED' ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-400'}`}>
                       {l.reimbursement_status === 'PAID' ? 'Đã thanh toán' : l.reimbursement_status === 'APPROVED' ? 'Đã duyệt' : l.reimbursement_status === 'REJECTED' ? 'Đã từ chối' : 'Chờ duyệt'}
                     </span>
@@ -139,7 +139,7 @@ export default function LedgerTable({
                 <td className="p-4 text-right font-mono font-bold text-slate-200">{Number(l.amount).toLocaleString()} đ</td>
                 <td className="whitespace-nowrap p-4 text-center"><TableRowActions renderActions={function renderRowActions() { return <>
                   <div className="flex flex-nowrap items-center justify-center gap-2">
-                    {l.cancelled_at ? <span>Đã xóa khỏi sổ</span> : isReimbursement ? (
+                    {l.cancelled_at ? (canManageTestRecords && isReimbursement && !l.source_type && !l.source_reference ? <button type="button" onClick={() => onTestArchive(l)} className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-700/60 bg-cyan-950/40 px-3 py-2 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-900/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"><RefreshCcw className="h-3.5 w-3.5" />Khôi phục</button> : null) : isReimbursement ? (
                       l.reimbursement_status === 'PAID' && activityEnabled && canUpdate ? (
                         <button type="button" onClick={()=>onOpenEdit(l)} className="admin-button-secondary">Điều chỉnh</button>
                       ) : isOwnReimbursement ? (
@@ -171,7 +171,7 @@ export default function LedgerTable({
                     )}
                   </div>
                     {salaryMailEnabled && canUpdate && reimbursementCapabilities.canPay && (l.salaryEmailStatus === 'PENDING' || l.salaryEmailStatus === 'BLOCKED') && <button type="button" onClick={() => onRetrySalaryEmail(l.id)} className="admin-button-secondary">Thử gửi email</button>}
-                    {canManageTestRecords && isReimbursement && !l.source_type && !l.source_reference && <button type="button" onClick={()=>onTestArchive(l)} className="admin-button-secondary">{l.cancelled_at ? 'Khôi phục' : 'Xóa bản ghi thử'}</button>}
+                    {canManageTestRecords && !l.cancelled_at && isReimbursement && !l.source_type && !l.source_reference && <button type="button" onClick={()=>onTestArchive(l)} className="admin-button-secondary">Xóa bản ghi thử</button>}
                     <button type="button" onClick={()=>onHistory(l)} className="admin-button-secondary">Lịch sử</button>
                 </>; }} /></td>
               </tr>
