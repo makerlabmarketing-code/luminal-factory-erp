@@ -24,6 +24,7 @@ import { ScrollReveal } from '@/component/ScrollReveal';
 import { CenteredPageLoading, LuminalLoadingMark } from '@/component/LuminalLoader';
 import { ProjectMetricCard, ProjectPageHeader, ProjectPanel } from '@/component/project/ProjectPagePatterns';
 import { buildChecklistPhases, type ProjectChecklistStage } from '@/lib/project-checklist';
+import { ProjectCreateDialog } from './ProjectCreateDialog';
 import { ProjectChecklistEditor } from '@/component/project/ProjectChecklistEditor';
 import type { WorkflowDescription, WorkflowSetting, WorkflowTask } from '@/lib/types/workflow';
 import { businessDateFromInstant, formatBusinessDateInput } from '@/lib/business-date';
@@ -778,18 +779,18 @@ export default function AdminProjectManagement() {
       </ScrollReveal>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto bg-slate-900 border border-slate-800 rounded-lg p-5 space-y-4">
+        <ProjectCreateDialog busy={isCreatingProject} onClose={() => setShowAddModal(false)}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
-                <h3 className="text-sm font-black text-slate-100">Tạo dự án</h3>
-                <p className="text-[11px] text-slate-400">Thông tin dự án, thành viên, giai đoạn và công việc.</p>
+                <h3 id="project-create-title" className="text-sm font-black text-slate-100">Tạo dự án</h3>
+                <p id="project-create-description" className="text-[11px] text-slate-400">Thông tin dự án, thành viên, giai đoạn và công việc.</p>
               </div>
-              <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
+              <button type="button" aria-label="Đóng form tạo dự án" disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="text-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            <fieldset disabled={isCreatingProject} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="space-y-1" htmlFor="project-name">
                 <span className="text-[11px] text-slate-400 font-bold">Tên dự án *</span>
@@ -879,15 +880,15 @@ export default function AdminProjectManagement() {
               <button disabled={isCreatingProject} onClick={() => setShowAddModal(false)} className="flex-1 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg p-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40">Hủy</button>
               <button disabled={isCreatingProject || employeeLoadState === 'loading'} onClick={handleCreateProject} className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg p-2 text-xs font-black">{isCreatingProject ? 'Đang lưu...' : 'Tạo dự án'}</button>
             </div>
-          </div>
-        </div>
+            </fieldset>
+        </ProjectCreateDialog>
       )}
       {isCreatingProject && (
         <div
           className="fixed inset-0 z-[99998] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
           aria-busy="true"
-          aria-modal="true"
-          role="dialog"
+          aria-live="polite"
+          role="status"
         >
           <div className="w-full max-w-sm rounded-xl border border-slate-700 bg-slate-900 p-5 text-center shadow-2xl">
             <div className="flex justify-center"><LuminalLoadingMark compact /></div>

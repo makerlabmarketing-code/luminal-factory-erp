@@ -1282,3 +1282,11 @@ explicit owner approval, read-only postflight and activation. Forward SQL SHA256
 ## E-010 · Salary payment notification (11/10/2026)
 
 Owner selected **Sổ thu chi → Đã trả → employee email**, keeping payroll settlement separate. Application and immutable notification draft complete; activation is `LIVE_APPROVAL_REQUIRED`. SMTP/history drift fixed; 954 tests and local SQL transaction/rollback checks passed. Full package: `supabase/drafts/salary-payment-email/README.md`. Production has no SMTP config or salary template. Do not mark the flow live verified, infer a salary month from ledger period, send retroactive wages, or activate automatic delivery before exact SQL/configuration/controlled-recipient approval. Existing E-009 history is deployed; only its aggregate owner acceptance remains outstanding.
+
+## QA-002 · Project creation keyboard flow (21/10/2026)
+
+Named, portaled create modal with initial focus, Tab wrapping, Escape and trigger
+restoration; nested preset confirmation has exclusive focus. Busy form controls
+are disabled. 1,013 tests/144 files, lint and TypeScript pass; production keyboard
+smoke follows delivery. No schema, RPC, permissions, flags or live data changes.
+Handoff/rollback: `docs/project-create-keyboard-qa.md`. QA-003 rollout remains open.

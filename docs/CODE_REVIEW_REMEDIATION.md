@@ -495,3 +495,13 @@ template and staff paths after the guarded additive constraint repair. Rollback
 restores the original constraint before use and refuses after new audit history.
 The forward/rollback/validation package stays in drafts pending exact approval.
 PR #232 has no unresolved review threads; hosted Codex review is not exposed.
+
+## 2026-10-21 — QA-002 project creation focus
+
+ACTIONABLE: the create-project overlay lacked dialog semantics and focus control.
+Fixed with a named body portal and a focus scope shared with preset confirmation;
+only the top scope handles Escape/Tab and restores prior focus. Busy controls are
+disabled. Three runtime focus regressions and 1,013 full-suite tests pass. The
+existing confirmation-source assertion now follows the extracted Escape handler.
+Hosted Codex review is not exposed; current PR threads must be checked before
+merge. No previously closed findings or unrelated modules were reopened.
