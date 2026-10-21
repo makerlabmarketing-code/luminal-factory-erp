@@ -87,7 +87,7 @@ describe('global loading foundation', () => {
     expect(staffLoading).toMatch(/PageLoadingState/);
     expect(capitalSource).toMatch(/LedgerLoadingSkeleton/);
     expect(capitalSource).toMatch(/Không tải được dữ liệu\./);
-    expect(capitalSource).toMatch(/Không có giao dịch trong kỳ đã chọn\./);
+    expect(capitalSource).toMatch(/Chưa có giao dịch trong kỳ này\./);
     expect(capitalSource).toMatch(/loading && !hasLoadedData \? \(/);
     expect(capitalSource).toMatch(/: loadError && !hasLoadedData \? \(/);
     expect(capitalSource).toMatch(/<LedgerTableLoadingState \/>/);

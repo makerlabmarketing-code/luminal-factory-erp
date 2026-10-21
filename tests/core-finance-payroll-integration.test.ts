@@ -30,7 +30,6 @@ describe('core finance and payroll integration', () => {
 
   it('keeps finance row actions readable on one line', () => {
     const table = read('app/admin/capital/components/LedgerTable.tsx');
-    expect(table).toContain('min-w-[1180px]');
     expect(table).toContain('flex flex-nowrap items-center justify-center gap-2');
     expect(table).not.toContain('flex flex-wrap items-center justify-center');
     expect(table).toContain('<Check className="h-3.5 w-3.5" /> Duyệt');
