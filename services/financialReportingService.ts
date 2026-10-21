@@ -72,6 +72,7 @@ export function summarizeFinancialLedger(ledger: FinancialLedgerEntry[]): Financ
   };
 
   const summary = ledger.reduce<FinancialLedgerSummary>((result, entry) => {
+    if (entry.cancelled_at) return result;
     const amount = ledgerAmount(entry);
 
     if (!entry.is_paid) {
@@ -105,6 +106,7 @@ export function groupPaidLedgerCashflowByReportingPeriod(
     if (!entry.is_paid || !isValidReportingPeriod(entry.month_period)) return;
 
     const period = entry.month_period as string;
+    if (entry.cancelled_at) return;
     const amount = ledgerAmount(entry);
 
     if (!groupedByPeriod[period]) {
