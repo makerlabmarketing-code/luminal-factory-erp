@@ -14,4 +14,4 @@ Rollback: disable test archive first; restore any archived test entries through 
 
 Validation: full Vitest suite, lint, TypeScript, production webpack build with nonsecret placeholder public envs; PGlite 0.3.14 fixtures for adjustment continuity/reclose/immutability/paid/stale/permission guards and test archive/restore/audit/idempotency/role grants. No real concurrent-session or production business mutation is claimed.
 
-SQL SHA256: 8a7ef180a50b3ac36aa159966fd367d92a6974b1b400e71a6bf726da58dafb9c
+SQL SHA256: 16accee71f49713de9ca7a3a553d774e9749bfa066d3b96cddf575b91e662459

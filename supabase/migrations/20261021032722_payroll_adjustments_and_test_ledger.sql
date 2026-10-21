@@ -43,7 +43,7 @@ begin
  if p_archived is null or p_reason is null or length(btrim(p_reason)) not between 10 and 500 then raise exception 'invalid test archive reason' using errcode='22023'; end if;
  select * into l from public.financial_ledger where id=p_id for update;
  if not found then raise exception 'ledger missing' using errcode='P0002'; end if;
- if l.type<>'HOAN_UNG' or l.source_type is not null or l.source_reference is not null or exists(select 1 from public.salary_payment_emails where ledger_id=p_id) or exists(select 1 from public.financial_ledger where id<>p_id and (source_reference=p_id::text or (category='[Đối ứng] Vốn hiện vật: '||l.category and requested_by is not distinct from l.requested_by))) then raise exception 'integrated_ledger_protected' using errcode='22023'; end if;
+ if l.type is distinct from 'HOAN_UNG' or l.source_type is not null or l.source_reference is not null or exists(select 1 from public.salary_payment_emails where ledger_id=p_id) or exists(select 1 from public.financial_ledger where id<>p_id and (source_reference=p_id::text or (category='[Đối ứng] Vốn hiện vật: '||l.category and requested_by is not distinct from l.requested_by))) then raise exception 'integrated_ledger_protected' using errcode='22023'; end if;
  -- A duplicate request is idempotent; restoring only a record archived by this workflow.
  if p_archived=(l.cancelled_at is not null) then return; end if;
  if not p_archived and not exists(select 1 from public.erp_activity_events where entity='ledger' and entity_id=p_id and summary='Xóa mềm bản ghi thử #'||p_id) then raise exception 'not_test_archive' using errcode='22023'; end if;
