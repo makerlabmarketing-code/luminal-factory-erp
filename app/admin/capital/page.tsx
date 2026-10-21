@@ -773,12 +773,23 @@ export default function AdminFinancialLedger() {
           <CapitalShareCard ledgerData={ledger.filter(row=>!row.cancelled_at)} />
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="px-5 py-3 border-b border-slate-800 bg-slate-950/40 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <span className="text-xs font-bold uppercase text-slate-400">Nhật Ký Hạch Toán Kỳ {selectedMonth}</span>
-          <input type="text" placeholder="Tìm kiếm nội dung..." className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none w-full sm:w-64" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        <div className="flex flex-col gap-4 border-b border-slate-800 bg-slate-950/40 px-5 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-100">Nhật ký thu chi</h2>
+              <p className="mt-1 text-xs text-slate-400">Kỳ {selectedMonth}</p>
+            </div>
+            <input aria-label="Tìm giao dịch" type="search" placeholder="Tìm khoản mục, người liên quan…" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 sm:w-72" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
+          </div>
+          {canManageTestRecords && <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div role="group" aria-label="Lọc trạng thái giao dịch" className="inline-flex w-fit items-center gap-1 rounded-lg border border-slate-700/70 bg-slate-950 p-1">
+              {[{ deleted: false, label: 'Đang dùng' }, { deleted: true, label: 'Đã xóa' }].map(view => <button key={view.label} type="button" aria-pressed={showDeleted === view.deleted} onClick={() => { setShowDeleted(view.deleted); setCurrentPage(1); }} className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${showDeleted === view.deleted ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'}`}>
+                {view.label}<span className={`min-w-5 rounded px-1.5 py-0.5 text-center text-[10px] tabular-nums ${showDeleted === view.deleted ? 'bg-slate-600 text-slate-100' : 'bg-slate-800 text-slate-400'}`}>{ledger.filter(row => Boolean(row.cancelled_at) === view.deleted).length}</span>
+              </button>)}
+            </div>
+            {showDeleted && <p className="text-xs text-slate-400">Bản ghi đã xóa không được tính vào báo cáo.</p>}
+          </div>}
         </div>
-
-        {canManageTestRecords && <label className="mb-3 block text-sm"><input type="checkbox" checked={showDeleted} onChange={e=>{setShowDeleted(e.target.checked);setCurrentPage(1);}}/> Xem bản ghi đã xóa</label>}
         {loading ? (
           <LedgerTableLoadingState />
         ) : loadError ? (
@@ -788,7 +799,7 @@ export default function AdminFinancialLedger() {
           </div>
         ) : filteredLedger.length === 0 ? (
           <div className="p-8 text-center text-sm text-slate-500">
-            Không có giao dịch trong kỳ đã chọn.
+            {searchTerm ? 'Không tìm thấy giao dịch phù hợp.' : showDeleted ? 'Chưa có bản ghi đã xóa trong kỳ này.' : 'Chưa có giao dịch trong kỳ này.'}
           </div>
         ) : (
           <>
