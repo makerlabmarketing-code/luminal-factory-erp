@@ -20,7 +20,7 @@ import {
   FINANCIAL_TRANSACTION_TYPE_METADATA_NAME,
   normalizeSystemMetadataOptions,
 } from '@/lib/system-metadata-defaults';
-import { AuthFlowError, hasPermission, listGrantedPermissions, requireWorkspaceAccess, type AuthContext } from './auth';
+import { AuthFlowError, hasPermission, isSystemOwner, listGrantedPermissions, requireWorkspaceAccess, type AuthContext } from './auth';
 
 const FINANCE_EVIDENCE_BUCKET = 'finance-evidence';
 const ACTIVE_ATTACHMENT_STATES = ['UNVERIFIED', 'VERIFIED'];
@@ -297,11 +297,13 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
   const admin = createSupabaseAdminClient();
   const baseColumns = 'id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at, cancelled_at';
   const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, approver_employee_id, payment_confirmer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference';
-  const { data, error } = await admin
+  let ledgerQuery = admin
     .from('financial_ledger')
     .select(baseColumns + (extendedLedgerEnabled() ? extendedColumns : ''))
     .eq('month_period', monthPeriod)
     .order('id', { ascending: false });
+  if (!isSystemOwner(auth.employee)) ledgerQuery = ledgerQuery.is('cancelled_at', null);
+  const { data, error } = await ledgerQuery;
   if (error) persistenceError('Không tải được sổ thu chi.');
 
   const rows = (data || []) as unknown as FinancialLedgerEntry[];
@@ -374,7 +376,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     transactionTypes: financeMetadata.transactionTypes,
     contributionTypes: financeMetadata.contributionTypes,
     activityHistoryEnabled: activityHistoryEnabled(),
-    canManageTestRecords: process.env.FINANCE_TEST_ARCHIVE_ENABLED === 'true' && (auth.employee.role || '').trim().toUpperCase() === 'OWNER' && grantedPermissions.permissionCodes.includes('FINANCE_UPDATE'),
+    canManageTestRecords: process.env.FINANCE_TEST_ARCHIVE_ENABLED === 'true' && isSystemOwner(auth.employee) && grantedPermissions.permissionCodes.includes('FINANCE_UPDATE'),
     canUpdate: grantedPermissions.permissionCodes.includes('FINANCE_UPDATE'),
     extendedSchemaEnabled: extendedLedgerEnabled(),
     attachmentsEnabled: extendedLedgerEnabled() && attachmentWritesEnabled(),
@@ -486,7 +488,7 @@ export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: bool
 
 async function requireLedgerResource(ledgerId: number) {
   const admin = createSupabaseAdminClient();
-  const { data, error } = await admin.from('financial_ledger').select('id').eq('id', ledgerId).maybeSingle();
+  const { data, error } = await admin.from('financial_ledger').select('id').eq('id', ledgerId).is('cancelled_at', null).maybeSingle();
   if (error) persistenceError('Không thể xác minh giao dịch của chứng từ.');
   if (!data) resourceNotFound('Không tìm thấy giao dịch của chứng từ.');
 }
