@@ -20,3 +20,10 @@ Validation: repository test, lint, type and build gates; visual/keyboard smoke
 is recorded separately in the coordination sheet. No database, workflow,
 authorization, feature flag, email or payment behavior changes.
 Rollback: revert this slice's application files and dependency/lockfile addition.
+
+The visible ProjectCreateDialog also uses a local adaptation of
+`apps/v1/apps/www/registry/primitives/effects/fade/index.tsx` from the same
+source commit. It fades in for 160ms (zero with reduced motion); the existing
+portal, dialog attributes, focus containment, Escape and focus restoration are
+preserved. Checklist disclosures remain behind the existing workflow rollout
+flags; this UI slice does not enable those flags.

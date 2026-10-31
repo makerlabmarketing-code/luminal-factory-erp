@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Fade } from '@/component/animate-ui/Fade';
 import { containModalFocus } from '@/lib/modal-focus';
 
 export function ProjectCreateDialog({ busy, onClose, children }: {
@@ -19,9 +20,9 @@ export function ProjectCreateDialog({ busy, onClose, children }: {
   }, []);
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="project-create-title" aria-describedby="project-create-description" aria-busy={busy} tabIndex={-1} className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-800 bg-slate-900 p-5 space-y-4">
+      <Fade ref={panel} role="dialog" aria-modal="true" aria-labelledby="project-create-title" aria-describedby="project-create-description" aria-busy={busy} tabIndex={-1} className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-800 bg-slate-900 p-5 space-y-4">
         {children}
-      </div>
+      </Fade>
     </div>, document.body,
   );
 }
