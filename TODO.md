@@ -3,6 +3,7 @@
 ## Animate UI · 2026-11-01 · E-021
 
 - Project checklist stages and assignment/deadline overrides use the local Animate UI v1 disclosure adaptation; adds pinned Motion 12.42.2.
+- The current create-project dialog also uses Animate UI Fade (160ms); checklist disclosure visibility remains governed by existing workflow flags.
 - Source, license and rollback: [integration note](docs/vendor/animate-ui.md).
 - Validation and deployment evidence are tracked in the ERP & Commerce coordination sheet.
 - This slice does not change workflow gates or activate any live capability.
