@@ -32,6 +32,7 @@
     "typescript": "5.2.2"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.16",
     "@types/nodemailer": "^8.0.1",
     "supabase": "^2.109.1",
     "vitest": "^4.1.10"
