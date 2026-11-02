@@ -1,5 +1,13 @@
 # Luminal Factory ERP TODO
 
+## QA-003 · 2026-11-02
+
+- [x] Reconcile the missing local checkpoint with current Production catalog.
+- [x] Prepare guarded history grants/immutability package and executable local fixtures.
+- [ ] Exact SQL approval and one Production delivery path.
+- [ ] Postflight, business acceptance, then separately approved flag activation.
+- Package and compatibility/cascade impact: [review note](supabase/drafts/qa003-history-hardening/README.md).
+
 ## Animate UI · 2026-11-01 · E-021
 
 - Project checklist stages and assignment/deadline overrides use the local Animate UI v1 disclosure adaptation; adds pinned Motion 12.42.2.

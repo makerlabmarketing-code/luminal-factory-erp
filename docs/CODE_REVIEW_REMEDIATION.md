@@ -1,5 +1,22 @@
 # Codex Code Review Remediation Ledger
 
+## 2026-11-02 · QA-003 · ACTIONABLE / PACKAGE_READY
+
+- Source: coordination sheet QA-003 and fresh read-only Production catalog,
+  not a reopened finding from a previously completed PR.
+- Confirmed: browser mutation/TRUNCATE grants on task_comments/project_activity,
+  broad sequence grants, and missing immutable-history guards. RLS SELECT-only
+  policies do not replace table grants or a TRUNCATE guard.
+- Prepared: guarded hardening for those two tables plus phase_status_history;
+  16 PostgreSQL 17 fixture tests cover deny paths, RLS isolation, retained RPC
+  atomicity, stale phase state, rollback and cascade effects.
+- Production status: NOT_APPLIED. Exact SQL approval is still required. The
+  migration directory, runtime flags and business data are unchanged.
+- Prior local `96dc567` is unavailable. Use the single replacement package at
+  `supabase/drafts/qa003-history-hardening/`, not the obsolete July event-list SQL.
+- Current PR review threads must still be checked before delivery; prior merged
+  review findings were not re-reviewed or reopened.
+
 Date: 2026-07-21
 Branch: `codex/review-debt-remediation-sweep`
 Base inspected: local latest commit `637c425` because this checkout has no `main` branch and no Git remote configured.
