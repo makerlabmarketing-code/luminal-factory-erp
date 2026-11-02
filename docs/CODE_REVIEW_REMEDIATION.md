@@ -1,6 +1,14 @@
 # Codex Code Review Remediation Ledger
 
-## 2026-11-02 · QA-003 · ACTIONABLE / PACKAGE_READY
+## 2026-11-02 · Permission argument shadowing · ACTIONABLE / LIVE_APPROVAL_REQUIRED
+
+- Source: user reports Hà losing admin abilities; fresh Production read-only role simulation and runtime logs reproduce employees=1 and attendance=0 despite 31 ALLOW rows and valid admin workspace.
+- Root cause: SQL has_permission(text) binds permission_code to employee_permissions.permission_code inside subqueries. One unrelated DENY blocks all permissions; one unrelated ALLOW can grant other catalog permissions if no DENY exists.
+- Repair: use $1 at all three argument comparisons, preserving signature, grants, owner, search_path and existing definer. No policy, business row or permission assignments change.
+- Package: supabase/drafts/permission-argument-shadowing/. 23 PostgreSQL assertions cover old bug reproduction, correct allow/deny specificity, inactive/revoked rows, unknown/unlinked identities, staff RLS and rollback/reapply.
+- NOT_APPLIED: explicit SQL approval #248 covers history hardening only; separate live approval required for this helper repair.
+
+## 2026-11-02 · QA-003 · APPLIED / POSTFLIGHT_PASS
 
 - Source: coordination sheet QA-003 and fresh read-only Production catalog,
   not a reopened finding from a previously completed PR.
@@ -10,8 +18,9 @@
 - Prepared: guarded hardening for those two tables plus phase_status_history;
   16 PostgreSQL 17 fixture tests cover deny paths, RLS isolation, retained RPC
   atomicity, stale phase state, rollback and cascade effects.
-- Production status: NOT_APPLIED. Exact SQL approval is still required. The
-  migration directory, runtime flags and business data are unchanged.
+- Production status: APPLIED after explicit user approval; migration
+  `20261102061722_qa003_history_hardening`. Read-only postflight passed.
+  Runtime flags and business data remain unchanged.
 - Prior local `96dc567` is unavailable. Use the single replacement package at
   `supabase/drafts/qa003-history-hardening/`, not the obsolete July event-list SQL.
 - Current PR review threads must still be checked before delivery; prior merged
