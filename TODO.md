@@ -1,11 +1,20 @@
 # Luminal Factory ERP TODO
 
+## Staff permission incident · 2026-11-02
+
+- [x] Reproduce Hà access inconsistency under authenticated PostgreSQL role.
+- [x] Prepare positional-argument fix, rollback and 23 disposable PostgreSQL assertions.
+- [ ] Approve separate live helper repair; no permission rows will change.
+- [ ] After deployment, verify real staff/admin sessions.
+- Package: [permission helper repair](supabase/drafts/permission-argument-shadowing/README.md).
+
 ## QA-003 · 2026-11-02
 
 - [x] Reconcile the missing local checkpoint with current Production catalog.
 - [x] Prepare guarded history grants/immutability package and executable local fixtures.
-- [ ] Exact SQL approval and one Production delivery path.
-- [ ] Postflight, business acceptance, then separately approved flag activation.
+- [x] Exact SQL approval and Production migration `20261102061722_qa003_history_hardening`.
+- [x] Read-only postflight confirms reviewed triggers, grants and RLS.
+- [ ] Business acceptance and separately approved flag activation.
 - Package and compatibility/cascade impact: [review note](supabase/drafts/qa003-history-hardening/README.md).
 
 ## Animate UI · 2026-11-01 · E-021

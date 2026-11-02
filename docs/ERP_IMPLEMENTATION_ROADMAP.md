@@ -1,26 +1,16 @@
 # Luminal Factory ERP Implementation Roadmap
 
-## 2026-11-02 — QA-003: history hardening package
+## 2026-11-02 — Staff permission incident
 
-Status: `READY_FOR_REVIEW / LIVE_APPROVAL_REQUIRED`.
+Status: `PACKAGE_READY / LIVE_APPROVAL_REQUIRED`.
 
-Read-only Production catalog checks confirm broad browser grants on
-`task_comments`/`project_activity` and no immutable-history triggers on those
-tables or `phase_status_history`. Each table currently has zero rows. The
-previous sheet-only local commit `96dc567` is unavailable locally and on GitHub.
+Hà retains the admin workspace and ALLOW rows, but SQL argument shadowing makes an unrelated ACCOUNT_MANAGE DENY block all database permissions. The same defect can overgrant catalog permissions to accounts without DENY rows. Repair package, rollback, fixture runner and read-only postflight are in [permission-argument-shadowing](../supabase/drafts/permission-argument-shadowing/README.md). No live helper repair or permission data change has been made. Real-session acceptance follows separate approved deployment.
 
-The replacement review package is
-[`supabase/drafts/qa003-history-hardening/README.md`](../supabase/drafts/qa003-history-hardening/README.md).
-It includes guarded forward SQL, read-only preflight/postflight, a rollback
-that retains tightened grants, and 16 executable disposable PostgreSQL 17 tests.
-The current event check (including PROJECT_CREATED and Production Order events)
-and both task/phase RPC definitions remain unchanged.
+## 2026-11-02 — QA-003: history hardening
 
-No Production SQL, migration promotion, runtime flag, business-row mutation,
-permission assignment or deployment is authorized by this preparation step.
-Exact next gate: approve the package, including FK-cascade deletion blocking;
-deliver once, validate, then separately accept business flows and flag rollout.
-The full staff/manager/concurrency and device acceptance gates remain open.
+Status: `PRODUCTION_APPLIED / POSTFLIGHT_PASS`.
+
+User approved exact #248 package. Production migration `20261102061722_qa003_history_hardening` and merged PR #248 confirmed. Read-only postflight verifies all three history tables have immutable UPDATE/DELETE and TRUNCATE guards, intended table/sequence grants and retained read policies. Each currently has zero rows. Runtime flags remain untouched. Staff/manager/concurrency, real-device business acceptance and separately approved flag rollout remain open.
 
 ## 2026-10-16 — E-011: Project checklist and reusable project templates
 
