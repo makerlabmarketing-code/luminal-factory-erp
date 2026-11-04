@@ -22,6 +22,12 @@ and whether test ledger records can be removed.
 
 ## Proposed next slice — not implemented here
 
+04/11 update: [E-012 design draft](../specs/payroll-ledger-link.md) proposes
+retaining a visible 0-value linked ledger record without treating it as a payment.
+That draft covers adjustments, reopen/reclose and payment races. It is not an
+implemented integration or a ready-to-run SQL package. The recommendation below
+is the historical 19/10 proposal, not a newly approved zero-value policy.
+
 For a positive payable amount, settlement should atomically create exactly one
 unpaid salary obligation linked by stable settlement/employee IDs; retry must not
 duplicate it. Financial payment and email remain explicit downstream actions.

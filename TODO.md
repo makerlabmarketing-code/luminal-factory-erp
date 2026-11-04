@@ -89,6 +89,9 @@ Architecture stabilization and production workflow refinement.
 
 ## Payroll
 
+- [x] E-012: prepare the [payroll → ledger design and acceptance matrix](specs/payroll-ledger-link.md), including zero amount, adjustments, reopening, races and legacy reconciliation.
+- [ ] E-012: approve the proposed financial contract, then prepare a complete draft SQL/application/test package; no live activation or backfill is authorized by this document.
+
 - [ ] Audit payroll inputs and source records
 - [ ] Keep payroll calculations outside visual components
 - [ ] Standardize payroll types
