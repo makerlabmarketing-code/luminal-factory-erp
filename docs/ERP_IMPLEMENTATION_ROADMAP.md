@@ -1,10 +1,19 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-11-04 — E-011 / QA-003 acceptance continuation
+
+History hardening and the separate permission repair are confirmed applied in
+Production's migration ledger; all three history tables retain RLS and two
+application guards each. Added eight disposable PostgreSQL staff/stale-write
+cases and brought the existing checklist/template runner into Vitest. This is
+local RPC acceptance, not live browser/two-connection sign-off. No Production
+data, permission, SQL or flag change. See [acceptance checkpoint](qa003-checklist-acceptance-20261104.md).
+
 ## 2026-11-02 — Staff permission incident
 
-Status: `PACKAGE_READY / LIVE_APPROVAL_REQUIRED`.
+Status: `PRODUCTION_APPLIED / POSTFLIGHT_PASS / BROWSER_ACCEPTANCE_PENDING`.
 
-Hà retains the admin workspace and ALLOW rows, but SQL argument shadowing makes an unrelated ACCOUNT_MANAGE DENY block all database permissions. The same defect can overgrant catalog permissions to accounts without DENY rows. Repair package, rollback, fixture runner and read-only postflight are in [permission-argument-shadowing](../supabase/drafts/permission-argument-shadowing/README.md). No live helper repair or permission data change has been made. Real-session acceptance follows separate approved deployment.
+SQL argument shadowing made an unrelated ACCOUNT_MANAGE DENY block Hà's database permissions and could overgrant other permissions. The owner approved #249; migration `20261102065026_fix_permission_argument_shadowing` was applied and #249 merged at `788932f`. Database-role postflight passed without permission-row changes. The ledger was reconfirmed read-only on 04/11. Real browser-session acceptance remains separate. Repair and rollback: [permission package](../supabase/drafts/permission-argument-shadowing/README.md).
 
 ## 2026-11-02 — QA-003: history hardening
 

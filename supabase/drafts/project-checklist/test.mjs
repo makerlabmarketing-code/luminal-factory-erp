@@ -65,6 +65,64 @@ await db.exec('drop trigger reject_comment on task_comments');
 assert.equal((await call('IN_PROGRESS','BLOCKED','Need help')).success,true);
 assert.equal((await call('BLOCKED','IN_PROGRESS')).success,true);
 assert.equal((await call('IN_PROGRESS','PENDING_REVIEW')).success,true);
+
+// Acceptance of the real staff RPC with independent stale browser snapshots.
+// Every case is disposable and rolled back; no Production URL or actor is used.
+await db.exec('begin');
+await db.query("update tasks set status='READY',deadline='2026-10-24T00:00:00Z' where id=$1",[task.id]);
+const state = async () => (await db.query(`select status,assignee_employee_id,
+ deadline::date::text as deadline,
+ (select count(*)::int from task_comments where task_id=t.id) as comments,
+ (select count(*)::int from project_activity where task_id=t.id) as activity
+ from tasks t where id=$1`,[task.id])).rows[0];
+const update = async ({employee=2,expected='READY',next='IN_PROGRESS',note=null,deadline=null,changeDeadline=false}={}) =>
+  (await db.query('select update_staff_checklist_task($1,$2,$3,$4,$5,$6,$7) as result',
+    [task.id,employee,expected,next,note,deadline,changeDeadline])).rows[0].result;
+let acceptanceCases=0;
+const acceptance = async (name, verify) => {
+  await db.exec('savepoint acceptance_case');
+  try { await verify(); acceptanceCases+=1; console.log(`PASS acceptance: ${name}`); }
+  finally { await db.exec('rollback to savepoint acceptance_case; release savepoint acceptance_case'); }
+};
+await acceptance('revoked project membership denies staff writes',async()=>{
+  await db.exec("update project_members set status='INACTIVE' where employee_id=2");
+  const before=await state(); assert.equal((await update({note:'Should not save'})).success,false); assert.deepEqual(await state(),before);
+});
+await acceptance('another employee cannot mutate the assigned task',async()=>{
+  const before=await state(); assert.equal((await update({employee:1,note:'Should not save'})).success,false); assert.deepEqual(await state(),before);
+});
+await acceptance('inactive employee cannot mutate their assigned task',async()=>{
+  await db.exec("update employees set is_active=false where id=2");
+  const before=await state(); assert.equal((await update()).success,false); assert.deepEqual(await state(),before);
+});
+await acceptance('archived project denies staff writes',async()=>{
+  await db.query("update projects set status='ARCHIVED' where id=$1",[first.projectId]);
+  const before=await state(); assert.equal((await update()).success,false); assert.deepEqual(await state(),before);
+});
+await acceptance('second stale snapshot cannot duplicate activity or overwrite note/deadline',async()=>{
+  const snapshotA=await state(),snapshotB=await state(); assert.equal(snapshotA.status,snapshotB.status);
+  assert.equal((await update({expected:snapshotA.status})).success,true);
+  const committed=await state();
+  const rejected=await update({expected:snapshotB.status,next:'BLOCKED',note:'Stale note',deadline:'2026-10-29T00:00:00Z',changeDeadline:true});
+  assert.equal(rejected.code,'stale_task'); assert.deepEqual(await state(),committed);
+});
+await acceptance('unmodified deadline preserves a newer manager deadline',async()=>{
+  await db.query("update tasks set deadline='2026-10-28T00:00:00Z' where id=$1",[task.id]);
+  assert.equal((await update({deadline:'2026-10-24T00:00:00Z',changeDeadline:false})).success,true);
+  assert.equal((await state()).deadline,'2026-10-28');
+});
+await acceptance('deadline beyond project limit is rejected without partial history',async()=>{
+  const before=await state();
+  assert.equal((await update({note:'Should not save',deadline:'2026-11-01T00:00:00Z',changeDeadline:true})).success,false);
+  assert.deepEqual(await state(),before);
+});
+await acceptance('reassignment between read and save invalidates the previous assignee',async()=>{
+  const snapshot=await state(); await db.query('update tasks set assignee_employee_id=1 where id=$1',[task.id]);
+  const reassigned=await state(); assert.equal((await update({expected:snapshot.status})).success,false); assert.deepEqual(await state(),reassigned);
+});
+await db.exec('rollback');
+console.log(`PASS: ${acceptanceCases} checklist acceptance cases`);
+
 const saved=(await db.query("select save_project_template_atomic($1,'Reusable') as result",[first.projectId])).rows[0].result;
 assert.equal(saved.success,true,JSON.stringify(saved));
 const template=(await db.query('select name,assignee_role_code,start_offset_days,requires_review from phase_template_tasks')).rows[0];
