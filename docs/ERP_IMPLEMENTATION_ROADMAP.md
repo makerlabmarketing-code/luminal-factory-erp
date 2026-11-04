@@ -1,5 +1,18 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-11-04 — E-012 payroll/ledger design
+
+Status: `DESIGN_DRAFT / NOT_IMPLEMENTED`.
+
+[Proposed contract and acceptance matrix](../specs/payroll-ledger-link.md) trace
+the existing settle/adjust/reopen/payment boundaries and specify atomic linking,
+zero-value visibility without payment/email, legacy reconciliation and concurrency
+evidence. Existing focused payroll/email tests: 49 passed across five suites.
+They verify the baseline, not the proposed integration. No runtime code, migration,
+configuration, permission, financial row or email changed. Review the business
+contract before preparing its complete draft implementation package. E-011/QA-003
+real staff/manager/two-session acceptance remains open.
+
 ## 2026-11-04 — E-011 / QA-003 acceptance continuation
 
 History hardening and the separate permission repair are confirmed applied in
