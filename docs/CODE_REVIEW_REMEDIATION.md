@@ -1,12 +1,12 @@
 # Codex Code Review Remediation Ledger
 
-## 2026-11-02 · Permission argument shadowing · ACTIONABLE / LIVE_APPROVAL_REQUIRED
+## 2026-11-02 · Permission argument shadowing · APPLIED / POSTFLIGHT_PASS
 
 - Source: user reports Hà losing admin abilities; fresh Production read-only role simulation and runtime logs reproduce employees=1 and attendance=0 despite 31 ALLOW rows and valid admin workspace.
 - Root cause: SQL has_permission(text) binds permission_code to employee_permissions.permission_code inside subqueries. One unrelated DENY blocks all permissions; one unrelated ALLOW can grant other catalog permissions if no DENY exists.
 - Repair: use $1 at all three argument comparisons, preserving signature, grants, owner, search_path and existing definer. No policy, business row or permission assignments change.
 - Package: supabase/drafts/permission-argument-shadowing/. 23 PostgreSQL assertions cover old bug reproduction, correct allow/deny specificity, inactive/revoked rows, unknown/unlinked identities, staff RLS and rollback/reapply.
-- NOT_APPLIED: explicit SQL approval #248 covers history hardening only; separate live approval required for this helper repair.
+- APPLIED after separate explicit user approval of #249: migration `20261102065026_fix_permission_argument_shadowing`, merged `788932f`. No permission rows or flags changed. Database-role postflight passed; migration ledger reconfirmed read-only on 04/11. Real browser sessions still require end-user acceptance.
 
 ## 2026-11-02 · QA-003 · APPLIED / POSTFLIGHT_PASS
 

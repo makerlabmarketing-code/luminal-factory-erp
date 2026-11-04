@@ -4,7 +4,7 @@
 
 - [x] Reproduce Hà access inconsistency under authenticated PostgreSQL role.
 - [x] Prepare positional-argument fix, rollback and 23 disposable PostgreSQL assertions.
-- [ ] Approve separate live helper repair; no permission rows will change.
+- [x] Separate live helper repair approved and applied as `20261102065026`; PR #249 merged, no permission rows changed.
 - [ ] After deployment, verify real staff/admin sessions.
 - Package: [permission helper repair](supabase/drafts/permission-argument-shadowing/README.md).
 
@@ -15,6 +15,8 @@
 - [x] Exact SQL approval and Production migration `20261102061722_qa003_history_hardening`.
 - [x] Read-only postflight confirms reviewed triggers, grants and RLS.
 - [ ] Business acceptance and separately approved flag activation.
+- [x] Add eight disposable PostgreSQL staff/stale-write acceptance cases and run the existing checklist/template runner in Vitest.
+- Remaining live/UI acceptance: [04/11 checkpoint](docs/qa003-checklist-acceptance-20261104.md).
 - Package and compatibility/cascade impact: [review note](supabase/drafts/qa003-history-hardening/README.md).
 
 ## Animate UI · 2026-11-01 · E-021

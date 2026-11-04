@@ -1,9 +1,12 @@
 # QA-003 · Bảo vệ lịch sử trước khi mở luồng công việc
 
-Trạng thái: **READY_FOR_REVIEW / LIVE_APPROVAL_REQUIRED**. Gói này chưa chạy
-trên Production. Không đặt SQL vào `supabase/migrations/` trước khi được duyệt.
+Trạng thái: **PRODUCTION_APPLIED / POSTFLIGHT_PASS**. Chủ hệ thống đã duyệt
+đúng gói #248, migration `20261102061722_qa003_history_hardening` đã áp và PR
+đã merge. Ngày 04/11 đối chiếu chỉ đọc: cả ba bảng bật RLS, mỗi bảng có hai
+trigger ứng dụng. Không chạy lại gói hoặc suy ra quyền bật cờ từ trạng thái này.
+Nghiệm thu nghiệp vụ tiếp theo: [checkpoint 04/11](../../../docs/qa003-checklist-acceptance-20261104.md).
 
-## Căn cứ hiện tại
+## Căn cứ trước khi áp gói
 
 Kiểm tra chỉ đọc ngày 02/11/2026 trên dự án ERP `kwfmfmpgpbfewpiizesv`:
 
