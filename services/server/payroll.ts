@@ -40,6 +40,7 @@ export interface PayrollMonthDTO {
   adjustmentTotal: number;
   finalPayableAmount: number;
   ledger?: { id: string; status: 'UNPAID' | 'PAID' | 'ZERO' } | null;
+  supplements?: Array<{ ledgerId: string; amount: number; reason: string; paid: boolean }>;
 }
 
 export interface PayrollReadinessDTO {
@@ -227,6 +228,16 @@ export async function getAdminPayroll(month: string) {
         const linked = (ledgers || []).find(item => item.source_reference === row.settlementId && isLinkedPayrollLedger(item));
         row.ledger = linked ? { id: String(linked.id), status: linked.is_paid ? 'PAID' : Number(linked.amount) === 0 ? 'ZERO' : 'UNPAID' } : null;
       }
+      const linkedSnapshots = payroll.filter(row => row.ledger).map(row => row.settlementId!);
+      if (linkedSnapshots.length) {
+        const { data: supplements, error: supplementError } = await admin.from('payroll_supplemental_obligations')
+          .select('settlement_id,amount,reason,financial_ledger!inner(id,is_paid)').in('settlement_id', linkedSnapshots);
+        if (supplementError) throw new Error('Không thể tải các phiếu lương bổ sung.');
+        for (const row of payroll) row.supplements = (supplements || []).filter(item => item.settlement_id === row.settlementId).map(item => {
+          const ledger = Array.isArray(item.financial_ledger) ? item.financial_ledger[0] : item.financial_ledger;
+          return { ledgerId: String(ledger.id), amount: Number(item.amount), reason: String(item.reason), paid: Boolean(ledger.is_paid) };
+        });
+      }
     }
   }
   if (process.env.PAYROLL_REOPEN_ENABLED === 'true') {
@@ -279,6 +290,22 @@ export async function addPayrollAdjustment(settlementId: unknown, amount: unknow
   const { data, error } = await supabase.rpc('create_payroll_adjustment', { p_settlement_id: String(settlementId), p_amount: input.amount, p_reason: input.reason });
   if (error) throw new Error('Không thể tạo điều chỉnh lương.');
   return { success: true as const, adjustmentId: String(data) };
+}
+
+export async function addPayrollSupplement(settlementId: unknown, amount: unknown, reason: unknown, requestId: unknown) {
+  await requireAdminPayrollPermission(PAYROLL_ADJUST_PERMISSION);
+  ensureEnabled();
+  let input: { amount: number; reason: string };
+  try { input = payrollAdjustmentInput(amount, reason); }
+  catch { throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Nhập khoản cộng thêm nguyên dương và lý do từ 3 đến 1.000 ký tự.', failureStage: 'validation' }); }
+  const uuid = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+  if (input.amount <= 0 || typeof settlementId !== 'string' || !uuid.test(settlementId) || typeof requestId !== 'string' || !uuid.test(requestId)) {
+    throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Chọn bản chốt hợp lệ và khoản cộng thêm lớn hơn 0.', failureStage: 'validation' });
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('create_payroll_supplement', { p_settlement_id: settlementId, p_amount: input.amount, p_reason: input.reason, p_request_id: requestId });
+  if (error) throw new AuthFlowError({ status: error.code === '42501' ? 403 : error.code === '42883' ? 503 : 409, code: 'payload_validation_failed', message: error.code === '42883' ? 'Phiếu lương bổ sung đang chờ cập nhật dữ liệu.' : 'Chỉ tạo phiếu bổ sung cho bản lương đã trả. Tải lại để kiểm tra trạng thái và tránh tạo trùng.', failureStage: 'persistence' });
+  return { success: true as const, ledgerId: String(data) };
 }
 
 export async function reopenPayroll(settlementId: unknown, reason: unknown) {

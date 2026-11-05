@@ -13,7 +13,7 @@ where not tgisinternal and tgrelid in ('public.financial_ledger'::regclass,'publ
 select table_name,column_name,data_type,is_nullable,column_default from information_schema.columns
 where table_schema='public' and table_name in ('financial_ledger','finance_ledger_history','payroll_settlements','salary_payment_emails') order by table_name,ordinal_position;
 select count(*) reserved_marker_collisions from public.financial_ledger
-where idempotency_key like 'payroll-ledger:%';
+where idempotency_key like 'payroll-ledger:%' or idempotency_key like 'payroll-supplement:%' or source_type='PAYROLL_SUPPLEMENT';
 select pg_describe_object(d.classid,d.objid,d.objsubid) consumer,d.refobjid::regprocedure referenced_rpc,d.deptype
 from pg_depend d where d.refclassid='pg_proc'::regclass and d.refobjid in (
  'public.settle_monthly_payroll(bigint,date)'::regprocedure,'public.create_payroll_adjustment(uuid,numeric,text)'::regprocedure,

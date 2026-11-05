@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const fixture = vi.hoisted(() => ({ finance: true, ledger: [] as Record<string, unknown>[], ledgerError: false, from: vi.fn() }));
+const fixture = vi.hoisted(() => ({ finance: true, ledger: [] as Record<string, unknown>[], supplements: [] as Record<string, unknown>[], ledgerError: false, from: vi.fn() }));
 const snapshot = '11111111-1111-4111-8111-111111111111';
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/payroll-input', () => import('../lib/payroll-input'));
@@ -15,10 +15,10 @@ import { getAdminPayroll } from '../services/server/payroll';
 
 const prior = [process.env.PAYROLL_SETTLEMENT_ENABLED, process.env.PAYROLL_REOPEN_ENABLED];
 beforeEach(() => {
-  fixture.finance = true; fixture.ledger = []; fixture.ledgerError = false;
+  fixture.finance = true; fixture.ledger = []; fixture.supplements = []; fixture.ledgerError = false;
   fixture.from.mockReset();
   fixture.from.mockImplementation((table: string) => {
-    const result = () => ({ data: table === 'payroll_settlements' ? [{ id: snapshot, employees: { full_name: 'Reviewer' } }] : fixture.ledger, error: table === 'financial_ledger' && fixture.ledgerError ? { message: 'fixture failure' } : null });
+    const result = () => ({ data: table === 'payroll_settlements' ? [{ id: snapshot, employees: { full_name: 'Reviewer' } }] : table === 'payroll_supplemental_obligations' ? fixture.supplements : fixture.ledger, error: table === 'financial_ledger' && fixture.ledgerError ? { message: 'fixture failure' } : null });
     const query = {
       select: () => query, eq: () => query, in: () => query, is: () => query,
       maybeSingle: async () => ({ data: { first_settlement_month: '2026-09-01' }, error: null }),
@@ -47,6 +47,13 @@ describe('payroll linked obligation visibility', () => {
   it('does not mistake legacy/manual source rows for a linked obligation', async () => {
     fixture.ledger = [{ id: 42, type: 'CHI_PHI', source_type: 'PAYROLL', source_reference: snapshot, amount: 300 }];
     expect((await getAdminPayroll('2026-10')).payroll[0].ledger).toBeNull();
+  });
+  it('lists a supplemental delta separately without changing the original payroll amount', async () => {
+    fixture.ledger = [{ id: 42, type: 'CHI_PHI', source_type: 'PAYROLL', source_reference: snapshot, idempotency_key: `payroll-ledger:${snapshot}`, amount: 300, is_paid: true }];
+    fixture.supplements = [{ settlement_id: snapshot, amount: 100, reason: 'Extra fixture', financial_ledger: { id: 43, is_paid: false } }, { settlement_id: 'another-snapshot', amount: 999, financial_ledger: { id: 44, is_paid: true } }];
+    const row = (await getAdminPayroll('2026-10')).payroll[0];
+    expect(row.finalPayableAmount).toBe(300);
+    expect(row.supplements).toEqual([{ ledgerId: '43', amount: 100, reason: 'Extra fixture', paid: false }]);
   });
   it('reports a read failure instead of silently presenting a missing or paid row', async () => {
     fixture.ledgerError = true;

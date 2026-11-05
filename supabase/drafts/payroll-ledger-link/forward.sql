@@ -6,7 +6,7 @@ do $$begin
   'public.reopen_monthly_payroll(uuid,text)'::regprocedure,'public.confirm_salary_ledger_payment(bigint,date,bigint)'::regprocedure)) then
   raise exception 'payroll_link_dependency_review_required';
  end if;
- if exists(select 1 from public.financial_ledger where idempotency_key like 'payroll-ledger:%') then
+ if exists(select 1 from public.financial_ledger where idempotency_key like 'payroll-ledger:%' or idempotency_key like 'payroll-supplement:%' or source_type='PAYROLL_SUPPLEMENT') then
   raise exception 'payroll_link_reserved_marker_collision';
  end if;
 end $$;
@@ -27,6 +27,20 @@ create table public.payroll_ledger_links (
 alter table public.payroll_ledger_links enable row level security;
 revoke all on public.payroll_ledger_links from public,anon,authenticated,service_role;
 grant select on public.payroll_ledger_links to service_role;
+create table public.payroll_supplemental_obligations (
+ id uuid primary key,
+ settlement_id uuid not null references public.payroll_settlements(id) on delete restrict,
+ ledger_id bigint not null unique references public.financial_ledger(id) on delete restrict,
+ amount numeric not null check(amount>0 and amount::text not in ('NaN','Infinity','-Infinity')),
+ reason text not null check(length(btrim(reason)) between 3 and 1000),
+ created_by_employee_id bigint not null references public.employees(id),
+ created_at timestamptz not null default clock_timestamp()
+);
+alter table public.payroll_supplemental_obligations enable row level security;
+revoke all on public.payroll_supplemental_obligations from public,anon,authenticated,service_role;
+grant select on public.payroll_supplemental_obligations to service_role;
+create trigger payroll_supplements_immutable before update or delete on public.payroll_supplemental_obligations
+ for each row execute function public.block_immutable_payroll_change();
 create table payroll_link_private.write_permits (
  transaction_id bigint primary key,
  settlement_id uuid not null,
@@ -61,17 +75,23 @@ begin
  if tg_op<>'DELETE' and new.type in ('CHI_PHI','CHI_TIEU') and (new.source_type in ('PAYROLL','SALARY') or coalesce(new.category,'') ~* '^Lương([[:space:]]|$)') then
   perform pg_advisory_xact_lock(hashtextextended('payroll-reopen-salary-payment',0));
  end if;
- if tg_op<>'DELETE' and new.type in ('CHI_PHI','CHI_TIEU') and (new.source_type in ('PAYROLL','SALARY') or coalesce(new.category,'') ~* '^Lương([[:space:]]|$)')
+ if tg_op<>'DELETE' and new.source_type is distinct from 'PAYROLL_SUPPLEMENT' and new.type in ('CHI_PHI','CHI_TIEU') and (new.source_type in ('PAYROLL','SALARY') or coalesce(new.category,'') ~* '^Lương([[:space:]]|$)')
  and exists(select 1 from public.payroll_ledger_links k join public.payroll_settlements s on s.id=k.settlement_id where k.state='ACTIVE' and k.ledger_id<>new.id
   and (new.beneficiary_employee_id=s.employee_id or new.beneficiary_employee_id is null)
   and (new.month_period=to_char(s.payroll_month,'MM/YYYY') or new.month_period is null or new.month_period !~ '^(0[1-9]|1[0-2])/[0-9]{4}$')) then
    raise exception 'payroll_link_legacy_reconciliation' using errcode='55000';
  end if;
  if tg_op='INSERT' then
-  if new.source_type is distinct from 'PAYROLL' or new.idempotency_key is distinct from 'payroll-ledger:'||new.source_reference then return new; end if;
+  if new.source_type='PAYROLL_SUPPLEMENT' then
+   if new.idempotency_key is distinct from 'payroll-supplement:'||new.source_reference then raise exception 'payroll_link_source_protected' using errcode='42501'; end if;
+  elsif new.source_type is distinct from 'PAYROLL' or new.idempotency_key is distinct from 'payroll-ledger:'||new.source_reference then return new; end if;
  else
-  select exists(select 1 from public.payroll_ledger_links where ledger_id=old.id) into linked;
+  select exists(select 1 from public.payroll_ledger_links where ledger_id=old.id)
+   or exists(select 1 from public.payroll_supplemental_obligations where ledger_id=old.id) into linked;
   if not linked then
+   if tg_op<>'DELETE' and (new.idempotency_key like 'payroll-ledger:%' or new.idempotency_key like 'payroll-supplement:%' or new.source_type='PAYROLL_SUPPLEMENT') then
+    raise exception 'payroll_link_source_protected' using errcode='42501';
+   end if;
    return case when tg_op='DELETE' then old else new end;
   end if;
   if tg_op='DELETE' then raise exception 'payroll_link_source_protected' using errcode='42501'; end if;
@@ -84,8 +104,10 @@ begin
   end if;
  elsif permit.ledger_id is distinct from old.id then raise exception 'payroll_link_source_protected' using errcode='42501';
  elsif permit.operation='ADJUST' then
+  if exists(select 1 from public.payroll_supplemental_obligations where ledger_id=old.id) then raise exception 'payroll_link_source_protected' using errcode='42501'; end if;
   if (to_jsonb(new)-array['amount','updated_at']) is distinct from (to_jsonb(old)-array['amount','updated_at']) then raise exception 'payroll_link_source_protected' using errcode='42501'; end if;
  elsif permit.operation='REOPEN' then
+  if exists(select 1 from public.payroll_supplemental_obligations where ledger_id=old.id) then raise exception 'payroll_link_source_protected' using errcode='42501'; end if;
   if (to_jsonb(new)-array['cancelled_at','updated_at']) is distinct from (to_jsonb(old)-array['cancelled_at','updated_at']) then raise exception 'payroll_link_source_protected' using errcode='42501'; end if;
  elsif permit.operation='PAY' then
   if (to_jsonb(new)-array['is_paid','payment_status','paid_at','payment_confirmer_employee_id','updated_at']) is distinct from (to_jsonb(old)-array['is_paid','payment_status','paid_at','payment_confirmer_employee_id','updated_at']) then raise exception 'payroll_link_source_protected' using errcode='42501'; end if;
@@ -170,11 +192,30 @@ end $$;
 -- Service-only payment API: actor is supplied by the existing verified server boundary.
 -- Definer is required to access the private permit and exact original implementation.
 create function public.confirm_salary_ledger_payment(p_ledger_id bigint,p_salary_month date,p_actor_id bigint) returns uuid language plpgsql security definer set search_path='' as $$
-declare link public.payroll_ledger_links%rowtype; snapshot public.payroll_settlements%rowtype; ledger public.financial_ledger%rowtype; result uuid; integrated boolean;
+declare link public.payroll_ledger_links%rowtype; supplement public.payroll_supplemental_obligations%rowtype; snapshot public.payroll_settlements%rowtype; ledger public.financial_ledger%rowtype; result uuid; integrated boolean;
 begin
  perform pg_advisory_xact_lock(hashtextextended('payroll-reopen-salary-payment',0));
  select * into link from public.payroll_ledger_links where ledger_id=p_ledger_id;
- if not found then return payroll_link_private.confirm_salary_ledger_payment(p_ledger_id,p_salary_month,p_actor_id); end if;
+ if not found then
+  select * into supplement from public.payroll_supplemental_obligations where ledger_id=p_ledger_id;
+  if not found then return payroll_link_private.confirm_salary_ledger_payment(p_ledger_id,p_salary_month,p_actor_id); end if;
+  if not payroll_link_private.enabled() then raise exception 'payroll_link_maintenance' using errcode='55000'; end if;
+  select * into strict snapshot from public.payroll_settlements where id=supplement.settlement_id;
+  select * into strict ledger from public.financial_ledger where id=p_ledger_id for update;
+  if snapshot.payroll_month is distinct from p_salary_month or ledger.amount is distinct from supplement.amount
+   or ledger.beneficiary_employee_id is distinct from snapshot.employee_id or ledger.month_period is distinct from to_char(snapshot.payroll_month,'MM/YYYY')
+   or ledger.source_type is distinct from 'PAYROLL_SUPPLEMENT' or ledger.source_reference is distinct from supplement.id::text
+   or ledger.idempotency_key is distinct from 'payroll-supplement:'||supplement.id::text or ledger.cancelled_at is not null
+   or not exists(select 1 from public.payroll_ledger_links k join public.financial_ledger original on original.id=k.ledger_id
+    where k.settlement_id=snapshot.id and k.state='ACTIVE' and original.is_paid and original.payment_status='PAID'
+     and exists(select 1 from public.payroll_active_settlements where settlement_id=snapshot.id)) then
+   raise exception 'payroll_link_payment_conflict' using errcode='22023';
+  end if;
+  insert into payroll_link_private.write_permits values(txid_current(),supplement.id,p_ledger_id,'PAY');
+  result:=payroll_link_private.confirm_salary_ledger_payment(p_ledger_id,p_salary_month,p_actor_id);
+  delete from payroll_link_private.write_permits where transaction_id=txid_current();
+  return result;
+ end if;
  integrated:=payroll_link_private.enabled();
  if not integrated then raise exception 'payroll_link_maintenance' using errcode='55000'; end if;
  select * into strict snapshot from public.payroll_settlements where id=link.settlement_id;
@@ -186,6 +227,44 @@ begin
  end if;
  insert into payroll_link_private.write_permits values(txid_current(),link.settlement_id,p_ledger_id,'PAY');
  result:=payroll_link_private.confirm_salary_ledger_payment(p_ledger_id,p_salary_month,p_actor_id);
+ delete from payroll_link_private.write_permits where transaction_id=txid_current();
+ return result;
+end $$;
+
+-- A paid base remains immutable. Each additional positive amount is a separate
+-- source obligation and a separate payment/email; it is never added to base due.
+create function public.create_payroll_supplement(p_settlement_id uuid,p_amount numeric,p_reason text,p_request_id uuid) returns bigint
+language plpgsql security definer set search_path='' as $$
+declare actor bigint:=public.current_employee_id(); snapshot public.payroll_settlements%rowtype; previous public.payroll_supplemental_obligations%rowtype; result bigint;
+begin
+ if actor is null or not public.has_workspace_access('ADMIN_WORKSPACE') or not public.has_permission('PAYROLL_ADJUST') then raise exception 'payroll supplement forbidden' using errcode='42501'; end if;
+ if p_request_id is null or p_amount is null or p_amount<=0 or p_amount<>trunc(p_amount) or p_amount>999999999999
+  or p_amount::text in ('NaN','Infinity','-Infinity') or p_reason is null or length(btrim(p_reason)) not between 3 and 1000 then
+  raise exception 'payroll_supplement_invalid' using errcode='22023';
+ end if;
+ perform pg_advisory_xact_lock(hashtextextended('payroll-reopen-salary-payment',0));
+ if not payroll_link_private.enabled() then raise exception 'payroll_supplement_not_enabled' using errcode='55000'; end if;
+ select * into previous from public.payroll_supplemental_obligations where id=p_request_id;
+ if found then
+  if previous.settlement_id is distinct from p_settlement_id or previous.amount is distinct from p_amount
+   or previous.reason is distinct from btrim(p_reason) or previous.created_by_employee_id is distinct from actor then
+   raise exception 'payroll_supplement_request_conflict' using errcode='22023';
+  end if;
+  return previous.ledger_id;
+ end if;
+ select * into snapshot from public.payroll_settlements where id=p_settlement_id;
+ if not found or not exists(select 1 from public.payroll_active_settlements where settlement_id=p_settlement_id)
+  or not exists(select 1 from public.payroll_ledger_links k join public.financial_ledger l on l.id=k.ledger_id
+   where k.settlement_id=p_settlement_id and k.state='ACTIVE' and l.is_paid and l.payment_status='PAID' and l.cancelled_at is null) then
+  raise exception 'payroll_supplement_requires_paid_base' using errcode='55000';
+ end if;
+ insert into payroll_link_private.write_permits values(txid_current(),p_request_id,null,'CREATE');
+ insert into public.financial_ledger(type,category,amount,requested_by,month_period,is_paid,payment_status,beneficiary_employee_id,creator_employee_id,source_type,source_reference,idempotency_key,transaction_date,description,updated_at)
+ values('CHI_PHI','Lương bổ sung',p_amount,null,to_char(snapshot.payroll_month,'MM/YYYY'),false,'UNPAID',snapshot.employee_id,actor,
+ 'PAYROLL_SUPPLEMENT',p_request_id::text,'payroll-supplement:'||p_request_id::text,(clock_timestamp() at time zone 'Asia/Ho_Chi_Minh')::date,btrim(p_reason),clock_timestamp()) returning id into result;
+ insert into public.payroll_supplemental_obligations(id,settlement_id,ledger_id,amount,reason,created_by_employee_id)
+ values(p_request_id,p_settlement_id,result,p_amount,btrim(p_reason),actor);
+ perform payroll_link_private.audit(result,'CREATED',actor,btrim(p_reason),jsonb_build_object('settlement_id',p_settlement_id,'supplement_id',p_request_id,'amount',p_amount));
  delete from payroll_link_private.write_permits where transaction_id=txid_current();
  return result;
 end $$;
@@ -231,6 +310,8 @@ begin
 end $$;
 
 revoke all on all functions in schema payroll_link_private from public,anon,authenticated,service_role;
+revoke all on function public.create_payroll_supplement(uuid,numeric,text,uuid) from public,anon,authenticated,service_role;
+grant execute on function public.create_payroll_supplement(uuid,numeric,text,uuid) to authenticated;
 revoke all on function public.settle_monthly_payroll(bigint,date),public.create_payroll_adjustment(uuid,numeric,text),public.reopen_monthly_payroll(uuid,text),public.confirm_salary_ledger_payment(bigint,date,bigint) from public,anon,authenticated,service_role;
 grant execute on function public.settle_monthly_payroll(bigint,date),public.create_payroll_adjustment(uuid,numeric,text),public.reopen_monthly_payroll(uuid,text) to authenticated;
 grant execute on function public.confirm_salary_ledger_payment(bigint,date,bigint) to service_role;

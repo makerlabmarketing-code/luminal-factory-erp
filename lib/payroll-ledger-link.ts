@@ -5,9 +5,10 @@ type PayrollSource = Pick<FinancialLedgerEntry, 'type' | 'source_type' | 'source
 /** Reserved database-generated identity; legacy salary rows keep their existing flow. */
 export function isLinkedPayrollLedger(row: PayrollSource): boolean {
   const reference = row.source_reference;
-  return row.type === 'CHI_PHI' && row.source_type === 'PAYROLL'
+  const prefix = row.source_type === 'PAYROLL' ? 'payroll-ledger:' : row.source_type === 'PAYROLL_SUPPLEMENT' ? 'payroll-supplement:' : null;
+  return row.type === 'CHI_PHI' && prefix !== null
     && typeof reference === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(reference)
-    && row.idempotency_key === `payroll-ledger:${reference}`;
+    && row.idempotency_key === `${prefix}${reference}`;
 }
 
 export function isZeroPayrollObligation(row: PayrollSource): boolean {

@@ -2,6 +2,30 @@
 
 Status 2026-11-05: **IMPLEMENTED_DRAFT / NOT_APPLIED / TESTENV_QA_PENDING**.
 
+## Owner-confirmed lifecycle extension · 05/11
+
+Before payment, reopen supersedes the old snapshot/link and soft-cancels its source
+obligation atomically; the existing normal finance list hides cancelled rows.
+Reclose creates a new snapshot/obligation while retaining prior adjustment history.
+Before payment, ordinary adjustments update the pending obligation in place.
+
+After payment, the base snapshot/obligation/email stays immutable. A separate
+`create_payroll_supplement` RPC requires PAYROLL_ADJUST and an already-paid active
+linked base, accepts only a positive whole delta with reason/request UUID, and
+creates an unpaid `PAYROLL_SUPPLEMENT` obligation. Request reuse with changed intent
+fails; identical retries return the same obligation. Its immutable source table has
+RLS, no browser access, service-role SELECT only and no client mutation privilege.
+The private permit guard covers supplementary ledger rows as well as base rows.
+Payment validates the source delta/parent/month, uses the existing service-only
+payment API, and queues only the delta once when explicitly confirmed. Creation
+does not pay or send email. Supplement values never change the original payable.
+
+The manager UI hides reopen/base-adjustment controls for a paid linked base,
+shows a separate positive-addition dialog and lists supplemental obligations.
+The finance editor/payment boundary recognizes the reserved supplemental marker.
+No automatic salary deduction, refund or supplementary cancellation policy is added.
+SQL stays a draft until this revised package is approved for live delivery.
+
 ## Missing-ledger repair continuation · 05/11
 
 The owner reported an existing settled payroll missing from finance. Prepared an

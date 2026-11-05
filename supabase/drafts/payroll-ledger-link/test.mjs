@@ -56,7 +56,8 @@ const settle=async(employee) => (await scalar("select settle_monthly_payroll($1,
 const counts=async()=>scalar(`select (select count(*) from payroll_settlements)::int snapshots,
 (select count(*) from payroll_adjustments)::int adjustments,(select count(*) from financial_ledger)::int ledgers,
 (select count(*) from payroll_ledger_links)::int links,(select count(*) from finance_ledger_history)::int history,
-(select count(*) from salary_payment_emails)::int emails,(select count(*) from payroll_active_settlements)::int active`);
+(select count(*) from salary_payment_emails)::int emails,(select count(*) from payroll_active_settlements)::int active,
+(select count(*) from payroll_supplemental_obligations)::int supplements`);
 const ledger=async(id)=>scalar('select l.* from financial_ledger l join payroll_ledger_links k on k.ledger_id=l.id where k.settlement_id=$1',[id]);
 let cases=0;
 async function check(name,run){await run();cases++;console.log('PASS '+name);}
@@ -185,6 +186,51 @@ await check('payment retry queues one immutable amount and blocks reopening and 
  await assert.rejects(db.query('select reopen_monthly_payroll($1,$2)',[first,'Do not reopen paid payroll']),/already_paid/);
  await assert.rejects(db.query('select create_payroll_adjustment($1,1,$2)',[first,'Do not change paid amount']),/already_paid/);
 });
+const supplementRequest='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';let supplementalLedger;
+const supplement=(amount=100,request=supplementRequest,parent=first,reason='Reviewed extra salary')=>scalar('select create_payroll_supplement($1,$2,$3,$4) id',[parent,amount,reason,request]);
+await check('supplement requires a positive whole amount and an already-paid active base',async()=>{
+ const before=await counts();
+ for(const amount of [0,-100,1.5,'NaN','Infinity',1000000000000]) await assert.rejects(supplement(amount),/supplement_invalid/);
+ await assert.rejects(supplement(100,supplementRequest,zero),/requires_paid_base/);
+ assert.deepEqual(await counts(),before);
+});
+await check('paid-base addition creates only the delta and leaves paid money and base payable untouched',async()=>{
+ const base=await ledger(first),before=await counts();supplementalLedger=(await supplement()).id;
+ const row=await scalar('select * from financial_ledger where id=$1',[supplementalLedger]);
+ assert.equal(Number(row.amount),100);assert.equal(row.is_paid,false);assert.equal(row.payment_status,'UNPAID');
+ assert.equal(row.source_type,'PAYROLL_SUPPLEMENT');assert.equal(row.idempotency_key,'payroll-supplement:'+supplementRequest);
+ assert.deepEqual(await ledger(first),base);assert.equal(Number((await scalar('select payroll_link_private.payable($1) amount',[first])).amount),350);
+ const after=await counts();assert.equal(after.adjustments,before.adjustments);assert.equal(after.snapshots,before.snapshots);assert.equal(after.emails,before.emails);assert.equal(after.supplements,before.supplements+1);
+});
+await check('supplement retry is idempotent and refuses changed intent for the same request',async()=>{
+ const before=await counts();assert.equal((await supplement()).id,supplementalLedger);
+ await assert.rejects(supplement(101),/request_conflict/);assert.deepEqual(await counts(),before);
+});
+await check('supplement audit failure cannot leave an extra obligation behind',async()=>{
+ await db.exec("create function fail_supplement_audit() returns trigger language plpgsql as $$begin raise exception 'forced supplement audit failure'; end$$; create trigger fail_supplement_audit before insert on finance_ledger_history for each row execute function fail_supplement_audit()");
+ const before=await counts();await assert.rejects(supplement(50,'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),/forced supplement audit failure/);assert.deepEqual(await counts(),before);
+ await db.exec('drop trigger fail_supplement_audit on finance_ledger_history;drop function fail_supplement_audit()');
+});
+await check('supplement source and immutable reason cannot be edited, cancelled or forged',async()=>{
+ for(const patch of ['amount=1',"cancelled_at=now()",'is_paid=true']) await assert.rejects(db.exec('update financial_ledger set '+patch+' where id='+supplementalLedger),/source_protected/);
+ await assert.rejects(db.exec('delete from financial_ledger where id='+supplementalLedger),/cannot be deleted|source_protected/);
+ await assert.rejects(db.query("update payroll_supplemental_obligations set reason='changed' where id=$1",[supplementRequest]),/immutable/);
+ await assert.rejects(db.exec("insert into financial_ledger(type,category,source_type,source_reference,idempotency_key) values('CHI_PHI','Lương bổ sung','PAYROLL_SUPPLEMENT','cccccccc-cccc-4ccc-8ccc-cccccccccccc','payroll-supplement:cccccccc-cccc-4ccc-8ccc-cccccccccccc')"),/source_protected/);
+});
+await check('supplement payment snapshots only the delta once and never repays the original',async()=>{
+ const original=await ledger(first),before=await counts();
+ await assert.rejects(db.query("select confirm_salary_ledger_payment($1,'2026-11-01',1)",[supplementalLedger]),/payment_conflict/);
+ const paid=await scalar("select confirm_salary_ledger_payment($1,'2026-10-01',1) id",[supplementalLedger]);
+ assert.deepEqual(await scalar("select confirm_salary_ledger_payment($1,'2026-10-01',1) id",[supplementalLedger]),paid);
+ assert.equal(Number((await scalar('select amount from salary_payment_emails where ledger_id=$1',[supplementalLedger])).amount),100);
+ assert.deepEqual(await ledger(first),original);assert.equal((await counts()).emails,before.emails+1);
+ await assert.rejects(db.query('select reopen_monthly_payroll($1,$2)',[first,'Must preserve both paid obligations']),/already_paid/);
+});
+await check('supplements remain permission-gated and private to trusted readers',async()=>{
+ await db.exec("set test.deny='yes'");await assert.rejects(supplement(50,'dddddddd-dddd-4ddd-8ddd-dddddddddddd'),/forbidden/);await db.exec("set test.deny='no'");
+ for(const role of ['anon','authenticated']) assert.equal((await scalar(`select has_table_privilege('${role}','payroll_supplemental_obligations','SELECT') ok`)).ok,false);
+ assert.equal((await scalar("select has_function_privilege('anon','public.create_payroll_supplement(uuid,numeric,text,uuid)','EXECUTE') ok")).ok,false);
+});
 await check('legacy salary ambiguity blocks linking instead of duplicating an obligation',async()=>{
  await db.exec("insert into financial_ledger(beneficiary_employee_id,month_period,type,category) values(3,'10/2026','CHI_PHI','Lương cũ')");
  const before=await counts();await assert.rejects(settle(3),/legacy_reconciliation/);assert.deepEqual(await counts(),before);
@@ -270,7 +316,25 @@ if(db.clients){
   const second=await collide("select confirm_salary_ledger_payment($1,'2026-10-01',1)",[l.id],'select create_payroll_adjustment($1,100,$2)',[id,'Must not change paid total']);
   assert.equal(second.ok,false);assert.equal(second.error.message,'payroll_already_paid');assert.equal(Number((await ledger(id)).amount),300);
  });
- console.log('PASS: 5 real overlapping two-connection races on '+(await scalar('select version() version')).version);
+ await check('two real supplement retries create only one extra obligation',async()=>{
+  const request='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const second=await collide('select create_payroll_supplement($1,75,$2,$3) id',[first,'Concurrent extra salary',request],
+   'select create_payroll_supplement($1,75,$2,$3) id',[first,'Concurrent extra salary',request]);
+  assert.equal(second.ok,true);
+  assert.equal((await scalar('select count(*)::int n from financial_ledger where source_reference=$1',[request])).n,1);
+  assert.equal(Number((await scalar('select amount from financial_ledger where id=$1',[second.value.rows[0].id])).amount),75);
+ });
+ await check('base payment commits before a waiting supplement verifies eligibility',async()=>{
+  await db.exec("insert into employees values(15,'Concurrent base and extra',100,'ACTIVE',true,null);insert into attendance(employee_id,work_date,check_in,check_out,total_hours,status) values(15,'2026-10-01','08:00','11:00',3,'PRESENT')");
+  const id=await settle(15),base=await ledger(id),request='ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const second=await collide("select confirm_salary_ledger_payment($1,'2026-10-01',1)",[base.id],
+   'select create_payroll_supplement($1,25,$2,$3) id',[id,'Concurrent paid base extra',request]);
+  assert.equal(second.ok,true);assert.equal((await ledger(id)).is_paid,true);
+  const extra=await scalar('select amount,is_paid from financial_ledger where id=$1',[second.value.rows[0].id]);
+  assert.equal(Number(extra.amount),25);assert.equal(extra.is_paid,false);
+  assert.equal((await scalar('select count(*)::int n from salary_payment_emails where ledger_id=$1',[second.value.rows[0].id])).n,0);
+ });
+ console.log('PASS: 7 real overlapping two-connection races on '+(await scalar('select version() version')).version);
 }
 console.log(`PASS: ${cases} payroll-ledger PostgreSQL cases; no SMTP or live database`);
 } finally { await db.close(); }

@@ -30,7 +30,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Install disposable PostgreSQL outside the application
         run: npm install --prefix "$RUNNER_TEMP/e012-postgres" --no-audit --no-fund embedded-postgres@17.11.0-beta.19
-      - name: Run lifecycle and five genuinely overlapping races
+      - name: Run lifecycle and seven genuinely overlapping races
         env:
           E012_REQUIRE_CONCURRENCY: '1'
           EMBEDDED_POSTGRES_MODULE: ${{ runner.temp }}/e012-postgres/node_modules/embedded-postgres/dist/index.js
