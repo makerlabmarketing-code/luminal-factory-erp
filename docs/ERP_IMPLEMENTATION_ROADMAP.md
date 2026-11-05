@@ -5,14 +5,19 @@
 Added a dedicated read-only-permission CI job running the existing five overlapping
 races on fresh loopback PostgreSQL under an ordinary Ubuntu user. It accepts no
 Production connection URL or secrets and fails if the runner falls back to PGlite.
-Workflow creation is not a successful run; retain the actual check result separately.
+[CI run 41957492424](https://github.com/makerlabmarketing-code/luminal-factory-erp/actions/runs/41957492424/job/127015786890)
+passed on PostgreSQL 17.11: 21 lifecycle cases and all five genuine overlapping
+two-connection races, 26 total. Each race observes a real lock wait before commit.
+Full local gates remain 1,041 tests / 150 files, lint, TypeScript and webpack build.
 
 The owner-authorized Production browser test on tungduy completed zero settlement,
 reload, reopening with an explicit test reason, reload and preserved actor/history.
 Đào Tùng Duy's November 2026 period is open again. No payment was confirmed.
 This validates the baseline UI, not the unactivated linked obligations. Matching
 Supabase/integrated-row browser acceptance, exact SQL approval and controlled
-activation remain required. SQL remains `NOT_APPLIED`.
+activation remain required. Read-only branch inventory found only the default
+Production project; no separate Supabase test branch is available. No paid resource
+was created. SQL remains `NOT_APPLIED / TESTENV_QA_PENDING`.
 
 ## 2026-11-05 — E-012 implementation draft
 
