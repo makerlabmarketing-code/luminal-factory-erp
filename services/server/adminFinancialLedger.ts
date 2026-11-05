@@ -1,4 +1,5 @@
 import 'server-only';
+import { isLinkedPayrollLedger, isZeroPayrollObligation } from '@/lib/payroll-ledger-link';
 import { activityHistoryEnabled } from './activityGate';
 import { confirmSalaryLedgerPayment, isSalaryLedger, salaryPaymentEmailEnabled, salaryEmailStatuses } from './salaryPaymentEmail';
 
@@ -36,6 +37,9 @@ function isManagedCounterRow(type: string | null, category: string | null): bool
 }
 
 interface LedgerMutationSnapshot {
+  source_type?: string | null;
+  source_reference?: string | null;
+  idempotency_key?: string | null;
   id: number | string;
   type: string | null;
   sub_type: string | null;
@@ -296,7 +300,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
   }
   const admin = createSupabaseAdminClient();
   const baseColumns = 'id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at, cancelled_at';
-  const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, approver_employee_id, payment_confirmer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference';
+  const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, approver_employee_id, payment_confirmer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference, idempotency_key';
   let ledgerQuery = admin
     .from('financial_ledger')
     .select(baseColumns + (extendedLedgerEnabled() ? extendedColumns : ''))
@@ -426,11 +430,12 @@ export async function updateAdminFinancialLedger(ledgerId: number, body: Record<
   const input = validatedMutation(body);
   await requireMutationReferences(input);
   const admin = createSupabaseAdminClient();
-  const extendedOriginalColumns = extendedLedgerEnabled() ? ', transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, creator_employee_id, payment_status, idempotency_key, updated_at' : '';
+  const extendedOriginalColumns = extendedLedgerEnabled() ? ', transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, creator_employee_id, payment_status, idempotency_key, updated_at, source_type, source_reference' : '';
   const { data: originalData, error: originalError } = await admin.from('financial_ledger').select(`id, type, sub_type, category, amount, requested_by, month_period, is_paid${extendedOriginalColumns}`).eq('id', ledgerId).maybeSingle();
   const original = originalData as unknown as LedgerMutationSnapshot | null;
   if (originalError) persistenceError('Không thể tải giao dịch cần cập nhật.');
   if (!original) resourceNotFound('Không tìm thấy giao dịch cần cập nhật.');
+  if (isLinkedPayrollLedger(original)) resourceConflict('Phiếu lương liên kết chỉ được điều chỉnh từ Bảng lương.');
   if (original.type === 'HOAN_UNG') resourceConflict('Phiếu hoàn ứng chỉ được thay đổi bằng thao tác duyệt, từ chối hoặc xác nhận thanh toán.');
   if (isManagedCounterRow(original.type, original.category)) resourceConflict('Dòng đối ứng chỉ do hệ thống quản lý.');
   const requestedBy = await requestedByForMutation(input, original.requested_by);
@@ -467,13 +472,18 @@ export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: bool
   const auth = await requireFinance('FINANCE_UPDATE');
   await requireExtendedLedgerSchema();
   const admin = createSupabaseAdminClient();
-  const { data: targetData, error: targetError } = await admin.from('financial_ledger').select('id, type, category, is_paid' + (salaryPaymentEmailEnabled() ? ', source_type' : '')).eq('id', ledgerId).maybeSingle();
-  const target = targetData as { id: number; type: FinancialLedgerEntry['type']; category: string; is_paid: boolean; source_type?: string | null } | null;
+  const { data: targetData, error: targetError } = await admin.from('financial_ledger').select('id, type, category, is_paid' + (extendedLedgerEnabled() ? ', amount, month_period, idempotency_key, source_type, source_reference' : salaryPaymentEmailEnabled() ? ', source_type' : '')).eq('id', ledgerId).maybeSingle();
+  const target = targetData as FinancialLedgerEntry | null;
   if (targetError) persistenceError('Không thể tải giao dịch cần cập nhật trạng thái.');
   if (!target) resourceNotFound('Không tìm thấy giao dịch cần cập nhật trạng thái.');
+  if (isLinkedPayrollLedger(target)) {
+    if (!isPaid || isZeroPayrollObligation(target)) resourceConflict('Phiếu lương này không phát sinh thanh toán hoặc không được chuyển về chưa trả.');
+    if (!salaryPaymentEmailEnabled()) resourceConflict('Xác nhận thanh toán lương liên kết chưa sẵn sàng.');
+    return confirmSalaryLedgerPayment(ledgerId, target.month_period);
+  }
   if (activityHistoryEnabled() && target.is_paid && !isPaid) resourceConflict('Điều chỉnh bản ghi đã trả phải giữ nguyên trạng thái thanh toán.');
   if (target.type === 'HOAN_UNG') resourceConflict('Phiếu hoàn ứng chỉ được xác nhận thanh toán qua quy trình hoàn ứng.');
-  if (isManagedCounterRow(target.type ?? null, target.category)) resourceConflict('Dòng đối ứng chỉ do hệ thống quản lý.');
+  if (isManagedCounterRow(target.type ?? null, target.category ?? null)) resourceConflict('Dòng đối ứng chỉ do hệ thống quản lý.');
   if (salaryPaymentEmailEnabled() && isSalaryLedger(target)) {
     if (!isPaid) resourceConflict('Không đổi khoản lương đã trả về chưa trả.');
     return confirmSalaryLedgerPayment(ledgerId, salaryMonth);
