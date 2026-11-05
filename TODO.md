@@ -97,6 +97,8 @@ Architecture stabilization and production workflow refinement.
 - [ ] E-012: matching Supabase test-environment/integrated-row browser acceptance before SQL approval or live activation; no non-Production Supabase branch currently exists.
 - [x] E-012 missing-ledger continuation: prepare exact-identity/idempotent reconciliation, fail-closed activation template, source status and correct-month navigation; real employee financial details stay outside the public repository.
 - [ ] Approve and apply the concrete database package, reconcile the reviewed existing snapshot and activate future linking; do not ask the operator to reopen/re-settle as a workaround. App deployment alone does not create a finance obligation.
+- [x] Owner-confirmed lifecycle: unpaid reopen supersedes/hides the old obligation; a paid base stays locked and positive extra salary creates a separate unpaid delta obligation with stable request identity, immutable source and payment guards.
+- [ ] Run revised native concurrency acceptance and approve the revised database package; no paid base, live supplement, payment or email is changed by application preparation.
 
 - [ ] Audit payroll inputs and source records
 - [ ] Keep payroll calculations outside visual components

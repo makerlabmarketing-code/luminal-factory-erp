@@ -18,7 +18,7 @@ export default function AdminPayrollPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [setupLoading, setSetupLoading] = useState(true);
-  const [actionDialog, setActionDialog] = useState<{ row: PayrollMonthDTO; action: 'adjust' | 'reopen' } | null>(null);
+  const [actionDialog, setActionDialog] = useState<{ row: PayrollMonthDTO; action: 'adjust' | 'reopen' | 'supplement' } | null>(null);
   const [success, setSuccess] = useState('');
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const lock = useRef(false);
@@ -212,10 +212,12 @@ export default function AdminPayrollPage() {
                       <td className="p-3">
                         {row.ledger === null && <p className="mb-2 text-xs text-amber-200">Chưa có phiếu Thu chi — cần đối soát bản chốt.</p>}
                         {row.ledger && <Link href={`/admin/capital?month=${row.payrollMonth}`} className="mb-2 block text-xs text-cyan-300 underline">Phiếu #{row.ledger.id} · {row.ledger.status === 'PAID' ? 'Đã trả' : row.ledger.status === 'ZERO' ? 'Không phát sinh thanh toán' : 'Chưa trả'} · Mở Thu chi</Link>}
+                        {row.supplements?.map(item => <Link key={item.ledgerId} href={`/admin/capital?month=${row.payrollMonth}`} title={item.reason} className="mb-2 block text-xs text-cyan-300 underline">Bổ sung #{item.ledgerId} · {money.format(item.amount)} · {item.paid ? 'Đã trả' : 'Chưa trả'}</Link>)}
+                        {row.ledger?.status === 'PAID' && readiness?.canAdjust && <button disabled={activeAction !== null} onClick={() => setActionDialog({ row, action: 'supplement' })} className="mb-2 rounded-lg border border-cyan-700 px-3 py-2 font-bold text-cyan-200 disabled:opacity-50">Cộng thêm sau thanh toán</button>}
                         <TableRowActions renderActions={function renderRowActions() { return <>
                         {row.settlementStatus === 'UNSETTLED' && readiness?.canSettle && <button disabled={activeAction !== null || selectedMonthBeforeStart} title={selectedMonthBeforeStart ? `Chỉ được quyết toán từ ${readiness.firstSettlementMonth}` : undefined} onClick={() => void settle(row.employeeId)} className="rounded-lg bg-blue-600 px-3 py-2 font-bold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">{activeAction === `settle:${row.employeeId}` ? 'Đang xác nhận...' : selectedMonthBeforeStart ? 'Ngoài kỳ' : 'Chốt lương'}</button>}
-                        {row.settlementStatus === 'SETTLED' && row.settlementId && readiness?.canReopen && <button disabled={activeAction !== null} onClick={() => setActionDialog({ row, action: 'reopen' })} className="rounded-lg border border-amber-700 px-3 py-2 font-bold text-amber-200 disabled:opacity-50">Mở lại kỳ lương</button>}
-                        {row.settlementStatus === 'SETTLED' && row.settlementId && readiness?.canAdjust && <button disabled={activeAction !== null} onClick={() => setActionDialog({ row, action: 'adjust' })} className="rounded-lg border border-slate-600 px-3 py-2 font-bold hover:bg-slate-800 disabled:opacity-60">{activeAction === `adjust:${row.settlementId}` ? 'Đang điều chỉnh...' : 'Điều chỉnh'}</button>}
+                        {row.settlementStatus === 'SETTLED' && row.settlementId && row.ledger?.status !== 'PAID' && readiness?.canReopen && <button disabled={activeAction !== null} onClick={() => setActionDialog({ row, action: 'reopen' })} className="rounded-lg border border-amber-700 px-3 py-2 font-bold text-amber-200 disabled:opacity-50">Mở lại kỳ lương</button>}
+                        {row.settlementStatus === 'SETTLED' && row.settlementId && row.ledger?.status !== 'PAID' && readiness?.canAdjust && <button disabled={activeAction !== null} onClick={() => setActionDialog({ row, action: 'adjust' })} className="rounded-lg border border-slate-600 px-3 py-2 font-bold hover:bg-slate-800 disabled:opacity-60">{activeAction === `adjust:${row.settlementId}` ? 'Đang điều chỉnh...' : 'Điều chỉnh'}</button>}
                       </>; }} /></td>
                     </tr>
                   ))}
@@ -226,7 +228,7 @@ export default function AdminPayrollPage() {
           )}
         </>
       )}
-      {actionDialog && <PayrollActionDialog key={`${actionDialog.row.settlementId}:${actionDialog.action}`} {...actionDialog} onBusy={busy => { lock.current = busy; setActiveAction(busy ? actionDialog.action : null); }} onClose={() => setActionDialog(null)} onSaved={async () => { await loadPayroll(); setSuccess(actionDialog.action === 'reopen' ? 'Đã mở lại kỳ lương. Có thể chấm công tiếp và chốt lại.' : 'Đã lưu điều chỉnh tiền lương.'); }} />}
+      {actionDialog && <PayrollActionDialog key={`${actionDialog.row.settlementId}:${actionDialog.action}`} {...actionDialog} onBusy={busy => { lock.current = busy; setActiveAction(busy ? actionDialog.action : null); }} onClose={() => setActionDialog(null)} onSaved={async () => { await loadPayroll(); setSuccess(actionDialog.action === 'reopen' ? 'Đã mở lại kỳ lương. Có thể chấm công tiếp và chốt lại.' : actionDialog.action === 'supplement' ? 'Đã tạo phiếu lương bổ sung Chưa trả.' : 'Đã lưu điều chỉnh tiền lương.'); }} />}
     </section>
   );
 }
