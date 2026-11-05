@@ -1,0 +1,39 @@
+name: Payroll ledger concurrency
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/payroll-ledger-concurrency.yml'
+      - 'supabase/drafts/payroll-ledger-link/**'
+      - 'supabase/drafts/payroll-reopening/**'
+      - 'supabase/drafts/payroll-adjusted-reopen/**'
+      - 'supabase/drafts/salary-payment-email/**'
+      - 'supabase/migrations/20260728100414_immutable_monthly_payroll_settlement.sql'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-races:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Install pinned repository dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install disposable PostgreSQL outside the application
+        run: npm install --prefix "$RUNNER_TEMP/e012-postgres" --no-audit --no-fund embedded-postgres@17.11.0-beta.19
+      - name: Run lifecycle and five genuinely overlapping races
+        env:
+          E012_REQUIRE_CONCURRENCY: '1'
+          EMBEDDED_POSTGRES_MODULE: ${{ runner.temp }}/e012-postgres/node_modules/embedded-postgres/dist/index.js
+        run: |
+          export E012_LOCAL_PG_FACTORY="$PWD/supabase/drafts/payroll-ledger-link/local-postgres.mjs"
+          node supabase/drafts/payroll-ledger-link/test.mjs

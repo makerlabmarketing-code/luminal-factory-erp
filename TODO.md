@@ -92,7 +92,9 @@ Architecture stabilization and production workflow refinement.
 - [x] E-012: prepare the [payroll → ledger design and acceptance matrix](specs/payroll-ledger-link.md), including zero amount, adjustments, reopening, races and legacy reconciliation.
 - [x] E-012: owner approved continuing the design; prepare the [draft SQL/application/test package](supabase/drafts/payroll-ledger-link/README.md), default OFF and no backfill.
 - [x] E-012: exercise 21 disposable PostgreSQL transaction/lifecycle/role cases and server/rendered-row guards; retain old salary month confirmation for legacy rows.
-- [ ] E-012: run the five genuine two-connection races and matching test-environment/browser acceptance before SQL approval or live activation; cloud executor cannot launch PostgreSQL as an unprivileged UID.
+- [x] E-012: owner-authorized tungduy baseline browser acceptance: zero settlement, reload, reopening with test reason, reload and retained history; final November period open, no payment confirmation.
+- [x] E-012: five genuine overlapping two-connection races passed on PostgreSQL 17.11 in CI run 41957492424; 26 database cases total.
+- [ ] E-012: matching Supabase test-environment/integrated-row browser acceptance before SQL approval or live activation; no non-Production Supabase branch currently exists.
 
 - [ ] Audit payroll inputs and source records
 - [ ] Keep payroll calculations outside visual components

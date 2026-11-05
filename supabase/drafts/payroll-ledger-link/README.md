@@ -1,6 +1,6 @@
 # E-012 — Payroll/ledger linked obligations
 
-Status 2026-11-05: **IMPLEMENTED_DRAFT / NOT_APPLIED / CONCURRENCY_QA_PENDING**.
+Status 2026-11-05: **IMPLEMENTED_DRAFT / NOT_APPLIED / TESTENV_QA_PENDING**.
 
 The owner approved continuing from [the design](../../../specs/payroll-ledger-link.md).
 This is a reviewable draft package, not authorization to apply SQL, enable the
@@ -119,7 +119,8 @@ permissions for the test. The current cloud executor is root in a user namespace
 that cannot switch to an unprivileged UID (`runuser` group setup is unavailable;
 dropping only the child process UID also fails). PostgreSQL therefore could not be
 started here. The installed test binary is outside the repository; it is not a new
-application dependency. **The five two-connection cases have not passed here.**
+application dependency. These cases could not run in this cloud executor; they
+subsequently passed on the GitHub-hosted runner described below.
 
 Before live readiness: run those races, then inspect this exact package on a
 matching Supabase test environment with real RLS/grants/metadata/history triggers,
@@ -128,3 +129,28 @@ staff/finance/anonymous access, explicit payment confirmation, QR contents and n
 mail on zero/settlement/reopen. Do not use real staff payroll or send real mail just
 to produce PASS evidence. SQL approval and separately controlled activation follow
 passing evidence; the current package remains NOT_APPLIED.
+
+## CI concurrency acceptance
+
+The [PostgreSQL race workflow](../../../.github/workflows/payroll-ledger-concurrency.yml)
+runs this same runner on an ordinary GitHub-hosted Ubuntu user. It starts a fresh
+loopback-only cluster using the pinned external test package, not a Supabase URL.
+No Production credentials, environment secrets, SMTP, deployment or live migration
+are used. The job has read-only repository permissions and does not persist checkout
+credentials. `E012_REQUIRE_CONCURRENCY=1` makes the job fail if real clients are
+missing, so a successful sequential PGlite run cannot masquerade as race acceptance.
+CI success must show all five lock-overlap cases; workflow creation alone is not PASS.
+
+[Run 41957492424](https://github.com/makerlabmarketing-code/luminal-factory-erp/actions/runs/41957492424/job/127015786890)
+passed on PostgreSQL 17.11 for head `bc271e8`: all 21 lifecycle cases and all five
+real overlapping two-connection cases, 26 total. The runner observes the second
+backend waiting on a PostgreSQL lock before committing the first transaction.
+This proves the tested fixture races, not freedom from every possible deadlock or
+compatibility with all deployed Supabase triggers and authorization metadata.
+
+On 05/11 the owner separately authorized a browser test on tungduy. On the current
+Production application, Đào Tùng Duy's November 2026 zero payroll was settled,
+reloaded successfully, reopened with an explicit test reason and reloaded again.
+The preserved reopening history displayed the correct actor. The final period is
+open. This is baseline UI acceptance only: linked SQL remains NOT_APPLIED, and no
+payment was confirmed. It does not replace integrated-row browser or race acceptance.

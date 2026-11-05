@@ -4,6 +4,7 @@ const db = process.env.E012_LOCAL_PG_FACTORY
  ? await (await import(process.env.E012_LOCAL_PG_FACTORY)).createDatabase()
  : new (await import(process.env.PGLITE_MODULE || '@electric-sql/pglite')).PGlite();
 try {
+if(process.env.E012_REQUIRE_CONCURRENCY==='1') assert.equal(db.clients?.length,2,'Concurrency acceptance requires two real PostgreSQL connections; PGlite is not a substitute');
 await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;
 create table permissions(code text primary key,description text);
 create table employees(id bigint primary key,full_name text,hourly_rate numeric,status text,is_active boolean);
