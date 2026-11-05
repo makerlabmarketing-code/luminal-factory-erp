@@ -1,5 +1,6 @@
 import 'server-only';
 import { payrollAdjustmentInput } from '@/lib/payroll-input';
+import { isLinkedPayrollLedger } from '../../lib/payroll-ledger-link';
 
 import { createClient } from '@/utils/supabase/server';
 import { createSupabaseAdminClient } from '@/utils/supabase/admin';
@@ -38,6 +39,7 @@ export interface PayrollMonthDTO {
   approvedAdjustments: PayrollAdjustmentDTO[];
   adjustmentTotal: number;
   finalPayableAmount: number;
+  ledger?: { id: string; status: 'UNPAID' | 'PAID' | 'ZERO' } | null;
 }
 
 export interface PayrollReadinessDTO {
@@ -215,6 +217,17 @@ export async function getAdminPayroll(month: string) {
       return [String(row.id), employee?.full_name || null];
     }));
     for (const row of payroll) row.settledByName = row.settlementId ? names.get(row.settlementId) || null : null;
+    if (await hasPermission(auth, 'FINANCE_VIEW')) {
+      const { data: ledgers, error: ledgerError } = await admin.from('financial_ledger')
+        .select('id,type,source_type,source_reference,idempotency_key,amount,is_paid')
+        .eq('source_type', 'PAYROLL').in('source_reference', settlementIds).is('cancelled_at', null);
+      if (ledgerError) throw new Error('Không thể đối soát phiếu lương trong Thu chi.');
+      for (const row of payroll) {
+        if (!row.settlementId) continue;
+        const linked = (ledgers || []).find(item => item.source_reference === row.settlementId && isLinkedPayrollLedger(item));
+        row.ledger = linked ? { id: String(linked.id), status: linked.is_paid ? 'PAID' : Number(linked.amount) === 0 ? 'ZERO' : 'UNPAID' } : null;
+      }
+    }
   }
   if (process.env.PAYROLL_REOPEN_ENABLED === 'true') {
     const { data: reopened, error: reopenError } = await admin.from('payroll_settlement_reopenings')

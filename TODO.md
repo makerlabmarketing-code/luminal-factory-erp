@@ -95,6 +95,8 @@ Architecture stabilization and production workflow refinement.
 - [x] E-012: owner-authorized tungduy baseline browser acceptance: zero settlement, reload, reopening with test reason, reload and retained history; final November period open, no payment confirmation.
 - [x] E-012: five genuine overlapping two-connection races passed on PostgreSQL 17.11 in CI run 41957492424; 26 database cases total.
 - [ ] E-012: matching Supabase test-environment/integrated-row browser acceptance before SQL approval or live activation; no non-Production Supabase branch currently exists.
+- [x] E-012 missing-ledger continuation: prepare exact-identity/idempotent reconciliation, fail-closed activation template, source status and correct-month navigation; real employee financial details stay outside the public repository.
+- [ ] Approve and apply the concrete database package, reconcile the reviewed existing snapshot and activate future linking; do not ask the operator to reopen/re-settle as a workaround. App deployment alone does not create a finance obligation.
 
 - [ ] Audit payroll inputs and source records
 - [ ] Keep payroll calculations outside visual components

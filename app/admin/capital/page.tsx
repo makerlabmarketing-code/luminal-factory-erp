@@ -203,6 +203,10 @@ export default function AdminFinancialLedger() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const selectedMonth = reportingPeriodFromMonthInput(monthInput);
+  useEffect(() => {
+    const payrollMonth = new URLSearchParams(window.location.search).get('month');
+    if (payrollMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(payrollMonth)) setMonthInput(payrollMonth);
+  }, []);
 
   const [showAddModal, setShowAddModal] = useState(false);
 
