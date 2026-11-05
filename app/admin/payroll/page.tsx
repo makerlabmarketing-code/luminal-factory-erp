@@ -1,5 +1,6 @@
 'use client';
 import { PayrollActionDialog } from './PayrollActionDialog';
+import Link from 'next/link';
 
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -112,9 +113,8 @@ export default function AdminPayrollPage() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
-      setRows((current) => current.map((row) => row.employeeId === employeeId
-        ? { ...row, settlementStatus: 'SETTLED', settlementId: String(body.settlementId), settledAt: new Date().toISOString() }
-        : row));
+      await loadPayroll();
+      setSuccess('Đã chốt lương. Kiểm tra trạng thái phiếu Thu chi bên dưới; chốt lương chưa phải thanh toán.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không thể quyết toán.');
     } finally {
@@ -209,7 +209,10 @@ export default function AdminPayrollPage() {
                       <td>{money.format(row.adjustmentTotal)}{row.approvedAdjustments.length > 0 && <details className="mt-1 text-xs text-slate-400"><summary className="cursor-pointer">{row.approvedAdjustments.length} lần điều chỉnh</summary><ul className="mt-2 space-y-2">{row.approvedAdjustments.map(item => <li key={item.id}>{money.format(item.amount)} · {item.reason}<span className="block">{new Date(item.approvedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span></li>)}</ul></details>}</td>
                       <td className="font-bold">{money.format(row.finalPayableAmount)}</td>
                       <td>{row.settlementStatus === 'SETTLED' ? 'Đã chốt lương' : 'Đang mở'}{row.settledAt && <span className="mt-1 block text-xs text-slate-400">Chốt: {row.settledByName || 'Chưa ghi nhận'} · {new Date(row.settledAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>}</td>
-                      <td className="p-3"><TableRowActions renderActions={function renderRowActions() { return <>
+                      <td className="p-3">
+                        {row.ledger === null && <p className="mb-2 text-xs text-amber-200">Chưa có phiếu Thu chi — cần đối soát bản chốt.</p>}
+                        {row.ledger && <Link href={`/admin/capital?month=${row.payrollMonth}`} className="mb-2 block text-xs text-cyan-300 underline">Phiếu #{row.ledger.id} · {row.ledger.status === 'PAID' ? 'Đã trả' : row.ledger.status === 'ZERO' ? 'Không phát sinh thanh toán' : 'Chưa trả'} · Mở Thu chi</Link>}
+                        <TableRowActions renderActions={function renderRowActions() { return <>
                         {row.settlementStatus === 'UNSETTLED' && readiness?.canSettle && <button disabled={activeAction !== null || selectedMonthBeforeStart} title={selectedMonthBeforeStart ? `Chỉ được quyết toán từ ${readiness.firstSettlementMonth}` : undefined} onClick={() => void settle(row.employeeId)} className="rounded-lg bg-blue-600 px-3 py-2 font-bold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">{activeAction === `settle:${row.employeeId}` ? 'Đang xác nhận...' : selectedMonthBeforeStart ? 'Ngoài kỳ' : 'Chốt lương'}</button>}
                         {row.settlementStatus === 'SETTLED' && row.settlementId && readiness?.canReopen && <button disabled={activeAction !== null} onClick={() => setActionDialog({ row, action: 'reopen' })} className="rounded-lg border border-amber-700 px-3 py-2 font-bold text-amber-200 disabled:opacity-50">Mở lại kỳ lương</button>}
                         {row.settlementStatus === 'SETTLED' && row.settlementId && readiness?.canAdjust && <button disabled={activeAction !== null} onClick={() => setActionDialog({ row, action: 'adjust' })} className="rounded-lg border border-slate-600 px-3 py-2 font-bold hover:bg-slate-800 disabled:opacity-60">{activeAction === `adjust:${row.settlementId}` ? 'Đang điều chỉnh...' : 'Điều chỉnh'}</button>}

@@ -79,8 +79,8 @@ describe('payroll runtime safeguards', () => {
     expect(adminPage).toContain("selectedMonthBeforeStart ? 'Ngoài kỳ' : 'Chốt lương'");
   });
 
-  it('updates successful settlement actions without reloading the whole table', () => {
-    expect(adminPage).toContain("settlementStatus: 'SETTLED'");
+  it('reloads authoritative settlement and linked-ledger state instead of inventing a client timestamp', () => {
+    expect(adminPage).not.toContain('settledAt: new Date().toISOString()');
     expect(adminPage).toContain('await loadPayroll()');
     expect(adminPage).toContain('lần điều chỉnh');
   });

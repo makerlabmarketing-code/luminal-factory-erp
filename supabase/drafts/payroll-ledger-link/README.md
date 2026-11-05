@@ -2,6 +2,29 @@
 
 Status 2026-11-05: **IMPLEMENTED_DRAFT / NOT_APPLIED / TESTENV_QA_PENDING**.
 
+## Missing-ledger repair continuation · 05/11
+
+The owner reported an existing settled payroll missing from finance. Prepared an
+operator-only `reconcile_unlinked` helper: verify exact snapshot, employee, month,
+payable and actor; refuse ambiguous legacy rows/email; create one unpaid source
+obligation and audit atomically without re-settling. A retry validates and returns
+the same link. The helper has no application/service-role execute privilege.
+`activate-reviewed.sql` is an unbound, fail-closed operator template: fill the
+reviewed identity privately, refuse other unreviewed active snapshots, reconcile
+and switch ON in the same transaction. It is not an automatic backfill. Real
+employee financial details are deliberately excluded from this public repository.
+
+The payroll screen now reads source-linked status only for FINANCE_VIEW users,
+shows a missing obligation explicitly, and links to the correct finance month.
+After settling it reloads the server result instead of inventing settled time or
+actor locally. Neither this UI nor the repair confirms payment or sends email.
+
+Added reconciliation mismatch/ambiguity/rollback/idempotency/stale/ACL checks and
+the deployed activity, immutable-history and no-delete triggers to the disposable
+runner. New native race evidence must be recorded on the delivery PR. Existing
+Production trigger/catalog checks are read-only; SQL and activation still require
+review of this concrete package. Application shipping is not SQL activation.
+
 The owner approved continuing from [the design](../../../specs/payroll-ledger-link.md).
 This is a reviewable draft package, not authorization to apply SQL, enable the
 integration, backfill old payroll, send email, or create real salary transactions.

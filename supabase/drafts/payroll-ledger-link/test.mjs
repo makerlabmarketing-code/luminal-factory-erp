@@ -40,6 +40,15 @@ const paymentSource=await readFile(new URL('../salary-payment-email/forward.sql'
 const paymentFunction=paymentSource.slice(paymentSource.indexOf('create function public.confirm_salary_ledger_payment('),paymentSource.indexOf('revoke all on function public.confirm_salary_ledger_payment('));
 await db.exec(paymentFunction);
 await db.exec('revoke all on function confirm_salary_ledger_payment(bigint,date,bigint) from public,anon,authenticated; grant execute on function confirm_salary_ledger_payment(bigint,date,bigint) to service_role;');
+// Keep the deployed append-only history/no-delete/activity triggers in the fixture.
+await db.exec(`create function block_finance_history_change() returns trigger language plpgsql as $$begin raise exception 'finance history is immutable'; end$$;
+create trigger finance_ledger_history_immutable before update or delete on finance_ledger_history for each row execute function block_finance_history_change();
+create function block_financial_ledger_delete() returns trigger language plpgsql as $$begin raise exception 'financial ledger records cannot be deleted'; end$$;
+create trigger financial_ledger_no_delete before delete on financial_ledger for each row execute function block_financial_ledger_delete();
+set app.activity_actor='1';`);
+for(const client of db.clients || []) await client.query("set app.activity_actor='1'");
+const activitySource=await readFile(new URL('../common-activity-history/forward.sql',import.meta.url),'utf8');
+await db.exec(activitySource.slice(0,activitySource.indexOf('-- Authenticated identity'))+'commit;');
 const sql=await readFile(new URL('forward.sql',import.meta.url),'utf8');
 const rollback=await readFile(new URL('rollback.sql',import.meta.url),'utf8');
 const scalar=async(sql,params=[]) => (await db.query(sql,params)).rows[0];
@@ -67,7 +76,48 @@ await db.exec("insert into employees values(8,'Negative carry',100,'ACTIVE',true
 const negativeLegacy=await settle(8);
 await db.query('select create_payroll_adjustment($1,-50,$2)',[negativeLegacy,'Carry negative adjustment']);
 await db.query('select reopen_monthly_payroll($1,$2)',[negativeLegacy,'Reopen with historical negative adjustment']);
-await db.exec("update payroll_link_private.configuration set mode='ON'");
+await db.exec("insert into employees values(5,'Existing reviewed payroll',100,'ACTIVE',true,null)");
+const existing=await settle(5);
+await db.query('select create_payroll_adjustment($1,100,$2)',[existing,'Reviewed existing bonus']);
+const reconcile=(employee=5,month='2026-10-01',amount=100)=>db.query('select payroll_link_private.reconcile_unlinked($1,$2,$3,$4,1) id',[existing,employee,month,amount]);
+await check('existing reconciliation refuses changed employee, month, amount and nonfinite amount atomically',async()=>{
+ const before=await counts();
+ for(const params of [[4,'2026-10-01',100],[5,'2026-11-01',100],[5,'2026-10-01',99],[5,'2026-10-01','NaN']]) await assert.rejects(reconcile(...params),/reconciliation_mismatch/);
+ assert.deepEqual(await counts(),before);
+});
+await check('existing reconciliation audit failure leaves no ledger or link',async()=>{
+ await db.exec("create function fail_reconcile_audit() returns trigger language plpgsql as $$begin raise exception 'forced reconcile audit failure'; end$$; create trigger fail_reconcile_audit before insert on finance_ledger_history for each row execute function fail_reconcile_audit()");
+ const before=await counts();await assert.rejects(reconcile(),/forced reconcile audit failure/);assert.deepEqual(await counts(),before);
+ await db.exec('drop trigger fail_reconcile_audit on finance_ledger_history;drop function fail_reconcile_audit()');
+});
+await check('existing reconciliation refuses an ambiguous manual obligation',async()=>{
+ await db.exec("insert into financial_ledger(beneficiary_employee_id,month_period,type,category) values(5,'10/2026','CHI_PHI','Lương cũ')");
+ const before=await counts();await assert.rejects(reconcile(),/legacy_reconciliation/);assert.deepEqual(await counts(),before);
+ await db.exec("update financial_ledger set cancelled_at=now() where beneficiary_employee_id=5");
+});
+await check('reviewed existing snapshot links once without resettling, payment or email',async()=>{
+ const before=await counts();const first=(await reconcile()).rows[0].id;const after=await counts();
+ assert.equal(after.snapshots,before.snapshots);assert.equal(after.emails,before.emails);assert.equal(after.links,before.links+1);
+ assert.equal(after.ledgers,before.ledgers+1);assert.equal(Number((await ledger(existing)).amount),100);assert.equal((await ledger(existing)).is_paid,false);
+ assert.equal((await reconcile()).rows[0].id,first);assert.deepEqual(await counts(),after);
+});
+await check('reconciliation helper is not an application or service-role RPC',async()=>{
+ for(const role of ['anon','authenticated','service_role']) assert.equal((await scalar(`select has_function_privilege('${role}','payroll_link_private.reconcile_unlinked(uuid,bigint,date,numeric,bigint)','EXECUTE') ok`)).ok,false);
+});
+const activation=await readFile(new URL('activate-reviewed.sql',import.meta.url),'utf8');
+await check('unbound activation template refuses to change data or mode',async()=>{
+ const before=await counts();await assert.rejects(db.exec(activation),/fill_privately_reviewed/);await db.exec('rollback');
+ assert.deepEqual(await counts(),before);assert.equal((await scalar('select mode from payroll_link_private.configuration')).mode,'OFF');
+});
+await check('reviewed activation reconciles idempotently and enables future settlement atomically',async()=>{
+ const bound=activation.replace('reviewed_snapshot uuid := null;',`reviewed_snapshot uuid := '${existing}';`)
+  .replace('reviewed_employee bigint := null;','reviewed_employee bigint := 5;')
+  .replace('reviewed_month date := null;',"reviewed_month date := '2026-10-01';")
+  .replace('reviewed_amount numeric := null;','reviewed_amount numeric := 100;')
+  .replace('reviewed_actor bigint := null;','reviewed_actor bigint := 1;');
+ const before=await counts();await db.exec(bound);assert.deepEqual(await counts(),before);
+ assert.equal((await scalar('select mode from payroll_link_private.configuration')).mode,'ON');
+});
 let first,zero;
 await check('prepared RPC plans from before rollout cannot bypass the new wrapper',async()=>{
  await db.exec("insert into employees values(14,'Prepared plan fixture',100,'ACTIVE',true,null)");
@@ -113,7 +163,7 @@ await check('direct linked edit, unpay, cancellation and forged operation GUC ca
  for(const statement of ['amount=1',"source_reference='forged'",'is_paid=true',"cancelled_at=now()"]){
   await assert.rejects(db.exec('update financial_ledger set '+statement+' where id='+l.id),/source_protected/);
  }
- await assert.rejects(db.exec('delete from financial_ledger where id='+l.id),/source_protected/);
+ await assert.rejects(db.exec('delete from financial_ledger where id='+l.id),/source_protected|cannot be deleted/);
 });
 await check('reopen supersedes and soft-cancels old obligation and reclose carries adjustments once',async()=>{
  await db.query('select create_payroll_adjustment($1,50,$2)',[first,'Carry this bonus']);const l=await ledger(first);
@@ -168,6 +218,10 @@ await check('anon and staff cannot enter private schema, call payment, or alter 
  }
  for(const role of ['anon','authenticated']) assert.equal((await scalar(`select has_function_privilege('${role}','public.confirm_salary_ledger_payment(bigint,date,bigint)','EXECUTE') ok`)).ok,false);
  await db.exec("set test.deny='yes'");const before=await counts();await assert.rejects(settle(6),/forbidden/);assert.deepEqual(await counts(),before);await db.exec("set test.deny='no'");
+});
+await check('reviewed reconciliation refuses a snapshot after reopening',async()=>{
+ await db.query('select reopen_monthly_payroll($1,$2)',[existing,'Reopen reviewed fixture after checking its link']);
+ const before=await counts();await assert.rejects(reconcile(),/reconciliation_mismatch/);assert.deepEqual(await counts(),before);
 });
 if(db.clients){
  const [a,b]=db.clients;

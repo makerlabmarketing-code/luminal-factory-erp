@@ -190,6 +190,46 @@ begin
  return result;
 end $$;
 
+-- Operator-only reconciliation, never an exposed application RPC. Exact expected
+-- identity and amount are required; it neither settles again nor confirms payment.
+create function payroll_link_private.reconcile_unlinked(p_settlement_id uuid,p_employee_id bigint,p_month date,p_amount numeric,p_actor_id bigint) returns bigint
+language plpgsql security invoker set search_path='' as $$
+declare snapshot public.payroll_settlements%rowtype; linked public.payroll_ledger_links%rowtype; ledger public.financial_ledger%rowtype; result bigint;
+begin
+ perform pg_advisory_xact_lock(hashtextextended('payroll-reopen-salary-payment',0));
+ select * into snapshot from public.payroll_settlements where id=p_settlement_id;
+ if not found or snapshot.employee_id is distinct from p_employee_id or snapshot.payroll_month is distinct from p_month
+ or p_amount is null or p_amount<0 or p_amount::text in ('NaN','Infinity','-Infinity')
+ or payroll_link_private.payable(p_settlement_id) is distinct from p_amount
+ or not exists(select 1 from public.payroll_active_settlements where settlement_id=p_settlement_id)
+ or not exists(select 1 from public.employees where id=p_actor_id and is_active and status='ACTIVE') then
+  raise exception 'payroll_link_reconciliation_mismatch' using errcode='22023';
+ end if;
+ select * into linked from public.payroll_ledger_links where settlement_id=p_settlement_id;
+ if found then
+  select * into strict ledger from public.financial_ledger where id=linked.ledger_id;
+  if linked.state<>'ACTIVE' or ledger.source_type is distinct from 'PAYROLL' or ledger.source_reference is distinct from p_settlement_id::text
+   or ledger.idempotency_key is distinct from 'payroll-ledger:'||p_settlement_id::text or ledger.amount is distinct from p_amount
+   or ledger.beneficiary_employee_id is distinct from p_employee_id or ledger.month_period is distinct from to_char(p_month,'MM/YYYY')
+   or ledger.cancelled_at is not null then raise exception 'payroll_link_reconciliation_mismatch' using errcode='22023'; end if;
+  return linked.ledger_id;
+ end if;
+ if exists(select 1 from public.salary_payment_emails where employee_id=p_employee_id and salary_month=p_month)
+ or exists(select 1 from public.financial_ledger l where l.cancelled_at is null and l.type in ('CHI_PHI','CHI_TIEU')
+  and (l.source_type in ('PAYROLL','SALARY') or coalesce(l.category,'') ~* '^Lương([[:space:]]|$)')
+  and (l.beneficiary_employee_id=p_employee_id or l.beneficiary_employee_id is null)
+  and (l.month_period=to_char(p_month,'MM/YYYY') or l.month_period is null or l.month_period !~ '^(0[1-9]|1[0-2])/[0-9]{4}$')) then
+  raise exception 'payroll_link_legacy_reconciliation' using errcode='55000';
+ end if;
+ insert into payroll_link_private.write_permits values(txid_current(),p_settlement_id,null,'CREATE');
+ insert into public.financial_ledger(type,category,amount,requested_by,month_period,is_paid,payment_status,beneficiary_employee_id,creator_employee_id,source_type,source_reference,idempotency_key,transaction_date,description,updated_at)
+ values('CHI_PHI','Lương',p_amount,null,to_char(p_month,'MM/YYYY'),false,'UNPAID',p_employee_id,p_actor_id,'PAYROLL',p_settlement_id::text,'payroll-ledger:'||p_settlement_id::text,(clock_timestamp() at time zone 'Asia/Ho_Chi_Minh')::date,'Đối soát bản quyết toán đã chốt',clock_timestamp()) returning id into result;
+ insert into public.payroll_ledger_links(settlement_id,ledger_id,created_by_employee_id) values(p_settlement_id,result,p_actor_id);
+ perform payroll_link_private.audit(result,'CREATED',p_actor_id,'Đối soát bản quyết toán đã chốt',jsonb_build_object('settlement_id',p_settlement_id,'amount',p_amount,'reconciliation',true));
+ delete from payroll_link_private.write_permits where transaction_id=txid_current();
+ return result;
+end $$;
+
 revoke all on all functions in schema payroll_link_private from public,anon,authenticated,service_role;
 revoke all on function public.settle_monthly_payroll(bigint,date),public.create_payroll_adjustment(uuid,numeric,text),public.reopen_monthly_payroll(uuid,text),public.confirm_salary_ledger_payment(bigint,date,bigint) from public,anon,authenticated,service_role;
 grant execute on function public.settle_monthly_payroll(bigint,date),public.create_payroll_adjustment(uuid,numeric,text),public.reopen_monthly_payroll(uuid,text) to authenticated;
