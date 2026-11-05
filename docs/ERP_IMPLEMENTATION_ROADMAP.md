@@ -1,5 +1,19 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-11-05 — E-012 concurrency acceptance continuation
+
+Added a dedicated read-only-permission CI job running the existing five overlapping
+races on fresh loopback PostgreSQL under an ordinary Ubuntu user. It accepts no
+Production connection URL or secrets and fails if the runner falls back to PGlite.
+Workflow creation is not a successful run; retain the actual check result separately.
+
+The owner-authorized Production browser test on tungduy completed zero settlement,
+reload, reopening with an explicit test reason, reload and preserved actor/history.
+Đào Tùng Duy's November 2026 period is open again. No payment was confirmed.
+This validates the baseline UI, not the unactivated linked obligations. Matching
+Supabase/integrated-row browser acceptance, exact SQL approval and controlled
+activation remain required. SQL remains `NOT_APPLIED`.
+
 ## 2026-11-05 — E-012 implementation draft
 
 Status: `IMPLEMENTED_DRAFT / NOT_APPLIED / CONCURRENCY_QA_PENDING`.

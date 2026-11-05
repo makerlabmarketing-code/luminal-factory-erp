@@ -128,3 +128,21 @@ staff/finance/anonymous access, explicit payment confirmation, QR contents and n
 mail on zero/settlement/reopen. Do not use real staff payroll or send real mail just
 to produce PASS evidence. SQL approval and separately controlled activation follow
 passing evidence; the current package remains NOT_APPLIED.
+
+## CI concurrency acceptance
+
+The [PostgreSQL race workflow](../../../.github/workflows/payroll-ledger-concurrency.yml)
+runs this same runner on an ordinary GitHub-hosted Ubuntu user. It starts a fresh
+loopback-only cluster using the pinned external test package, not a Supabase URL.
+No Production credentials, environment secrets, SMTP, deployment or live migration
+are used. The job has read-only repository permissions and does not persist checkout
+credentials. `E012_REQUIRE_CONCURRENCY=1` makes the job fail if real clients are
+missing, so a successful sequential PGlite run cannot masquerade as race acceptance.
+CI success must show all five lock-overlap cases; workflow creation alone is not PASS.
+
+On 05/11 the owner separately authorized a browser test on tungduy. On the current
+Production application, Đào Tùng Duy's November 2026 zero payroll was settled,
+reloaded successfully, reopened with an explicit test reason and reloaded again.
+The preserved reopening history displayed the correct actor. The final period is
+open. This is baseline UI acceptance only: linked SQL remains NOT_APPLIED, and no
+payment was confirmed. It does not replace integrated-row browser or race acceptance.
