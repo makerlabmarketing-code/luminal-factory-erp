@@ -1,23 +1,10 @@
 # Luminal Factory ERP TODO
 
-## Staff permission incident · 2026-11-02
+## E-022 · Đánh giá năng lực · 2026-11-05
 
-- [x] Reproduce Hà access inconsistency under authenticated PostgreSQL role.
-- [x] Prepare positional-argument fix, rollback and 23 disposable PostgreSQL assertions.
-- [x] Separate live helper repair approved and applied as `20261102065026`; PR #249 merged, no permission rows changed.
-- [ ] After deployment, verify real staff/admin sessions.
-- Package: [permission helper repair](supabase/drafts/permission-argument-shadowing/README.md).
-
-## QA-003 · 2026-11-02
-
-- [x] Reconcile the missing local checkpoint with current Production catalog.
-- [x] Prepare guarded history grants/immutability package and executable local fixtures.
-- [x] Exact SQL approval and Production migration `20261102061722_qa003_history_hardening`.
-- [x] Read-only postflight confirms reviewed triggers, grants and RLS.
-- [ ] Business acceptance and separately approved flag activation.
-- [x] Add eight disposable PostgreSQL staff/stale-write acceptance cases and run the existing checklist/template runner in Vitest.
-- Remaining live/UI acceptance: [04/11 checkpoint](docs/qa003-checklist-acceptance-20261104.md).
-- Package and compatibility/cascade impact: [review note](supabase/drafts/qa003-history-hardening/README.md).
+- [x] Inspect existing source and the three-page HR review reference; prepare the [draft review/publication contract](specs/employee-competency-reviews.md).
+- [ ] Confirm the proposed four 0–2 criteria (maximum 8), then implement admin draft/publish and staff own-result/rubric views, including RLS, immutable publication history and acceptance tests.
+- No live schema, access grant, employee assessment or salary change is included in this specification step.
 
 ## Animate UI · 2026-11-01 · E-021
 
@@ -88,13 +75,6 @@ Architecture stabilization and production workflow refinement.
 - [ ] Standardize employee types
 
 ## Payroll
-
-- [x] E-012: prepare the [payroll → ledger design and acceptance matrix](specs/payroll-ledger-link.md), including zero amount, adjustments, reopening, races and legacy reconciliation.
-- [x] E-012: owner approved continuing the design; prepare the [draft SQL/application/test package](supabase/drafts/payroll-ledger-link/README.md), default OFF and no backfill.
-- [x] E-012: exercise 21 disposable PostgreSQL transaction/lifecycle/role cases and server/rendered-row guards; retain old salary month confirmation for legacy rows.
-- [x] E-012: owner-authorized tungduy baseline browser acceptance: zero settlement, reload, reopening with test reason, reload and retained history; final November period open, no payment confirmation.
-- [x] E-012: five genuine overlapping two-connection races passed on PostgreSQL 17.11 in CI run 41957492424; 26 database cases total.
-- [ ] E-012: matching Supabase test-environment/integrated-row browser acceptance before SQL approval or live activation; no non-Production Supabase branch currently exists.
 
 - [ ] Audit payroll inputs and source records
 - [ ] Keep payroll calculations outside visual components
