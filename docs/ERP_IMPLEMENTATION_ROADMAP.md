@@ -1,5 +1,20 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-11-05 — E-012 implementation draft
+
+Status: `IMPLEMENTED_DRAFT / NOT_APPLIED / CONCURRENCY_QA_PENDING`.
+
+The owner approved continuing the design. The [draft package](../supabase/drafts/payroll-ledger-link/README.md)
+contains guarded OFF-by-default SQL, retained original RPCs, preflight/validation,
+data-preserving rollback gate, 21 sequential PostgreSQL fixture cases and five
+unexecuted overlapping two-connection cases. Prepared ledger UI/server guards
+distinguish zero/replaced obligations, protect source edits and derive the linked
+payment month. Legacy salary behavior is preserved for rows without the reserved
+generated identity; read-only Production marker count was 0. No migration, flag,
+permission, financial row or email changed in Production. PostgreSQL cannot start
+under an unprivileged UID in this executor, so real concurrency and matching
+test-environment/browser acceptance remain mandatory before SQL readiness.
+
 ## 2026-11-04 — E-012 payroll/ledger design
 
 Status: `DESIGN_DRAFT / NOT_IMPLEMENTED`.

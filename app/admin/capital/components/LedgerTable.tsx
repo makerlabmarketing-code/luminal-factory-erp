@@ -1,5 +1,6 @@
 'use client';
 import { SALARY_EMAIL_LABELS, isSalaryLedger } from '@/lib/salary-payment';
+import { isLinkedPayrollLedger, isZeroPayrollObligation } from '@/lib/payroll-ledger-link';
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { Fragment, useState } from 'react';
 import { Check, Edit2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon, X, ArrowDownLeft, ArrowUpRight, RefreshCcw } from 'lucide-react';
@@ -88,6 +89,8 @@ export default function LedgerTable({
 
           const isOrphanedCounterEntry = l.type === 'VON_GOP' && /^\[(Đối ứng|Hủy đối ứng)\]/.test(l.category || '');
           const isReimbursement = l.type === 'HOAN_UNG';
+          const linkedPayroll = isLinkedPayrollLedger(l);
+          const zeroPayroll = isZeroPayrollObligation(l);
           const isOwnReimbursement = String(l.reimbursement_requester_employee_id) === reimbursementCapabilities.currentEmployeeId;
           const reimbursementBusy = String(activeReimbursementActionId) === String(l.id);
 
@@ -121,17 +124,17 @@ export default function LedgerTable({
                 <td className="max-w-[180px] break-words p-4 text-slate-400">{!l.approver_name && !l.payment_confirmer_name && 'Chưa ghi nhận'}{l.approver_name && <span className="mt-1 block text-[10px]">Duyệt: {l.approver_name}</span>}{l.payment_confirmer_name && <span className="mt-1 block text-[10px]">Thanh toán: {l.payment_confirmer_name}</span>}</td>
                 <td className="max-w-[180px] break-words p-4 text-slate-300">{l.beneficiary_name || 'Chưa xác định'}</td>
                 <td className="p-4">
-                  {l.cancelled_at ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-600/60 bg-slate-800/70 px-2.5 py-1.5 text-[11px] font-medium text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />Đã xóa</span> : isReimbursement ? (
+                  {l.cancelled_at ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-600/60 bg-slate-800/70 px-2.5 py-1.5 text-[11px] font-medium text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />{linkedPayroll ? 'Đã thay thế' : 'Đã xóa'}</span> : zeroPayroll ? <span className="text-slate-400">Không phát sinh thanh toán</span> : isReimbursement ? (
                     <span className={`inline-flex whitespace-nowrap rounded border px-2.5 py-1.5 text-[10px] font-black ${l.reimbursement_status === 'PAID' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : l.reimbursement_status === 'APPROVED' ? 'border-blue-500/20 bg-blue-500/10 text-blue-300' : l.reimbursement_status === 'REJECTED' ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-400'}`}>
                       {l.reimbursement_status === 'PAID' ? 'Đã thanh toán' : l.reimbursement_status === 'APPROVED' ? 'Đã duyệt' : l.reimbursement_status === 'REJECTED' ? 'Đã từ chối' : 'Chờ duyệt'}
                     </span>
                   ) : (
                     <button
-                      disabled={isOrphanedCounterEntry || !canUpdate || (salaryMailEnabled && isSalaryLedger(l) && !reimbursementCapabilities.canPay) || (activityEnabled && Boolean(l.is_paid))}
+                      disabled={isOrphanedCounterEntry || !canUpdate || (linkedPayroll && (!salaryMailEnabled || !reimbursementCapabilities.canPay)) || (salaryMailEnabled && isSalaryLedger(l) && !reimbursementCapabilities.canPay) || (activityEnabled && Boolean(l.is_paid))}
                       onClick={() => onTogglePaid(l.id, Boolean(l.is_paid))}
                       className={`whitespace-nowrap rounded border px-2.5 py-1.5 text-[10px] font-black ${isOrphanedCounterEntry ? 'cursor-not-allowed opacity-60' : ''} ${l.is_paid ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-amber-500/20 bg-amber-500/10 text-amber-500'}`}
                     >
-                      {l.is_paid ? 'Đã trả' : 'Treo nợ'}
+                      {l.is_paid ? 'Đã trả' : linkedPayroll ? 'Chưa trả' : 'Treo nợ'}
                     </button>
                   )}
                   {l.salaryEmailStatus && <p className="mt-1 text-[10px] text-slate-400">{SALARY_EMAIL_LABELS[l.salaryEmailStatus]}</p>}
@@ -157,14 +160,14 @@ export default function LedgerTable({
                       ) : (
                         <span className="text-[11px] text-slate-500">Đã hoàn tất</span>
                       )
-                    ) : isOrphanedCounterEntry ? (
+                    ) : zeroPayroll ? <span className="text-slate-500">Không cần trả tiền</span> : isOrphanedCounterEntry ? (
                       <span className="flex items-center justify-center gap-1 text-[11px] italic text-slate-500 select-none">
                         <Lock className="h-3 w-3 text-slate-600" /> Tự động
                       </span>
                     ) : (
                       <>
-                        <button type="button" disabled={!canUpdate} onClick={() => onOpenEdit(l)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-800 bg-blue-950 px-3 py-2 text-[11px] font-bold text-blue-300 transition hover:bg-blue-900"><Edit2 className="h-3.5 w-3.5"/> Chỉnh sửa</button>
-                        {!l.is_paid && (
+                        {!linkedPayroll && <button type="button" disabled={!canUpdate} onClick={() => onOpenEdit(l)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-800 bg-blue-950 px-3 py-2 text-[11px] font-bold text-blue-300 transition hover:bg-blue-900"><Edit2 className="h-3.5 w-3.5"/> Chỉnh sửa</button>}
+                        {!l.is_paid && !zeroPayroll && (
                           <button type="button" onClick={() => onGenerateQr(l)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-cyan-800 bg-cyan-950 px-3 py-2 text-[11px] font-bold text-cyan-300 transition hover:bg-cyan-900"><QrCode className="h-3.5 w-3.5"/> Mã QR</button>
                         )}
                       </>

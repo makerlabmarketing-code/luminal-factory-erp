@@ -1,10 +1,16 @@
 # E-012 — Nối quyết toán lương với Sổ thu chi
 
-Ngày: 04/11/2026. Trạng thái: **DRAFT_FOR_REVIEW**.
+Ngày: 04/11/2026. Cập nhật 05/11/2026: **DESIGN_APPROVED / IMPLEMENTATION_DRAFT**.
 
-Đây là đặc tả và kế hoạch kiểm thử, chưa phải gói SQL sẵn sàng triển khai.
-Không thay đổi ứng dụng, migration, cờ, quyền, lương, phiếu thu chi hoặc email.
-Các phương án dưới đây cần được chốt trước khi viết migration tài chính.
+Owner đã cho tiếp tục xây gói theo thiết kế. [Gói triển khai dự thảo](../supabase/drafts/payroll-ledger-link/README.md)
+có SQL, rollback, preflight/validation, kiểm thử PostgreSQL và chuẩn bị UI/server.
+Chưa áp SQL hoặc bật tính năng; nghiệm thu hai kết nối PostgreSQL thật và browser
+trên môi trường tương thích còn mở. Việc duyệt hướng thiết kế không thay cho duyệt
+gói SQL cụ thể hoặc thao tác dữ liệu tài chính.
+
+Đây là hợp đồng thiết kế; ghi chú kiểm tra 49 tests cuối tài liệu là lịch sử bước
+đặc tả 04/11. Gói dự thảo hiện tại chưa đủ điều kiện triển khai Production và không
+thay migration, cờ, quyền, lương, phiếu thu chi hoặc email đang dùng.
 
 ## Mục tiêu và phạm vi
 

@@ -1,4 +1,5 @@
 import 'server-only';
+import { isLinkedPayrollLedger } from '@/lib/payroll-ledger-link';
 import { activityHistoryEnabled } from './activityGate';
 import { isSalaryLedger, salaryPaymentEmailEnabled } from './salaryPaymentEmail';
 import { validateCorrectionReason } from '@/lib/activity-history';
@@ -14,6 +15,9 @@ import { AuthFlowError, hasPermission, requireWorkspaceAccess } from './auth';
 import { updateAdminFinancialLedger } from './adminFinancialLedger';
 
 type OriginalLedgerRow = {
+  amount?: number | string | null;
+  source_reference?: string | null;
+  idempotency_key?: string | null;
   id: number | string;
   type: string | null;
   category: string | null;
@@ -164,12 +168,13 @@ export async function updateAdminFinancialLedgerAtomicAware(
 
   const { data, error } = await admin
     .from('financial_ledger')
-    .select('id, type, category, requested_by, is_paid' + (salaryPaymentEmailEnabled() ? ', source_type' : ''))
+    .select('id, type, category, requested_by, is_paid' + (extendedLedgerEnabled() ? ', amount, source_type, source_reference, idempotency_key' : salaryPaymentEmailEnabled() ? ', source_type' : ''))
     .eq('id', ledgerId)
     .maybeSingle();
   if (error) persistenceError('Không thể tải giao dịch cần cập nhật.');
   const original = data as OriginalLedgerRow | null;
   if (!original) notFound('Không tìm thấy giao dịch cần cập nhật.');
+  if (isLinkedPayrollLedger(original)) conflict('Phiếu lương liên kết chỉ được điều chỉnh từ Bảng lương.');
   if (salaryPaymentEmailEnabled() && !original.is_paid && input.isPaid && (isSalaryLedger(original) || isSalaryLedger(input))) conflict('Xác nhận khoản lương qua nút Đã trả để ghi nhận tháng lương và email.');
   if (isManagedCounterRow(original)) conflict('Dòng đối ứng chỉ do hệ thống quản lý.');
 

@@ -28,6 +28,7 @@ export interface FinancialLedgerEntry {
   rejection_reason?: string | null;
   source_type?: string | null;
   source_reference?: string | null;
+  idempotency_key?: string | null;
   attachments?: FinanceAttachment[];
   salaryEmailStatus?: import('../salary-payment').SalaryEmailStatus | null;
 }
