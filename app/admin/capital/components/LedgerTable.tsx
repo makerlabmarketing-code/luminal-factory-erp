@@ -1,4 +1,5 @@
 'use client';
+import { CONFIRM_PAID_LABEL } from '../../../../lib/financeExpenseWorkflow';
 import { SALARY_EMAIL_LABELS, isSalaryLedger } from '@/lib/salary-payment';
 import { isLinkedPayrollLedger, isZeroPayrollObligation } from '@/lib/payroll-ledger-link';
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
@@ -121,7 +122,7 @@ export default function LedgerTable({
                     </div>
                   </div>
                 </td>
-                <td className="max-w-[180px] break-words p-4 text-slate-400">{!l.approver_name && !l.payment_confirmer_name && 'Chưa ghi nhận'}{l.approver_name && <span className="mt-1 block text-[10px]">Duyệt: {l.approver_name}</span>}{l.payment_confirmer_name && <span className="mt-1 block text-[10px]">Thanh toán: {l.payment_confirmer_name}</span>}</td>
+                <td className="max-w-[180px] break-words p-4 text-slate-400">{!l.payroll_settler_name && !l.approver_name && !l.payment_confirmer_name && 'Chưa ghi nhận'}{l.payroll_settler_name && <span className="mt-1 block text-[10px]">Chốt lương: {l.payroll_settler_name}</span>}{l.approver_name && <span className="mt-1 block text-[10px]">Duyệt: {l.approver_name}</span>}{l.payment_confirmer_name && <span className="mt-1 block text-[10px]">Thanh toán: {l.payment_confirmer_name}</span>}</td>
                 <td className="max-w-[180px] break-words p-4 text-slate-300">{l.beneficiary_name || 'Chưa xác định'}</td>
                 <td className="p-4">
                   {l.cancelled_at ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-600/60 bg-slate-800/70 px-2.5 py-1.5 text-[11px] font-medium text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />{linkedPayroll ? 'Đã thay thế' : 'Đã xóa'}</span> : zeroPayroll ? <span className="text-slate-400">Không phát sinh thanh toán</span> : isReimbursement ? (
@@ -155,7 +156,7 @@ export default function LedgerTable({
                       ) : l.reimbursement_status === 'APPROVED' ? (
                         <>
                           <button type="button" disabled={!reimbursementCapabilities.canPay || reimbursementBusy} onClick={() => onGenerateQr(l)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-cyan-800 bg-cyan-950 px-3 py-2 text-[11px] font-bold text-cyan-300 transition hover:bg-cyan-900 disabled:cursor-not-allowed disabled:opacity-40"><QrCode className="h-3.5 w-3.5" /> Mã QR</button>
-                          <button type="button" disabled={!reimbursementCapabilities.canPay || reimbursementBusy} onClick={() => onTransitionReimbursement(l, 'PAID')} className="whitespace-nowrap rounded-lg border border-emerald-700 bg-emerald-950 px-3 py-2 text-[11px] font-bold text-emerald-300 transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-40">Xác nhận đã trả</button>
+                          <button type="button" disabled={!reimbursementCapabilities.canPay || reimbursementBusy} onClick={() => onTransitionReimbursement(l, 'PAID')} className="whitespace-nowrap rounded-lg border border-emerald-700 bg-emerald-950 px-3 py-2 text-[11px] font-bold text-emerald-300 transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-40">{CONFIRM_PAID_LABEL}</button>
                         </>
                       ) : (
                         <span className="text-[11px] text-slate-500">Đã hoàn tất</span>

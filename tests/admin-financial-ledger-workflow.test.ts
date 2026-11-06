@@ -50,6 +50,25 @@ describe('Admin financial ledger repair', () => {
     expect(missing.approver_name).toBeNull();
   });
 
+  it('shows the payroll settler separately from the payment confirmer', () => {
+    const reference = '00000000-0000-0000-0000-000000000001';
+    const row = {
+      id: 8,
+      type: 'CHI_PHI',
+      source_type: 'PAYROLL',
+      source_reference: reference,
+      idempotency_key: `payroll-ledger:${reference}`,
+      creator_employee_id: 3,
+      payment_confirmer_employee_id: 4,
+    };
+    const names = new Map([['3', 'Người chốt'], ['4', 'Người trả']]);
+    expect(resolveLedgerPeople(row, names)).toMatchObject({
+      payroll_settler_name: 'Người chốt',
+      payment_confirmer_name: 'Người trả',
+    });
+    expect(resolveLedgerPeople({ ...row, idempotency_key: null }, names).payroll_settler_name).toBeNull();
+  });
+
   it('uses safe stable attachment extensions', () => {
     expect(financeAttachmentExtension({ name: 'hoa-don.jpeg', type: 'image/jpeg' })).toBe('jpg');
     expect(financeAttachmentExtension({ name: 'phieu.pdf', type: 'application/pdf' })).toBe('pdf');
