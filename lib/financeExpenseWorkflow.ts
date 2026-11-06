@@ -1,5 +1,7 @@
 export const MISSING_EMPLOYEE_PAYMENT_INFO_MESSAGE = 'Nhân sự chưa có thông tin nhận tiền.';
 
+export const CONFIRM_PAID_LABEL = 'Xác nhận đã trả';
+
 export type FinanceExpenseCategory =
   | 'salary'
   | 'operating_expense'

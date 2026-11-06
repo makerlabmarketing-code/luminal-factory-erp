@@ -17,6 +17,7 @@ import { TestLedgerDialog } from './TestLedgerDialog';
 import CapitalShareCard from './components/CapitalShareCard';
 import type { AdminLedgerMutationInput, ExpensePaymentSourceOption, FinanceAttachment, FinancialLedgerEntry } from '@/lib/types/finance';
 import {
+  CONFIRM_PAID_LABEL,
   FINANCE_ATTACHMENT_POLICY,
   MISSING_EMPLOYEE_PAYMENT_INFO_MESSAGE,
   buildBeneficiaryVietQrUrl,
@@ -1119,7 +1120,7 @@ export default function AdminFinancialLedger() {
               <p><span className="text-slate-500">Số tài khoản:</span> <span className="text-slate-200 font-bold">{activeQrTarget.accountNo}</span></p>
               <p><span className="text-slate-500">Số tiền VND:</span> <span className="text-red-400 font-bold text-xs">{activeQrTarget.amount.toLocaleString()} đ</span></p>
             </div>
-            <div className="pt-2 border-t border-slate-800 flex gap-2 text-xs"><button onClick={() => { setShowQrModal(false); setActiveQrUrl(''); }} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition">Đóng</button><button onClick={handleInstantPaymentSuccess} className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition text-white font-black p-3 rounded-xl shadow-lg">Xác Nhận Đã Chuyển Tiền</button></div>
+            <div className="pt-2 border-t border-slate-800 flex gap-2 text-xs"><button onClick={() => { setShowQrModal(false); setActiveQrUrl(''); }} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition">Đóng</button><button onClick={handleInstantPaymentSuccess} className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition text-white font-black p-3 rounded-xl shadow-lg">{activeQrTarget?.type === 'VON_GOP' || activeQrTarget?.type === 'DOANH_THU' ? 'Xác nhận đã nhận' : CONFIRM_PAID_LABEL}</button></div>
           </div>
         </div>
       )}
