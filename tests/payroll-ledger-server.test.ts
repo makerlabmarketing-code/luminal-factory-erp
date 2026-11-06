@@ -15,7 +15,7 @@ vi.mock('@/utils/supabase/admin',()=>({createSupabaseAdminClient:()=>({from:()=>
 }})}));
 import {setAdminFinancialLedgerPaid} from '../services/server/adminFinancialLedger';
 const ref='11111111-1111-4111-8111-111111111111';
-beforeEach(()=>{vi.clearAllMocks();vi.stubEnv('FINANCE_REIMBURSEMENT_ENABLED','true');vi.stubEnv('SALARY_PAYMENT_EMAIL_ENABLED','true');state.target={id:5,type:'CHI_PHI',category:'Lương',amount:100,month_period:'10/2026',source_type:'PAYROLL',source_reference:ref,idempotency_key:`payroll-ledger:${ref}`,is_paid:false};state.confirm.mockResolvedValue({success:true});});
+beforeEach(()=>{vi.clearAllMocks();vi.stubEnv('FINANCE_REIMBURSEMENT_ENABLED','true');vi.stubEnv('SALARY_PAYMENT_EMAIL_ENABLED','true');state.target={id:5,type:'CHI_PHI',category:'Lương',amount:100,month_period:'11/2026',source_type:'PAYROLL',source_reference:ref,idempotency_key:`payroll-ledger:${ref}`,is_paid:false};state.confirm.mockResolvedValue({success:true});});
 afterEach(()=>vi.unstubAllEnvs());
 describe('linked payroll payment server boundary',()=>{
  it('derives the month from the linked row instead of a client-supplied value',async()=>{

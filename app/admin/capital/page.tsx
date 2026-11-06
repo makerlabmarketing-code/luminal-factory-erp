@@ -1,7 +1,7 @@
 // app/admin/capital/page.tsx
 'use client';
 import { isSalaryLedger, normalizeSalaryMonth } from '@/lib/salary-payment';
-import { isLinkedPayrollLedger } from '@/lib/payroll-ledger-link';
+import { payrollMonthFromLedgerPeriod, isLinkedPayrollLedger } from '@/lib/payroll-ledger-link';
 import { retrySalaryLedgerEmail } from '@/services/adminFinancialLedgerService';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
@@ -583,7 +583,7 @@ export default function AdminFinancialLedger() {
     const row = ledger.find((entry) => String(entry.id) === String(id));
     let salaryMonth: string | undefined;
     if (salaryMailEnabled && row && isSalaryLedger(row) && !currentStatus) {
-      const chosen = isLinkedPayrollLedger(row) ? row.month_period ?? '' : prompt('Tháng lương đã chuyển tiền (MM/YYYY). Nhập đúng tháng lương, có thể khác kỳ sổ:');
+      const chosen = isLinkedPayrollLedger(row) ? payrollMonthFromLedgerPeriod(row.month_period) : prompt('Tháng lương đã chuyển tiền (MM/YYYY). Nhập đúng tháng lương, có thể khác kỳ sổ:');
       if (chosen === null) return;
       if (!normalizeSalaryMonth(chosen)) return showToast('Tháng lương không hợp lệ', 'Nhập theo MM/YYYY.', 'error');
       salaryMonth = chosen.trim();

@@ -6,6 +6,9 @@ do $$begin
  end if;
 end $$;
 drop trigger payroll_link_ledger_guard on public.financial_ledger;
+drop trigger salary_payroll_reopen_guard on public.financial_ledger;
+create trigger salary_payroll_reopen_guard before insert or update on public.financial_ledger
+ for each row execute function public.guard_reopened_salary_payment();
 drop function public.create_payroll_supplement(uuid,numeric,text,uuid);
 drop table public.payroll_supplemental_obligations;
 drop function public.settle_monthly_payroll(bigint,date),public.create_payroll_adjustment(uuid,numeric,text),public.reopen_monthly_payroll(uuid,text),public.confirm_salary_ledger_payment(bigint,date,bigint);

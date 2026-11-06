@@ -1,6 +1,7 @@
 'use client';
 import { PayrollActionDialog } from './PayrollActionDialog';
 import Link from 'next/link';
+import { payrollLedgerMonthInput } from '@/lib/payroll-ledger-link';
 
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -211,8 +212,8 @@ export default function AdminPayrollPage() {
                       <td>{row.settlementStatus === 'SETTLED' ? 'Đã chốt lương' : 'Đang mở'}{row.settledAt && <span className="mt-1 block text-xs text-slate-400">Chốt: {row.settledByName || 'Chưa ghi nhận'} · {new Date(row.settledAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>}</td>
                       <td className="p-3">
                         {row.ledger === null && <p className="mb-2 text-xs text-amber-200">Chưa có phiếu Thu chi — cần đối soát bản chốt.</p>}
-                        {row.ledger && <Link href={`/admin/capital?month=${row.payrollMonth}`} className="mb-2 block text-xs text-cyan-300 underline">Phiếu #{row.ledger.id} · {row.ledger.status === 'PAID' ? 'Đã trả' : row.ledger.status === 'ZERO' ? 'Không phát sinh thanh toán' : 'Chưa trả'} · Mở Thu chi</Link>}
-                        {row.supplements?.map(item => <Link key={item.ledgerId} href={`/admin/capital?month=${row.payrollMonth}`} title={item.reason} className="mb-2 block text-xs text-cyan-300 underline">Bổ sung #{item.ledgerId} · {money.format(item.amount)} · {item.paid ? 'Đã trả' : 'Chưa trả'}</Link>)}
+                        {row.ledger && <Link href={`/admin/capital?month=${payrollLedgerMonthInput(row.payrollMonth)}`} className="mb-2 block text-xs text-cyan-300 underline">Phiếu #{row.ledger.id} · {row.ledger.status === 'PAID' ? 'Đã trả' : row.ledger.status === 'ZERO' ? 'Không phát sinh thanh toán' : 'Chưa trả'} · Mở Thu chi</Link>}
+                        {row.supplements?.map(item => <Link key={item.ledgerId} href={`/admin/capital?month=${payrollLedgerMonthInput(row.payrollMonth)}`} title={item.reason} className="mb-2 block text-xs text-cyan-300 underline">Bổ sung #{item.ledgerId} · {money.format(item.amount)} · {item.paid ? 'Đã trả' : 'Chưa trả'}</Link>)}
                         {row.ledger?.status === 'PAID' && readiness?.canAdjust && <button disabled={activeAction !== null} onClick={() => setActionDialog({ row, action: 'supplement' })} className="mb-2 rounded-lg border border-cyan-700 px-3 py-2 font-bold text-cyan-200 disabled:opacity-50">Cộng thêm sau thanh toán</button>}
                         <TableRowActions renderActions={function renderRowActions() { return <>
                         {row.settlementStatus === 'UNSETTLED' && readiness?.canSettle && <button disabled={activeAction !== null || selectedMonthBeforeStart} title={selectedMonthBeforeStart ? `Chỉ được quyết toán từ ${readiness.firstSettlementMonth}` : undefined} onClick={() => void settle(row.employeeId)} className="rounded-lg bg-blue-600 px-3 py-2 font-bold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">{activeAction === `settle:${row.employeeId}` ? 'Đang xác nhận...' : selectedMonthBeforeStart ? 'Ngoài kỳ' : 'Chốt lương'}</button>}
