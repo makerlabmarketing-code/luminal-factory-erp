@@ -35,6 +35,16 @@ export interface FinancialLedgerEntry {
   salaryEmailStatus?: import('../salary-payment').SalaryEmailStatus | null;
 }
 
+export interface PersonalAdvance {
+  ledger_id: number | string;
+  shareholder_id: number | string;
+  person: string;
+  category: string;
+  month_period: string;
+  advanced: number | string;
+  refunded: number | string;
+}
+
 export interface FinanceAttachment {
   id: number | string;
   originalFilename: string;

@@ -1,7 +1,7 @@
 import { setTestLedgerArchived } from '@/services/server/testLedgerArchive';
 import { NextResponse } from 'next/server';
 import { AuthFlowError } from '@/services/server/auth';
-import { setAdminFinancialLedgerPaid } from '@/services/server/adminFinancialLedger';
+import { mutatePersonalAdvance, setAdminFinancialLedgerPaid } from '@/services/server/adminFinancialLedger';
 import { retrySalaryLedgerEmail } from '@/services/server/salaryPaymentEmail';
 import { updateAdminFinancialLedgerAtomicAware } from '@/services/server/adminFinancialLedgerAtomic';
 
@@ -39,8 +39,11 @@ export async function PATCH(request: Request, props: { params: Promise<{ ledgerI
   try {
     const body = await jsonBody(request);
     if (body.action === 'testArchive') return NextResponse.json(await setTestLedgerArchived(id(params.ledgerId),body));
+    if (body.action === 'refundPersonalAdvance' || body.action === 'changePersonalAdvanceSource') {
+      return NextResponse.json(await mutatePersonalAdvance(id(params.ledgerId), body));
+    }
     if (typeof body.isPaid !== 'boolean') throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Trạng thái thanh toán không hợp lệ.', failureStage: 'validation' });
-    return NextResponse.json(await setAdminFinancialLedgerPaid(id(params.ledgerId), body.isPaid, body.salaryMonth));
+    return NextResponse.json(await setAdminFinancialLedgerPaid(id(params.ledgerId), body.isPaid, body.salaryMonth, body.expenseSource));
   } catch (error) {
     return failure(error);
   }
