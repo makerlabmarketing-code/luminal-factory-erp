@@ -131,7 +131,7 @@ await check('negative carried total rolls back the entire new settlement',async(
 await check('positive settlement creates exactly one unpaid obligation and no email',async()=>{
  first=await settle(2);const l=await ledger(first);
  assert.equal(Number(l.amount),300);assert.equal(l.is_paid,false);assert.equal(l.payment_status,'UNPAID');
- assert.equal(l.beneficiary_employee_id,2);assert.equal(l.month_period,'10/2026');assert.equal(l.source_reference,first);
+ assert.equal(l.beneficiary_employee_id,2);assert.equal(l.month_period,'11/2026');assert.equal(new Date(l.transaction_date).toISOString().slice(0,10),'2026-11-10');assert.equal(l.source_reference,first);
  assert.equal((await counts()).emails,0);assert.equal(l.idempotency_key,'payroll-ledger:'+first);
 });
 await check('zero amount creates a visible unpaid record without a payment or email',async()=>{
@@ -218,6 +218,10 @@ await check('supplement source and immutable reason cannot be edited, cancelled 
  await assert.rejects(db.exec("insert into financial_ledger(type,category,source_type,source_reference,idempotency_key) values('CHI_PHI','Lương bổ sung','PAYROLL_SUPPLEMENT','cccccccc-cccc-4ccc-8ccc-cccccccccccc','payroll-supplement:cccccccc-cccc-4ccc-8ccc-cccccccccccc')"),/source_protected/);
 });
 await check('supplement payment snapshots only the delta once and never repays the original',async()=>{
+ const next=await scalar("select settle_monthly_payroll(2,'2026-11-01') id");
+ const nextLedger=await ledger(next.id);
+ assert.equal(nextLedger.month_period,'12/2026');
+ await db.query('select reopen_monthly_payroll($1,$2)',[next.id,'Reopen adjacent payroll period']);
  const original=await ledger(first),before=await counts();
  await assert.rejects(db.query("select confirm_salary_ledger_payment($1,'2026-11-01',1)",[supplementalLedger]),/payment_conflict/);
  const paid=await scalar("select confirm_salary_ledger_payment($1,'2026-10-01',1) id",[supplementalLedger]);

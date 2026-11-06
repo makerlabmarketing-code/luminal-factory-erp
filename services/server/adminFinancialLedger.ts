@@ -1,5 +1,5 @@
 import 'server-only';
-import { isLinkedPayrollLedger, isZeroPayrollObligation } from '@/lib/payroll-ledger-link';
+import { payrollMonthFromLedgerPeriod, isLinkedPayrollLedger, isZeroPayrollObligation } from '@/lib/payroll-ledger-link';
 import { activityHistoryEnabled } from './activityGate';
 import { confirmSalaryLedgerPayment, isSalaryLedger, salaryPaymentEmailEnabled, salaryEmailStatuses } from './salaryPaymentEmail';
 
@@ -479,7 +479,7 @@ export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: bool
   if (isLinkedPayrollLedger(target)) {
     if (!isPaid || isZeroPayrollObligation(target)) resourceConflict('Phiếu lương này không phát sinh thanh toán hoặc không được chuyển về chưa trả.');
     if (!salaryPaymentEmailEnabled()) resourceConflict('Xác nhận thanh toán lương liên kết chưa sẵn sàng.');
-    return confirmSalaryLedgerPayment(ledgerId, target.month_period);
+    return confirmSalaryLedgerPayment(ledgerId, payrollMonthFromLedgerPeriod(target.month_period));
   }
   if (activityHistoryEnabled() && target.is_paid && !isPaid) resourceConflict('Điều chỉnh bản ghi đã trả phải giữ nguyên trạng thái thanh toán.');
   if (target.type === 'HOAN_UNG') resourceConflict('Phiếu hoàn ứng chỉ được xác nhận thanh toán qua quy trình hoàn ứng.');

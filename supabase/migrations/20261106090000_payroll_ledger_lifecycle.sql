@@ -1,4 +1,4 @@
--- Approved production schema rollout. Activation and reconciliation are separate.
+-- Production payroll ledger rollout. Activation and reconciliation are separate.
 begin;
 do $$begin
  if exists(select 1 from pg_depend d where d.refclassid='pg_proc'::regclass and d.deptype in ('n','a') and d.refobjid in (
@@ -75,16 +75,22 @@ begin
  if tg_op<>'DELETE' and new.type in ('CHI_PHI','CHI_TIEU') and (new.source_type in ('PAYROLL','SALARY') or coalesce(new.category,'') ~* '^Lương([[:space:]]|$)') then
   perform pg_advisory_xact_lock(hashtextextended('payroll-reopen-salary-payment',0));
  end if;
- if tg_op<>'DELETE' and new.source_type is distinct from 'PAYROLL_SUPPLEMENT' and new.type in ('CHI_PHI','CHI_TIEU') and (new.source_type in ('PAYROLL','SALARY') or coalesce(new.category,'') ~* '^Lương([[:space:]]|$)')
+ if tg_op<>'DELETE' and coalesce(new.idempotency_key,'') not like 'payroll-ledger:%' and new.source_type is distinct from 'PAYROLL_SUPPLEMENT' and new.type in ('CHI_PHI','CHI_TIEU') and (new.source_type in ('PAYROLL','SALARY') or coalesce(new.category,'') ~* '^Lương([[:space:]]|$)')
  and exists(select 1 from public.payroll_ledger_links k join public.payroll_settlements s on s.id=k.settlement_id where k.state='ACTIVE' and k.ledger_id<>new.id
   and (new.beneficiary_employee_id=s.employee_id or new.beneficiary_employee_id is null)
-  and (new.month_period=to_char(s.payroll_month,'MM/YYYY') or new.month_period is null or new.month_period !~ '^(0[1-9]|1[0-2])/[0-9]{4}$')) then
+  and (new.month_period in (to_char(s.payroll_month,'MM/YYYY'),to_char(s.payroll_month+interval '1 month','MM/YYYY')) or new.month_period is null or new.month_period !~ '^(0[1-9]|1[0-2])/[0-9]{4}$')) then
    raise exception 'payroll_link_legacy_reconciliation' using errcode='55000';
  end if;
  if tg_op='INSERT' then
   if new.source_type='PAYROLL_SUPPLEMENT' then
-   if new.idempotency_key is distinct from 'payroll-supplement:'||new.source_reference then raise exception 'payroll_link_source_protected' using errcode='42501'; end if;
-  elsif new.source_type is distinct from 'PAYROLL' or new.idempotency_key is distinct from 'payroll-ledger:'||new.source_reference then return new; end if;
+   if new.source_reference is null or new.idempotency_key is distinct from 'payroll-supplement:'||new.source_reference then raise exception 'payroll_link_source_protected' using errcode='42501'; end if;
+  elsif new.source_type is distinct from 'PAYROLL' or new.source_reference is null
+     or new.idempotency_key is distinct from 'payroll-ledger:'||new.source_reference then
+   if new.idempotency_key like 'payroll-ledger:%' or new.idempotency_key like 'payroll-supplement:%' then
+    raise exception 'payroll_link_source_protected' using errcode='42501';
+   end if;
+   return new;
+  end if;
  else
   select exists(select 1 from public.payroll_ledger_links where ledger_id=old.id)
    or exists(select 1 from public.payroll_supplemental_obligations where ledger_id=old.id) into linked;
@@ -136,8 +142,8 @@ begin
   return payroll_link_private.settle_monthly_payroll(p_employee_id,p_month);
  end if;
  if integrated and (exists(select 1 from public.salary_payment_emails where employee_id=p_employee_id and salary_month=p_month)
- or exists(select 1 from public.financial_ledger l where l.cancelled_at is null and l.type in ('CHI_PHI','CHI_TIEU') and (l.source_type in ('PAYROLL','SALARY') or coalesce(l.category,'') ~* '^Lương([[:space:]]|$)')
- and (l.beneficiary_employee_id=p_employee_id or l.beneficiary_employee_id is null) and (l.month_period=to_char(p_month,'MM/YYYY') or l.month_period is null or l.month_period !~ '^(0[1-9]|1[0-2])/[0-9]{4}$'))) then
+ or exists(select 1 from public.financial_ledger l where l.cancelled_at is null and coalesce(l.idempotency_key,'') not like 'payroll-ledger:%' and l.source_type is distinct from 'PAYROLL_SUPPLEMENT' and l.type in ('CHI_PHI','CHI_TIEU') and (l.source_type in ('PAYROLL','SALARY') or coalesce(l.category,'') ~* '^Lương([[:space:]]|$)')
+ and (l.beneficiary_employee_id=p_employee_id or l.beneficiary_employee_id is null) and (l.month_period in (to_char(p_month,'MM/YYYY'),to_char(p_month+interval '1 month','MM/YYYY')) or l.month_period is null or l.month_period !~ '^(0[1-9]|1[0-2])/[0-9]{4}$'))) then
   raise exception 'payroll_link_legacy_reconciliation' using errcode='55000';
  end if;
  result:=payroll_link_private.settle_monthly_payroll(p_employee_id,p_month);
@@ -146,7 +152,7 @@ begin
  if amount_value is null or amount_value<0 or amount_value::text in ('NaN','Infinity','-Infinity') then raise exception 'payroll_link_negative_payable' using errcode='22023'; end if;
  insert into payroll_link_private.write_permits values(txid_current(),result,null,'CREATE');
  insert into public.financial_ledger(type,category,amount,requested_by,month_period,is_paid,payment_status,beneficiary_employee_id,creator_employee_id,source_type,source_reference,idempotency_key,transaction_date,description,updated_at)
- select 'CHI_PHI','Lương',amount_value,null,to_char(p_month,'MM/YYYY'),false,'UNPAID',p_employee_id,actor,'PAYROLL',result::text,'payroll-ledger:'||result::text,(clock_timestamp() at time zone 'Asia/Ho_Chi_Minh')::date,'Phiếu từ quyết toán lương',clock_timestamp() from public.employees e where e.id=actor returning id into ledger;
+ select 'CHI_PHI','Lương',amount_value,null,to_char(p_month+interval '1 month','MM/YYYY'),false,'UNPAID',p_employee_id,actor,'PAYROLL',result::text,'payroll-ledger:'||result::text,(p_month+interval '1 month 9 days')::date,'Phiếu từ quyết toán lương',clock_timestamp() from public.employees e where e.id=actor returning id into ledger;
  insert into public.payroll_ledger_links(settlement_id,ledger_id,created_by_employee_id) values(result,ledger,actor);
  perform payroll_link_private.audit(ledger,'CREATED',actor,'Tạo từ quyết toán lương',jsonb_build_object('settlement_id',result,'amount',amount_value));
  delete from payroll_link_private.write_permits where transaction_id=txid_current();
@@ -174,14 +180,23 @@ begin
 end $$;
 
 create function public.reopen_monthly_payroll(p_settlement_id uuid,p_reason text) returns void language plpgsql security definer set search_path='' as $$
-declare link public.payroll_ledger_links%rowtype; actor bigint:=public.current_employee_id();
+declare link public.payroll_ledger_links%rowtype; snapshot public.payroll_settlements%rowtype; actor bigint:=public.current_employee_id();
 begin
  if actor is null or not public.has_workspace_access('ADMIN_WORKSPACE') or not public.has_permission('PAYROLL_SETTLE') then raise exception 'payroll reopen forbidden' using errcode='42501'; end if;
  perform pg_advisory_xact_lock(hashtextextended('payroll-reopen-salary-payment',0));
  if not payroll_link_private.enabled() then perform payroll_link_private.reopen_monthly_payroll(p_settlement_id,p_reason); return; end if;
  select * into link from public.payroll_ledger_links where settlement_id=p_settlement_id and state='ACTIVE';
  if not found then raise exception 'payroll_link_legacy_reconciliation' using errcode='55000'; end if;
- perform payroll_link_private.reopen_monthly_payroll(p_settlement_id,p_reason);
+ if p_reason is null or length(btrim(p_reason)) not between 10 and 1000 then raise exception 'invalid reopen reason' using errcode='22023'; end if;
+ select * into strict snapshot from public.payroll_settlements where id=p_settlement_id;
+ perform 1 from public.employees where id=snapshot.employee_id for update;
+ if not exists(select 1 from public.payroll_active_settlements where settlement_id=p_settlement_id) then raise exception 'payroll_snapshot_stale'; end if;
+ if exists(select 1 from public.financial_ledger where id=link.ledger_id and (coalesce(is_paid,false) or payment_status='PAID'))
+ or exists(select 1 from public.salary_payment_emails where employee_id=snapshot.employee_id and salary_month=snapshot.payroll_month) then
+  raise exception 'payroll_already_paid';
+ end if;
+ insert into public.payroll_settlement_reopenings(settlement_id,actor_employee_id,reason) values(p_settlement_id,actor,btrim(p_reason));
+ delete from public.payroll_active_settlements where settlement_id=p_settlement_id;
  insert into payroll_link_private.write_permits values(txid_current(),p_settlement_id,link.ledger_id,'REOPEN');
  update public.financial_ledger set cancelled_at=clock_timestamp(),updated_at=clock_timestamp() where id=link.ledger_id;
  update public.payroll_ledger_links set state='SUPERSEDED' where settlement_id=p_settlement_id;
@@ -203,7 +218,7 @@ begin
   select * into strict snapshot from public.payroll_settlements where id=supplement.settlement_id;
   select * into strict ledger from public.financial_ledger where id=p_ledger_id for update;
   if snapshot.payroll_month is distinct from p_salary_month or ledger.amount is distinct from supplement.amount
-   or ledger.beneficiary_employee_id is distinct from snapshot.employee_id or ledger.month_period is distinct from to_char(snapshot.payroll_month,'MM/YYYY')
+   or ledger.beneficiary_employee_id is distinct from snapshot.employee_id or ledger.month_period is distinct from to_char(snapshot.payroll_month+interval '1 month','MM/YYYY')
    or ledger.source_type is distinct from 'PAYROLL_SUPPLEMENT' or ledger.source_reference is distinct from supplement.id::text
    or ledger.idempotency_key is distinct from 'payroll-supplement:'||supplement.id::text or ledger.cancelled_at is not null
    or not exists(select 1 from public.payroll_ledger_links k join public.financial_ledger original on original.id=k.ledger_id
@@ -222,6 +237,7 @@ begin
  select * into strict ledger from public.financial_ledger where id=p_ledger_id for update;
  if link.state<>'ACTIVE' or not exists(select 1 from public.payroll_active_settlements where settlement_id=link.settlement_id)
  or snapshot.payroll_month is distinct from p_salary_month or ledger.beneficiary_employee_id is distinct from snapshot.employee_id
+ or ledger.month_period is distinct from to_char(snapshot.payroll_month+interval '1 month','MM/YYYY')
  or ledger.cancelled_at is not null or ledger.amount<=0 or ledger.amount is distinct from payroll_link_private.payable(link.settlement_id) then
   raise exception 'payroll_link_payment_conflict' using errcode='22023';
  end if;
@@ -260,8 +276,8 @@ begin
  end if;
  insert into payroll_link_private.write_permits values(txid_current(),p_request_id,null,'CREATE');
  insert into public.financial_ledger(type,category,amount,requested_by,month_period,is_paid,payment_status,beneficiary_employee_id,creator_employee_id,source_type,source_reference,idempotency_key,transaction_date,description,updated_at)
- values('CHI_PHI','Lương bổ sung',p_amount,null,to_char(snapshot.payroll_month,'MM/YYYY'),false,'UNPAID',snapshot.employee_id,actor,
- 'PAYROLL_SUPPLEMENT',p_request_id::text,'payroll-supplement:'||p_request_id::text,(clock_timestamp() at time zone 'Asia/Ho_Chi_Minh')::date,btrim(p_reason),clock_timestamp()) returning id into result;
+ values('CHI_PHI','Lương bổ sung',p_amount,null,to_char(snapshot.payroll_month+interval '1 month','MM/YYYY'),false,'UNPAID',snapshot.employee_id,actor,
+ 'PAYROLL_SUPPLEMENT',p_request_id::text,'payroll-supplement:'||p_request_id::text,(snapshot.payroll_month+interval '1 month 9 days')::date,btrim(p_reason),clock_timestamp()) returning id into result;
  insert into public.payroll_supplemental_obligations(id,settlement_id,ledger_id,amount,reason,created_by_employee_id)
  values(p_request_id,p_settlement_id,result,p_amount,btrim(p_reason),actor);
  perform payroll_link_private.audit(result,'CREATED',actor,btrim(p_reason),jsonb_build_object('settlement_id',p_settlement_id,'supplement_id',p_request_id,'amount',p_amount));
@@ -289,25 +305,33 @@ begin
   select * into strict ledger from public.financial_ledger where id=linked.ledger_id;
   if linked.state<>'ACTIVE' or ledger.source_type is distinct from 'PAYROLL' or ledger.source_reference is distinct from p_settlement_id::text
    or ledger.idempotency_key is distinct from 'payroll-ledger:'||p_settlement_id::text or ledger.amount is distinct from p_amount
-   or ledger.beneficiary_employee_id is distinct from p_employee_id or ledger.month_period is distinct from to_char(p_month,'MM/YYYY')
+   or ledger.beneficiary_employee_id is distinct from p_employee_id or ledger.month_period is distinct from to_char(p_month+interval '1 month','MM/YYYY')
    or ledger.cancelled_at is not null then raise exception 'payroll_link_reconciliation_mismatch' using errcode='22023'; end if;
   return linked.ledger_id;
  end if;
  if exists(select 1 from public.salary_payment_emails where employee_id=p_employee_id and salary_month=p_month)
- or exists(select 1 from public.financial_ledger l where l.cancelled_at is null and l.type in ('CHI_PHI','CHI_TIEU')
+ or exists(select 1 from public.financial_ledger l where l.cancelled_at is null and coalesce(l.idempotency_key,'') not like 'payroll-ledger:%' and l.source_type is distinct from 'PAYROLL_SUPPLEMENT' and l.type in ('CHI_PHI','CHI_TIEU')
   and (l.source_type in ('PAYROLL','SALARY') or coalesce(l.category,'') ~* '^Lương([[:space:]]|$)')
   and (l.beneficiary_employee_id=p_employee_id or l.beneficiary_employee_id is null)
-  and (l.month_period=to_char(p_month,'MM/YYYY') or l.month_period is null or l.month_period !~ '^(0[1-9]|1[0-2])/[0-9]{4}$')) then
+  and (l.month_period in (to_char(p_month,'MM/YYYY'),to_char(p_month+interval '1 month','MM/YYYY')) or l.month_period is null or l.month_period !~ '^(0[1-9]|1[0-2])/[0-9]{4}$')) then
   raise exception 'payroll_link_legacy_reconciliation' using errcode='55000';
  end if;
  insert into payroll_link_private.write_permits values(txid_current(),p_settlement_id,null,'CREATE');
  insert into public.financial_ledger(type,category,amount,requested_by,month_period,is_paid,payment_status,beneficiary_employee_id,creator_employee_id,source_type,source_reference,idempotency_key,transaction_date,description,updated_at)
- values('CHI_PHI','Lương',p_amount,null,to_char(p_month,'MM/YYYY'),false,'UNPAID',p_employee_id,p_actor_id,'PAYROLL',p_settlement_id::text,'payroll-ledger:'||p_settlement_id::text,(clock_timestamp() at time zone 'Asia/Ho_Chi_Minh')::date,'Đối soát bản quyết toán đã chốt',clock_timestamp()) returning id into result;
+ values('CHI_PHI','Lương',p_amount,null,to_char(p_month+interval '1 month','MM/YYYY'),false,'UNPAID',p_employee_id,p_actor_id,'PAYROLL',p_settlement_id::text,'payroll-ledger:'||p_settlement_id::text,(p_month+interval '1 month 9 days')::date,'Đối soát bản quyết toán đã chốt',clock_timestamp()) returning id into result;
  insert into public.payroll_ledger_links(settlement_id,ledger_id,created_by_employee_id) values(p_settlement_id,result,p_actor_id);
  perform payroll_link_private.audit(result,'CREATED',p_actor_id,'Đối soát bản quyết toán đã chốt',jsonb_build_object('settlement_id',p_settlement_id,'amount',p_amount,'reconciliation',true));
  delete from payroll_link_private.write_permits where transaction_id=txid_current();
  return result;
 end $$;
+
+-- Linked ledger updates are guarded by private permits and the source snapshot.
+-- The legacy guard interprets month_period as a payroll month for manual rows.
+drop trigger salary_payroll_reopen_guard on public.financial_ledger;
+create trigger salary_payroll_reopen_guard before insert or update on public.financial_ledger
+ for each row when (coalesce(new.idempotency_key,'') not like 'payroll-ledger:%'
+  and coalesce(new.idempotency_key,'') not like 'payroll-supplement:%')
+ execute function public.guard_reopened_salary_payment();
 
 revoke all on all functions in schema payroll_link_private from public,anon,authenticated,service_role;
 revoke all on function public.create_payroll_supplement(uuid,numeric,text,uuid) from public,anon,authenticated,service_role;
