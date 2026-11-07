@@ -15,7 +15,8 @@ import LedgerMetrics from './components/LedgerMetrics';
 import LedgerTable from './components/LedgerTable';
 import { TestLedgerDialog } from './TestLedgerDialog';
 import CapitalShareCard from './components/CapitalShareCard';
-import type { AdminLedgerMutationInput, ExpensePaymentSourceOption, FinanceAttachment, FinancialLedgerEntry } from '@/lib/types/finance';
+import PersonalAdvancesCard from './components/PersonalAdvancesCard';
+import type { AdminLedgerMutationInput, ExpensePaymentSourceOption, FinanceAttachment, FinancialLedgerEntry, PersonalAdvance } from '@/lib/types/finance';
 import {
   CONFIRM_PAID_LABEL,
   FINANCE_ATTACHMENT_POLICY,
@@ -37,6 +38,7 @@ import {
 import {
   createAdminFinancialLedger,
   loadAdminFinancialLedger,
+  mutatePersonalAdvance,
   removeAdminLedgerAttachment,
   replaceAdminLedgerAttachment,
   setAdminFinancialLedgerPaid,
@@ -176,6 +178,12 @@ export default function AdminFinancialLedger() {
   const { showToast } = useNotification();
   const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
   const [salaryMailEnabled, setSalaryMailEnabled] = useState(false);
+  const [personalAdvances, setPersonalAdvances] = useState<PersonalAdvance[] | null>(null);
+  const [advanceSource, setAdvanceSource] = useState('');
+  const [sourceTarget, setSourceTarget] = useState<FinancialLedgerEntry | null>(null);
+  const [refundTarget, setRefundTarget] = useState<{ row: PersonalAdvance; requestId: string } | null>(null);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [advanceBusy, setAdvanceBusy] = useState(false);
   const [ledger, setLedger] = useState<FinancialLedgerEntry[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [transactionTypes, setTransactionTypes] = useState<SystemMetadataOption[]>(() => [...DEFAULT_FINANCIAL_TRANSACTION_TYPES]);
@@ -280,6 +288,7 @@ export default function AdminFinancialLedger() {
 
   const applyLedgerResult = useCallback((ledgerResult: Awaited<ReturnType<typeof loadAdminFinancialLedger>>) => {
     setLedger(ledgerResult.ledger);
+    setPersonalAdvances(ledgerResult.personalAdvances);
     setSalaryMailEnabled(ledgerResult.salaryPaymentEmailEnabled);
     setActivityEnabled(ledgerResult.activityHistoryEnabled);
     setCanUpdateLedger(ledgerResult.canUpdate);
@@ -582,6 +591,11 @@ export default function AdminFinancialLedger() {
   const handleTogglePaid = async (id: number | string, currentStatus: boolean) => {
     if (paymentActionLock.current) return;
     const row = ledger.find((entry) => String(entry.id) === String(id));
+    if (personalAdvances && row && isLinkedPayrollLedger(row) && !currentStatus) {
+      setAdvanceSource('');
+      setSourceTarget(row);
+      return;
+    }
     let salaryMonth: string | undefined;
     if (salaryMailEnabled && row && isSalaryLedger(row) && !currentStatus) {
       const chosen = isLinkedPayrollLedger(row) ? payrollMonthFromLedgerPeriod(row.month_period) : prompt('Tháng lương đã chuyển tiền (MM/YYYY). Nhập đúng tháng lương, có thể khác kỳ sổ:');
@@ -639,6 +653,9 @@ export default function AdminFinancialLedger() {
   const handleInstantPaymentSuccess = async () => {
     if (!activeQrTarget?.id || paymentActionLock.current) return;
     const targetId = activeQrTarget.id;
+    const row = ledger.find(item => String(item.id) === String(targetId));
+    const source = personalAdvances && row && isLinkedPayrollLedger(row) ? advanceSource : undefined;
+    if (source === '') return;
     paymentActionLock.current = true;
     showGlobalLoading('Đang lưu thay đổi...');
     try {
@@ -646,11 +663,12 @@ export default function AdminFinancialLedger() {
         await transitionAdminReimbursement(targetId, 'PAID');
         await refreshLedger();
       } else {
-        await setAdminFinancialLedgerPaid(targetId, true);
-        setLedger(prev => prev.map(l => l.id === targetId ? { ...l, is_paid: true } : l));
+        const result = await setAdminFinancialLedgerPaid(targetId, true, undefined, source);
+        await refreshLedger();
+        if (result.notification) showToast('Đã ghi nhận thanh toán', result.notification.message, 'info');
       }
       setShowQrModal(false); setActiveQrUrl('');
-      showToast('Thanh toán xong', 'Đã chuyển khoản thành công!', 'success');
+      showToast('Đã ghi nhận', 'Sổ thu chi đã cập nhật.', 'success');
     } catch (error) {
       showToast('Không thể xác nhận thanh toán', 'Dữ liệu chưa được cập nhật. Vui lòng thử lại.', 'error');
     } finally {
@@ -660,6 +678,7 @@ export default function AdminFinancialLedger() {
   };
 
   const handleGenerateVietQR = (item: FinancialLedgerEntry) => {
+    setAdvanceSource('');
     if (item.type === 'CHI_PHI' || item.type === 'CHI_TIEU' || item.type === 'HOAN_UNG') {
       const matchedBeneficiary = employees.find(e => String(e.id) === String(item.beneficiary_employee_id));
       const qrResult = buildBeneficiaryVietQrUrl({
@@ -732,6 +751,48 @@ export default function AdminFinancialLedger() {
   };
 
   // --- CÔNG THỨC HẠCH TOÁN DOANH NGHIỆP ---
+  const saveAdvance = async () => {
+    if (paymentActionLock.current) return;
+    const amount = Number(refundAmount);
+    if (refundTarget && (!Number.isSafeInteger(amount) || amount <= 0 ||
+      amount > Number(refundTarget.row.advanced) - Number(refundTarget.row.refunded))) return;
+    if (sourceTarget && !advanceSource) return;
+    paymentActionLock.current = true;
+    setAdvanceBusy(true);
+    try {
+      if (refundTarget) {
+        await mutatePersonalAdvance(refundTarget.row.ledger_id, { action: 'refundPersonalAdvance', amount, requestId: refundTarget.requestId });
+        setRefundTarget(null);
+      } else if (sourceTarget?.is_paid) {
+        await mutatePersonalAdvance(sourceTarget.id, { action: 'changePersonalAdvanceSource', expenseSource: advanceSource });
+        setSourceTarget(null);
+      } else if (sourceTarget) {
+        const result = await setAdminFinancialLedgerPaid(sourceTarget.id, true, undefined, advanceSource);
+        setSourceTarget(null);
+        if (result.notification) showToast('Đã ghi nhận thanh toán', result.notification.message, 'info');
+      }
+      await refreshLedger();
+    } catch (error) {
+      showToast('Chưa tải được kết quả', error instanceof Error ? error.message : 'Tải lại sổ để kiểm tra.', 'error');
+    } finally {
+      paymentActionLock.current = false;
+      setAdvanceBusy(false);
+    }
+  };
+
+  const sourceSelector = (
+    <label className="block text-left text-xs">
+      Nguồn chi
+      <select className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2" value={advanceSource} onChange={event => setAdvanceSource(event.target.value)}>
+        <option value="">Chọn nguồn chi</option>
+        {expensePaymentSources.filter(option => option.isActive).map(option => (
+          <option key={option.id} value={option.id}>{option.kind === 'COMMON_FUND' ? 'Quỹ chung' : `Cá nhân · ${option.label}`}</option>
+        ))}
+      </select>
+      {advanceSource.startsWith(SELF_PAID_SOURCE_PREFIX) && <span className="mt-1 block text-slate-400">Ghi khoản ứng chờ hoàn. Quỹ chung không đổi.</span>}
+    </label>
+  );
+  const qrNeedsSource = Boolean(personalAdvances && ledger.some(row => String(row.id) === String(activeQrTarget?.id) && isLinkedPayrollLedger(row)));
   const ledgerSummary = summarizeFinancialLedger(ledger);
   const totalGop = ledgerSummary.capital;
   const totalDoanhThu = ledgerSummary.revenue;
@@ -777,6 +838,10 @@ export default function AdminFinancialLedger() {
           />
 
           <CapitalShareCard ledgerData={ledger.filter(row=>!row.cancelled_at)} />
+          {personalAdvances && <PersonalAdvancesCard advances={personalAdvances} canPay={reimbursementCapabilities.canPay} onRefund={row => {
+            setRefundAmount(String(Number(row.advanced) - Number(row.refunded)));
+            setRefundTarget({ row, requestId: crypto.randomUUID() });
+          }} />}
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="flex flex-col gap-4 border-b border-slate-800 bg-slate-950/40 px-5 py-4">
@@ -817,6 +882,12 @@ export default function AdminFinancialLedger() {
             canManageTestRecords={canManageTestRecords} onTestArchive={setTestRecord}
             onOpenEdit={handleOpenEdit} activityEnabled={activityEnabled} canUpdate={canUpdateLedger} onHistory={(item) => setHistoryId(String(item.id))}
             onGenerateQr={handleGenerateVietQR}
+            personalAdvances={personalAdvances}
+            onChangeSource={row => {
+              const advance = personalAdvances?.find(item => String(item.ledger_id) === String(row.id));
+              setAdvanceSource(advance ? `${SELF_PAID_SOURCE_PREFIX}${advance.shareholder_id}` : COMMON_FUND_SOURCE_ID);
+              setSourceTarget(row);
+            }}
             reimbursementCapabilities={reimbursementCapabilities}
             activeReimbursementActionId={activeReimbursementActionId}
             onTransitionReimbursement={handleTransitionReimbursement}
@@ -1108,6 +1179,29 @@ export default function AdminFinancialLedger() {
       )}
 
       {historyId && <ActivityHistoryDialog entityId={historyId} onClose={()=>setHistoryId(null)} />}
+      {(sourceTarget || refundTarget) && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4">
+          <form role="dialog" aria-modal="true" aria-labelledby="advance-dialog-title" className="w-full max-w-sm space-y-4 rounded-xl border border-slate-700 bg-slate-900 p-5" onSubmit={event => { event.preventDefault(); void saveAdvance(); }}>
+            <h3 id="advance-dialog-title" className="text-sm font-semibold">
+              {refundTarget ? `Hoàn tiền cho ${refundTarget.row.person}` : sourceTarget?.is_paid ? 'Đổi nguồn chi' : 'Xác nhận đã trả lương'}
+            </h3>
+            {refundTarget ? (
+              <label className="block text-xs">
+                Số tiền đã chuyển (đồng)
+                <input type="number" required min={1} step={1} max={Number(refundTarget.row.advanced) - Number(refundTarget.row.refunded)}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2" value={refundAmount} onChange={event => setRefundAmount(event.target.value)} />
+                <span className="mt-1 block text-slate-400">Chuyển khoản trước rồi xác nhận để ghi giảm quỹ chung.</span>
+              </label>
+            ) : sourceSelector}
+            <div className="flex justify-end gap-2">
+              <button type="button" className="admin-button-secondary" disabled={advanceBusy} onClick={() => { setSourceTarget(null); setRefundTarget(null); }}>Đóng</button>
+              <button type="submit" className="admin-button-secondary" disabled={advanceBusy || Boolean(sourceTarget && !advanceSource)}>
+                {refundTarget ? 'Xác nhận đã hoàn' : sourceTarget?.is_paid ? 'Lưu nguồn chi' : CONFIRM_PAID_LABEL}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       {/* POPUP VIETQR DETAILED */}
       {showQrModal && activeQrTarget && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
@@ -1120,7 +1214,8 @@ export default function AdminFinancialLedger() {
               <p><span className="text-slate-500">Số tài khoản:</span> <span className="text-slate-200 font-bold">{activeQrTarget.accountNo}</span></p>
               <p><span className="text-slate-500">Số tiền VND:</span> <span className="text-red-400 font-bold text-xs">{activeQrTarget.amount.toLocaleString()} đ</span></p>
             </div>
-            <div className="pt-2 border-t border-slate-800 flex gap-2 text-xs"><button onClick={() => { setShowQrModal(false); setActiveQrUrl(''); }} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition">Đóng</button><button onClick={handleInstantPaymentSuccess} className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition text-white font-black p-3 rounded-xl shadow-lg">{activeQrTarget?.type === 'VON_GOP' || activeQrTarget?.type === 'DOANH_THU' ? 'Xác nhận đã nhận' : CONFIRM_PAID_LABEL}</button></div>
+            {qrNeedsSource && sourceSelector}
+            <div className="pt-2 border-t border-slate-800 flex gap-2 text-xs"><button onClick={() => { setShowQrModal(false); setActiveQrUrl(''); }} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition">Đóng</button><button disabled={qrNeedsSource && !advanceSource} onClick={handleInstantPaymentSuccess} className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition text-white font-black p-3 rounded-xl shadow-lg">{activeQrTarget?.type === 'VON_GOP' || activeQrTarget?.type === 'DOANH_THU' ? 'Xác nhận đã nhận' : CONFIRM_PAID_LABEL}</button></div>
           </div>
         </div>
       )}

@@ -5,12 +5,14 @@ import { isLinkedPayrollLedger, isZeroPayrollObligation } from '@/lib/payroll-le
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { Fragment, useState } from 'react';
 import { Check, Edit2, QrCode, Lock, ChevronDown, ChevronRight, Link as LinkIcon, X, ArrowDownLeft, ArrowUpRight, RefreshCcw } from 'lucide-react';
-import type { FinancialLedgerEntry } from '@/lib/types/finance';
+import type { FinancialLedgerEntry, PersonalAdvance } from '@/lib/types/finance';
 
 type LedgerRow = FinancialLedgerEntry & { linkedChild?: FinancialLedgerEntry | null };
 
 interface LedgerTableProps {
   salaryMailEnabled: boolean;
+  personalAdvances?: PersonalAdvance[] | null;
+  onChangeSource?: (row: LedgerRow) => void;
   onRetrySalaryEmail: (id: number | string) => void;
   activityEnabled: boolean;
   canUpdate: boolean;
@@ -32,7 +34,7 @@ interface LedgerTableProps {
 
 export default function LedgerTable({
   data,
-  salaryMailEnabled, onRetrySalaryEmail,
+  salaryMailEnabled, personalAdvances, onChangeSource, onRetrySalaryEmail,
   activityEnabled, canUpdate, onHistory, canManageTestRecords, onTestArchive,
   onTogglePaid,
   onOpenEdit,
@@ -91,6 +93,8 @@ export default function LedgerTable({
           const isOrphanedCounterEntry = l.type === 'VON_GOP' && /^\[(Đối ứng|Hủy đối ứng)\]/.test(l.category || '');
           const isReimbursement = l.type === 'HOAN_UNG';
           const linkedPayroll = isLinkedPayrollLedger(l);
+          const personalAdvance = personalAdvances?.find(item => String(item.ledger_id) === String(l.id));
+          const generatedAdvance = l.source_type === 'PERSONAL_ADVANCE' || l.source_type === 'PERSONAL_ADVANCE_REFUND';
           const zeroPayroll = isZeroPayrollObligation(l);
           const isOwnReimbursement = String(l.reimbursement_requester_employee_id) === reimbursementCapabilities.currentEmployeeId;
           const reimbursementBusy = String(activeReimbursementActionId) === String(l.id);
@@ -110,6 +114,7 @@ export default function LedgerTable({
 
                     <div className="min-w-0">
                       <p className="break-words leading-5 text-slate-100">{getDisplayCategory(l)}</p>
+                      {personalAdvance && <p className="mt-1 text-[11px] text-amber-300">{personalAdvance.person} ứng trước</p>}
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold">
                         <span className="rounded border border-slate-700 bg-slate-950/70 px-1.5 py-0.5">{getTypeBadge(l)}</span>
                         {Boolean(l.attachments?.length) && <span className="whitespace-nowrap rounded bg-purple-500/10 px-1.5 py-0.5 text-purple-300">{l.attachments?.length} chứng từ</span>}
@@ -131,7 +136,7 @@ export default function LedgerTable({
                     </span>
                   ) : (
                     <button
-                      disabled={isOrphanedCounterEntry || !canUpdate || (linkedPayroll && (!salaryMailEnabled || !reimbursementCapabilities.canPay)) || (salaryMailEnabled && isSalaryLedger(l) && !reimbursementCapabilities.canPay) || (activityEnabled && Boolean(l.is_paid))}
+                      disabled={generatedAdvance || isOrphanedCounterEntry || !canUpdate || (linkedPayroll && (!salaryMailEnabled || !reimbursementCapabilities.canPay)) || (salaryMailEnabled && isSalaryLedger(l) && !reimbursementCapabilities.canPay) || (activityEnabled && Boolean(l.is_paid))}
                       onClick={() => onTogglePaid(l.id, Boolean(l.is_paid))}
                       className={`whitespace-nowrap rounded border px-2.5 py-1.5 text-[10px] font-black ${isOrphanedCounterEntry ? 'cursor-not-allowed opacity-60' : ''} ${l.is_paid ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-amber-500/20 bg-amber-500/10 text-amber-500'}`}
                     >
@@ -143,7 +148,9 @@ export default function LedgerTable({
                 <td className="p-4 text-right font-mono font-bold text-slate-200">{Number(l.amount).toLocaleString()} đ</td>
                 <td className="whitespace-nowrap p-4 text-center"><TableRowActions renderActions={function renderRowActions() { return <>
                   <div className="flex flex-nowrap items-center justify-center gap-2">
-                    {l.cancelled_at ? (canManageTestRecords && isReimbursement && !l.source_type && !l.source_reference ? <button type="button" onClick={() => onTestArchive(l)} className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-700/60 bg-cyan-950/40 px-3 py-2 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-900/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"><RefreshCcw className="h-3.5 w-3.5" />Khôi phục</button> : null) : isReimbursement ? (
+                    {personalAdvances && canUpdate && linkedPayroll && l.is_paid && !l.cancelled_at && !Number(personalAdvance?.refunded) &&
+                      <button type="button" className="admin-button-secondary" onClick={() => onChangeSource?.(l)}>Đổi nguồn chi</button>}
+                    {generatedAdvance ? null : l.cancelled_at ? (canManageTestRecords && isReimbursement && !l.source_type && !l.source_reference ? <button type="button" onClick={() => onTestArchive(l)} className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-700/60 bg-cyan-950/40 px-3 py-2 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-900/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"><RefreshCcw className="h-3.5 w-3.5" />Khôi phục</button> : null) : isReimbursement ? (
                       l.reimbursement_status === 'PAID' && activityEnabled && canUpdate ? (
                         <button type="button" onClick={()=>onOpenEdit(l)} className="admin-button-secondary">Điều chỉnh</button>
                       ) : isOwnReimbursement ? (

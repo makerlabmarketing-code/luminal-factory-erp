@@ -47,7 +47,8 @@ describe('expense payment source binding', () => {
     expect(ledgerServer).toMatch(/type: 'VON_GOP'/);
     expect(ledgerServer).toMatch(/requested_by: requestedBy/);
     expect(capitalPage).toMatch(/expenseSourceId: values\.expenseSource/);
-    expect(ledgerServer).not.toMatch(/payment_source|payment_source_id|shareholder_id|source_id/);
+    const ledgerColumns = ledgerServer.slice(ledgerServer.indexOf('function mutationColumns('), ledgerServer.indexOf('async function employeeName('));
+    expect(ledgerColumns).not.toMatch(/payment_source|payment_source_id|shareholder_id|source_id/);
   });
 
   it('does not report successful ledger edits or payments after a failed mutation', () => {

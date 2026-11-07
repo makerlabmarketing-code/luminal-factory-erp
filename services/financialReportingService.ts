@@ -71,6 +71,8 @@ export function summarizeFinancialLedger(ledger: FinancialLedgerEntry[]): Financ
     balance: 0,
   };
 
+  let advanceRefunds = 0;
+  let personalFunding = 0;
   const summary = ledger.reduce<FinancialLedgerSummary>((result, entry) => {
     if (entry.cancelled_at) return result;
     const amount = ledgerAmount(entry);
@@ -80,12 +82,16 @@ export function summarizeFinancialLedger(ledger: FinancialLedgerEntry[]): Financ
       return result;
     }
 
-    if (entry.type === 'VON_GOP') {
+    if (entry.source_type === 'PERSONAL_ADVANCE') {
+      personalFunding += amount;
+    } else if (entry.type === 'VON_GOP') {
       result.capital += amount;
       if (entry.sub_type === 'HIEN_VAT') result.inKindCapital += amount;
       else result.cashCapital += amount;
     } else if (entry.type === 'DOANH_THU') {
       result.revenue += amount;
+    } else if (entry.source_type === 'PERSONAL_ADVANCE_REFUND') {
+      advanceRefunds += amount;
     } else if (isExpenseType(entry.type)) {
       result.expense += amount;
     }
@@ -93,8 +99,13 @@ export function summarizeFinancialLedger(ledger: FinancialLedgerEntry[]): Financ
     return result;
   }, initial);
 
-  summary.balance = summary.capital + summary.revenue - summary.expense;
+  summary.balance = summary.capital + summary.revenue - summary.expense + personalFunding - advanceRefunds;
   return summary;
+}
+
+export function personalAdvanceExpenseIds(ledger: FinancialLedgerEntry[]) {
+  return new Set(ledger.filter(row => row.source_type === 'PERSONAL_ADVANCE' && row.is_paid && !row.cancelled_at)
+    .map(row => row.source_reference?.split(':')[0]));
 }
 
 export function groupPaidLedgerCashflowByReportingPeriod(
@@ -102,11 +113,12 @@ export function groupPaidLedgerCashflowByReportingPeriod(
 ): MonthlyCashflowSummary[] {
   const groupedByPeriod: Record<string, MonthlyCashflowSummary> = {};
 
+  const personalExpenses = personalAdvanceExpenseIds(ledger);
   ledger.forEach((entry) => {
     if (!entry.is_paid || !isValidReportingPeriod(entry.month_period)) return;
 
     const period = entry.month_period as string;
-    if (entry.cancelled_at) return;
+    if (entry.cancelled_at || entry.source_type === 'PERSONAL_ADVANCE' || personalExpenses.has(String(entry.id))) return;
     const amount = ledgerAmount(entry);
 
     if (!groupedByPeriod[period]) {

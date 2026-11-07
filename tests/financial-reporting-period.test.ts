@@ -58,6 +58,16 @@ describe('financial reporting period', () => {
     expect(dashboardMarchSummary).toEqual({ name: '03/2026', thu: 250000, chi: 100000 });
   });
 
+  it('records an advance-funded expense once and reduces cash only when reimbursed', () => {
+    const expense = { ...marchBackfilledInJune, amount: 2160000 };
+    const counter = { ...expense, id: 3, type: 'VON_GOP', sub_type: 'HIEN_VAT', source_type: 'PERSONAL_ADVANCE', source_reference: '1:counter' };
+    const refund = { ...juneTransaction, id: 4, type: 'CHI_TIEU', amount: 100000, source_type: 'PERSONAL_ADVANCE_REFUND' };
+    expect(summarizeFinancialLedger([expense, counter])).toMatchObject({ capital: 0, expense: 2160000, balance: 0 });
+    expect(summarizeFinancialLedger([juneTransaction, refund])).toMatchObject({ expense: 0, balance: 200000 });
+    expect(groupPaidLedgerCashflowByReportingPeriod([expense, counter, juneTransaction, refund]))
+      .toEqual([{ name: '06/2026', thu: 300000, chi: 100000 }]);
+  });
+
   it('does not mutate created_at when preparing edited ledger values', () => {
     const editedPayload = {
       type: 'CHI_PHI',
