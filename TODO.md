@@ -1,5 +1,11 @@
 # Luminal Factory ERP TODO
 
+## E-022 · Đánh giá năng lực · 2026-11-05
+
+- [x] Inspect existing source and the three-page HR review reference; prepare the [draft review/publication contract](specs/employee-competency-reviews.md).
+- [ ] Confirm the proposed four 0–2 criteria (maximum 8), then implement admin draft/publish and staff own-result/rubric views, including RLS, immutable publication history and acceptance tests.
+- No live schema, access grant, employee assessment or salary change is included in this specification step.
+
 ## Staff permission incident · 2026-11-02
 
 - [x] Reproduce Hà access inconsistency under authenticated PostgreSQL role.
