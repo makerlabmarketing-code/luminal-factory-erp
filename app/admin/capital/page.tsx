@@ -597,6 +597,9 @@ export default function AdminFinancialLedger() {
       setSourceTarget(row);
       return;
     }
+    const confirmCapitalReceipt = row?.source_type === 'MONTHLY_CAPITAL' && !currentStatus;
+    if (confirmCapitalReceipt && !confirm(`Quỹ đã nhận ${Number(row.amount).toLocaleString('vi-VN')} đ góp vốn từ ${row.payer_name || row.requested_by || 'người góp'}?`)) return;
+
     let salaryMonth: string | undefined;
     if (salaryMailEnabled && row && isSalaryLedger(row) && !currentStatus) {
       const chosen = isLinkedPayrollLedger(row) ? payrollMonthFromLedgerPeriod(row.month_period) : prompt('Tháng lương đã chuyển tiền (MM/YYYY). Nhập đúng tháng lương, có thể khác kỳ sổ:');
@@ -610,10 +613,12 @@ export default function AdminFinancialLedger() {
     try {
       const result = await setAdminFinancialLedgerPaid(id, !currentStatus, salaryMonth);
       setLedger(prev => prev.map(l => l.id === id ? { ...l, is_paid: !currentStatus } : l));
-      showToast('Đã cập nhật thanh toán', result.notification?.message || 'Đã cập nhật trạng thái tất toán.', result.notification?.status === 'BLOCKED' || result.notification?.status === 'UNKNOWN' ? 'info' : 'success');
-      if (result.notification) {
+      showToast(confirmCapitalReceipt ? 'Đã ghi nhận thu' : 'Đã cập nhật thanh toán', result.notification?.message || (confirmCapitalReceipt ? 'Khoản góp đã được tính vào quỹ.' : 'Đã cập nhật trạng thái tất toán.'), result.notification?.status === 'BLOCKED' || result.notification?.status === 'UNKNOWN' ? 'info' : 'success');
+      if (result.notification || confirmCapitalReceipt) {
         try { await refreshLedger(); }
-        catch { showToast('Đã ghi nhận thanh toán', 'Chưa tải lại được trạng thái email. Không xác nhận thanh toán lần nữa.', 'info'); }
+        catch {
+          showToast('Đã cập nhật', 'Chưa tải lại được sổ thu chi. Tải lại trang để xem kết quả.', 'info');
+        }
       }
     } catch (error) {
       showToast('Không thể đổi trạng thái', error instanceof Error ? error.message : 'Không thể kiểm tra kết quả. Tải lại sổ trước khi thử lại.', 'error');
