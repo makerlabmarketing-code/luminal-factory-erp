@@ -15,6 +15,7 @@ import LedgerMetrics from './components/LedgerMetrics';
 import LedgerTable from './components/LedgerTable';
 import { TestLedgerDialog } from './TestLedgerDialog';
 import CapitalShareCard from './components/CapitalShareCard';
+import MonthlyCapitalSettings from './components/MonthlyCapitalSettings';
 import PersonalAdvancesCard from './components/PersonalAdvancesCard';
 import type { AdminLedgerMutationInput, ExpensePaymentSourceOption, FinanceAttachment, FinancialLedgerEntry, PersonalAdvance } from '@/lib/types/finance';
 import {
@@ -837,6 +838,7 @@ export default function AdminFinancialLedger() {
             totalVonHienVat={totalVonHienVat}
           />
 
+          <MonthlyCapitalSettings canUpdate={canUpdateLedger} />
           <CapitalShareCard ledgerData={ledger.filter(row=>!row.cancelled_at)} />
           {personalAdvances && <PersonalAdvancesCard advances={personalAdvances} canPay={reimbursementCapabilities.canPay} onRefund={row => {
             setRefundAmount(String(Number(row.advanced) - Number(row.refunded)));
