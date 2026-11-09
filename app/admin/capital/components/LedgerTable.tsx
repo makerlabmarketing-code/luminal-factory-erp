@@ -92,6 +92,7 @@ export default function LedgerTable({
 
           const isOrphanedCounterEntry = l.type === 'VON_GOP' && /^\[(Đối ứng|Hủy đối ứng)\]/.test(l.category || '');
           const isReimbursement = l.type === 'HOAN_UNG';
+          const monthlyCapital = l.source_type === 'MONTHLY_CAPITAL';
           const linkedPayroll = isLinkedPayrollLedger(l);
           const personalAdvance = personalAdvances?.find(item => String(item.ledger_id) === String(l.id));
           const generatedAdvance = l.source_type === 'PERSONAL_ADVANCE' || l.source_type === 'PERSONAL_ADVANCE_REFUND';
@@ -127,10 +128,14 @@ export default function LedgerTable({
                     </div>
                   </div>
                 </td>
-                <td className="max-w-[180px] break-words p-4 text-slate-400">{!l.payroll_settler_name && !l.approver_name && !l.payment_confirmer_name && 'Chưa ghi nhận'}{l.payroll_settler_name && <span className="mt-1 block text-[10px]">Chốt lương: {l.payroll_settler_name}</span>}{l.approver_name && <span className="mt-1 block text-[10px]">Duyệt: {l.approver_name}</span>}{l.payment_confirmer_name && <span className="mt-1 block text-[10px]">Thanh toán: {l.payment_confirmer_name}</span>}</td>
-                <td className="max-w-[180px] break-words p-4 text-slate-300">{l.beneficiary_name || 'Chưa xác định'}</td>
+                <td className="max-w-[180px] break-words p-4 text-slate-400">{monthlyCapital && <span className="block">Người góp: {l.payer_name || l.requested_by || 'Chưa xác định'}</span>}{!monthlyCapital && !l.payroll_settler_name && !l.approver_name && !l.payment_confirmer_name && 'Chưa ghi nhận'}{l.payroll_settler_name && <span className="mt-1 block text-[10px]">Chốt lương: {l.payroll_settler_name}</span>}{l.approver_name && <span className="mt-1 block text-[10px]">Duyệt: {l.approver_name}</span>}{l.payment_confirmer_name && <span className="mt-1 block text-[10px]">{monthlyCapital ? 'Xác nhận thu' : 'Thanh toán'}: {l.payment_confirmer_name}</span>}</td>
+                <td className="max-w-[180px] break-words p-4 text-slate-300">{monthlyCapital ? 'Quỹ chung' : l.beneficiary_name || 'Chưa xác định'}</td>
                 <td className="p-4">
-                  {l.cancelled_at ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-600/60 bg-slate-800/70 px-2.5 py-1.5 text-[11px] font-medium text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />{linkedPayroll ? 'Đã thay thế' : 'Đã xóa'}</span> : zeroPayroll ? <span className="text-slate-400">Không phát sinh thanh toán</span> : isReimbursement ? (
+                  {l.cancelled_at ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-600/60 bg-slate-800/70 px-2.5 py-1.5 text-[11px] font-medium text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />{linkedPayroll ? 'Đã thay thế' : 'Đã xóa'}</span> : monthlyCapital ? (
+                    <span className={`inline-flex whitespace-nowrap rounded border px-2.5 py-1.5 text-[10px] font-bold ${l.is_paid ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-amber-500/20 bg-amber-500/10 text-amber-400'}`}>
+                      {l.is_paid ? 'Đã thu' : 'Chờ thu'}
+                    </span>
+                  ) : zeroPayroll ? <span className="text-slate-400">Không phát sinh thanh toán</span> : isReimbursement ? (
                     <span className={`inline-flex whitespace-nowrap rounded border px-2.5 py-1.5 text-[10px] font-black ${l.reimbursement_status === 'PAID' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : l.reimbursement_status === 'APPROVED' ? 'border-blue-500/20 bg-blue-500/10 text-blue-300' : l.reimbursement_status === 'REJECTED' ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-400'}`}>
                       {l.reimbursement_status === 'PAID' ? 'Đã thanh toán' : l.reimbursement_status === 'APPROVED' ? 'Đã duyệt' : l.reimbursement_status === 'REJECTED' ? 'Đã từ chối' : 'Chờ duyệt'}
                     </span>
@@ -174,6 +179,11 @@ export default function LedgerTable({
                       </span>
                     ) : (
                       <>
+                        {monthlyCapital && !l.is_paid && canUpdate && (
+                          <button type="button" onClick={() => onTogglePaid(l.id, false)} className="whitespace-nowrap rounded-lg border border-emerald-700 bg-emerald-950 px-3 py-2 text-[11px] font-bold text-emerald-300 transition hover:bg-emerald-900">
+                            Xác nhận đã thu
+                          </button>
+                        )}
                         {!linkedPayroll && <button type="button" disabled={!canUpdate} onClick={() => onOpenEdit(l)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-800 bg-blue-950 px-3 py-2 text-[11px] font-bold text-blue-300 transition hover:bg-blue-900"><Edit2 className="h-3.5 w-3.5"/> Chỉnh sửa</button>}
                         {!l.is_paid && !zeroPayroll && (
                           <button type="button" onClick={() => onGenerateQr(l)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-cyan-800 bg-cyan-950 px-3 py-2 text-[11px] font-bold text-cyan-300 transition hover:bg-cyan-900"><QrCode className="h-3.5 w-3.5"/> Mã QR</button>
