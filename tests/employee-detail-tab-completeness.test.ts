@@ -6,31 +6,35 @@ const read = (file: string) => readFileSync(join(process.cwd(), file), 'utf8');
 describe('Employee Detail business-tab completeness', () => {
   const ui = read('app/admin/employees/[employeeId]/AdminEmployeeDetailClient.tsx');
   const service = read('services/server/adminEmployeeData.ts');
+  const page = read('app/admin/employees/[employeeId]/page.tsx');
+  const detail = service.slice(service.indexOf('export async function getAdminEmployeeDetailData'));
   const audit = read('docs/employee-detail-tab-audit.md');
-  it('preserves the seven domain tabs and tab-owned dirty payloads', () => {
-    for (const label of ['Tổng quan', 'Thông tin công việc', 'Tài khoản & phân quyền', 'Dự án & công việc', 'Lịch làm & chấm công', 'Tài chính cá nhân', 'Lịch sử hoạt động']) expect(ui).toContain(label);
+  it('keeps profile tabs and tab-owned dirty payloads without duplicated modules', () => {
+    for (const label of ['Tổng quan', 'Thông tin công việc', 'Dự án & công việc', 'Tài chính cá nhân', 'Lịch sử hoạt động']) expect(ui).toContain(label);
+    expect(ui).not.toMatch(/Tài khoản & phân quyền|Lịch làm & chấm công/);
+    expect(page).not.toContain('Đánh giá năng lực');
     expect(ui).toContain("overview: ['fullName', 'email', 'phone']");
     expect(ui).toContain("job: ['title', 'department', 'employmentStatus']");
     expect(ui).toContain("finance: ['bankName', 'bankAccountNumber', 'hourlyRate']");
   });
-  it('loads project tasks and attendance as optional enrichment after the core row', () => {
-    const core = service.indexOf(".from('employees')");
-    expect(service.indexOf(".from('tasks')")).toBeGreaterThan(core);
-    expect(service.indexOf('loadAttendanceData')).toBeGreaterThan(-1);
-    expect(service).toContain("'employee_tasks_enrichment_failed'");
-    expect(service).toContain("'employee_attendance_enrichment_failed'");
+  it('loads project and task data after the core row without querying attendance or access details', () => {
+    const core = detail.indexOf(".from('employees')");
+    expect(core).toBeGreaterThan(-1);
+    expect(detail.indexOf(".from('project_members')")).toBeGreaterThan(core);
+    expect(detail.indexOf(".from('tasks')")).toBeGreaterThan(core);
+    expect(detail).not.toMatch(/loadAttendanceData|employee_permissions|employee_workspace_access/);
+    expect(detail).toContain("'employee_tasks_enrichment_failed'");
     expect(service).toContain('canEditPersonalFinance: canViewFinance && canEditEmployee');
   });
   it('renders empty and failure states locally without duplicating mutation routes', () => {
-    const saveFlow = ui.slice(ui.indexOf('const save = async'), ui.indexOf('const accountAction ='));
+    const saveFlow = ui.slice(ui.indexOf('const save = async'), ui.indexOf('const editorActions ='));
     expect(ui).toContain("value === null || value === '' ? 'Chưa cập nhật' : value");
     expect(ui).toContain('function TabWarning');
     expect(ui).toContain('Thử tải lại');
     expect(ui).toContain('router.refresh()');
     expect(saveFlow).not.toContain('router.refresh()');
     expect(ui.match(/method: 'PATCH'/g)).toHaveLength(1);
-    expect(ui).toContain("path: 'send-password-reset'");
-    expect(ui).toContain('Mở trình quản lý tài khoản và quyền');
+    expect(ui).not.toContain("method: 'POST'");
   });
   it('records unsupported sources and a complete unexecuted operator package', () => {
     expect(audit).toContain('SCHEMA_EXTENSION_REQUIRED');

@@ -12,8 +12,6 @@ import {
 import { findFacility, loadFacilityDirectory, type FacilityDirectoryItem } from '@/services/server/facilityDirectory';
 import { resolveEmployeeFacility, type FacilityResolutionStatus } from '@/lib/employeeFacility';
 import { accountConnectionExplanations, resolveAccountConnectionStatus, type AccountConnectionStatus } from '@/lib/accountConnection';
-import { loadAttendanceData } from '@/services/server/attendanceData';
-import { businessDateFromInstant, formatBusinessDateInput } from '@/lib/business-date';
 import type { SystemMetadataOption } from '@/lib/system-metadata-defaults';
 import { loadBankDirectory } from '@/services/server/bankDirectory';
 
@@ -70,14 +68,6 @@ interface WorkspaceAccessRow {
   revoked_at?: string | null;
 }
 
-interface PermissionRow {
-  employee_id: number | string;
-  permission_code: string | null;
-  effect: string | null;
-  status: string | null;
-  revoked_at?: string | null;
-}
-
 interface ProjectMembershipRow {
   project_id: number | string;
   member_role: string | null;
@@ -109,11 +99,6 @@ export interface AdminEmployeeListData {
   warnings: Array<'employee_enrichment_failed'>;
 }
 
-export interface EmployeePermissionSummary {
-  permissionCode: string;
-  effect: string;
-}
-
 export interface EmployeeProjectMembershipSummary {
   projectId: string;
   projectName: string;
@@ -127,14 +112,6 @@ export interface EmployeeTaskSummary {
   title: string;
   status: string;
   deadline: string | null;
-}
-
-export interface EmployeeAttendanceSummary {
-  attendanceId: string;
-  workDate: string;
-  shiftName: string;
-  status: string | null;
-  workedHours: number | string | null;
 }
 
 export interface EmployeeDetailDto {
@@ -152,19 +129,11 @@ export interface EmployeeDetailDto {
   bankAccountNumber: string | null;
   bankOptions: SystemMetadataOption[];
   createdAt: string | null;
-  accountConnectionStatus: AccountConnectionStatus;
-  invitationStatus: InvitationStatus;
-  hasStaffWorkspace: boolean;
-  hasAdminWorkspace: boolean;
-  permissions: EmployeePermissionSummary[];
   projectMemberships: EmployeeProjectMembershipSummary[];
   activeTasks: EmployeeTaskSummary[];
-  attendanceHistory: EmployeeAttendanceSummary[];
-  assignedRole: string | null;
-  warnings: Array<'employee_facility_enrichment_failed' | 'account_lookup_failed' | 'employee_access_enrichment_failed' | 'employee_tasks_enrichment_failed' | 'employee_attendance_enrichment_failed'>;
+  warnings: Array<'employee_facility_enrichment_failed' | 'employee_projects_enrichment_failed' | 'employee_tasks_enrichment_failed'>;
   capabilities: {
     canEditEmployee: boolean;
-    canManageAccount: boolean;
     canViewCompensation: boolean;
     canEditPersonalFinance: boolean;
   };
@@ -258,14 +227,6 @@ async function requireEmployeeReadCapabilities() {
     throw new AuthFlowError({ status: 403, code: 'permission_forbidden', message: 'Bạn không có quyền xem hồ sơ nhân sự.', failureStage: 'permission_check' });
   }
   return { authContext, permissionCodes: permissions.permissionCodes };
-}
-
-async function getAuthUserById(authUserId?: string | null): Promise<AuthUserSummary | null> {
-  if (!authUserId) return null;
-  const supabaseAdmin = createSupabaseAdminClient();
-  const { data, error } = await supabaseAdmin.auth.admin.getUserById(authUserId);
-  if (error) throw error;
-  return data.user ? data.user as AuthUserSummary : null;
 }
 
 export async function requireAdminEmployeePermission(
@@ -387,13 +348,12 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
   const startedAt = performance.now();
   const { permissionCodes } = await requireEmployeeReadCapabilities();
   const canEditEmployee = permissionCodes.includes('EMPLOYEE_MANAGE');
-  const canManageAccount = permissionCodes.includes('ACCOUNT_MANAGE');
   const canViewFinance = permissionCodes.includes('FINANCE_VIEW');
   const supabase = await createClient();
 
   const { data: employee, error: employeeError } = await supabase
     .from('employees')
-    .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code, hourly_rate, bank_name, bank_account_number, role, created_at')
+    .select('id, full_name, title, email, phone, status, branch_code, hourly_rate, bank_name, bank_account_number, created_at')
     .eq('id', employeeId)
     .maybeSingle();
 
@@ -419,29 +379,16 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
   }
 
   const employeeRow = employee as EmployeeRow;
-  const [facilityResult, bankDirectoryResult, workspaceResult, permissionResult, membershipResult, taskResult, attendanceResult, authResult] = await Promise.all([
+  const [facilityResult, bankDirectoryResult, membershipResult, taskResult] = await Promise.all([
     loadFacilityDirectory(supabase).then(({ facilities }) => ({ data: facilities, failed: false as const }), () => ({ data: [] as FacilityDirectoryItem[], failed: true as const })),
     loadBankDirectory(supabase).then(({ options, lookupFailed }) => ({ data: options, failed: lookupFailed })),
-    supabase.from('employee_workspace_access').select('employee_id, workspace, status, revoked_at').eq('employee_id', employeeId).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
-    supabase.from('employee_permissions').select('employee_id, permission_code, effect, status, revoked_at').eq('employee_id', employeeId).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('project_members').select('project_id, member_role, status, projects(name)').eq('employee_id', employeeId).limit(20).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
     supabase.from('tasks').select('id, project_id, title, status, deadline').eq('assignee_employee_id', employeeId).neq('status', 'COMPLETED').order('deadline', { ascending: true }).limit(20).then(({ data, error }) => ({ data: error ? [] : data, failed: Boolean(error) })),
-    loadAttendanceData({ monthInput: formatBusinessDateInput(businessDateFromInstant(new Date())).slice(0, 7), employeeId, includeDirectory: false }).then((data) => ({ data: data.attendanceRecords.slice(0, 20), failed: false as const }), () => ({ data: [], failed: true as const })),
-    getAuthUserById(employeeRow.auth_user_id).then((data) => ({ data, failed: false as const }), () => ({ data: null as AuthUserSummary | null, failed: true as const })),
   ]);
   const facilities = facilityResult.data;
   const bankOptions = bankDirectoryResult.data;
-  const workspaceAccess = workspaceResult.data;
-  const permissions = permissionResult.data;
   const projectMemberships = membershipResult.data;
-  const workspaceRows = (workspaceAccess || []) as WorkspaceAccessRow[];
-  const authUser = authResult.data;
-  const status = resolveAccountStatus(employeeRow, authUser, workspaceRows, { authLookupFailed: authResult.failed });
   const resolvedFacility = resolveEmployeeFacility(employeeRow.branch_code, facilities, !facilityResult.failed);
-  const activeWorkspaceRows = workspaceRows.filter(
-    (row) => row.status === 'ACTIVE' && !row.revoked_at
-  );
-
   const result: EmployeeDetailDto = {
     employeeId: String(employeeRow.id),
     fullName: employeeRow.full_name || 'Chưa đặt tên',
@@ -457,16 +404,6 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
     bankAccountNumber: canViewFinance ? (employee as { bank_account_number?: string | null }).bank_account_number ?? null : null,
     bankOptions,
     createdAt: employeeRow.created_at || null,
-    accountConnectionStatus: status.accountConnectionStatus,
-    invitationStatus: status.invitationStatus,
-    hasStaffWorkspace: activeWorkspaceRows.some((row) => row.workspace === 'STAFF_WORKSPACE'),
-    hasAdminWorkspace: activeWorkspaceRows.some((row) => row.workspace === 'ADMIN_WORKSPACE'),
-    permissions: ((permissions || []) as PermissionRow[])
-      .filter((row) => row.status === 'ACTIVE' && !row.revoked_at && row.permission_code && row.effect)
-      .map((row) => ({
-        permissionCode: row.permission_code!,
-        effect: row.effect!,
-      })),
     projectMemberships: ((projectMemberships || []) as ProjectMembershipRow[]).map((row) => ({
       projectId: String(row.project_id),
       projectName: row.projects?.name || `Dự án ${row.project_id}`,
@@ -477,18 +414,13 @@ export async function getAdminEmployeeDetailData(employeeId: string): Promise<Em
       taskId: String(row.id), projectId: String(row.project_id), title: row.title || `Công việc ${row.id}`,
       status: row.status || 'PENDING', deadline: row.deadline || null,
     })),
-    attendanceHistory: attendanceResult.data.map((row) => ({ attendanceId: String(row.id), workDate: row.work_date, shiftName: row.shift_name, status: row.status || null, workedHours: row.total_hours ?? null })),
-    assignedRole: employeeRow.role || null,
     warnings: [
       ...(facilityResult.failed ? ['employee_facility_enrichment_failed' as const] : []),
-      ...(authResult.failed ? ['account_lookup_failed' as const] : []),
-      ...(workspaceResult.failed || permissionResult.failed || membershipResult.failed ? ['employee_access_enrichment_failed' as const] : []),
+      ...(membershipResult.failed ? ['employee_projects_enrichment_failed' as const] : []),
       ...(taskResult.failed ? ['employee_tasks_enrichment_failed' as const] : []),
-      ...(attendanceResult.failed ? ['employee_attendance_enrichment_failed' as const] : []),
     ],
     capabilities: {
       canEditEmployee,
-      canManageAccount,
       canViewCompensation: canViewFinance,
       canEditPersonalFinance: canViewFinance && canEditEmployee,
     },
