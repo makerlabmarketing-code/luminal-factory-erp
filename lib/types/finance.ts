@@ -19,6 +19,8 @@ export interface FinancialLedgerEntry {
   beneficiary_external_name?: string | null;
   payer_employee_id?: number | string | null;
   payer_name?: string | null;
+  creator_employee_id?: number | string | null;
+  payroll_settler_name?: string | null;
   approver_employee_id?: number | string | null;
   approver_name?: string | null;
   payment_confirmer_employee_id?: number | string | null;
@@ -31,6 +33,16 @@ export interface FinancialLedgerEntry {
   idempotency_key?: string | null;
   attachments?: FinanceAttachment[];
   salaryEmailStatus?: import('../salary-payment').SalaryEmailStatus | null;
+}
+
+export interface PersonalAdvance {
+  ledger_id: number | string;
+  shareholder_id: number | string;
+  person: string;
+  category: string;
+  month_period: string;
+  advanced: number | string;
+  refunded: number | string;
 }
 
 export interface FinanceAttachment {

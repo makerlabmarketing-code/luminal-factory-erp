@@ -66,11 +66,16 @@ Audit 19/10 là lịch sử; các đề xuất 0đ bên dưới thay thế khuy�
    là chốt thành công bản cũ: dùng snapshot ID để kiểm tra phiên bản.
 7. Điều chỉnh khi chưa trả phải đồng bộ số phải trả trong cùng giao dịch điều chỉnh,
    với audit trước/sau; gồm chuyển 0→dương và dương→0. Không tạo phiếu thứ hai.
-   Điều chỉnh sau khi đã trả cần phương án đối soát riêng; không tự sửa phiếu
-   hoặc email đã trả và không âm thầm đổi quyền điều chỉnh hiện có.
+   Owner xác nhận 05/11: sau khi đã trả, chỉ hỗ trợ khoản cộng thêm nguyên dương
+   bằng phiếu **Lương bổ sung** riêng, số tiền bằng đúng phần cộng thêm. Không sửa
+   phiếu/bản chốt/email đã trả. Không áp dụng chính sách trừ/thu hồi sau trả ở bước này.
+   Mỗi thao tác bổ sung có request UUID chống trùng; retry giữ nguyên UUID và nội dung.
+   Bổ sung không ghi vào tổng điều chỉnh bản gốc, tránh làm sai nghĩa vụ đã trả hoặc
+   khiến retry thanh toán khoản gốc phải trả thêm. Quản lý thấy các phiếu bổ sung riêng.
 8. Mở lại khi chưa trả phải vô hiệu hoá liên kết và huỷ mềm phiếu nguồn cũ trong
    cùng giao dịch bỏ snapshot hiệu lực. Giữ lịch sử và lý do. Chốt lại tạo snapshot
    và phiếu mới; điều chỉnh cũ vẫn chỉ được tính một lần. Không xoá vật lý.
+   Phiếu cũ ẩn khỏi danh sách Đang dùng và còn trong lịch sử/Đã xóa của người có quyền.
 9. Nút Đã trả chỉ áp dụng phiếu dương liên kết hiệu lực. Server lấy đúng employee,
    tháng, số tiền; không tin tháng/số tiền gửi từ trình duyệt. Thanh toán cạnh tranh
    với điều chỉnh hoặc mở lại phải khoá và kiểm tra cùng trạng thái hiệu lực.

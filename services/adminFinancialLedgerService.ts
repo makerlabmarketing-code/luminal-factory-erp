@@ -1,7 +1,8 @@
-import type { AdminLedgerMutationInput, FinancialLedgerEntry } from '@/lib/types/finance';
+import type { AdminLedgerMutationInput, FinancialLedgerEntry, PersonalAdvance } from '@/lib/types/finance';
 
 interface LedgerResponse {
   canManageTestRecords: boolean;
+  personalAdvances: PersonalAdvance[] | null;
   salaryPaymentEmailEnabled: boolean;
   activityHistoryEnabled: boolean;
   canUpdate: boolean;
@@ -61,11 +62,20 @@ export async function updateAdminFinancialLedger(ledgerId: number | string, inpu
   await payload(response);
 }
 
-export async function setAdminFinancialLedgerPaid(ledgerId: number | string, isPaid: boolean, salaryMonth?: string) {
+export async function setAdminFinancialLedgerPaid(ledgerId: number | string, isPaid: boolean, salaryMonth?: string, expenseSource?: string) {
   const response = await fetch(`/api/admin/finance/ledger/${ledgerId}`, {
-    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isPaid, salaryMonth }),
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isPaid, salaryMonth, expenseSource }),
   });
   return await payload(response) as { success: boolean; notification?: { status: import('@/lib/salary-payment').SalaryEmailStatus; message: string } };
+}
+
+export async function mutatePersonalAdvance(ledgerId: number | string, input:
+  { action: 'refundPersonalAdvance'; amount: number; requestId: string }
+  | { action: 'changePersonalAdvanceSource'; expenseSource: string },
+) {
+  await payload(await fetch(`/api/admin/finance/ledger/${ledgerId}`, {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  }));
 }
 
 export async function retrySalaryLedgerEmail(ledgerId: number | string) {

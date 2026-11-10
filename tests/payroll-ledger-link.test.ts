@@ -8,6 +8,8 @@ const linked={type:'CHI_PHI',source_type:'PAYROLL',source_reference:reference,id
 describe('linked payroll obligation identity',()=>{
  it('distinguishes generated obligations from legacy/manual payroll and counter-rows',()=>{
   expect(isLinkedPayrollLedger(linked)).toBe(true);
+  expect(isLinkedPayrollLedger({...linked,source_type:'PAYROLL_SUPPLEMENT',idempotency_key:`payroll-supplement:${reference}`})).toBe(true);
+  expect(isLinkedPayrollLedger({...linked,source_type:'PAYROLL_SUPPLEMENT'})).toBe(false);
   for(const row of [{...linked,idempotency_key:null},{...linked,type:'VON_GOP'},{...linked,source_reference:'manual'},{...linked,source_type:'SALARY'}]) expect(isLinkedPayrollLedger(row)).toBe(false);
  });
  it('treats only a genuine numeric zero obligation as no-payment-due',()=>{

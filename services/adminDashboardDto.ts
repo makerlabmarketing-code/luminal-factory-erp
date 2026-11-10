@@ -1,6 +1,4 @@
-import {
-  compareReportingPeriods,
-} from './financialReportingService';
+import { compareReportingPeriods, personalAdvanceExpenseIds } from './financialReportingService';
 import type { MonthlyChartData } from '../lib/types/dashboard';
 
 export interface DashboardSummaryDto {
@@ -32,6 +30,8 @@ export interface DashboardLedgerEntry {
   month_period?: string | null;
   created_at?: string | null;
   cancelled_at?: string | null;
+  source_type?: string | null;
+  source_reference?: string | null;
 }
 
 const DASHBOARD_TIME_ZONE = 'Asia/Bangkok';
@@ -48,10 +48,15 @@ export function buildAdminDashboardDto(
   let yearCapital = 0;
   let yearRevenue = 0;
   let yearExpense = 0;
+  let yearPersonalExpense = 0;
+  let yearAdvanceRefund = 0;
+  const personalExpenses = personalAdvanceExpenseIds(ledger);
   const groupedByPeriod: Record<string, MonthlyChartData> = {};
 
   ledger.forEach((entry) => {
-    if (!entry.is_paid || entry.cancelled_at) return;
+    if (!entry.is_paid || entry.cancelled_at || entry.source_type === 'PERSONAL_ADVANCE') return;
+    const isAdvanceRefund = entry.source_type === 'PERSONAL_ADVANCE_REFUND';
+    const isPersonalExpense = personalExpenses.has(String(entry.id));
 
     const amount = Number(entry.amount) || 0;
     const recordedPeriod = reportingPeriodFromCreatedAt(entry.created_at);
@@ -63,20 +68,24 @@ export function buildAdminDashboardDto(
 
       if (entry.type === 'VON_GOP' || entry.type === 'DOANH_THU') {
         groupedByPeriod[recordedPeriod].thu += amount;
-      } else if (isDashboardExpenseType(entry.type)) {
+      } else if (isDashboardExpenseType(entry.type) && !isPersonalExpense) {
         groupedByPeriod[recordedPeriod].chi += amount;
       }
 
       if (recordedPeriod.endsWith(`/${reportingYear}`)) {
         if (entry.type === 'VON_GOP') yearCapital += amount;
         else if (entry.type === 'DOANH_THU') yearRevenue += amount;
-        else if (isDashboardExpenseType(entry.type)) yearExpense += amount;
+        else if (isAdvanceRefund) yearAdvanceRefund += amount;
+        else if (isDashboardExpenseType(entry.type)) {
+          yearExpense += amount;
+          if (isPersonalExpense) yearPersonalExpense += amount;
+        }
       }
     }
 
     if (entry.type === 'VON_GOP') totalCapital += amount;
     if (entry.type === 'DOANH_THU') totalRevenue += amount;
-    if (entry.type === 'CHI_PHI' || entry.type === 'CHI_TIEU') totalExpense += amount;
+    if (!isAdvanceRefund && (entry.type === 'CHI_PHI' || entry.type === 'CHI_TIEU')) totalExpense += amount;
     if (entry.type === 'HOAN_UNG') totalRefund += amount;
   });
 
@@ -97,7 +106,7 @@ export function buildAdminDashboardDto(
       totalCapital: yearCapital,
       totalRevenue: yearRevenue,
       totalExpense: yearExpense,
-      currentBalance: yearCapital + yearRevenue - yearExpense,
+      currentBalance: yearCapital + yearRevenue - yearExpense + yearPersonalExpense - yearAdvanceRefund,
     },
     monthlyCashFlow,
     cashFlowComposition,

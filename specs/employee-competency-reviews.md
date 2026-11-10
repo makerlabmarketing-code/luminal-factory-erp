@@ -1,6 +1,6 @@
 # E-022 — Đánh giá năng lực và gửi kết quả cho nhân viên
 
-Ngày 05/11/2026. **DRAFT_FOR_REVIEW / NOT_IMPLEMENTED**.
+Ngày 10/11/2026. **Bản triển khai chờ duyệt SQL production**.
 
 ## Yêu cầu và quyết định cần chốt
 
@@ -10,9 +10,7 @@ Mã ERP hiện chưa có module này. Nguồn tham khảo đã đọc đủ 3 tr
 `Luminal_Nhom_viec_va_Review_Nhan_su.pdf`, Library version 2, nội dung v3.0
 ngày 31/10/2026. PDF ghi rõ khung đề xuất, chưa phải chính sách đã chốt.
 
-Cần owner xác nhận dùng 4 tiêu chí 0–2 dưới đây trước triển khai. Yêu cầu tính năng
-đã rõ; chưa coi mọi mức điểm/lương trong PDF là được duyệt. Không chạy SQL, cấp
-quyền hoặc công bố đánh giá nhân sự thật ở bước đặc tả.
+Tiếp tục theo bốn tiêu chí 0–2 bên dưới. Mức lương trong tài liệu tham khảo nằm ngoài phạm vi. Gói SQL chờ duyệt riêng trước khi áp dụng.
 
 ## Màn hình và luồng đề xuất
 
@@ -35,7 +33,7 @@ PDF còn có tự đánh giá. Giữ hai cột tự chấm/quản lý độc l�
 quản lý không sửa điểm tự chấm thay nhân viên, staff không sửa điểm quản lý.
 Không thêm email/SMTP hoặc tự gửi khi quản lý nhập đủ điểm.
 
-## Bảng điểm cần xác nhận, dùng chung hai màn hình
+## Bảng điểm dùng chung hai màn hình
 
 | Tiêu chí | 0 điểm | 1 điểm | 2 điểm |
 | --- | --- | --- | --- |
@@ -95,3 +93,9 @@ Hoàn thành khi luồng lưu nháp → gửi → staff xem và quyền âm tín
 không thay lương. Merge đặc tả không có nghĩa đã triển khai tính năng.
 Rollback sau công bố phải bảo toàn snapshot/audit, dừng ghi và sửa tiến nếu cần;
 không xóa lịch sử đánh giá để rollback.
+
+## Phạm vi bản đầu
+
+Owner có thể chấm và gửi. Cấp quyền quản lý theo phạm vi nhân sự là bước riêng. Staff xem bản đã gửi của chính mình và có thể đánh dấu đã xem. Bản đã gửi lưu thang điểm đầy đủ, người gửi, điểm tự chấm tại lúc gửi và lý do hiệu chỉnh. Bản gửi mới xuất hiện trong mục Kết quả đã gửi với trạng thái Chưa xem.
+
+Cờ `COMPETENCY_REVIEWS_ENABLED` mặc định tắt. [SQL](../supabase/drafts/competency-reviews/forward.sql), [kiểm tra trước](../supabase/drafts/competency-reviews/preflight.sql), [kiểm tra sau](../supabase/drafts/competency-reviews/validation.sql) và [rollback](../supabase/drafts/competency-reviews/rollback.sql). Tắt cờ để dừng sử dụng, giữ toàn bộ lịch sử sau khi đã có dữ liệu.

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { AuthFlowError } from '@/services/server/auth';
 import {
   addPayrollAdjustment,
+  addPayrollSupplement,
   configurePayrollFirstMonth,
   getAdminPayroll,
   getAdminPayrollReadiness,
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
     if (body.action === 'settle') return NextResponse.json(await settlePayroll(body.employeeId, body.month));
     if (body.action === 'reopen') return NextResponse.json(await reopenPayroll(body.settlementId, body.reason));
     if (body.action === 'adjust') return NextResponse.json(await addPayrollAdjustment(body.settlementId, body.amount, body.reason));
+    if (body.action === 'supplement') return NextResponse.json(await addPayrollSupplement(body.settlementId, body.amount, body.reason, body.requestId));
     return NextResponse.json({ success: false, message: 'Thao tác bảng lương không hợp lệ.' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return failure(error);

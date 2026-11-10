@@ -2,6 +2,53 @@
 
 Status 2026-11-05: **IMPLEMENTED_DRAFT / NOT_APPLIED / TESTENV_QA_PENDING**.
 
+## Owner-confirmed lifecycle extension · 05/11
+
+Before payment, reopen supersedes the old snapshot/link and soft-cancels its source
+obligation atomically; the existing normal finance list hides cancelled rows.
+Reclose creates a new snapshot/obligation while retaining prior adjustment history.
+Before payment, ordinary adjustments update the pending obligation in place.
+
+After payment, the base snapshot/obligation/email stays immutable. A separate
+`create_payroll_supplement` RPC requires PAYROLL_ADJUST and an already-paid active
+linked base, accepts only a positive whole delta with reason/request UUID, and
+creates an unpaid `PAYROLL_SUPPLEMENT` obligation. Request reuse with changed intent
+fails; identical retries return the same obligation. Its immutable source table has
+RLS, no browser access, service-role SELECT only and no client mutation privilege.
+The private permit guard covers supplementary ledger rows as well as base rows.
+Payment validates the source delta/parent/month, uses the existing service-only
+payment API, and queues only the delta once when explicitly confirmed. Creation
+does not pay or send email. Supplement values never change the original payable.
+
+The manager UI hides reopen/base-adjustment controls for a paid linked base,
+shows a separate positive-addition dialog and lists supplemental obligations.
+The finance editor/payment boundary recognizes the reserved supplemental marker.
+No automatic salary deduction, refund or supplementary cancellation policy is added.
+SQL stays a draft until this revised package is approved for live delivery.
+
+## Missing-ledger repair continuation · 05/11
+
+The owner reported an existing settled payroll missing from finance. Prepared an
+operator-only `reconcile_unlinked` helper: verify exact snapshot, employee, month,
+payable and actor; refuse ambiguous legacy rows/email; create one unpaid source
+obligation and audit atomically without re-settling. A retry validates and returns
+the same link. The helper has no application/service-role execute privilege.
+`activate-reviewed.sql` is an unbound, fail-closed operator template: fill the
+reviewed identity privately, refuse other unreviewed active snapshots, reconcile
+and switch ON in the same transaction. It is not an automatic backfill. Real
+employee financial details are deliberately excluded from this public repository.
+
+The payroll screen now reads source-linked status only for FINANCE_VIEW users,
+shows a missing obligation explicitly, and links to the correct finance month.
+After settling it reloads the server result instead of inventing settled time or
+actor locally. Neither this UI nor the repair confirms payment or sends email.
+
+Added reconciliation mismatch/ambiguity/rollback/idempotency/stale/ACL checks and
+the deployed activity, immutable-history and no-delete triggers to the disposable
+runner. New native race evidence must be recorded on the delivery PR. Existing
+Production trigger/catalog checks are read-only; SQL and activation still require
+review of this concrete package. Application shipping is not SQL activation.
+
 The owner approved continuing from [the design](../../../specs/payroll-ledger-link.md).
 This is a reviewable draft package, not authorization to apply SQL, enable the
 integration, backfill old payroll, send email, or create real salary transactions.

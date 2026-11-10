@@ -1,3 +1,4 @@
+import { isLinkedPayrollLedger } from './payroll-ledger-link';
 import type { AdminLedgerMutationInput, FinancialLedgerEntry } from './types/finance';
 
 export const UNKNOWN_BENEFICIARY_LABEL = 'Chưa xác định';
@@ -93,6 +94,9 @@ export function resolveLedgerPeople(
 
   return {
     ...entry,
+    payroll_settler_name: entry.source_type === 'PAYROLL' && isLinkedPayrollLedger(entry) && entry.creator_employee_id != null
+      ? employeeNames.get(String(entry.creator_employee_id)) || null
+      : null,
     approver_name: entry.approver_employee_id == null ? null : employeeNames.get(String(entry.approver_employee_id)) || null,
     payment_confirmer_name: entry.payment_confirmer_employee_id == null ? null : employeeNames.get(String(entry.payment_confirmer_employee_id)) || null,
     beneficiary_name:

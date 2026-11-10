@@ -1,10 +1,10 @@
 # Luminal Factory ERP TODO
 
-## E-022 · Đánh giá năng lực · 2026-11-05
+## E-022 · Đánh giá năng lực · 2026-11-10
 
-- [x] Inspect existing source and the three-page HR review reference; prepare the [draft review/publication contract](specs/employee-competency-reviews.md).
-- [ ] Confirm the proposed four 0–2 criteria (maximum 8), then implement admin draft/publish and staff own-result/rubric views, including RLS, immutable publication history and acceptance tests.
-- No live schema, access grant, employee assessment or salary change is included in this specification step.
+- [x] Implement the [review and publication workflow](specs/employee-competency-reviews.md) with Owner-only review, staff self-assessment and immutable publication snapshots.
+- [x] Validate scoring and database authorization, revisions, publication retries and corrections on disposable data.
+- [ ] Approve production SQL and verify the Owner and Staff Portal browser flow after deployment.
 
 ## Staff permission incident · 2026-11-02
 
@@ -101,6 +101,10 @@ Architecture stabilization and production workflow refinement.
 - [x] E-012: owner-authorized tungduy baseline browser acceptance: zero settlement, reload, reopening with test reason, reload and retained history; final November period open, no payment confirmation.
 - [x] E-012: five genuine overlapping two-connection races passed on PostgreSQL 17.11 in CI run 41957492424; 26 database cases total.
 - [ ] E-012: matching Supabase test-environment/integrated-row browser acceptance before SQL approval or live activation; no non-Production Supabase branch currently exists.
+- [x] E-012 missing-ledger continuation: prepare exact-identity/idempotent reconciliation, fail-closed activation template, source status and correct-month navigation; real employee financial details stay outside the public repository.
+- [ ] Approve and apply the concrete database package, reconcile the reviewed existing snapshot and activate future linking; do not ask the operator to reopen/re-settle as a workaround. App deployment alone does not create a finance obligation.
+- [x] Owner-confirmed lifecycle: unpaid reopen supersedes/hides the old obligation; a paid base stays locked and positive extra salary creates a separate unpaid delta obligation with stable request identity, immutable source and payment guards.
+- [ ] Run revised native concurrency acceptance and approve the revised database package; no paid base, live supplement, payment or email is changed by application preparation.
 
 - [ ] Audit payroll inputs and source records
 - [ ] Keep payroll calculations outside visual components

@@ -19,12 +19,13 @@ async function requireSalaryPayment() {
   if (!salaryPaymentEmailEnabled()) fail(503, 'Thông báo thanh toán lương chưa được kích hoạt.');
   return auth;
 }
-export async function confirmSalaryLedgerPayment(ledgerId: number, salaryMonth: unknown) {
+export async function confirmSalaryLedgerPayment(ledgerId: number, salaryMonth: unknown, source?: { shareholderId: number | null }) {
   const auth = await requireSalaryPayment();
   const month = normalizeSalaryMonth(salaryMonth);
   if (!month) fail(400, 'Nhập tháng lương theo MM/YYYY; tháng lương có thể khác kỳ sổ.');
   const admin = createSupabaseAdminClient();
-  const { data, error } = await admin.rpc('confirm_salary_ledger_payment', {
+  const { data, error } = await admin.rpc(source ? 'confirm_payroll_payment_with_source' : 'confirm_salary_ledger_payment', {
+    ...(source ? { p_shareholder_id: source.shareholderId } : {}),
     p_ledger_id: ledgerId, p_salary_month: month, p_actor_id: auth.employee.id,
   });
   if (error) fail(error.code === '22023' ? 409 : 500, 'Không thể ghi nhận thanh toán lương và thông báo. Kiểm tra Người hưởng lợi, khoản lương và trạng thái hiện tại.');

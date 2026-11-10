@@ -1,5 +1,5 @@
 import 'server-only';
-import { isLinkedPayrollLedger, isZeroPayrollObligation } from '@/lib/payroll-ledger-link';
+import { payrollMonthFromLedgerPeriod, isLinkedPayrollLedger, isZeroPayrollObligation } from '@/lib/payroll-ledger-link';
 import { activityHistoryEnabled } from './activityGate';
 import { confirmSalaryLedgerPayment, isSalaryLedger, salaryPaymentEmailEnabled, salaryEmailStatuses } from './salaryPaymentEmail';
 
@@ -13,7 +13,7 @@ import {
   validateAdminLedgerMutation,
 } from '@/lib/adminFinancialLedger';
 import { FINANCE_ATTACHMENT_POLICY, validateFinanceAttachment } from '@/lib/financeExpenseWorkflow';
-import type { AdminLedgerMutationInput, FinanceAttachment, FinancialLedgerEntry } from '@/lib/types/finance';
+import type { AdminLedgerMutationInput, FinanceAttachment, FinancialLedgerEntry, PersonalAdvance } from '@/lib/types/finance';
 import {
   CAPITAL_CONTRIBUTION_TYPE_METADATA_NAME,
   DEFAULT_CAPITAL_CONTRIBUTION_TYPES,
@@ -103,7 +103,7 @@ async function requireAttachmentStorage() {
   }
 }
 
-async function requireFinance(permission: 'FINANCE_VIEW' | 'FINANCE_CREATE' | 'FINANCE_UPDATE') {
+async function requireFinance(permission: 'FINANCE_VIEW' | 'FINANCE_CREATE' | 'FINANCE_UPDATE' | 'FINANCE_PAY') {
   const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
   if (!(await hasPermission(auth, permission))) {
     throw new AuthFlowError({
@@ -300,7 +300,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
   }
   const admin = createSupabaseAdminClient();
   const baseColumns = 'id, type, sub_type, category, amount, bill_url, requested_by, is_paid, month_period, created_at, cancelled_at';
-  const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, approver_employee_id, payment_confirmer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference, idempotency_key';
+  const extendedColumns = ', updated_at, transaction_date, description, project_id, beneficiary_employee_id, beneficiary_external_name, payer_employee_id, creator_employee_id, approver_employee_id, payment_confirmer_employee_id, reimbursement_requester_employee_id, reimbursement_status, rejection_reason, source_type, source_reference, idempotency_key';
   let ledgerQuery = admin
     .from('financial_ledger')
     .select(baseColumns + (extendedLedgerEnabled() ? extendedColumns : ''))
@@ -331,7 +331,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
       ),
     };
   })();
-  const employeeIds = Array.from(new Set(rows.flatMap((row) => [row.beneficiary_employee_id, row.payer_employee_id, row.approver_employee_id, row.payment_confirmer_employee_id]).filter((id): id is number | string => id != null)));
+  const employeeIds = Array.from(new Set(rows.flatMap((row) => [row.beneficiary_employee_id, row.payer_employee_id, row.creator_employee_id, row.approver_employee_id, row.payment_confirmer_employee_id]).filter((id): id is number | string => id != null)));
   const employeeNamesPromise = (async () => {
     const employeeNames = new Map<string, string>();
     if (employeeIds.length === 0) return employeeNames;
@@ -371,7 +371,11 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     attachmentCount: Array.from(attachments.values()).reduce((total, entries) => total + entries.length, 0),
   });
 
-  const emailStatuses = await salaryEmailStatuses(rows.map((row) => row.id));
+  const [emailStatuses, advancesResult] = await Promise.all([
+    salaryEmailStatuses(rows.map((row) => row.id)),
+    isSystemOwner(auth.employee) && personalAdvancesEnabled() ? admin.rpc('list_personal_advances') : null,
+  ]);
+  if (advancesResult?.error) persistenceError('Không thể tải tiền cá nhân chờ hoàn.');
   return {
     success: true as const,
     salaryPaymentEmailEnabled: salaryPaymentEmailEnabled(),
@@ -390,6 +394,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
       canApprove: grantedPermissions.permissionCodes.includes('FINANCE_APPROVE'),
       canPay: grantedPermissions.permissionCodes.includes('FINANCE_PAY'),
     },
+    personalAdvances: advancesResult ? (advancesResult.data || []) as PersonalAdvance[] : null,
     ledger: rows.map((row) => ({
       ...resolveLedgerPeople(row, employeeNames),
       salaryEmailStatus: emailStatuses.get(String(row.id)) || null,
@@ -468,7 +473,48 @@ export async function updateAdminFinancialLedger(ledgerId: number, body: Record<
   return { success: true as const };
 }
 
-export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: boolean, salaryMonth?: unknown) {
+function personalAdvancesEnabled() {
+  return process.env.FINANCE_PERSONAL_ADVANCES_ENABLED === 'true';
+}
+
+function personalAdvanceSource(value: unknown): number | null {
+  if (value === 'QUY_CHUNG') return null;
+  if (typeof value === 'string' && /^SHAREHOLDER:[1-9]\d*$/.test(value)) {
+    const id = Number(value.slice('SHAREHOLDER:'.length));
+    if (Number.isSafeInteger(id)) return id;
+  }
+  throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Chọn nguồn chi hợp lệ.', failureStage: 'validation' });
+}
+
+export async function mutatePersonalAdvance(ledgerId: number, body: Record<string, unknown>) {
+  const refund = body.action === 'refundPersonalAdvance';
+  const auth = await requireFinance(refund ? 'FINANCE_PAY' : 'FINANCE_UPDATE');
+  if (!personalAdvancesEnabled() || !isSystemOwner(auth.employee)) {
+    throw new AuthFlowError({ status: 403, code: 'permission_forbidden', message: 'Bạn không có quyền ghi nhận tiền ứng.', failureStage: 'permission_check' });
+  }
+  const admin = createSupabaseAdminClient();
+  if (refund) {
+    const { amount, requestId } = body;
+    if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount <= 0
+      || typeof requestId !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestId)) {
+      throw new AuthFlowError({ status: 400, code: 'payload_validation_failed', message: 'Yêu cầu hoàn tiền không hợp lệ.', failureStage: 'validation' });
+    }
+    const { error } = await admin.rpc('record_personal_advance_refund', {
+      p_advance_id: ledgerId, p_amount: amount, p_actor_id: auth.employee.id, p_request_id: requestId,
+    });
+    if (error?.code === '22023') resourceConflict('Khoản ứng không còn đủ số dư để hoàn. Tải lại sổ để kiểm tra.');
+    if (error) persistenceError('Không ghi nhận được khoản hoàn.');
+  } else {
+    const { error } = await admin.rpc('record_payroll_personal_advance', {
+      p_ledger_id: ledgerId, p_shareholder_id: personalAdvanceSource(body.expenseSource), p_actor_id: auth.employee.id,
+    });
+    if (error?.code === '22023') resourceConflict('Nguồn chi không hợp lệ hoặc khoản ứng đã được hoàn.');
+    if (error) persistenceError('Không đổi được nguồn chi.');
+  }
+  return { success: true as const };
+}
+
+export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: boolean, salaryMonth?: unknown, expenseSource?: unknown) {
   const auth = await requireFinance('FINANCE_UPDATE');
   await requireExtendedLedgerSchema();
   const admin = createSupabaseAdminClient();
@@ -479,7 +525,12 @@ export async function setAdminFinancialLedgerPaid(ledgerId: number, isPaid: bool
   if (isLinkedPayrollLedger(target)) {
     if (!isPaid || isZeroPayrollObligation(target)) resourceConflict('Phiếu lương này không phát sinh thanh toán hoặc không được chuyển về chưa trả.');
     if (!salaryPaymentEmailEnabled()) resourceConflict('Xác nhận thanh toán lương liên kết chưa sẵn sàng.');
-    return confirmSalaryLedgerPayment(ledgerId, target.month_period);
+    if (personalAdvancesEnabled() && isSystemOwner(auth.employee)) {
+      return confirmSalaryLedgerPayment(ledgerId, payrollMonthFromLedgerPeriod(target.month_period), {
+        shareholderId: personalAdvanceSource(expenseSource),
+      });
+    }
+    return confirmSalaryLedgerPayment(ledgerId, payrollMonthFromLedgerPeriod(target.month_period));
   }
   if (activityHistoryEnabled() && target.is_paid && !isPaid) resourceConflict('Điều chỉnh bản ghi đã trả phải giữ nguyên trạng thái thanh toán.');
   if (target.type === 'HOAN_UNG') resourceConflict('Phiếu hoàn ứng chỉ được xác nhận thanh toán qua quy trình hoàn ứng.');
