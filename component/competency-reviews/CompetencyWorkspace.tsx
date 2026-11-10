@@ -51,7 +51,7 @@ function EmployeeReviewPanel({ employeeName, month, expanded, onClose, children,
       aria-labelledby="employee-review-title"
       aria-describedby="employee-review-period"
       onCancel={event => { event.preventDefault(); onClose(); }}
-      className={`employee-review-panel fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden border-slate-700 bg-slate-900 p-0 text-slate-100 shadow-2xl backdrop:bg-slate-950/60 sm:border-l ${expanded ? 'sm:max-w-5xl' : 'sm:max-w-xl'}`}
+      className={`employee-review-panel fixed inset-y-0 left-auto right-0 !m-0 max-h-none w-full max-w-none overflow-hidden border-slate-700 bg-slate-900 p-0 text-slate-100 shadow-2xl backdrop:bg-slate-950/60 sm:border-l ${expanded ? 'sm:max-w-5xl' : 'sm:max-w-xl'}`}
     >
       <div className="flex h-full min-h-0 flex-col">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-800 px-4 py-4 sm:px-6">

@@ -88,6 +88,10 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .luminal-loader__light { display: block; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, #49ccf2 35%, #d9f6ff 65%, transparent); animation: luminal-resin-travel var(--loading-duration) cubic-bezier(.45, 0, .3, 1) infinite; }
 @keyframes luminal-resin-breathe { 0%, 100% { opacity: .4; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.06); } }
 @keyframes luminal-resin-travel { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+.employee-review-panel {
+  height: 100vh;
+  height: 100dvh;
+}
 @keyframes employee-review-panel-enter {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
