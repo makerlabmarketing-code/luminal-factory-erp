@@ -1,33 +1,5 @@
-import { AuthFlowError, requireSystemOwner } from '@/services/server/auth';
-import { getAdminAccountManagementData } from '@/services/server/adminAccountManagement';
-import AdminAccountsClient from './AdminAccountsClient';
+import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const fetchCache = 'force-no-store';
-
-function AccountAccessDenied() {
-  return (
-    <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
-      <section className="mx-auto max-w-3xl rounded-lg border border-slate-800 bg-slate-900 p-6">
-        <h1 className="text-base font-bold text-red-300">Không có quyền truy cập</h1>
-        <p className="mt-2 text-xs text-slate-400">
-          Bạn cần quyền truy cập Trang quản trị để mở trang này.
-        </p>
-      </section>
-    </main>
-  );
-}
-
-export default async function AdminAccountsPage() {
-  try {
-    const accountData = await getAdminAccountManagementData();
-
-    const canReview = process.env.COMPETENCY_REVIEWS_ENABLED === 'true' &&
-      await requireSystemOwner().then(() => true, () => false);
-    return <AdminAccountsClient initialData={accountData} showReviews={canReview} />;
-  } catch (error) {
-    if (error instanceof AuthFlowError && error.status === 403) return <AccountAccessDenied />;
-    return <AdminAccountsClient initialData={null} initialError="account_list_load_failed" />;
-  }
+export default function AdminAccountsPage() {
+  redirect('/admin/employees?tab=permissions');
 }

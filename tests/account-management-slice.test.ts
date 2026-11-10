@@ -21,8 +21,10 @@ describe("account and permission management slice", () => {
     const service = source("services/server/adminAccountManagement.ts");
 
     expect(page).not.toMatch(/['"]use client['"]/);
-    expect(page).toMatch(/getAdminAccountManagementData/);
-    expect(client).toMatch(/Tài khoản & quyền truy cập/);
+    expect(page).toContain("redirect('/admin/employees?tab=permissions')");
+    const route = source("app/api/admin/accounts/route.ts");
+    expect(route).toMatch(/getAdminAccountManagementData/);
+    expect(client).toContain('title="Phân quyền"');
     expect(client).not.toMatch(
       /from\(['"]employee_permissions['"]\)|from\(['"]employee_workspace_access['"]\)|utils\/supabase\/admin|SUPABASE_SECRET_KEY/,
     );

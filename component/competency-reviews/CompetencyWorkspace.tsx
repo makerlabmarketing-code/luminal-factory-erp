@@ -1,11 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { ClipboardCheck } from 'lucide-react';
+import { AdminPageHeader } from '@/component/AdminUI';
+import { PeopleListToolbar, PeopleSearch, peopleFilterClassName } from '@/component/admin/PeopleListToolbar';
+import { CommonTable } from '@/component/data-table/CommonTable';
+import type { AdminListErrorCode } from '@/hooks/useAdminListData';
 import { businessMonthFromInstant, formatBusinessMonthInput } from '@/lib/business-date';
 import { COMPETENCY_RUBRIC, COMPETENCY_WORK_GROUPS, emptyCompetencyScores, type CompetencyScores, type PublishedCompetencyReview } from '@/lib/competency-reviews';
 import { ReviewDetails, ReviewRubric } from './ReviewDetails';
 
-type Employee = { id: number; full_name: string };
+type Employee = { id: string; full_name: string };
+const emptyEmployees: Employee[] = [];
 type SavedReview = { content: CompetencyScores; revision: number };
 type ReviewData = { draft?: SavedReview | null; self: SavedReview | null; published: PublishedCompetencyReview[] };
 const inputStyle = 'block w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-100';
@@ -43,11 +49,18 @@ function EmployeeReviewDialog({ title, expanded, onClose, children }: {
   );
 }
 
-export default function CompetencyWorkspace({ admin, initialEmployeeId = '' }: { admin: boolean; initialEmployeeId?: string }) {
+export default function CompetencyWorkspace({
+  admin, initialEmployeeId = '', reviewEmployees, rosterError, onRetryRoster,
+}: {
+  admin: boolean;
+  initialEmployeeId?: string;
+  reviewEmployees?: Employee[];
+  rosterError?: AdminListErrorCode | null;
+  onRetryRoster?: () => Promise<void>;
+}) {
   const endpoint = `/api/${admin ? 'admin' : 'staff'}/competency-reviews`;
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const employees = reviewEmployees ?? emptyEmployees;
   const [employeeId, setEmployeeId] = useState(initialEmployeeId);
-  const [employeesLoaded, setEmployeesLoaded] = useState(false);
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(false);
   const [month, setMonth] = useState(() => formatBusinessMonthInput(businessMonthFromInstant(new Date())));
@@ -66,24 +79,10 @@ export default function CompetencyWorkspace({ admin, initialEmployeeId = '' }: {
   const publicationsInMonth = current?.published.filter(item => item.month === month + '-01') ?? [];
   const existing = publicationsInMonth.length > 0;
   const sent = admin && publicationsInMonth.some(item => item.revision === saved?.revision);
-  const recipient = employees.find(item => String(item.id) === employeeId);
+  const recipient = employees.find(item => item.id === employeeId);
   const hasRecipient = Boolean(recipient);
   const searchKey = search.trim().toLocaleLowerCase('vi-VN');
   const filteredEmployees = employees.filter(employee => employee.full_name.toLocaleLowerCase('vi-VN').includes(searchKey));
-
-  useEffect(() => {
-    if (!admin) return;
-    const controller = new AbortController();
-    fetch(endpoint, { signal: controller.signal, cache: 'no-store' })
-      .then(readResponse<{ employees: Employee[] }>)
-      .then(value => {
-        if (controller.signal.aborted) return;
-        setEmployees(value.employees);
-        setEmployeesLoaded(true);
-      })
-      .catch(error => { if (!controller.signal.aborted) setFailure(error.message); });
-    return () => controller.abort();
-  }, [admin, endpoint, reload]);
 
   useEffect(() => {
     if ((admin && !hasRecipient) || !month) return;
@@ -244,31 +243,63 @@ export default function CompetencyWorkspace({ admin, initialEmployeeId = '' }: {
 
   if (admin) {
     return (
-      <main className="space-y-4 py-5 text-slate-100">
-        <h1 className="text-xl font-bold">Đánh giá năng lực</h1>
-        <div className="flex flex-wrap items-end gap-3">
-          {monthPicker}
-          <label className="block min-w-48 text-sm">Tìm nhân viên
-            <input type="search" className={inputStyle} value={search} onChange={event => setSearch(event.target.value)} />
-          </label>
-        </div>
-        {!recipient && feedback}
-        {employeesLoaded && employeeId && !recipient && <p className="text-sm text-slate-400">Tài khoản này không có trong danh sách đánh giá.</p>}
-        {!employeesLoaded && !failure && <p role="status">Đang tải danh sách nhân viên…</p>}
-        {employeesLoaded && filteredEmployees.length === 0 && <p className="text-sm text-slate-400">Không tìm thấy nhân viên.</p>}
-        {filteredEmployees.length > 0 && (
-          <ul className="divide-y divide-slate-800 rounded-xl border border-slate-700">
-            {filteredEmployees.map(employee => (
-              <li key={employee.id}>
-                <button type="button" disabled={!month || busy} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-800"
-                  onClick={() => { changeSelection(); setEmployeeId(String(employee.id)); }}>
-                  <span className="font-semibold">{employee.full_name}</span>
-                  <span className="text-xs text-blue-300">Xem đánh giá</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="space-y-6">
+        <AdminPageHeader
+          title="Đánh giá năng lực"
+          description="Xem bản tự đánh giá, chấm điểm và gửi kết quả cho nhân viên."
+          icon={ClipboardCheck}
+        />
+        <section className="admin-table-shell">
+          <PeopleListToolbar title="Danh sách nhân viên" count={reviewEmployees ? filteredEmployees.length : undefined}>
+            <input className={peopleFilterClassName} type="month" aria-label="Kỳ đánh giá" title="Kỳ đánh giá"
+              min="2000-01" max="2099-12" value={month} disabled={busy}
+              onChange={event => { changeSelection(); setMonth(event.target.value); }} />
+            <PeopleSearch placeholder="Tìm tên nhân viên..." value={search} onChange={setSearch} />
+          </PeopleListToolbar>
+          {reviewEmployees && employeeId && !recipient && (
+            <p role="status" className="border-b border-slate-800 px-5 py-3 text-xs text-slate-400">Tài khoản này không có trong danh sách đánh giá.</p>
+          )}
+          <CommonTable className="w-full text-left text-xs text-slate-300">
+            <thead className="border-b border-slate-800 bg-slate-950 text-[10px] uppercase text-slate-400">
+              <tr>
+                <th scope="col" className="p-4">Nhân sự</th>
+                <th scope="col" className="p-4 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {filteredEmployees.map(employee => (
+                <tr key={employee.id} className="hover:bg-slate-950/30">
+                  <th scope="row" className="p-4 text-left font-bold text-slate-100">{employee.full_name}</th>
+                  <td className="p-4 text-right">
+                    <button type="button" disabled={!month || busy} className="admin-button-secondary"
+                      aria-label={`Xem đánh giá của ${employee.full_name}`}
+                      onClick={() => { changeSelection(); setEmployeeId(employee.id); }}>
+                      Xem đánh giá
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {!filteredEmployees.length && (
+                <tr>
+                  <td colSpan={2} className="p-6 text-center text-slate-400">
+                    {rosterError ? (
+                      <div role="alert">
+                        <p>{rosterError === 'forbidden' ? 'Bạn không có quyền xem danh sách nhân sự.' : 'Không thể tải danh sách nhân viên.'}</p>
+                        {rosterError !== 'forbidden' && onRetryRoster && (
+                          <button type="button" onClick={() => void onRetryRoster()} className="admin-button-secondary mt-3">Thử lại</button>
+                        )}
+                      </div>
+                    ) : reviewEmployees ? (
+                      searchKey ? 'Không tìm thấy nhân viên phù hợp.' : 'Chưa có nhân viên đủ điều kiện đánh giá.'
+                    ) : (
+                      <span role="status">Đang tải danh sách nhân viên…</span>
+                    )}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </CommonTable>
+        </section>
         {recipient && (
           <EmployeeReviewDialog title={recipient.full_name + ' · ' + month} expanded={editing} onClose={closeEmployee}>
             {feedback}
@@ -317,7 +348,7 @@ export default function CompetencyWorkspace({ admin, initialEmployeeId = '' }: {
             )}
           </EmployeeReviewDialog>
         )}
-      </main>
+      </div>
     );
   }
 

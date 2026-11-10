@@ -35,6 +35,7 @@ export interface EmployeeListItem {
   email: string | null;
   phone: string | null;
   employmentStatus: string | null;
+  reviewEligible: boolean;
   facilityName: string | null;
   facilityId: string | null;
   facilityCode: string | null;
@@ -299,7 +300,7 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
     await Promise.all([
       supabase
         .from('employees')
-        .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code')
+        .select('id, full_name, title, email, phone, status, is_active, auth_user_id, branch_code, role')
         .order('id', { ascending: false }),
       loadFacilityDirectory(supabase).then(
         ({ facilities }) => ({ facilities, failed: false as const }),
@@ -351,6 +352,7 @@ export async function getAdminEmployeeListData(): Promise<AdminEmployeeListData>
         email: employee.email || null,
         phone: employee.phone || null,
         employmentStatus: employee.status || null,
+        reviewEligible: employee.role === 'STAFF' && employee.status === 'ACTIVE' && employee.is_active === true,
         facilityName: facility.facilityName,
         facilityId: facility.facilityId,
         facilityCode: facility.facilityCode,
