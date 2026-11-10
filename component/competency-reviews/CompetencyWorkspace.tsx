@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ClipboardCheck } from 'lucide-react';
+import { ClipboardCheck, X } from 'lucide-react';
 import { AdminPageHeader } from '@/component/AdminUI';
 import { PeopleListToolbar, PeopleSearch, peopleFilterClassName } from '@/component/admin/PeopleListToolbar';
 import { CommonTable } from '@/component/data-table/CommonTable';
@@ -14,6 +14,7 @@ type Employee = { id: string; full_name: string };
 const emptyEmployees: Employee[] = [];
 type SavedReview = { content: CompetencyScores; revision: number };
 type ReviewData = { draft?: SavedReview | null; self: SavedReview | null; published: PublishedCompetencyReview[] };
+const managerFormId = 'employee-manager-review';
 const inputStyle = 'block w-full min-w-0 rounded border border-slate-700 bg-slate-950 p-2 text-slate-100';
 
 async function readResponse<T>(result: Response): Promise<T> {
@@ -22,14 +23,22 @@ async function readResponse<T>(result: Response): Promise<T> {
   return value as T;
 }
 
-function EmployeeReviewDialog({ title, expanded, onClose, children }: {
-  title: string; expanded: boolean; onClose: () => void; children: ReactNode;
+function EmployeeReviewPanel({ employeeName, month, expanded, onClose, children, feedback, actions }: {
+  employeeName: string;
+  month: string;
+  expanded: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  feedback: ReactNode;
+  actions: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const element = dialog.current;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     element?.showModal();
+    closeButton.current?.focus();
     return () => {
       element?.close();
       if (previousFocus?.isConnected) previousFocus.focus();
@@ -37,14 +46,33 @@ function EmployeeReviewDialog({ title, expanded, onClose, children }: {
   }, []);
 
   return (
-    <dialog ref={dialog} aria-labelledby="employee-review-title"
+    <dialog
+      ref={dialog}
+      aria-labelledby="employee-review-title"
+      aria-describedby="employee-review-period"
       onCancel={event => { event.preventDefault(); onClose(); }}
-      className={`admin-dialog fixed inset-0 m-auto text-slate-100 backdrop:bg-slate-950/80 ${expanded ? 'max-w-6xl' : 'max-w-xl'}`}>
-      <header className="mb-4 flex items-start justify-between gap-3">
-        <h2 id="employee-review-title" className="text-lg font-bold">{title}</h2>
-        <button type="button" onClick={onClose} className="admin-button-secondary">Đóng</button>
-      </header>
-      {children}
+      className={`employee-review-panel fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden border-slate-700 bg-slate-900 p-0 text-slate-100 shadow-2xl backdrop:bg-slate-950/60 sm:border-l ${expanded ? 'sm:max-w-5xl' : 'sm:max-w-xl'}`}
+    >
+      <div className="flex h-full min-h-0 flex-col">
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-800 px-4 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-blue-300">Đánh giá năng lực</p>
+            <h2 id="employee-review-title" className="mt-1 break-words text-lg font-bold">{employeeName}</h2>
+            <p id="employee-review-period" className="mt-1 text-xs text-slate-400">Kỳ đánh giá {month}</p>
+          </div>
+          <button ref={closeButton} type="button" aria-label="Đóng panel" onClick={onClose} className="admin-icon-button shrink-0">
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">{children}</div>
+        <footer className="shrink-0 space-y-2 border-t border-slate-800 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+          {feedback}
+          <div className="flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={onClose} className="admin-button-secondary">Đóng</button>
+            {actions}
+          </div>
+        </footer>
+      </div>
     </dialog>
   );
 }
@@ -72,6 +100,7 @@ export default function CompetencyWorkspace({
   const [notice, setNotice] = useState('');
   const [failure, setFailure] = useState('');
   const [reload, setReload] = useState(0);
+  const editorTitle = useRef<HTMLHeadingElement>(null);
   const key = `${employeeId}/${month}`;
   const current = data?.key === key ? data.review : undefined;
   const saved = admin ? current?.draft : current?.self;
@@ -100,6 +129,10 @@ export default function CompetencyWorkspace({
       .catch(error => { if (!controller.signal.aborted) setFailure(error.message); });
     return () => controller.abort();
   }, [admin, employeeId, endpoint, hasRecipient, key, month, reload]);
+
+  useEffect(() => {
+    if (admin && editing) editorTitle.current?.focus();
+  }, [admin, editing, preview]);
 
   async function mutate(action: 'save' | 'publish' | 'view', id?: string) {
     if (!current || busy) return;
@@ -144,7 +177,7 @@ export default function CompetencyWorkspace({
   }
 
   function closeEmployee() {
-    if (busy || (current && dirty && !window.confirm('Bỏ các thay đổi chưa lưu?'))) return;
+    if (busy || (current && (dirty || (preview && correction.trim())) && !window.confirm('Bỏ các thay đổi chưa lưu?'))) return;
     changeSelection();
     setEmployeeId('');
   }
@@ -166,8 +199,8 @@ export default function CompetencyWorkspace({
     </>
   );
   const reviewForm = (
-    <form onSubmit={submit} className={admin ? 'space-y-3 rounded-xl border border-slate-700 p-4' : 'space-y-3'}>
-      {admin && <h2 className="font-semibold">Bản làm việc của quản lý</h2>}
+    <form id={admin ? managerFormId : undefined} onSubmit={submit} className={admin ? 'space-y-3 rounded-xl border border-slate-700 p-4' : 'space-y-3'}>
+      {admin && <h3 ref={editorTitle} tabIndex={-1} className="font-semibold">Bản làm việc của quản lý</h3>}
       <fieldset disabled={busy || preview} className="space-y-3">
         <legend className="text-sm">Nhóm việc đã thực hiện</legend>
         <div className="flex flex-wrap gap-3 text-sm">
@@ -216,7 +249,7 @@ export default function CompetencyWorkspace({
             }} />
           </label>
         ))}
-        <button type="submit" disabled={!dirty} className="admin-button-secondary">{admin ? 'Lưu nháp' : 'Lưu tự đánh giá'}</button>
+        {!admin && <button type="submit" disabled={!dirty} className="admin-button-secondary">Lưu tự đánh giá</button>}
       </fieldset>
     </form>
   );
@@ -266,11 +299,11 @@ export default function CompetencyWorkspace({
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {filteredEmployees.map(employee => (
-                <tr key={employee.id} className="hover:bg-slate-950/30">
+                <tr key={employee.id} className={employee.id === employeeId ? 'bg-slate-800/50' : 'hover:bg-slate-950/30'}>
                   <th scope="row" className="p-4 text-left font-bold text-slate-100">{employee.full_name}</th>
                   <td className="p-4 text-right">
                     <button type="button" disabled={!month || busy} className="admin-button-secondary"
-                      aria-label={`Xem đánh giá của ${employee.full_name}`}
+                      aria-label={`Xem đánh giá của ${employee.full_name}`} aria-haspopup="dialog"
                       onClick={() => { changeSelection(); setEmployeeId(employee.id); }}>
                       Xem đánh giá
                     </button>
@@ -299,18 +332,48 @@ export default function CompetencyWorkspace({
           </CommonTable>
         </section>
         {recipient && (
-          <EmployeeReviewDialog title={recipient.full_name + ' · ' + month} expanded={editing} onClose={closeEmployee}>
-            {feedback}
+          <EmployeeReviewPanel
+            employeeName={recipient.full_name}
+            month={month}
+            expanded={editing}
+            onClose={closeEmployee}
+            feedback={feedback}
+            actions={current && (
+              <>
+                {preview ? (
+                  <>
+                    <button type="button" disabled={busy} className="admin-button-secondary" onClick={() => setPreview(false)}>Quay lại nháp</button>
+                    {saved && !sent && !dirty && (
+                      <button type="button" disabled={busy || (existing && correction.trim().length < 3) || saved.content.evidence.some(note => !note.trim())}
+                        className="admin-button-primary" onClick={() => void mutate('publish')}>Xác nhận gửi kết quả</button>
+                    )}
+                  </>
+                ) : editing ? (
+                  <>
+                    <button type="submit" form={managerFormId} disabled={busy || !dirty} className="admin-button-primary">Lưu nháp</button>
+                    {saved && !sent && !dirty && (
+                      <button type="button" disabled={busy} className="admin-button-secondary" onClick={() => setPreview(true)}>Xem trước kết quả</button>
+                    )}
+                  </>
+                ) : (
+                  <button type="button" disabled={busy} className="admin-button-primary" onClick={() => setEditing(true)}>
+                    {saved ? 'Đánh giá tiếp' : 'Đánh giá'}
+                  </button>
+                )}
+              </>
+            )}
+          >
             {!current && !failure && <p role="status">Đang tải đánh giá…</p>}
             {current && (
               <div className={editing ? 'grid gap-4 lg:grid-cols-2' : 'space-y-4'}>
                 <section className="min-w-0 space-y-3 rounded-xl border border-slate-700 p-4 lg:self-start">
                   <h3 className="font-semibold">Nhân viên tự đánh giá</h3>
                   {current.self ? <ReviewDetails content={current.self.content} /> : <p className="text-sm text-slate-400">Nhân viên chưa lưu tự đánh giá cho kỳ này.</p>}
-                  <button type="button" className="admin-button-secondary" aria-expanded={editing} disabled={busy}
-                    onClick={() => { setEditing(!editing); setPreview(false); }}>
-                    {editing ? 'Thu gọn phần chấm' : saved ? 'Đánh giá tiếp' : 'Đánh giá'}
-                  </button>
+                  {editing && !preview && (
+                    <button type="button" className="admin-button-secondary" disabled={busy} onClick={() => setEditing(false)}>
+                      Thu gọn phần chấm
+                    </button>
+                  )}
                   {current.published.length > 0 && (
                     <details className="space-y-3 border-t border-slate-800 pt-3">
                       <summary className="cursor-pointer text-sm font-semibold">Lịch sử kết quả đã gửi</summary>
@@ -322,29 +385,21 @@ export default function CompetencyWorkspace({
                   <div className="min-w-0 space-y-3">
                     {!preview && reviewForm}
                     {sent && !dirty && <p className="text-sm text-emerald-300">Phiên bản này đã gửi.</p>}
-                    {saved && !sent && !dirty && !preview && (
-                      <button type="button" disabled={busy} className="admin-button-secondary" onClick={() => setPreview(true)}>Xem trước kết quả</button>
-                    )}
                     {preview && saved && !sent && !dirty && (
                       <section className="space-y-3 rounded-xl border border-blue-700 p-4">
-                        <h2 className="font-semibold">Xem trước · gửi cho {recipient?.full_name} · {month}</h2>
+                        <h3 ref={editorTitle} tabIndex={-1} className="font-semibold">Xem trước kết quả gửi cho {recipient.full_name}</h3>
                         <ReviewDetails content={saved.content} />
                         {existing && <label className="block text-sm">Lý do gửi bản hiệu chỉnh
                           <textarea className={inputStyle} maxLength={2000} value={correction} onChange={event => setCorrection(event.target.value)} />
                         </label>}
                         {saved.content.evidence.some(note => !note.trim()) && <p className="text-amber-300">Bổ sung bằng chứng hoặc lý do cho cả bốn tiêu chí trước khi gửi.</p>}
-                        <div className="flex flex-wrap gap-2">
-                          <button type="button" disabled={busy || (existing && correction.trim().length < 3) || saved.content.evidence.some(note => !note.trim())}
-                            className="admin-button-secondary" onClick={() => void mutate('publish')}>Xác nhận gửi kết quả</button>
-                          <button type="button" disabled={busy} className="admin-button-secondary" onClick={() => setPreview(false)}>Quay lại nháp</button>
-                        </div>
                       </section>
                     )}
                   </div>
                 )}
               </div>
             )}
-          </EmployeeReviewDialog>
+          </EmployeeReviewPanel>
         )}
       </div>
     );
