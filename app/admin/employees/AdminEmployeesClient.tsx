@@ -130,7 +130,7 @@ const emptyEmployeeData: AdminEmployeeListData = {
   capabilities: { canViewEmployees: false, canEditEmployees: false, canManageAccounts: false },
 };
 
-export default function AdminEmployeesClient({ initialData, initialError }: { initialData: AdminEmployeeListData | null; initialError?: 'forbidden' | 'employee_list_load_failed' }) {
+export default function AdminEmployeesClient({ initialData, initialError, showReviews }: { initialData: AdminEmployeeListData | null; showReviews?: boolean; initialError?: 'forbidden' | 'employee_list_load_failed' }) {
   const { showToast, showConfirm } = useNotification();
   const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
   const employeeRequest = async (signal: AbortSignal) => {
@@ -316,7 +316,7 @@ export default function AdminEmployeesClient({ initialData, initialError }: { in
   return (
     <AdminPage>
       <div className="space-y-6">
-        <EmployeeAdminTabs active="employees" />
+        <EmployeeAdminTabs active="employees" showReviews={showReviews} />
         <div className="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="flex items-center gap-2 text-base font-bold">

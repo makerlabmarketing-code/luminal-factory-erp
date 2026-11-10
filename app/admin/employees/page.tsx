@@ -1,4 +1,3 @@
-import Link from 'next/link';
 // app/admin/employees/page.tsx
 import { getAdminEmployeeListData } from '@/services/server/adminEmployeeData';
 import AdminEmployeesClient from './AdminEmployeesClient';
@@ -13,12 +12,7 @@ export default async function AdminEmployeesPage() {
     const employeeListData = await getAdminEmployeeListData();
     const canReview = process.env.COMPETENCY_REVIEWS_ENABLED === 'true' &&
       await requireSystemOwner().then(() => true, () => false);
-    return (
-      <>
-        {canReview && <div className="px-4 pt-3"><Link className="admin-button-secondary" href="/admin/competency-reviews">Đánh giá năng lực</Link></div>}
-        <AdminEmployeesClient initialData={employeeListData} />
-      </>
-    );
+    return <AdminEmployeesClient initialData={employeeListData} showReviews={canReview} />;
   } catch (error) {
     return (
       <AdminEmployeesClient

@@ -18,6 +18,10 @@ function mutationError(code: string) {
   return failed(null);
 }
 
+function activeReviewStaff(db: ReturnType<typeof createSupabaseAdminClient>) {
+  return db.from('employees').select('id, full_name').eq('role', 'STAFF').eq('status', 'ACTIVE').eq('is_active', true);
+}
+
 async function authorize(admin: boolean) {
   if (admin) return requireSystemOwner();
   return requireWorkspaceAccess('STAFF_WORKSPACE');
@@ -32,10 +36,16 @@ export async function readCompetencyReviews(request: Request, admin: boolean) {
     const employeeId = admin ? Number(params.get('employee')) : Number(auth.employee.id);
     const month = params.get('month');
     if (admin && !params.has('employee')) {
-      const employees = await db.from('employees').select('id, full_name').eq('status', 'ACTIVE').eq('is_active', true).order('full_name');
+      const employees = await activeReviewStaff(db).order('full_name');
       return employees.error ? failed(null) : response({ employees: employees.data ?? [] });
     }
     if (!Number.isSafeInteger(employeeId) || employeeId < 1 || !isReviewMonth(month)) return response({ error: 'Kỳ hoặc nhân sự không hợp lệ.' }, 400);
+
+    if (admin) {
+      const recipient = await activeReviewStaff(db).eq('id', employeeId).maybeSingle();
+      if (recipient.error) return failed(null);
+      if (!recipient.data) return response({ error: 'Nhân viên không có trong danh sách đánh giá.' }, 404);
+    }
 
     const monthDate = month + '-01';
     const [published, self, draft] = await Promise.all([
@@ -68,6 +78,12 @@ export async function writeCompetencyReview(request: Request, admin: boolean) {
     if (!Number.isSafeInteger(employeeId) || employeeId < 1 || !isReviewMonth(body?.month) ||
         !Number.isSafeInteger(body.revision) || body.revision < 0 || body.revision > 2147483646) {
       return response({ error: 'Kỳ hoặc phiên bản đánh giá không hợp lệ.' }, 400);
+    }
+
+    if (admin) {
+      const recipient = await activeReviewStaff(db).eq('id', employeeId).maybeSingle();
+      if (recipient.error) return failed(null);
+      if (!recipient.data) return response({ error: 'Nhân viên không có trong danh sách đánh giá.' }, 404);
     }
 
     const identity = { p_employee: employeeId, p_month: body.month + '-01', p_actor: actorId, p_expected: body.revision };
