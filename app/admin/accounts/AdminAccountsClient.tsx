@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   KeyRound,
   Mail,
-  Search,
   ShieldCheck,
   ShieldOff,
   X,
@@ -29,9 +28,10 @@ import {
   type PermissionCode,
   type PermissionEditorState,
 } from "@/lib/account-permissions";
-import { AdminListRequestError, useAdminListData } from '@/hooks/useAdminListData';
-import { AdminPage } from '@/component/AdminUI';
-import { EmployeeAdminTabs } from '@/component/admin/EmployeeAdminTabs';
+import type { EmployeeListItem } from '@/services/server/adminEmployeeData';
+import type { useAdminListData } from '@/hooks/useAdminListData';
+import { AdminPageHeader, AdminSkeleton } from '@/component/AdminUI';
+import { PeopleListToolbar, PeopleSearch } from '@/component/admin/PeopleListToolbar';
 
 interface ApiActionResponse {
   success?: boolean;
@@ -131,19 +131,15 @@ function permissionStateClass(state: PermissionEditorState) {
   return "border-slate-700 bg-slate-950 text-slate-400";
 }
 
-export default function AdminAccountsClient({
-  initialData,
-  initialError,
-  showReviews,
-}: {
-  initialData: AdminAccountManagementData | null;
-  initialError?: 'account_list_load_failed';
-  showReviews?: boolean;
+export default function AdminAccountsClient({ accounts, employees, onAccountChange }: {
+  accounts: ReturnType<typeof useAdminListData<AdminAccountManagementData>>;
+  employees?: EmployeeListItem[];
+  onAccountChange: () => void;
 }) {
   const { showToast, showConfirm } = useNotification();
   const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [requestedPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const activeActionRef = useRef<string | null>(null);
@@ -157,12 +153,9 @@ export default function AdminAccountsClient({
     PermissionEditorState
   > | null>(null);
   const [isPending, startTransition] = useTransition();
-  const accountRequest = async (signal: AbortSignal) => {
-    const response = await fetch('/api/admin/accounts', { credentials: 'include', cache: 'no-store', signal });
-    if (!response.ok) throw new AdminListRequestError(response.status === 403 ? 'forbidden' : 'account_list_load_failed');
-    return (await response.json()) as AdminAccountManagementData;
-  };
-  const { data: accountData, error: listError, isLoading: listLoading, isRefreshing, refresh: refreshAccounts } = useAdminListData({ cacheKey: 'admin:accounts', initialData: initialData || undefined, initialError, request: accountRequest });
+  const {
+    data: accountData, error: listError, isLoading: listLoading, isRefreshing, refresh: refreshAccounts,
+  } = accounts;
   const canEditPermissionDraft = Boolean(accountData?.canManagePermissions && editorAccount && !editorAccount.isSelf && !editorAccount.isSystemOwner);
   const permissionDraftChanged = useMemo(() => Boolean(
     editorAccount && permissionDraft && editorAccount.permissions.some((permission) => permissionDraft[permission.code] !== permission.state)
@@ -175,18 +168,14 @@ export default function AdminAccountsClient({
     return accountData.permissionCodes.some((permissionCode) => permissionDraft[permissionCode] !== (presetPermissions.has(permissionCode) ? "ALLOW" : "NONE"));
   }, [accountData, editorAccount, permissionDraft, selectedPreset]);
 
-  const filteredAccounts = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) return accountData?.accounts || [];
-
-    return (accountData?.accounts || []).filter(
-      (account) =>
-        account.fullName.toLowerCase().includes(query) ||
-        (account.email || "").toLowerCase().includes(query),
-    );
-  }, [accountData?.accounts, searchTerm]);
+  const query = searchTerm.trim().toLowerCase();
+  const matchesSearch = (person: { fullName: string; email: string | null }) =>
+    person.fullName.toLowerCase().includes(query) || (person.email ?? '').toLowerCase().includes(query);
+  const filteredAccounts = accountData?.accounts.filter(matchesSearch) ?? [];
+  const pendingAccounts = listLoading ? employees?.filter(matchesSearch) : undefined;
 
   const totalPages = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
+  const currentPage = Math.min(requestedPage, totalPages);
   const pageAccounts = filteredAccounts.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
@@ -240,6 +229,7 @@ export default function AdminAccountsClient({
         "success",
       );
       refreshPage();
+      onAccountChange();
     } finally {
       activeActionRef.current = null;
       setActiveActionKey(null);
@@ -356,39 +346,35 @@ export default function AdminAccountsClient({
   };
 
   return (
-    <main>
-      <AdminPage>
-        <EmployeeAdminTabs active="permissions" showReviews={showReviews} />
-        {(listError || listLoading) && <section className="rounded-lg border border-slate-800 bg-slate-900 p-6 text-center"><h2 className="font-bold text-amber-300">{listLoading ? 'Đang tải danh sách tài khoản...' : 'Không thể tải danh sách tài khoản'}</h2>{listError && <><p className="mt-2 text-xs text-slate-400">Hệ thống gặp lỗi khi tải dữ liệu tài khoản. Vui lòng thử lại.</p><button type="button" onClick={() => void refreshAccounts()} disabled={isRefreshing} className="mt-3 rounded-lg border border-blue-500/40 px-3 py-2 text-xs font-bold text-blue-300">{isRefreshing ? 'Đang thử lại...' : 'Thử lại'}</button></>}</section>}
-        <header className="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="flex items-center gap-2 text-base font-bold">
-              <ShieldCheck className="h-5 w-5 text-blue-400" />
-              Tài khoản & quyền truy cập
-            </h1>
-            <p className="mt-1 text-xs text-slate-500">
-              Quản trị viên được xem; chỉ Chủ hệ thống được thay đổi quyền.
-            </p>
-          </div>
-          <div className="relative sm:w-80">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-            <input
-              value={searchTerm}
-              onChange={(event) => {
-                setSearchTerm(event.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Tìm tên hoặc email..."
-              className="w-full rounded-lg border border-slate-800 bg-slate-900 py-2.5 pl-9 pr-4 text-xs outline-none"
-            />
-          </div>
-        </header>
+    <>
+      <div className="space-y-6">
+        <AdminPageHeader
+          title="Phân quyền"
+          description="Quản lý tài khoản và quyền truy cập. Chỉ chủ hệ thống có thể thay đổi quyền."
+          icon={ShieldCheck}
+        />
 
         <section className="admin-table-shell">
-          <div className="border-b border-slate-800 bg-slate-950/40 px-5 py-3 text-xs font-bold text-slate-400">
-            Danh sách tài khoản ({filteredAccounts.length}) · Trang{" "}
-            {currentPage}/{totalPages}
-          </div>
+          <PeopleListToolbar title="Danh sách tài khoản" count={accountData ? filteredAccounts.length : pendingAccounts?.length}>
+            <PeopleSearch
+              placeholder="Tìm tên hoặc email..."
+              value={searchTerm}
+              onChange={value => {
+                setSearchTerm(value);
+                setCurrentPage(1);
+              }}
+            />
+          </PeopleListToolbar>
+          {listError && (
+            <div role="alert" className="border-b border-slate-800 p-6 text-center">
+              <p className="text-xs text-amber-300">{listError === 'forbidden' ? 'Bạn không có quyền xem danh sách tài khoản.' : 'Không thể tải danh sách tài khoản.'}</p>
+              {listError !== 'forbidden' && (
+                <button type="button" onClick={() => void refreshAccounts()} disabled={isRefreshing} className="admin-button-secondary mt-3">
+                  Thử lại
+                </button>
+              )}
+            </div>
+          )}
           <div className="overflow-x-auto">
             <CommonTable className="w-full min-w-[920px] text-left text-xs">
               <thead className="border-b border-slate-800 bg-slate-950 text-[10px] uppercase text-slate-400">
@@ -404,7 +390,17 @@ export default function AdminAccountsClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {filteredAccounts.length === 0 ? (
+                {listLoading ? (
+                  <>
+                    {pendingAccounts?.slice(0, pageSize).map(employee => (
+                      <tr key={employee.employeeId}>
+                        <td className="p-4 font-bold text-slate-100">{employee.fullName}</td>
+                        <td colSpan={7} className="p-4"><AdminSkeleton className="h-3 w-32" /></td>
+                      </tr>
+                    ))}
+                    <tr><td colSpan={8} className="p-4 text-center text-slate-400"><span role="status">Đang tải quyền truy cập…</span></td></tr>
+                  </>
+                ) : listError && !accountData ? null : filteredAccounts.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="p-8 text-center text-slate-500">
                       Không tìm thấy tài khoản phù hợp.
@@ -563,7 +559,7 @@ export default function AdminAccountsClient({
               </tbody>
             </CommonTable>
           </div>
-          <div className="flex flex-col gap-3 border-t border-slate-800 bg-slate-950/40 px-5 py-3 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+          {accountData && <div className="flex flex-col gap-3 border-t border-slate-800 bg-slate-950/40 px-5 py-3 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
             <div>
               Hiển thị {pageAccounts.length} / {filteredAccounts.length} tài
               khoản
@@ -582,7 +578,7 @@ export default function AdminAccountsClient({
               <button
                 type="button"
                 disabled={currentPage === 1}
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 className="rounded border border-slate-800 px-3 py-1 font-bold disabled:opacity-40"
               >
                 Trước
@@ -591,16 +587,16 @@ export default function AdminAccountsClient({
                 type="button"
                 disabled={currentPage === totalPages}
                 onClick={() =>
-                  setCurrentPage((page) => Math.min(totalPages, page + 1))
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
                 }
                 className="rounded border border-slate-800 px-3 py-1 font-bold disabled:opacity-40"
               >
                 Sau
               </button>
             </div>
-          </div>
+          </div>}
         </section>
-      </AdminPage>
+      </div>
 
       {(editorLoading || editorAccount) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
@@ -778,6 +774,6 @@ export default function AdminAccountsClient({
           </section>
         </div>
       )}
-    </main>
+    </>
   );
 }

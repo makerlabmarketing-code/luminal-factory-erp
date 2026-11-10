@@ -1,6 +1,4 @@
-import { EmployeeAdminTabs } from '@/component/admin/EmployeeAdminTabs';
-import { notFound } from 'next/navigation';
-import CompetencyWorkspace from '@/component/competency-reviews/CompetencyWorkspace';
+import { notFound, redirect } from 'next/navigation';
 import { AuthFlowError, requireSystemOwner } from '@/services/server/auth';
 
 export default async function AdminCompetencyPage({ searchParams }: { searchParams: Promise<{ employee?: string }> }) {
@@ -12,10 +10,7 @@ export default async function AdminCompetencyPage({ searchParams }: { searchPara
     throw error;
   }
   const { employee } = await searchParams;
-  return (
-    <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6">
-      <EmployeeAdminTabs active="reviews" showReviews />
-      <CompetencyWorkspace admin initialEmployeeId={typeof employee === 'string' && /^[1-9]\d*$/.test(employee) ? employee : ''} />
-    </div>
-  );
+  const query = new URLSearchParams({ tab: 'reviews' });
+  if (typeof employee === 'string' && /^[1-9]\d*$/.test(employee)) query.set('employee', employee);
+  redirect('/admin/employees?' + query);
 }

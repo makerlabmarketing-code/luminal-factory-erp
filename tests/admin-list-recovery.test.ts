@@ -20,7 +20,7 @@ describe('admin list production recovery boundaries', () => {
   });
 
   it('retries each list locally without reloading the application shell', () => {
-    for (const file of ['app/admin/employees/AdminEmployeesClient.tsx', 'app/admin/accounts/AdminAccountsClient.tsx', 'app/admin/facilities/page.tsx']) {
+    for (const file of ['app/admin/employees/PeopleWorkspace.tsx', 'app/admin/facilities/page.tsx']) {
       const source = read(file);
       expect(source).toContain('useAdminListData');
       expect(source).not.toContain('window.location.reload');

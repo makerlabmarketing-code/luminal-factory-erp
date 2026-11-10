@@ -11,7 +11,6 @@ import {
   Edit2,
   KeyRound,
   Mail,
-  Search,
   ShieldOff,
   UserRound,
   UserPlus,
@@ -25,12 +24,12 @@ import type {
   AdminEmployeeListData,
   EmployeeListItem,
 } from '@/services/server/adminEmployeeData';
-import { AdminListRequestError, useAdminListData, type AdminListErrorCode } from '@/hooks/useAdminListData';
+import type { useAdminListData } from '@/hooks/useAdminListData';
 import { accountConnectionExplanations, accountConnectionLabels } from '@/lib/accountConnection';
-import { AdminPage } from '@/component/AdminUI';
+import { AdminPageHeader } from '@/component/AdminUI';
 import type { EmployeeCreateRequest as EmployeeFormState } from '@/lib/employeeCreateContract';
 import type { EmployeeCreateSafeDiagnostic } from '@/lib/employeePersistenceDiagnostics';
-import { EmployeeAdminTabs } from '@/component/admin/EmployeeAdminTabs';
+import { PeopleListToolbar, PeopleSearch, peopleFilterClassName } from '@/component/admin/PeopleListToolbar';
 
 interface ApiActionResponse {
   success?: boolean;
@@ -130,20 +129,19 @@ const emptyEmployeeData: AdminEmployeeListData = {
   capabilities: { canViewEmployees: false, canEditEmployees: false, canManageAccounts: false },
 };
 
-export default function AdminEmployeesClient({ initialData, initialError, showReviews }: { initialData: AdminEmployeeListData | null; showReviews?: boolean; initialError?: 'forbidden' | 'employee_list_load_failed' }) {
+export default function AdminEmployeesClient({ directory, onEmployeeChange }: {
+  directory: ReturnType<typeof useAdminListData<AdminEmployeeListData>>;
+  onEmployeeChange: () => Promise<void>;
+}) {
   const { showToast, showConfirm } = useNotification();
   const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
-  const employeeRequest = async (signal: AbortSignal) => {
-    const response = await fetch('/api/admin/employees', { cache: 'no-store', credentials: 'include', signal });
-    const payload = (await response.json().catch(() => ({}))) as AdminEmployeeListData & { code?: AdminListErrorCode };
-    if (!response.ok) throw new AdminListRequestError(response.status === 403 ? 'forbidden' : 'employee_list_load_failed');
-    return payload;
-  };
-  const { data: loadedEmployeeData, error: loadError, isLoading: listLoading, isRefreshing, refresh: refreshPage } = useAdminListData({ cacheKey: 'admin:employees', initialData: initialData || undefined, initialError, request: employeeRequest });
+  const {
+    data: loadedEmployeeData, error: loadError, isLoading: listLoading, isRefreshing, refresh: refreshPage,
+  } = directory;
   const employeeData = loadedEmployeeData || emptyEmployeeData;
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ACTIVE_EMPLOYEES');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [requestedPage, setCurrentPage] = useState(1);
   const [formState, setFormState] = useState<EmployeeFormState | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [formFieldErrors, setFormFieldErrors] = useState<Record<string, string>>({});
@@ -191,6 +189,7 @@ export default function AdminEmployeesClient({ initialData, initialError, showRe
   }, [employees, searchTerm, statusFilter]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+  const currentPage = Math.min(requestedPage, totalPages);
   const currentData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const runAction = async (employee: EmployeeListItem, actionPath: string, successTitle: string) => {
@@ -216,7 +215,8 @@ export default function AdminEmployeesClient({ initialData, initialError, showRe
       }
 
       showToast(successTitle, result.message || 'Đã thực hiện thao tác.', 'success');
-      refreshPage();
+      void refreshPage();
+      void onEmployeeChange();
     } finally {
       activeActionRef.current = null;
       setActiveActionKey(null);
@@ -279,7 +279,8 @@ export default function AdminEmployeesClient({ initialData, initialError, showRe
 
       setFormState(null);
       showToast('Đã tạo hồ sơ', 'Đã tạo hồ sơ nhân sự.', 'success');
-      refreshPage();
+      void refreshPage();
+      void onEmployeeChange();
     } catch {
       const message = 'Không thể kết nối để lưu hồ sơ nhân sự. Vui lòng thử lại.';
       setFormError(message);
@@ -314,30 +315,19 @@ export default function AdminEmployeesClient({ initialData, initialError, showRe
   };
 
   return (
-    <AdminPage>
+    <>
       <div className="space-y-6">
-        <EmployeeAdminTabs active="employees" showReviews={showReviews} />
-        <div className="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="flex items-center gap-2 text-base font-bold">
-              <Users className="h-5 w-5 text-blue-400" />
-              Hồ sơ nhân sự
-            </h1>
-            <p className="mt-1 text-xs text-slate-500">
-              Danh sách hiển thị theo quyền Employee View.
-            </p>
-          </div>
-          {capabilities.canEditEmployees && (
-            <button
-              type="button"
-              onClick={openCreateForm}
-              className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700"
-            >
+        <AdminPageHeader
+          title="Hồ sơ nhân sự"
+          description="Quản lý thông tin nhân sự, cơ sở làm việc và trạng thái hồ sơ."
+          icon={Users}
+          actions={capabilities.canEditEmployees && (
+            <button type="button" onClick={openCreateForm} className="admin-button-primary">
               <UserPlus className="h-4 w-4" />
               Tạo nhân sự
             </button>
           )}
-        </div>
+        />
 
         <section className="admin-table-shell">
           {loadError && (
@@ -348,39 +338,29 @@ export default function AdminEmployeesClient({ initialData, initialError, showRe
             </div>
           )}
           {employeeData.warnings.length > 0 && !loadError && <p className="border-b border-amber-500/20 bg-amber-500/10 px-5 py-3 text-xs text-amber-200">Một số thông tin cơ sở hoặc tài khoản chưa tải được. Dữ liệu nhân sự chính vẫn được hiển thị.</p>}
-          <div className="flex flex-col gap-3 border-b border-slate-800 bg-slate-950/40 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-bold uppercase text-slate-400">
-              Danh sách nhân sự ({filtered.length})
-            </span>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <select
-                aria-label="Lọc trạng thái nhân sự"
-                className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300 outline-none"
-                value={statusFilter}
-                onChange={(event) => {
-                  setStatusFilter(event.target.value);
-                  setCurrentPage(1);
-                }}
-              >
-                <option value="ACTIVE_EMPLOYEES">Nhân sự đang hoạt động</option>
-                <option value="INACTIVE_EMPLOYEES">Nhân sự ngừng hoạt động</option>
-                <option value="ALL">Tất cả nhân sự</option>
-              </select>
-              <div className="relative sm:w-72">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
-                  placeholder="Tìm tên, email, chức vụ..."
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 py-2 pl-9 pr-4 text-xs text-slate-200 outline-none"
-                  value={searchTerm}
-                  onChange={(event) => {
-                    setSearchTerm(event.target.value);
-                    setCurrentPage(1);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
+          <PeopleListToolbar title="Danh sách nhân sự" count={loadedEmployeeData ? filtered.length : undefined}>
+            <select
+              aria-label="Lọc trạng thái nhân sự"
+              className={peopleFilterClassName}
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="ACTIVE_EMPLOYEES">Nhân sự đang hoạt động</option>
+              <option value="INACTIVE_EMPLOYEES">Nhân sự ngừng hoạt động</option>
+              <option value="ALL">Tất cả nhân sự</option>
+            </select>
+            <PeopleSearch
+              placeholder="Tìm tên, email, chức vụ..."
+              value={searchTerm}
+              onChange={value => {
+                setSearchTerm(value);
+                setCurrentPage(1);
+              }}
+            />
+          </PeopleListToolbar>
 
           <div className="overflow-x-auto">
             <CommonTable className="w-full text-left text-xs text-slate-300">
@@ -516,9 +496,9 @@ export default function AdminEmployeesClient({ initialData, initialError, showRe
               </div>
               <div className="flex items-center gap-1">
                 <button type="button" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="rounded border border-slate-800 bg-slate-900 p-1.5 disabled:opacity-30"><ChevronsLeft className="h-4 w-4" /></button>
-                <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1} className="rounded border border-slate-800 bg-slate-900 p-1.5 disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="rounded border border-slate-800 bg-slate-900 p-1.5 disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
                 <span className="px-2 font-bold text-slate-200">{currentPage} / {totalPages}</span>
-                <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages} className="rounded border border-slate-800 bg-slate-900 p-1.5 disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="rounded border border-slate-800 bg-slate-900 p-1.5 disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
                 <button type="button" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="rounded border border-slate-800 bg-slate-900 p-1.5 disabled:opacity-30"><ChevronsRight className="h-4 w-4" /></button>
               </div>
             </div>
@@ -617,6 +597,6 @@ export default function AdminEmployeesClient({ initialData, initialError, showRe
           </form>
         </div>
       )}
-    </AdminPage>
+    </>
   );
 }

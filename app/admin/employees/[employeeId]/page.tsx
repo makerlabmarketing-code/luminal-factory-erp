@@ -23,7 +23,7 @@ export default async function AdminEmployeeDetailPage(
       await requireSystemOwner().then(() => true, () => false);
     return (
       <>
-        {canReview && <div className="px-4 pt-3"><Link className="admin-button-secondary" href={`/admin/competency-reviews?employee=${encodeURIComponent(params.employeeId)}`}>Đánh giá năng lực</Link></div>}
+        {canReview && <div className="px-4 pt-3"><Link className="admin-button-secondary" href={`/admin/employees?tab=reviews&employee=${encodeURIComponent(params.employeeId)}`}>Đánh giá năng lực</Link></div>}
         <AdminEmployeeDetailClient initialData={employee} />
       </>
     );

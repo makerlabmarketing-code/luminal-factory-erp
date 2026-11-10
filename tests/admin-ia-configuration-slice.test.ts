@@ -26,7 +26,7 @@ describe("administration information architecture correction slice", () => {
       /name: ERP_UI_TEXT\.navigation\.items\.metadata,\s*path: "\/admin\/metadata"/,
     );
     expect(navigation).not.toMatch(/path: "\/admin\/accounts"/);
-    expect(source("component/admin/EmployeeAdminTabs.tsx")).toMatch(/href="\/admin\/accounts"/);
+    expect(source("component/admin/EmployeeAdminTabs.tsx")).toContain("href: '/admin/employees?tab=permissions'");
     expect(navigation).toMatch(/pathname\.startsWith\(`\$\{path\}\/`\)/);
     expect(`${shell}\n${navigation}\n${vocabulary}`).not.toMatch(
       /Danh Sách Cơ Sở & GPS|Quản Lý Danh Mục DB|Gán Việc & Tiến Độ Phase|Sổ Cái Vốn & Chi Tiêu|Lịch Chấm Công Ca/,
@@ -36,7 +36,7 @@ describe("administration information architecture correction slice", () => {
   it("keeps account workspace actions mutually exclusive and adds visible pagination", () => {
     const client = source("app/admin/accounts/AdminAccountsClient.tsx");
 
-    expect(client).toMatch(/Tài khoản & quyền truy cập/);
+    expect(client).toContain('title="Phân quyền"');
     expect(client).toMatch(/Truy cập cổng nhân viên/);
     expect(client).toMatch(/Truy cập trang quản trị/);
     expect(client).toMatch(/const \[pageSize, setPageSize\] = useState\(10\)/);
