@@ -1,5 +1,11 @@
 # Luminal Factory ERP TODO
 
+## E-022 · Đánh giá năng lực · 2026-11-10
+
+- [x] Implement the [review and publication workflow](specs/employee-competency-reviews.md) with Owner-only review, staff self-assessment and immutable publication snapshots.
+- [x] Validate scoring and database authorization, revisions, publication retries and corrections on disposable data.
+- [ ] Approve production SQL and verify the Owner and Staff Portal browser flow after deployment.
+
 ## Staff permission incident · 2026-11-02
 
 - [x] Reproduce Hà access inconsistency under authenticated PostgreSQL role.
