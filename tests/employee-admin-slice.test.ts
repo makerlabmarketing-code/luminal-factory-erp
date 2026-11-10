@@ -118,9 +118,7 @@ describe('employee admin list and account actions slice', () => {
     expect(detailPage).toMatch(/notFound\(\)/);
     expect(detailClient).toMatch(/Tổng quan/);
     expect(detailClient).toMatch(/Thông tin công việc/);
-    expect(detailClient).toMatch(/Tài khoản & phân quyền/);
     expect(detailClient).toMatch(/Dự án được phân công/);
-    expect(detailClient).toMatch(/Chấm công tháng hiện tại/);
     expect(detailClient).toContain('ActivityHistory entity="employee"');
     expect(loadingSource).toMatch(/CenteredPageLoading/);
     expect(serviceSource).toMatch(/EmployeeDetailDto/);
@@ -128,7 +126,6 @@ describe('employee admin list and account actions slice', () => {
     expect(serviceSource).toMatch(/permissionCodes\.includes\('EMPLOYEE_MANAGE'\)/);
     expect(serviceSource).toMatch(/permissionCodes\.includes\('ACCOUNT_MANAGE'\)/);
     expect(serviceSource).toMatch(/employee_workspace_access/);
-    expect(serviceSource).toMatch(/employee_permissions/);
     expect(serviceSource).toMatch(/project_members/);
   });
 

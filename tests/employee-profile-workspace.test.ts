@@ -80,8 +80,8 @@ describe('employee profile workspace contract', () => {
     expect(permissions).toContain('Xem dữ liệu chấm công');
     expect(permissions).toContain('Quản lý tài khoản và quyền truy cập');
     expect(permissions).toContain('PERMISSION_MANAGEMENT_PATH = "/admin/accounts"');
-    expect(detail).toContain('getPermissionPresentation');
-    expect(detail).toContain('Mở trình quản lý tài khoản và quyền');
+    expect(read('app/admin/accounts/AdminAccountsClient.tsx')).toContain('Xem quyền');
+    expect(read('app/admin/accounts/page.tsx')).toContain("redirect('/admin/employees?tab=permissions')");
   });
   it('preserves route and dirty state on error without a full reload', () => {
     expect(detail).toContain('setError(message)');

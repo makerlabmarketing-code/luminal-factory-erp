@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { AuthFlowError, requireSystemOwner } from '@/services/server/auth';
+import { AuthFlowError } from '@/services/server/auth';
 import { getAdminEmployeeDetailData } from '@/services/server/adminEmployeeData';
 import AdminEmployeeDetailClient from './AdminEmployeeDetailClient';
 import EmployeeDetailErrorState from './EmployeeDetailErrorState';
@@ -18,15 +17,7 @@ export default async function AdminEmployeeDetailPage(
   try {
     const employee = await getAdminEmployeeDetailData(params.employeeId);
 
-    const canReview = employee.assignedRole === 'STAFF' && employee.employmentStatus === 'ACTIVE' &&
-      process.env.COMPETENCY_REVIEWS_ENABLED === 'true' &&
-      await requireSystemOwner().then(() => true, () => false);
-    return (
-      <>
-        {canReview && <div className="px-4 pt-3"><Link className="admin-button-secondary" href={`/admin/employees?tab=reviews&employee=${encodeURIComponent(params.employeeId)}`}>Đánh giá năng lực</Link></div>}
-        <AdminEmployeeDetailClient initialData={employee} />
-      </>
-    );
+    return <AdminEmployeeDetailClient initialData={employee} />;
   } catch (error) {
     if (error instanceof AuthFlowError) {
       if (error.status === 404) notFound();
