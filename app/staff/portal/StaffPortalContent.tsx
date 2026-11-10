@@ -19,6 +19,7 @@ interface StaffPortalContentProps {
   workerData: Employee;
   assignedBranchData: Facility | null;
   bankOptions: SystemMetadataOption[];
+  showCompetencyReviews: boolean;
   capabilities?: {
     canAccessAdmin: boolean;
     canAccessStaff: boolean;
@@ -29,6 +30,7 @@ export default function StaffPortalContent({
   workerData,
   assignedBranchData,
   bankOptions,
+  showCompetencyReviews,
   capabilities,
 }: StaffPortalContentProps) {
   const [worker] = useState<Employee | null>(workerData);
@@ -123,7 +125,14 @@ export default function StaffPortalContent({
       </div>
 
       <div className={tabClasses.profile}>
-        {visitedTabs.profile && <StaffProfileContent workerData={worker} assignedBranchData={assignedBranch} bankOptions={bankOptions} />}
+        {visitedTabs.profile && (
+          <StaffProfileContent
+            workerData={worker}
+            assignedBranchData={assignedBranch}
+            bankOptions={bankOptions}
+            showCompetencyReviews={showCompetencyReviews}
+          />
+        )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-2 pt-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] z-50 flex justify-around items-center shadow-2xl text-[10px] font-bold">

@@ -59,16 +59,16 @@ const presetLabels: Record<AdminAccountListItem["presetCode"], string> = {
   NONE: "Chưa cấp",
 };
 
-function workspaceBadge(active: boolean, label: string) {
+function workspaceBadge(active: boolean) {
   return (
     <span
-      className={`rounded border px-2 py-1 text-[10px] font-bold ${
+      className={`inline-flex whitespace-nowrap rounded-md border px-2 py-1 text-[10px] font-bold ${
         active
           ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
           : "border-slate-700 bg-slate-950 text-slate-500"
       }`}
     >
-      {label}
+      {active ? 'Đã cấp' : 'Chưa cấp'}
     </span>
   );
 }
@@ -376,17 +376,17 @@ export default function AdminAccountsClient({ accounts, employees, onAccountChan
             </div>
           )}
           <div className="overflow-x-auto">
-            <CommonTable className="w-full min-w-[920px] text-left text-xs">
+            <CommonTable className="w-full min-w-[800px] text-left text-xs">
               <thead className="border-b border-slate-800 bg-slate-950 text-[10px] uppercase text-slate-400">
                 <tr>
-                  <th className="p-4">Nhân sự</th>
-                  <th className="p-4">Trạng thái tài khoản</th>
-                  <th className="p-4">Cổng nhân viên</th>
-                  <th className="p-4">Trang quản trị</th>
-                  <th className="p-4">Preset</th>
-                  <th className="p-4">Số quyền hiệu lực</th>
-                  <th className="p-4">Trạng thái truy cập</th>
-                  <th className="p-4 text-right">Thao tác</th>
+                  <th scope="col" className="p-4">Nhân sự</th>
+                  <th scope="col" className="whitespace-nowrap p-4">Tài khoản</th>
+                  <th scope="col" className="whitespace-nowrap p-4">Cổng nhân viên</th>
+                  <th scope="col" className="whitespace-nowrap p-4">Trang quản trị</th>
+                  <th scope="col" className="whitespace-nowrap p-4">Mẫu quyền</th>
+                  <th scope="col" className="whitespace-nowrap p-4">Số quyền</th>
+                  <th scope="col" className="whitespace-nowrap p-4">Truy cập</th>
+                  <th scope="col" className="w-36 p-4">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
@@ -421,7 +421,7 @@ export default function AdminAccountsClient({ accounts, employees, onAccountChan
                           >
                             {account.fullName}
                           </Link>
-                          <p className="mt-1 font-mono text-[10px] text-slate-500">
+                          <p className="mt-1 font-mono text-[10px] text-slate-500 [overflow-wrap:anywhere]">
                             {account.email || "Chưa có email"}
                           </p>
                         </td>
@@ -429,16 +429,10 @@ export default function AdminAccountsClient({ accounts, employees, onAccountChan
                           {accountStatusLabels[account.accountConnectionStatus]}
                         </td>
                         <td className="p-4">
-                          {workspaceBadge(
-                            account.hasStaffWorkspace,
-                            "Truy cập cổng nhân viên",
-                          )}
+                          {workspaceBadge(account.hasStaffWorkspace)}
                         </td>
                         <td className="p-4">
-                          {workspaceBadge(
-                            account.hasAdminWorkspace,
-                            "Truy cập trang quản trị",
-                          )}
+                          {workspaceBadge(account.hasAdminWorkspace)}
                         </td>
                         <td className="p-4 text-slate-300">
                           {account.isSystemOwner ? "Chủ hệ thống" : presetLabels[account.presetCode]}
@@ -453,7 +447,7 @@ export default function AdminAccountsClient({ accounts, employees, onAccountChan
                               ? "Đã thu hồi"
                               : "Chưa cấp truy cập"}
                         </td>
-                        <td className="p-4 text-right"><TableRowActions renderActions={function renderRowActions() { return <>
+                        <td className="p-4"><TableRowActions inlineLimit={1} renderActions={function renderRowActions() { return <>
                                   <button
                                     type="button"
                                     disabled={
@@ -462,10 +456,10 @@ export default function AdminAccountsClient({ accounts, employees, onAccountChan
                                     onClick={() =>
                                       openPermissionEditor(account)
                                     }
-                                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-300 hover:bg-slate-900 disabled:opacity-50"
+                                    className="mr-auto inline-flex shrink-0 items-center gap-1.5 rounded-md py-2 pr-2 text-left text-[11px] font-bold text-slate-300 hover:text-blue-300 disabled:opacity-50"
                                   >
-                                    <Edit3 className="h-3.5 w-3.5" />
-                                    Xem chi tiết quyền
+                                    <Edit3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                    Xem quyền
                                   </button>
                                   {accountData?.canManagePermissions && accountAction && (
                                     <button

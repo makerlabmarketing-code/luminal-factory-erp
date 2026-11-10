@@ -37,8 +37,9 @@ describe("administration information architecture correction slice", () => {
     const client = source("app/admin/accounts/AdminAccountsClient.tsx");
 
     expect(client).toContain('title="Phân quyền"');
-    expect(client).toMatch(/Truy cập cổng nhân viên/);
-    expect(client).toMatch(/Truy cập trang quản trị/);
+    expect(client).toContain('workspaceBadge(account.hasStaffWorkspace)');
+    expect(client).toContain('workspaceBadge(account.hasAdminWorkspace)');
+    expect(client).toContain('inlineLimit={1}');
     expect(client).toMatch(/const \[pageSize, setPageSize\] = useState\(10\)/);
     expect(client).toMatch(/<option value=\{10\}>10<\/option>/);
     expect(client).toMatch(/<option value=\{20\}>20<\/option>/);

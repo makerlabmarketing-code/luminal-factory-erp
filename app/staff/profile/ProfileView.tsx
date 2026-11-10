@@ -1,25 +1,34 @@
 'use client';
 
 import { SectionLoadingState } from '@/component/LuminalLoader';
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
-import { Briefcase, ShieldCheck } from 'lucide-react';
+import { Briefcase, ChevronDown, ClipboardCheck, ShieldCheck } from 'lucide-react';
 import type { Facility } from '@/lib/types/facility';
 import type { Employee } from '@/lib/types/employee';
 import type { SystemMetadataOption } from '@/lib/system-metadata-defaults';
 import { getShiftWageByTitle, updateStaffProfile } from '@/services/staffProfileService';
 import StaffLogoutButton from './StaffLogoutButton';
 
+const CompetencyWorkspace = dynamic(() => import('@/component/competency-reviews/CompetencyWorkspace'), {
+  loading: () => <p role="status" className="text-sm text-slate-400">Đang mở đánh giá…</p>,
+});
+
 interface StaffProfileContentProps {
   workerData?: Employee | null;
   assignedBranchData?: Facility | null;
   bankOptions: SystemMetadataOption[];
+  showCompetencyReviews: boolean;
+  openCompetencyReviews?: boolean;
 }
 
 export function StaffProfileContent({
   workerData,
   assignedBranchData,
   bankOptions,
+  showCompetencyReviews,
+  openCompetencyReviews = false,
 }: StaffProfileContentProps) {
   const { showToast } = useNotification();
 
@@ -31,6 +40,7 @@ export function StaffProfileContent({
   const [profileBankName, setProfileBankName] = useState('');
   const [profileBankAcc, setProfileBankAcc] = useState('');
   const [saving, setSaving] = useState(false);
+  const [reviewPanel, setReviewPanel] = useState<'unopened' | 'open' | 'closed'>(openCompetencyReviews ? 'open' : 'unopened');
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -87,7 +97,7 @@ export function StaffProfileContent({
       <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
         <Briefcase className="w-4 h-4 text-blue-400" />
         <h2 className="font-bold text-slate-200 uppercase tracking-wider text-[12px]">
-          Hồ Sơ Thành Viên Số Hóa
+          Thông tin cá nhân
         </h2>
       </div>
 
@@ -116,6 +126,30 @@ export function StaffProfileContent({
           </div>
         </dl>
       </section>
+
+      {showCompetencyReviews && (
+        <section id="competency" aria-labelledby="staff-competency-heading" className="scroll-mt-4 rounded-2xl border border-slate-800 bg-slate-950">
+          <h3 id="staff-competency-heading">
+            <button
+              type="button"
+              aria-expanded={reviewPanel === 'open'}
+              aria-controls="staff-competency-panel"
+              onClick={() => setReviewPanel(reviewPanel === 'open' ? 'closed' : 'open')}
+              className="flex w-full items-center gap-3 rounded-2xl p-4 text-left"
+            >
+              <ClipboardCheck className="h-5 w-5 shrink-0 text-blue-400" aria-hidden="true" />
+              <span className="flex-1">
+                <span className="block text-sm font-bold text-slate-100">Đánh giá năng lực</span>
+                <span className="mt-1 block font-normal text-slate-400">Xem kết quả và tự đánh giá theo tháng.</span>
+              </span>
+              <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 ${reviewPanel === 'open' ? 'rotate-180' : ''}`} aria-hidden="true" />
+            </button>
+          </h3>
+          <div id="staff-competency-panel" hidden={reviewPanel !== 'open'} className="select-text border-t border-slate-800 p-4">
+            {reviewPanel !== 'unopened' && <CompetencyWorkspace admin={false} />}
+          </div>
+        </section>
+      )}
 
       <div className="bg-slate-950 border border-slate-850 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-4 text-[11px]">
         <div>

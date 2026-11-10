@@ -1,5 +1,4 @@
-import { notFound } from 'next/navigation';
-import CompetencyWorkspace from '@/component/competency-reviews/CompetencyWorkspace';
+import { notFound, redirect } from 'next/navigation';
 import { AuthFlowError, requireWorkspaceAccess } from '@/services/server/auth';
 
 export default async function StaffCompetencyPage() {
@@ -10,5 +9,5 @@ export default async function StaffCompetencyPage() {
     if (error instanceof AuthFlowError && (error.status === 403 || error.status === 401)) notFound();
     throw error;
   }
-  return <CompetencyWorkspace admin={false} />;
+  redirect('/staff/profile?section=competency#competency');
 }

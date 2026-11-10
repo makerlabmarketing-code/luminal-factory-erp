@@ -4,8 +4,10 @@ import { CenteredPageLoading } from '@/component/LuminalLoader';
 import { StaffProfileContent } from './ProfileView';
 import { getAuthenticatedStaffProfileData } from '@/services/server/staffPortalData';
 
-export default async function StaffProfilePage() {
-  const portalData = await getAuthenticatedStaffProfileData();
+export default async function StaffProfilePage({ searchParams }: {
+  searchParams: Promise<{ section?: string }>;
+}) {
+  const [portalData, params] = await Promise.all([getAuthenticatedStaffProfileData(), searchParams]);
 
   return (
     <Suspense fallback={<CenteredPageLoading message="Đang tải hồ sơ..." />}>
@@ -14,6 +16,8 @@ export default async function StaffProfilePage() {
           workerData={portalData.employee}
           assignedBranchData={portalData.assignedBranch}
           bankOptions={portalData.bankOptions}
+          showCompetencyReviews={process.env.COMPETENCY_REVIEWS_ENABLED === 'true'}
+          openCompetencyReviews={params.section === 'competency'}
         />
       </div>
     </Suspense>

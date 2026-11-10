@@ -14,7 +14,7 @@ type Employee = { id: string; full_name: string };
 const emptyEmployees: Employee[] = [];
 type SavedReview = { content: CompetencyScores; revision: number };
 type ReviewData = { draft?: SavedReview | null; self: SavedReview | null; published: PublishedCompetencyReview[] };
-const inputStyle = 'block w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-100';
+const inputStyle = 'block w-full min-w-0 rounded border border-slate-700 bg-slate-950 p-2 text-slate-100';
 
 async function readResponse<T>(result: Response): Promise<T> {
   const value = await result.json();
@@ -150,7 +150,7 @@ export default function CompetencyWorkspace({
   }
 
   const monthPicker = (
-    <label className="block text-sm">Kỳ đánh giá
+    <label className="block max-w-full text-sm">Kỳ tự đánh giá
       <input className={inputStyle} type="month" min="2000-01" max="2099-12" value={month} disabled={busy}
         onChange={event => { changeSelection(); setMonth(event.target.value); }} />
     </label>
@@ -166,8 +166,8 @@ export default function CompetencyWorkspace({
     </>
   );
   const reviewForm = (
-    <form onSubmit={submit} className="space-y-3 rounded-xl border border-slate-700 p-4">
-      <h2 className="font-semibold">{admin ? 'Bản làm việc của quản lý' : 'Tự đánh giá'}</h2>
+    <form onSubmit={submit} className={admin ? 'space-y-3 rounded-xl border border-slate-700 p-4' : 'space-y-3'}>
+      {admin && <h2 className="font-semibold">Bản làm việc của quản lý</h2>}
       <fieldset disabled={busy || preview} className="space-y-3">
         <legend className="text-sm">Nhóm việc đã thực hiện</legend>
         <div className="flex flex-wrap gap-3 text-sm">
@@ -182,17 +182,15 @@ export default function CompetencyWorkspace({
           ))}
         </div>
         {COMPETENCY_RUBRIC.map((item, index) => (
-          <div key={item.key} className={`rounded border border-slate-700 p-3 ${admin ? 'space-y-2' : 'grid gap-2 sm:grid-cols-[12rem_1fr]'}`}>
+          <div key={item.key} className="space-y-2 rounded-lg border border-slate-700 p-3">
             <div>
               <label htmlFor={`review-score-${item.key}`} className="block text-sm font-medium">{item.title}</label>
-              {admin && (
-                <span id={`review-rubric-${item.key}`} className="my-2 block space-y-1 text-xs text-slate-300">
-                  {item.descriptions.map((description, score) => (
-                    <span key={description} className="block"><strong>{score} điểm</strong> · {description}</span>
-                  ))}
-                </span>
-              )}
-              <select id={`review-score-${item.key}`} aria-describedby={admin ? `review-rubric-${item.key}` : undefined} className={inputStyle} value={form.scores[index] ?? ''} onChange={event => {
+              <span id={`review-rubric-${item.key}`} className="my-2 block space-y-1 text-xs text-slate-300">
+                {item.descriptions.map((description, score) => (
+                  <span key={description} className="block"><strong>{score} điểm</strong> · {description}</span>
+                ))}
+              </span>
+              <select id={`review-score-${item.key}`} aria-describedby={`review-rubric-${item.key}`} className={inputStyle} value={form.scores[index] ?? ''} onChange={event => {
                 const score = event.target.value === '' ? null : Number(event.target.value) as 0 | 1 | 2;
                 setForm(value => ({ ...value, scores: value.scores.map((old, i) => i === index ? score : old) }));
               }}>
@@ -353,19 +351,21 @@ export default function CompetencyWorkspace({
   }
 
   return (
-    <main className="mx-auto max-w-4xl space-y-5 p-4 text-slate-100 sm:p-6">
-      <h1 className="text-xl font-bold">Đánh giá năng lực</h1>
-      <ReviewRubric />
-      <div className="flex">{monthPicker}</div>
+    <div className="space-y-4 text-sm text-slate-100">
       {feedback}
-      {!current && !failure && month && <p role="status">Đang tải đánh giá…</p>}
-      {current && (
-        <>
-          {reviewForm}
-          <h2 className="font-semibold">Kết quả đã gửi</h2>
-          {history}
-        </>
-      )}
-    </main>
+      {!current && !failure && month && <p role="status" className="text-slate-400">Đang tải đánh giá…</p>}
+      <section aria-labelledby="staff-competency-results" className="space-y-2">
+        <h4 id="staff-competency-results" className="font-semibold">Kết quả quản lý đã gửi</h4>
+        {history}
+      </section>
+      <details className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 sm:p-4">
+        <summary className="cursor-pointer font-semibold">Tự đánh giá</summary>
+        <div className="mt-3 space-y-3">
+          <p className="text-xs text-slate-400">Chọn kỳ cần tự đánh giá. Tổng điểm tối đa là 8.</p>
+          <div className="flex">{monthPicker}</div>
+          {current && reviewForm}
+        </div>
+      </details>
+    </div>
   );
 }
