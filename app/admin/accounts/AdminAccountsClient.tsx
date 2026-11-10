@@ -134,9 +134,11 @@ function permissionStateClass(state: PermissionEditorState) {
 export default function AdminAccountsClient({
   initialData,
   initialError,
+  showReviews,
 }: {
   initialData: AdminAccountManagementData | null;
   initialError?: 'account_list_load_failed';
+  showReviews?: boolean;
 }) {
   const { showToast, showConfirm } = useNotification();
   const { hideGlobalLoading, showGlobalLoading } = useGlobalLoading();
@@ -356,7 +358,7 @@ export default function AdminAccountsClient({
   return (
     <main>
       <AdminPage>
-        <EmployeeAdminTabs active="permissions" />
+        <EmployeeAdminTabs active="permissions" showReviews={showReviews} />
         {(listError || listLoading) && <section className="rounded-lg border border-slate-800 bg-slate-900 p-6 text-center"><h2 className="font-bold text-amber-300">{listLoading ? 'Đang tải danh sách tài khoản...' : 'Không thể tải danh sách tài khoản'}</h2>{listError && <><p className="mt-2 text-xs text-slate-400">Hệ thống gặp lỗi khi tải dữ liệu tài khoản. Vui lòng thử lại.</p><button type="button" onClick={() => void refreshAccounts()} disabled={isRefreshing} className="mt-3 rounded-lg border border-blue-500/40 px-3 py-2 text-xs font-bold text-blue-300">{isRefreshing ? 'Đang thử lại...' : 'Thử lại'}</button></>}</section>}
         <header className="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>

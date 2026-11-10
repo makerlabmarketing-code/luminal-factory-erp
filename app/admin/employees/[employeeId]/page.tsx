@@ -18,7 +18,8 @@ export default async function AdminEmployeeDetailPage(
   try {
     const employee = await getAdminEmployeeDetailData(params.employeeId);
 
-    const canReview = process.env.COMPETENCY_REVIEWS_ENABLED === 'true' &&
+    const canReview = employee.assignedRole === 'STAFF' && employee.employmentStatus === 'ACTIVE' &&
+      process.env.COMPETENCY_REVIEWS_ENABLED === 'true' &&
       await requireSystemOwner().then(() => true, () => false);
     return (
       <>

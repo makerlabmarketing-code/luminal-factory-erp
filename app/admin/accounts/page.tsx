@@ -1,4 +1,4 @@
-import { AuthFlowError } from '@/services/server/auth';
+import { AuthFlowError, requireSystemOwner } from '@/services/server/auth';
 import { getAdminAccountManagementData } from '@/services/server/adminAccountManagement';
 import AdminAccountsClient from './AdminAccountsClient';
 
@@ -23,7 +23,9 @@ export default async function AdminAccountsPage() {
   try {
     const accountData = await getAdminAccountManagementData();
 
-    return <AdminAccountsClient initialData={accountData} />;
+    const canReview = process.env.COMPETENCY_REVIEWS_ENABLED === 'true' &&
+      await requireSystemOwner().then(() => true, () => false);
+    return <AdminAccountsClient initialData={accountData} showReviews={canReview} />;
   } catch (error) {
     if (error instanceof AuthFlowError && error.status === 403) return <AccountAccessDenied />;
     return <AdminAccountsClient initialData={null} initialError="account_list_load_failed" />;
