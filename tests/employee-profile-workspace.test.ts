@@ -63,6 +63,18 @@ describe('employee profile workspace contract', () => {
     expect(staff).toContain('(dữ liệu cũ)');
     expect(staff).not.toMatch(/fetch\(|createClient|system_metadata/);
   });
+  it('opens competency reviews inside the staff profile from either entry point', () => {
+    const staffPage = read('app/staff/page.tsx');
+    const profilePage = read('app/staff/profile/page.tsx');
+    const oldReviewPage = read('app/staff/competency-reviews/page.tsx');
+
+    expect(staffPage).toContain("showCompetencyReviews={process.env.COMPETENCY_REVIEWS_ENABLED === 'true'}");
+    expect(staffPage).not.toContain('href="/staff/competency-reviews"');
+    expect(staffPortal).toContain('showCompetencyReviews={showCompetencyReviews}');
+    expect(staff).toContain("reviewPanel !== 'unopened' && <CompetencyWorkspace admin={false}");
+    expect(profilePage).toContain("openCompetencyReviews={params.section === 'competency'}");
+    expect(oldReviewPage).toContain("redirect('/staff/profile?section=competency#competency')");
+  });
   it('localizes grouped permissions and uses centralized account management', () => {
     expect(permissions).toContain('Xem hồ sơ nhân sự');
     expect(permissions).toContain('Xem dữ liệu chấm công');

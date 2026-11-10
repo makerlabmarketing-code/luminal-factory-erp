@@ -1,4 +1,3 @@
-import Link from 'next/link';
 // app/staff/page.tsx
 import { Suspense } from 'react';
 import { AlertTriangle } from 'lucide-react';
@@ -57,15 +56,11 @@ export default async function StaffPage() {
           ))}
         </div>
       )}
-      {process.env.COMPETENCY_REVIEWS_ENABLED === 'true' && (
-        <div className="mx-auto max-w-6xl px-4 pt-3">
-          <Link className="inline-block rounded border border-slate-700 px-3 py-2 text-sm" href="/staff/competency-reviews">Đánh giá năng lực của tôi</Link>
-        </div>
-      )}
       <StaffPortalContent
         workerData={portalState.employee}
         assignedBranchData={portalState.assignedBranch}
         bankOptions={portalState.bankOptions}
+        showCompetencyReviews={process.env.COMPETENCY_REVIEWS_ENABLED === 'true'}
         capabilities={portalState.capabilities}
       />
     </Suspense>
