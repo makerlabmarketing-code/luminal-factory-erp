@@ -66,7 +66,8 @@ describe('Phase 7 production order read model', () => {
     expect(listPage).toContain('Chưa có lệnh sản xuất nào');
     expect(detailPage).toContain('Tiến trình sản xuất');
     expect(detailPage).toContain('Thông tin tham chiếu ở chế độ chỉ xem.');
-    expect(loading).toContain('CenteredPageLoading');
+    expect(loading).toContain('AdminListLoading');
+    expect(listPage).toContain('<TableLoadingRows columns={6}');
     expect(detailPage).not.toMatch(/Chuyển trạng thái|fetch\([^\n]+method:\s*['"](POST|PATCH|PUT|DELETE)/);
     expect(pages).not.toContain('Cập nhật tồn kho');
   });

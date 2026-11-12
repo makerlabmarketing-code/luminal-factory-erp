@@ -1,5 +1,5 @@
-import { CenteredPageLoading } from '@/component/LuminalLoader';
+import AdminListLoading from '@/component/data-table/AdminListLoading';
 
-export default function ProductionOrdersLoading() {
-  return <CenteredPageLoading message="Đang tải lệnh sản xuất..." />;
+export default function Loading() {
+  return <AdminListLoading route="/admin/production-orders" />;
 }

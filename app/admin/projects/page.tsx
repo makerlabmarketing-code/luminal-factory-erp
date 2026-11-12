@@ -1,6 +1,6 @@
 'use client';
 
-import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
+import { CommonTable, TableLoadingRows, TableRowActions } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
 import { ScrollReveal } from '@/component/ScrollReveal';
-import { CenteredPageLoading, LuminalLoadingMark } from '@/component/LuminalLoader';
+import { LuminalLoadingMark } from '@/component/LuminalLoader';
 import { ProjectMetricCard, ProjectPageHeader, ProjectPanel } from '@/component/project/ProjectPagePatterns';
 import { buildChecklistPhases, type ProjectChecklistStage } from '@/lib/project-checklist';
 import { ProjectCreateDialog } from './ProjectCreateDialog';
@@ -315,6 +315,7 @@ export default function AdminProjectManagement() {
   const router = useRouter();
   const [items, setItems] = useState<WorkflowSetting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProjectKey, setSelectedProjectKey] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -407,6 +408,7 @@ export default function AdminProjectManagement() {
 
   const loadData = useCallback((initial = false) => {
     if (loadPromiseRef.current) return loadPromiseRef.current;
+    setListError(false);
     if (initial) setLoading(true);
     else setIsRefreshing(true);
     const request = (async () => {
@@ -414,6 +416,7 @@ export default function AdminProjectManagement() {
       const workflowItems = await getWorkflowItems({ includeClosedProjects: false });
       setItems(workflowItems);
       } catch {
+        setListError(true);
         showToast('Không thể tải dự án.', 'Vui lòng thử lại sau.', 'error');
       } finally {
         setLoading(false);
@@ -572,9 +575,7 @@ export default function AdminProjectManagement() {
     }, { cancelLabel: 'Giữ dự án', confirmLabel: 'Xác nhận huỷ' });
   };
 
-  if (loading) {
-    return <CenteredPageLoading message="Đang tải danh sách dự án..." />;
-  }
+  const listLoading = loading || (isRefreshing && items.length === 0);
 
   return (
     <div className="admin-page text-slate-100">
@@ -584,7 +585,7 @@ export default function AdminProjectManagement() {
         description="Theo dõi dự án, colorway, giai đoạn và công việc trong cùng một không gian điều phối."
         actions={(
           <>
-          <button disabled={isRefreshing} onClick={() => void loadData(false)} className="bg-slate-900 border border-slate-800 text-slate-300 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 disabled:opacity-50">
+          <button disabled={loading || isRefreshing} onClick={() => void loadData(false)} className="bg-slate-900 border border-slate-800 text-slate-300 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 disabled:opacity-50">
             <RefreshCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Tải lại
           </button>
           <button onClick={openCreateModal} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
@@ -596,7 +597,7 @@ export default function AdminProjectManagement() {
 
       <ScrollReveal className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {metricCards.map(({ label, value, Icon, color }) => (
-          <ProjectMetricCard key={label} label={label} value={value} valueClassName={color} icon={<Icon className="h-5 w-5" />} />
+          <ProjectMetricCard key={label} label={label} value={listLoading || (listError && items.length === 0) ? '—' : value} valueClassName={color} icon={<Icon className="h-5 w-5" />} />
         ))}
       </ScrollReveal>
 
@@ -618,8 +619,8 @@ export default function AdminProjectManagement() {
             </div>
           </div>
 
-          <div className="hidden overflow-x-auto md:block">
-            <CommonTable className="w-full text-left text-xs">
+          <div className={listLoading ? 'overflow-x-auto' : 'hidden overflow-x-auto md:block'}>
+            <CommonTable aria-busy={listLoading} className="min-w-[38rem] w-full text-left text-xs">
               <thead className="bg-slate-950 text-slate-400 uppercase text-[10px]">
                 <tr>
                   <th className="p-4">Dự án / dòng sản phẩm</th>
@@ -632,7 +633,7 @@ export default function AdminProjectManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {filteredProjects.map((project) => {
+                {listLoading ? <TableLoadingRows columns={7} /> : filteredProjects.map((project) => {
                   const blockedCount = project.colorways.filter((colorway) => colorway.health === 'BLOCKED').length;
                   return (
                     <tr
@@ -661,9 +662,9 @@ export default function AdminProjectManagement() {
                     </tr>
                   );
                 })}
-                {filteredProjects.length === 0 && (
+                {!listLoading && filteredProjects.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-500">Chưa có workflow dự án.</td>
+                    <td colSpan={7} className="p-8 text-center text-slate-500">{listError ? "Không tải được danh sách dự án. Hãy thử tải lại." : "Chưa có dữ liệu dự án."}</td>
                   </tr>
                 )}
               </tbody>
@@ -696,7 +697,7 @@ export default function AdminProjectManagement() {
                 </button>
               );
             })}
-            {filteredProjects.length === 0 && <div className="p-8 text-center text-xs text-slate-500">Chưa có workflow dự án.</div>}
+            {!listLoading && filteredProjects.length === 0 && <div className="p-8 text-center text-xs text-slate-500">{listError ? "Không tải được danh sách dự án. Hãy thử tải lại." : "Chưa có dữ liệu dự án."}</div>}
           </div>
         </ProjectPanel>
 
@@ -773,7 +774,7 @@ export default function AdminProjectManagement() {
               </button>
             )}
 
-            {!activeProject && <div className="text-sm text-slate-500 text-center py-12">Tạo dự án để bắt đầu theo dõi colorway.</div>}
+            {!listLoading && !listError && !activeProject && <div className="text-sm text-slate-500 text-center py-12">Tạo dự án để bắt đầu theo dõi colorway.</div>}
           </div>
         </ProjectPanel>
       </ScrollReveal>

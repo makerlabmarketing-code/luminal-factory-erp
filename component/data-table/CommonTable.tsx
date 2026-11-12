@@ -9,6 +9,23 @@ export function CommonTable({ className = '', children, ...props }: ComponentPro
   return <table {...props} className={`erp-common-table ${className}`}>{children}</table>;
 }
 
+export function TableLoadingRows({ columns, rows = 4 }: { columns: number; rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }, (_, row) => (
+        <tr key={row} className="motion-safe:animate-pulse">
+          {Array.from({ length: columns }, (_, column) => (
+            <td key={column}>
+              {row === 0 && column === 0 && <span role="status" className="sr-only">Đang tải dữ liệu bảng…</span>}
+              <span aria-hidden="true" className="block h-3 w-3/4 min-w-[1.5rem] max-w-[8rem] rounded bg-slate-800" />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+
 /** Flatten layout containers/fragments, preserving the screen's actual buttons. */
 export function collectRowActions(children: ReactNode): ReactNode[] {
   return Children.toArray(children).flatMap(child => {

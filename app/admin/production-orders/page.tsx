@@ -1,6 +1,6 @@
 'use client';
 
-import { CommonTable } from '@/component/data-table/CommonTable';
+import { CommonTable, TableLoadingRows } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -14,7 +14,6 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { AdminMetricCard, AdminPage, AdminPageHeader, AdminPanel } from '@/component/AdminUI';
-import { CenteredPageLoading } from '@/component/LuminalLoader';
 import { LoadingLink } from '@/component/GlobalLoading';
 import {
   PRODUCTION_ORDER_STATUS_LABELS,
@@ -112,7 +111,7 @@ export default function ProductionOrdersPage() {
   const needsAttentionCount = orders.filter((order) => ['BLOCKED', 'PENDING_REVIEW', 'ON_HOLD'].includes(order.status)).length;
   const plannedQuantity = orders.reduce((total, order) => total + order.plannedQuantity, 0);
 
-  if (loading && orders.length === 0) return <CenteredPageLoading message="Đang tải lệnh sản xuất..." />;
+  const initialLoading = loading && orders.length === 0;
 
   return (
     <AdminPage>
@@ -137,10 +136,10 @@ export default function ProductionOrdersPage() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <AdminMetricCard label="Tổng lệnh" value={orders.length} supportingText="Lệnh bạn được phép xem" icon={<Boxes className="h-5 w-5" />} />
-        <AdminMetricCard label="Đang triển khai" value={activeCount} supportingText="Đang chuẩn bị hoặc sản xuất" tone="cyan" icon={<Factory className="h-5 w-5" />} />
-        <AdminMetricCard label="Cần xử lý" value={needsAttentionCount} supportingText="Bị vướng, tạm dừng hoặc chờ duyệt" tone={needsAttentionCount > 0 ? 'amber' : 'neutral'} icon={<AlertTriangle className="h-5 w-5" />} />
-        <AdminMetricCard label="Sản lượng kế hoạch" value={plannedQuantity.toLocaleString('vi-VN')} supportingText="Tổng số lượng của các lệnh" icon={<Boxes className="h-5 w-5" />} />
+        <AdminMetricCard label="Tổng lệnh" value={initialLoading || (loadError && orders.length === 0) ? '—' : orders.length} supportingText="Lệnh bạn được phép xem" icon={<Boxes className="h-5 w-5" />} />
+        <AdminMetricCard label="Đang triển khai" value={initialLoading || (loadError && orders.length === 0) ? '—' : activeCount} supportingText="Đang chuẩn bị hoặc sản xuất" tone="cyan" icon={<Factory className="h-5 w-5" />} />
+        <AdminMetricCard label="Cần xử lý" value={initialLoading || (loadError && orders.length === 0) ? '—' : needsAttentionCount} supportingText="Bị vướng, tạm dừng hoặc chờ duyệt" tone={needsAttentionCount > 0 ? 'amber' : 'neutral'} icon={<AlertTriangle className="h-5 w-5" />} />
+        <AdminMetricCard label="Sản lượng kế hoạch" value={initialLoading || (loadError && orders.length === 0) ? '—' : plannedQuantity.toLocaleString('vi-VN')} supportingText="Tổng số lượng của các lệnh" icon={<Boxes className="h-5 w-5" />} />
       </div>
 
       {loadError ? (
@@ -177,9 +176,9 @@ export default function ProductionOrdersPage() {
           </label>
         </div>
 
-        {paginatedOrders.length > 0 ? (
+        {initialLoading || paginatedOrders.length > 0 ? (
           <>
-            <div className="grid gap-3 p-4 md:hidden">
+            <div className={initialLoading ? "hidden" : "grid gap-3 p-4 md:hidden"}>
               {paginatedOrders.map((order) => (
                 <LoadingLink key={order.productionOrderId} href={`/admin/production-orders/${order.productionOrderId}`} loadingMessage="Đang tải chi tiết lệnh sản xuất..." className="admin-card block p-4 transition-colors hover:border-slate-700 hover:bg-slate-900">
                   <div className="flex items-start justify-between gap-3">
@@ -203,13 +202,13 @@ export default function ProductionOrdersPage() {
               ))}
             </div>
 
-            <div className="hidden overflow-x-auto md:block">
-              <CommonTable className="min-w-[980px] w-full text-left text-xs">
+            <div className={initialLoading ? 'overflow-x-auto' : 'hidden overflow-x-auto md:block'}>
+              <CommonTable aria-busy={initialLoading} className="min-w-[980px] w-full text-left text-xs">
                 <thead className="border-b border-slate-800 bg-slate-950/50 text-slate-500">
                   <tr><th className="px-4 py-3">Lệnh sản xuất</th><th className="px-4 py-3">Dự án / mẫu màu</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3">Giai đoạn</th><th className="px-4 py-3">Sản lượng</th><th className="px-4 py-3">Hạn hoàn thành</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/70">
-                  {paginatedOrders.map((order) => (
+                  {initialLoading ? <TableLoadingRows columns={6} /> : paginatedOrders.map((order) => (
                     <tr key={order.productionOrderId} className="hover:bg-slate-800/30">
                       <td className="px-4 py-4"><LoadingLink href={`/admin/production-orders/${order.productionOrderId}`} loadingMessage="Đang tải chi tiết lệnh sản xuất..." className="font-mono font-bold text-cyan-300 hover:text-cyan-200">{order.productionCode}</LoadingLink><p className="mt-1 max-w-[220px] truncate text-slate-400">{order.displayName || order.productOrCollection}</p></td>
                       <td className="px-4 py-4"><p className="max-w-[220px] truncate font-semibold text-slate-200">{order.projectName}</p><p className="mt-1 max-w-[220px] truncate text-slate-500">{order.colorway}</p></td>
@@ -232,7 +231,7 @@ export default function ProductionOrdersPage() {
         )}
 
         <div className="flex flex-col gap-3 border-t border-slate-800 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>Hiển thị {paginatedOrders.length} trong {filteredOrders.length} lệnh phù hợp</p>
+          <p>{initialLoading ? "Đang tải danh sách…" : `Hiển thị ${paginatedOrders.length} trong ${filteredOrders.length} lệnh phù hợp`}</p>
           <div className="flex items-center gap-2">
             <button type="button" className="admin-icon-button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage <= 1} aria-label="Trang trước"><ChevronLeft className="h-4 w-4" /></button>
             <span>Trang {currentPage}/{totalPages}</span>

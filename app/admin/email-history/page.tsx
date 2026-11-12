@@ -1,6 +1,6 @@
 'use client';
 
-import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
+import { CommonTable, TableLoadingRows, TableRowActions } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
@@ -89,14 +89,6 @@ export default function AdminEmailHistoryLog() {
     return start + index;
   });
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center gap-2 bg-slate-950 p-6 text-center font-mono text-xs text-slate-500">
-        <RefreshCcw className="h-4 w-4 animate-spin" />
-        <span>Đang tải lịch sử email...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto min-h-screen max-w-7xl space-y-6 bg-slate-950 p-6 font-sans text-slate-100">
@@ -105,10 +97,10 @@ export default function AdminEmailHistoryLog() {
           <Mail className="h-5 w-5 text-amber-500" />
           <div>
             <h1 className="text-base font-bold">Lịch sử email hệ thống</h1>
-            <p className="mt-0.5 font-mono text-[11px] font-bold text-emerald-400">Tổng số bản ghi phù hợp: {totalCount}</p>
+            <p className="mt-0.5 font-mono text-[11px] font-bold text-emerald-400">Tổng số bản ghi phù hợp: {loading && history.length === 0 ? "—" : totalCount}</p>
           </div>
         </div>
-        <button onClick={() => void loadHistoryData()} className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-xs font-bold text-slate-300 transition hover:text-white">
+        <button type="button" disabled={loading} onClick={() => void loadHistoryData()} className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-xs font-bold text-slate-300 transition hover:text-white">
           <RefreshCcw className="h-3.5 w-3.5" /> Làm mới
         </button>
       </div>
@@ -137,7 +129,7 @@ export default function AdminEmailHistoryLog() {
         </div>
 
         <div className="overflow-x-auto">
-          <CommonTable className="w-full text-left text-xs text-slate-300">
+          <CommonTable aria-busy={loading} className="w-full text-left text-xs text-slate-300">
             <thead className="border-b border-slate-800 bg-slate-950 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="w-1/6 p-4">Thời gian gửi</th>
@@ -149,7 +141,7 @@ export default function AdminEmailHistoryLog() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-[11px]">
-              {history.length === 0 ? (
+              {loading && history.length === 0 ? <TableLoadingRows columns={6} /> : history.length === 0 && !dbError ? (
                 <tr><td colSpan={6} className="p-8 text-center font-mono text-slate-500">Không có bản ghi email phù hợp bộ lọc.</td></tr>
               ) : history.map((item) => (
                 <tr key={item.id} className="transition hover:bg-slate-950/20">
