@@ -3,7 +3,7 @@ import { CommonTable, TableLoadingRows } from './CommonTable';
 
 const adminListLayouts = {
   '/admin/accounts': { title: 'Phân quyền', columns: ['Nhân sự', 'Tài khoản', 'Cổng nhân viên', 'Trang quản trị', 'Mẫu quyền', 'Số quyền', 'Truy cập', 'Thao tác'] },
-  '/admin/capital': { title: 'Sổ thu chi', columns: ['Khoản mục', 'Người thực hiện', 'Người hưởng lợi', 'Trạng thái quỹ', 'Số tiền', 'Hành động'] },
+  '/admin/capital': { title: 'Sổ thu chi', columns: ['Khoản mục', 'Người thực hiện', 'Người hưởng lợi', 'Trạng thái quỹ', 'Số tiền', 'Thao tác'] },
   '/admin/commerce/products': { title: "Danh mục sản phẩm", columns: ['Sản phẩm', 'Loại', 'Cách phát hành', 'Trạng thái', 'Cập nhật', 'Thao tác'] },
   '/admin/commerce/raffles': { title: "Raffle", columns: ['Đợt raffle', 'Trạng thái', 'Mở', 'Đóng', 'Thao tác'] },
   '/admin/email-history': { title: 'Lịch sử email hệ thống', columns: ['Thời gian gửi', 'Phân hệ', 'Người nhận', 'Tiêu đề', 'Trạng thái', 'Xem'] },

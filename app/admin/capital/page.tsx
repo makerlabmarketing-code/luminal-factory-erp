@@ -144,7 +144,7 @@ function LedgerLoadingSkeleton() {
 function LedgerTableLoadingState() {
   return (
     <div className="overflow-x-auto">
-      <CommonTable aria-busy="true" className="min-w-[980px] w-full">
+      <CommonTable aria-busy="true" className="min-w-[980px]">
         <LedgerTableHeader />
         <tbody><TableLoadingRows columns={6} /></tbody>
       </CommonTable>
@@ -190,6 +190,7 @@ export default function AdminFinancialLedger() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const selectedMonth = reportingPeriodFromMonthInput(monthInput);
+  const activeLedgerRequest = useRef<{ month: string } | null>(null);
   useEffect(() => {
     const payrollMonth = new URLSearchParams(window.location.search).get('month');
     if (payrollMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(payrollMonth)) setMonthInput(payrollMonth);
@@ -285,10 +286,14 @@ export default function AdminFinancialLedger() {
   }, []);
 
   const refreshLedger = useCallback(async () => {
-    applyLedgerResult(await loadAdminFinancialLedger(selectedMonth));
+    const request = activeLedgerRequest.current;
+    const result = await loadAdminFinancialLedger(selectedMonth);
+    if (request?.month === selectedMonth && activeLedgerRequest.current === request) applyLedgerResult(result);
   }, [applyLedgerResult, selectedMonth]);
 
   const loadData = useCallback(async () => {
+    const request = { month: selectedMonth };
+    activeLedgerRequest.current = request;
     setLoading(true);
     setLoadError('');
     try {
@@ -300,6 +305,7 @@ export default function AdminFinancialLedger() {
         loadAdminFinancialLedger(selectedMonth),
       ]);
 
+      if (activeLedgerRequest.current !== request) return;
       if (employeesError) throw employeesError;
       setEmployees(emps || []);
       if (emps && emps.length > 0) {
@@ -317,11 +323,12 @@ export default function AdminFinancialLedger() {
 
       applyLedgerResult(ledgerResult);
     } catch (e) {
+      if (activeLedgerRequest.current !== request) return;
       console.error(e);
       setLoadError('Không tải được dữ liệu.');
       showToast('Không tải được sổ thu chi', 'Vui lòng thử lại sau.', 'error');
     } finally {
-      setLoading(false);
+      if (activeLedgerRequest.current === request) setLoading(false);
     }
   }, [applyLedgerResult, selectedMonth, showToast]);
 
@@ -845,7 +852,7 @@ export default function AdminFinancialLedger() {
             setPaymentError(''); setRefundTarget({ row, requestId: crypto.randomUUID() });
           }} />}
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+          <div className="admin-table-shell">
         <div className="flex flex-col gap-4 border-b border-slate-800 bg-slate-950/40 px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>

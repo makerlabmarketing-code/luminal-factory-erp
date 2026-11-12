@@ -24,6 +24,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+.finance-workspace .erp-common-table .ledger-counter-toggle {
+  min-height: 24px;
+  font-size: 0.6875rem;
+}
+
+@media (any-pointer: coarse) {
+  .finance-workspace .erp-common-table .ledger-counter-toggle {
+    min-height: 44px;
+  }
+}
+
 .finance-workspace :where(th) {
   white-space: nowrap;
 }

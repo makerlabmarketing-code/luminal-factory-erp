@@ -29,6 +29,15 @@ describe('admin asynchronous loader stability', () => {
     );
   });
 
+  it('keeps obsolete ledger requests from replacing the selected reporting period', () => {
+    const capital = read('app/admin/capital/page.tsx');
+
+    expect(capital).toContain('activeLedgerRequest.current = request');
+    expect(capital).toMatch(/if \(activeLedgerRequest.current !== request\) return;[\s\S]*applyLedgerResult\(ledgerResult\)/);
+    expect(capital).toContain('if (activeLedgerRequest.current === request) setLoading(false)');
+    expect(capital).toContain('request?.month === selectedMonth && activeLedgerRequest.current === request');
+  });
+
   it('renders a dimensioned VietQR image through the Next image boundary', () => {
     const capital = read('app/admin/capital/page.tsx');
 
