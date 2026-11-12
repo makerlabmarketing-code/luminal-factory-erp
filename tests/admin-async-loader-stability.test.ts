@@ -34,7 +34,7 @@ describe('admin asynchronous loader stability', () => {
 
     expect(capital).toContain("import Image from 'next/image'");
     expect(capital).toMatch(
-      /<Image src=\{activeQrUrl\} alt="VietQR" width=\{240\} height=\{240\} unoptimized/,
+      /<Image src=\{activeQrUrl\} alt="Mã VietQR" width=\{240\} height=\{240\} unoptimized/,
     );
     expect(capital).not.toMatch(/<img[^>]+activeQrUrl/);
   });

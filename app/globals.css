@@ -92,12 +92,12 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   height: 100vh;
   height: 100dvh;
 }
-@keyframes employee-review-panel-enter {
+@keyframes admin-side-panel-enter {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .employee-review-panel[open] { animation: employee-review-panel-enter 180ms ease-out; }
+  .employee-review-panel[open], .admin-side-panel { animation: admin-side-panel-enter 180ms ease-out; }
 }
 @media (prefers-reduced-motion: reduce) {
   .luminal-loader__resin, .luminal-loader__light { animation: none; transform: none; }

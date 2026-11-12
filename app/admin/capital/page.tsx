@@ -7,6 +7,7 @@ import { payrollMonthFromLedgerPeriod, isLinkedPayrollLedger } from '@/lib/payro
 import { retrySalaryLedgerEmail } from '@/services/adminFinancialLedgerService';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
+import AdminSidePanel from '@/component/AdminSidePanel';
 import ActivityHistoryDialog from '@/component/ActivityHistoryDialog';
 import { validateCorrectionReason } from '@/lib/activity-history';
 import { supabase } from '@/utils/supabase/client';
@@ -19,7 +20,7 @@ import { TestLedgerDialog } from './TestLedgerDialog';
 import CapitalShareCard from './components/CapitalShareCard';
 import MonthlyCapitalSettings from './components/MonthlyCapitalSettings';
 import PersonalAdvancesCard from './components/PersonalAdvancesCard';
-import type { AdminLedgerMutationInput, ExpensePaymentSourceOption, FinanceAttachment, FinancialLedgerEntry, PersonalAdvance } from '@/lib/types/finance';
+import type { AdminLedgerMutationInput, ExpensePaymentSourceOption, FinanceAttachment, FinancialLedgerEntry, PersonalAdvance, ShareholderPaymentSourceRow } from '@/lib/types/finance';
 import {
   CONFIRM_PAID_LABEL,
   FINANCE_ATTACHMENT_POLICY,
@@ -73,12 +74,6 @@ interface EmployeeOption {
   full_name: string;
   bank_name?: string | null;
   bank_account_number?: string | null;
-}
-
-interface ShareholderPaymentSourceRow {
-  id: number | string;
-  name: string | null;
-  status: string | null;
 }
 
 function toShareholderPaymentSourceOption(
@@ -167,12 +162,12 @@ export default function AdminFinancialLedger() {
   const [refundTarget, setRefundTarget] = useState<{ row: PersonalAdvance; requestId: string } | null>(null);
   const [refundAmount, setRefundAmount] = useState('');
   const [advanceBusy, setAdvanceBusy] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
   const [ledger, setLedger] = useState<FinancialLedgerEntry[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [transactionTypes, setTransactionTypes] = useState<SystemMetadataOption[]>(() => [...DEFAULT_FINANCIAL_TRANSACTION_TYPES]);
   const [contributionTypes, setContributionTypes] = useState<SystemMetadataOption[]>(() => [...DEFAULT_CAPITAL_CONTRIBUTION_TYPES]);
   const [expensePaymentSources, setExpensePaymentSources] = useState<ExpensePaymentSourceOption[]>([]);
-  const [expenseSourcesLoading, setExpenseSourcesLoading] = useState(true);
   const [expenseSourcesError, setExpenseSourcesError] = useState('');
   const [companyBankCode, setCompanyBankCode] = useState<string>('MB');
   const [companyBankAccount, setCompanyBankAccount] = useState<string>('');
@@ -271,6 +266,8 @@ export default function AdminFinancialLedger() {
 
   const applyLedgerResult = useCallback((ledgerResult: Awaited<ReturnType<typeof loadAdminFinancialLedger>>) => {
     setLedger(ledgerResult.ledger);
+    setExpensePaymentSources(getExpensePaymentSourceOptions(ledgerResult.paymentSourceRows ?? []));
+    setExpenseSourcesError(ledgerResult.paymentSourceRows === null ? 'Không tải được danh sách nguồn chi cá nhân.' : '');
     setPersonalAdvances(ledgerResult.personalAdvances);
     setSalaryMailEnabled(ledgerResult.salaryPaymentEmailEnabled);
     setActivityEnabled(ledgerResult.activityHistoryEnabled);
@@ -294,16 +291,12 @@ export default function AdminFinancialLedger() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadError('');
-    setExpenseSourcesLoading(true);
-    setExpenseSourcesError('');
     try {
       const [
         { data: emps, error: employeesError },
-        { data: paymentSourceRows, error: paymentSourceError },
         ledgerResult,
       ] = await Promise.all([
         supabase.from('employees').select('id, full_name, bank_name, bank_account_number'),
-        supabase.from('shareholders').select('id, name, status').order('id', { ascending: true }),
         loadAdminFinancialLedger(selectedMonth),
       ]);
 
@@ -313,18 +306,6 @@ export default function AdminFinancialLedger() {
         const defaultPayer = emps.find((employee) => employee.full_name?.trim() === DEFAULT_COMPANY_PAYER_NAME) || emps[0];
         setReporter((current) => current || String(defaultPayer.id));
       }
-
-      if (paymentSourceError) {
-        console.error(paymentSourceError);
-        setExpensePaymentSources(getExpensePaymentSourceOptions([]));
-        setExpenseSourcesError('Không tải được danh sách nguồn chi trả.');
-        showToast('Không tải được nguồn chi trả', 'Bạn vẫn có thể xem sổ thu chi và dùng quỹ tiền mặt chung.', 'error');
-      } else {
-        setExpensePaymentSources(
-          getExpensePaymentSourceOptions((paymentSourceRows || []) as ShareholderPaymentSourceRow[])
-        );
-      }
-      setExpenseSourcesLoading(false);
 
       setType((current) => ledgerResult.transactionTypes.some((option) => option.code === current)
         ? current
@@ -340,7 +321,6 @@ export default function AdminFinancialLedger() {
       setLoadError('Không tải được dữ liệu.');
       showToast('Không tải được sổ thu chi', 'Vui lòng thử lại sau.', 'error');
     } finally {
-      setExpenseSourcesLoading(false);
       setLoading(false);
     }
   }, [applyLedgerResult, selectedMonth, showToast]);
@@ -516,7 +496,6 @@ export default function AdminFinancialLedger() {
     setEditMonthInput(monthInputFromReportingPeriod(item.month_period || selectedMonth));
     setEditSubType(item.sub_type === 'HIEN_VAT' ? 'HIEN_VAT' : 'TIEN_MAT');
 
-    // Khởi tạo nguồn chi trả cũ
     setEditExpenseSource(COMMON_FUND_SOURCE_ID);
     setEditError(null);
     setShowEditModal(true);
@@ -575,6 +554,7 @@ export default function AdminFinancialLedger() {
     if (paymentActionLock.current) return;
     const row = ledger.find((entry) => String(entry.id) === String(id));
     if (personalAdvances && row && isLinkedPayrollLedger(row) && !currentStatus) {
+      setPaymentError('');
       setAdvanceSource('');
       setSourceTarget(row);
       return;
@@ -643,29 +623,29 @@ export default function AdminFinancialLedger() {
     const targetId = activeQrTarget.id;
     const row = ledger.find(item => String(item.id) === String(targetId));
     const source = personalAdvances && row && isLinkedPayrollLedger(row) ? advanceSource : undefined;
-    if (source === '') return;
+    if (source === '' || (source && !isAvailableAdvanceSource)) return;
     paymentActionLock.current = true;
-    showGlobalLoading('Đang lưu thay đổi...');
+    setPaymentError('');
+    setAdvanceBusy(true);
     try {
       if (activeQrTarget.type === 'HOAN_UNG') {
         await transitionAdminReimbursement(targetId, 'PAID');
-        await refreshLedger();
       } else {
         const result = await setAdminFinancialLedgerPaid(targetId, true, undefined, source);
-        await refreshLedger();
         if (result.notification) showToast('Đã ghi nhận thanh toán', result.notification.message, 'info');
       }
-      setShowQrModal(false); setActiveQrUrl('');
-      showToast('Đã ghi nhận', 'Sổ thu chi đã cập nhật.', 'success');
+      closeQr();
+      await refreshAfterPayment('Đã ghi nhận thanh toán');
     } catch (error) {
-      showToast('Không thể xác nhận thanh toán', 'Dữ liệu chưa được cập nhật. Vui lòng thử lại.', 'error');
+      setPaymentError(error instanceof Error ? error.message : 'Không thể xác nhận thanh toán.');
     } finally {
       paymentActionLock.current = false;
-      hideGlobalLoading();
+      setAdvanceBusy(false);
     }
   };
 
   const handleGenerateVietQR = (item: FinancialLedgerEntry) => {
+    setPaymentError('');
     setAdvanceSource('');
     if (item.type === 'CHI_PHI' || item.type === 'CHI_TIEU' || item.type === 'HOAN_UNG') {
       const matchedBeneficiary = employees.find(e => String(e.id) === String(item.beneficiary_employee_id));
@@ -683,7 +663,7 @@ export default function AdminFinancialLedger() {
       });
       if (!qrResult.ok) return showToast('Thiếu thông tin nhận tiền', MISSING_EMPLOYEE_PAYMENT_INFO_MESSAGE, 'error');
       setActiveQrUrl(qrResult.url);
-      setActiveQrTarget({ id: item.id, type: item.type || '', title: item.type === 'HOAN_UNG' ? 'QR thanh toán hoàn ứng' : 'QR thanh toán cho Người hưởng lợi', bankName: matchedBeneficiary?.bank_name || '', accountNo: matchedBeneficiary?.bank_account_number || '', amount: Number(item.amount || 0), category: item.category || '' });
+      setActiveQrTarget({ id: item.id, type: item.type || '', title: item.type === 'HOAN_UNG' ? 'QR thanh toán hoàn ứng' : 'QR thanh toán', bankName: matchedBeneficiary?.bank_name || '', accountNo: matchedBeneficiary?.bank_account_number || '', amount: Number(item.amount || 0), category: item.category || '' });
       setShowQrModal(true);
     } else {
       if (!companyBankAccount) return showToast('Thiếu cấu hình', 'Chưa cấu hình tài khoản công ty nhận tiền!', 'error');
@@ -691,7 +671,7 @@ export default function AdminFinancialLedger() {
       const cleanCategory = encodeURIComponent(`${prefix}: ${item.requested_by}`);
       const qrUrl = `https://img.vietqr.io/image/${companyBankCode}-${companyBankAccount}-compact2.png?amount=${item.amount}&addInfo=${cleanCategory}`;
       setActiveQrUrl(qrUrl);
-      setActiveQrTarget({ id: item.id, type: item.type || '', title: item.type === 'DOANH_THU' ? '💰 QUÉT MÃ THU TIỀN KHÁCH HÀNG' : '🟢 QUÉT MÃ NỘP VỐN CÔNG TY', bankName: companyBankCode, accountNo: companyBankAccount, amount: Number(item.amount || 0), category: item.category || '' });
+      setActiveQrTarget({ id: item.id, type: item.type || '', title: item.type === 'DOANH_THU' ? 'QR thu tiền khách hàng' : 'QR nộp vốn vào quỹ', bankName: companyBankCode, accountNo: companyBankAccount, amount: Number(item.amount || 0), category: item.category || '' });
       setShowQrModal(true);
     }
   };
@@ -738,30 +718,57 @@ export default function AdminFinancialLedger() {
     }
   };
 
-  // --- CÔNG THỨC HẠCH TOÁN DOANH NGHIỆP ---
+  const activeSources = expensePaymentSources.filter(option => option.isActive);
+  const isAvailableAdvanceSource = activeSources.some(option => option.id === advanceSource);
+  const currentAdvance = sourceTarget?.is_paid
+    ? personalAdvances?.find(row => String(row.ledger_id) === String(sourceTarget.id))
+    : undefined;
+  const currentSourceId = currentAdvance ? `${SELF_PAID_SOURCE_PREFIX}${currentAdvance.shareholder_id}` : COMMON_FUND_SOURCE_ID;
+  const canSaveSource = isAvailableAdvanceSource && (!sourceTarget?.is_paid || advanceSource !== currentSourceId);
+  const qrNeedsSource = Boolean(personalAdvances && ledger.some(row => String(row.id) === String(activeQrTarget?.id) && isLinkedPayrollLedger(row)));
+
+  const closeQr = () => {
+    setShowQrModal(false);
+    setActiveQrUrl('');
+    setActiveQrTarget(null);
+  };
+
+  const closeAdvance = () => {
+    setSourceTarget(null);
+    setRefundTarget(null);
+  };
+
+  const refreshAfterPayment = async (title: string) => {
+    try {
+      await refreshLedger();
+      showToast(title, 'Sổ thu chi đã cập nhật.', 'success');
+    } catch {
+      showToast(title, 'Tải lại trang để xem số liệu mới.', 'info');
+    }
+  };
+
   const saveAdvance = async () => {
     if (paymentActionLock.current) return;
     const amount = Number(refundAmount);
     if (refundTarget && (!Number.isSafeInteger(amount) || amount <= 0 ||
       amount > Number(refundTarget.row.advanced) - Number(refundTarget.row.refunded))) return;
-    if (sourceTarget && !advanceSource) return;
+    if (sourceTarget && !canSaveSource) return;
     paymentActionLock.current = true;
     setAdvanceBusy(true);
+    setPaymentError('');
     try {
       if (refundTarget) {
         await mutatePersonalAdvance(refundTarget.row.ledger_id, { action: 'refundPersonalAdvance', amount, requestId: refundTarget.requestId });
-        setRefundTarget(null);
       } else if (sourceTarget?.is_paid) {
         await mutatePersonalAdvance(sourceTarget.id, { action: 'changePersonalAdvanceSource', expenseSource: advanceSource });
-        setSourceTarget(null);
       } else if (sourceTarget) {
         const result = await setAdminFinancialLedgerPaid(sourceTarget.id, true, undefined, advanceSource);
-        setSourceTarget(null);
-        if (result.notification) showToast('Đã ghi nhận thanh toán', result.notification.message, 'info');
+        if (result.notification) showToast('Thông báo lương', result.notification.message, 'info');
       }
-      await refreshLedger();
+      closeAdvance();
+      await refreshAfterPayment(refundTarget ? 'Đã ghi nhận hoàn tiền' : sourceTarget?.is_paid ? 'Đã đổi nguồn chi' : 'Đã ghi nhận thanh toán');
     } catch (error) {
-      showToast('Chưa tải được kết quả', error instanceof Error ? error.message : 'Tải lại sổ để kiểm tra.', 'error');
+      setPaymentError(error instanceof Error ? error.message : 'Không thể lưu thay đổi.');
     } finally {
       paymentActionLock.current = false;
       setAdvanceBusy(false);
@@ -769,18 +776,24 @@ export default function AdminFinancialLedger() {
   };
 
   const sourceSelector = (
-    <label className="block text-left text-xs">
-      Nguồn chi
-      <select className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2" value={advanceSource} onChange={event => setAdvanceSource(event.target.value)}>
-        <option value="">Chọn nguồn chi</option>
-        {expensePaymentSources.filter(option => option.isActive).map(option => (
-          <option key={option.id} value={option.id}>{option.kind === 'COMMON_FUND' ? 'Quỹ chung' : `Cá nhân · ${option.label}`}</option>
-        ))}
-      </select>
-      {advanceSource.startsWith(SELF_PAID_SOURCE_PREFIX) && <span className="mt-1 block text-slate-400">Ghi khoản ứng chờ hoàn. Quỹ chung không đổi.</span>}
-    </label>
+    <div className="space-y-2">
+      <label className="block text-sm font-semibold">
+        Nguồn chi
+        <select className="admin-field mt-1" required disabled={advanceBusy}
+          value={isAvailableAdvanceSource ? advanceSource : ''} onChange={event => { setAdvanceSource(event.target.value); setPaymentError(''); }}>
+          <option value="">Chọn nguồn chi</option>
+          {activeSources.map(option => (
+            <option key={option.id} value={option.id}>{option.kind === 'COMMON_FUND' ? 'Quỹ chung' : `Cá nhân · ${option.label}`}</option>
+          ))}
+        </select>
+      </label>
+      {expenseSourcesError ? <p role="status" className="text-sm text-amber-300">{expenseSourcesError}</p>
+        : !activeSources.some(option => option.kind === 'SHAREHOLDER') && <p className="text-sm text-amber-300">Chưa có nguồn chi cá nhân đang hoạt động.</p>}
+      {advanceSource.startsWith(SELF_PAID_SOURCE_PREFIX) && isAvailableAdvanceSource && (
+        <p className="text-sm text-slate-400">Khoản này được ghi vào tiền cá nhân chờ hoàn. Quỹ chung chưa bị trừ.</p>
+      )}
+    </div>
   );
-  const qrNeedsSource = Boolean(personalAdvances && ledger.some(row => String(row.id) === String(activeQrTarget?.id) && isLinkedPayrollLedger(row)));
   const ledgerSummary = summarizeFinancialLedger(ledger);
   const totalGop = ledgerSummary.capital;
   const totalDoanhThu = ledgerSummary.revenue;
@@ -829,7 +842,7 @@ export default function AdminFinancialLedger() {
           <CapitalShareCard ledgerData={ledger.filter(row=>!row.cancelled_at)} />
           {personalAdvances && <PersonalAdvancesCard advances={personalAdvances} canPay={reimbursementCapabilities.canPay} onRefund={row => {
             setRefundAmount(String(Number(row.advanced) - Number(row.refunded)));
-            setRefundTarget({ row, requestId: crypto.randomUUID() });
+            setPaymentError(''); setRefundTarget({ row, requestId: crypto.randomUUID() });
           }} />}
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
@@ -874,6 +887,7 @@ export default function AdminFinancialLedger() {
             personalAdvances={personalAdvances}
             onChangeSource={row => {
               const advance = personalAdvances?.find(item => String(item.ledger_id) === String(row.id));
+              setPaymentError('');
               setAdvanceSource(advance ? `${SELF_PAID_SOURCE_PREFIX}${advance.shareholder_id}` : COMMON_FUND_SOURCE_ID);
               setSourceTarget(row);
             }}
@@ -899,11 +913,13 @@ export default function AdminFinancialLedger() {
         </>
       )}
 
-      {/* ================= MODAL THÊM MỚI ================= */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div role="dialog" aria-modal="true" aria-labelledby="create-ledger-title" className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-4 text-xs text-slate-200 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5"><h3 id="create-ledger-title" className="font-bold uppercase tracking-wider text-[11px]">Ghi hạch toán sổ cái mới</h3><button type="button" aria-label="Đóng biểu mẫu" disabled={isSubmitting} onClick={() => setShowAddModal(false)}><X className="w-5 h-5"/></button></div>
+        <AdminSidePanel title="Ghi sổ thu chi" wide busy={isSubmitting} onClose={() => setShowAddModal(false)}
+          actions={<>
+            <button type="button" onClick={() => setShowAddModal(false)} disabled={isSubmitting} className="admin-button-secondary">Hủy</button>
+            <button type="button" onClick={handleInsertLedger} disabled={isSubmitting} className="admin-button-primary">{isSubmitting ? 'Đang ghi…' : 'Ghi sổ'}</button>
+          </>}>
+          <div className="space-y-4 text-xs">
             <div className="grid gap-4 lg:grid-cols-2">
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
                 <h4 className="font-bold text-blue-300">Thông tin giao dịch</h4>
@@ -935,7 +951,7 @@ export default function AdminFinancialLedger() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                     value={expenseSource}
                     onChange={e => setExpenseSource(e.target.value)}
-                    disabled={expenseSourcesLoading || Boolean(expenseSourcesError) || expensePaymentSources.length === 0}
+                    disabled={isSubmitting || expensePaymentSources.length === 0}
                   >
                     {expensePaymentSources.map((source) => (
                       <option key={source.id} value={source.id} disabled={!source.isActive}>
@@ -943,14 +959,8 @@ export default function AdminFinancialLedger() {
                       </option>
                     ))}
                   </select>
-                  {expenseSourcesLoading && (
-                    <p className="mt-1 text-[10px] text-slate-500">Đang tải nguồn chi trả...</p>
-                  )}
-                  {!expenseSourcesLoading && expenseSourcesError && (
+                  {expenseSourcesError && (
                     <p className="mt-1 text-[10px] text-red-300">{expenseSourcesError}</p>
-                  )}
-                  {!expenseSourcesLoading && !expenseSourcesError && expensePaymentSources.length === 0 && (
-                    <p className="mt-1 text-[10px] text-amber-300">Chưa có nguồn chi trả hợp lệ.</p>
                   )}
                 </div>
               )}
@@ -1011,17 +1021,18 @@ export default function AdminFinancialLedger() {
                 <p className="text-[11px] text-slate-400">{activityEnabled ? 'Thay đổi thông tin giao dịch được ghi vào lịch sử. Điều chỉnh bản ghi đã trả cần có lý do.' : 'Lịch sử hoạt động chưa được bật.'}</p>
               </section>
             </div>
-            <div className="pt-2 border-t border-slate-800 flex gap-2"><button type="button" onClick={() => setShowAddModal(false)} disabled={isSubmitting} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition disabled:opacity-60">Hủy</button><button type="button" onClick={handleInsertLedger} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg disabled:opacity-60">{isSubmitting ? 'Đang ghi...' : 'Ghi sổ'}</button></div>
           </div>
-        </div>
+        </AdminSidePanel>
       )}
 
-      {/* ================= MODAL CHỈNH SỬA ================= */}
       {testRecord && <TestLedgerDialog row={testRecord} onClose={()=>setTestRecord(null)} onSaved={refreshLedger}/> }
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div role="dialog" aria-modal="true" aria-labelledby="edit-ledger-title" className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-4 text-xs text-slate-200 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5"><h3 id="edit-ledger-title" className="font-bold uppercase tracking-wider text-[11px]">Sửa thông tin hạch toán</h3><button type="button" aria-label="Đóng biểu mẫu" disabled={isSubmitting || attachmentActionId != null} onClick={() => { setShowEditModal(false); setEditingId(null); }}><X className="w-5 h-5"/></button></div>
+        <AdminSidePanel title="Sửa giao dịch" wide busy={isSubmitting || attachmentActionId != null} onClose={() => { setShowEditModal(false); setEditingId(null); }}
+          actions={<>
+            <button type="button" onClick={() => { setShowEditModal(false); setEditingId(null); }} disabled={isSubmitting || attachmentActionId != null} className="admin-button-secondary">Hủy</button>
+            <button type="button" onClick={handleSaveEdit} disabled={isSubmitting || attachmentActionId != null} className="admin-button-primary">{isSubmitting ? 'Đang lưu…' : 'Lưu thay đổi'}</button>
+          </>}>
+          <div className="space-y-4 text-xs">
             <div className="grid gap-4 lg:grid-cols-2">
               <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
                 <h4 className="font-bold text-blue-300">Thông tin giao dịch</h4>
@@ -1054,7 +1065,7 @@ export default function AdminFinancialLedger() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 mt-1 focus:outline-none cursor-pointer text-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                     value={editExpenseSource}
                     onChange={e => setEditExpenseSource(e.target.value)}
-                    disabled={expenseSourcesLoading || Boolean(expenseSourcesError) || expensePaymentSources.length === 0}
+                    disabled={isSubmitting || expensePaymentSources.length === 0}
                   >
                     {expensePaymentSources.map((source) => (
                       <option key={source.id} value={source.id} disabled={!source.isActive && source.id !== editExpenseSource}>
@@ -1062,10 +1073,7 @@ export default function AdminFinancialLedger() {
                       </option>
                     ))}
                   </select>
-                  {expenseSourcesLoading && (
-                    <p className="mt-1 text-[10px] text-slate-500">Đang tải nguồn chi trả...</p>
-                  )}
-                  {!expenseSourcesLoading && expenseSourcesError && (
+                  {expenseSourcesError && (
                     <p className="mt-1 text-[10px] text-red-300">{expenseSourcesError}</p>
                   )}
                 </div>
@@ -1162,51 +1170,61 @@ export default function AdminFinancialLedger() {
                 <p className="mt-1 text-[10px] text-slate-400">Mã hỗ trợ: {editError.correlationId}</p>
               </div>
             )}
-            <div className="pt-2 border-t border-slate-800 flex gap-2"><button type="button" onClick={() => { setShowEditModal(false); setEditingId(null); }} disabled={isSubmitting || attachmentActionId != null} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition disabled:opacity-60">Hủy</button><button type="button" onClick={handleSaveEdit} disabled={isSubmitting || attachmentActionId != null} className="flex-1 bg-blue-600 hover:bg-blue-700 transition text-white font-black p-3 rounded-xl shadow-lg disabled:opacity-60">{isSubmitting ? 'Đang lưu...' : 'Cập nhật'}</button></div>
           </div>
-        </div>
+        </AdminSidePanel>
       )}
 
       {historyId && <ActivityHistoryDialog entityId={historyId} onClose={()=>setHistoryId(null)} />}
       {(sourceTarget || refundTarget) && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4">
-          <form role="dialog" aria-modal="true" aria-labelledby="advance-dialog-title" className="w-full max-w-sm space-y-4 rounded-xl border border-slate-700 bg-slate-900 p-5" onSubmit={event => { event.preventDefault(); void saveAdvance(); }}>
-            <h3 id="advance-dialog-title" className="text-sm font-semibold">
-              {refundTarget ? `Hoàn tiền cho ${refundTarget.row.person}` : sourceTarget?.is_paid ? 'Đổi nguồn chi' : 'Xác nhận đã trả lương'}
-            </h3>
+        <AdminSidePanel
+          title={refundTarget ? `Hoàn tiền cho ${refundTarget.row.person}` : sourceTarget?.is_paid ? 'Đổi nguồn chi' : 'Xác nhận đã trả lương'}
+          description={sourceTarget ? [sourceTarget.beneficiary_name, `${Number(sourceTarget.amount).toLocaleString('vi-VN')} đ`].filter(Boolean).join(' · ') : undefined}
+          onClose={closeAdvance} busy={advanceBusy}
+          actions={<>
+            <button type="button" className="admin-button-secondary" disabled={advanceBusy} onClick={closeAdvance}>Đóng</button>
+            <button type="submit" form="ledger-advance-form" className="admin-button-primary" disabled={advanceBusy || Boolean(sourceTarget && !canSaveSource)}>
+              {advanceBusy ? 'Đang lưu…' : refundTarget ? 'Xác nhận đã hoàn' : sourceTarget?.is_paid ? 'Lưu nguồn chi' : CONFIRM_PAID_LABEL}
+            </button>
+          </>}>
+          <form id="ledger-advance-form" className="space-y-4" onSubmit={event => { event.preventDefault(); void saveAdvance(); }}>
             {refundTarget ? (
-              <label className="block text-xs">
+              <label className="block text-sm font-semibold">
                 Số tiền đã chuyển (đồng)
                 <input type="number" required min={1} step={1} max={Number(refundTarget.row.advanced) - Number(refundTarget.row.refunded)}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2" value={refundAmount} onChange={event => setRefundAmount(event.target.value)} />
-                <span className="mt-1 block text-slate-400">Chuyển khoản trước rồi xác nhận để ghi giảm quỹ chung.</span>
+                  className="admin-field mt-1" disabled={advanceBusy} value={refundAmount} onChange={event => { setRefundAmount(event.target.value); setPaymentError(''); }} />
+                <span className="mt-2 block font-normal text-slate-400">Chuyển khoản trước rồi xác nhận để ghi giảm quỹ chung.</span>
               </label>
-            ) : sourceSelector}
-            <div className="flex justify-end gap-2">
-              <button type="button" className="admin-button-secondary" disabled={advanceBusy} onClick={() => { setSourceTarget(null); setRefundTarget(null); }}>Đóng</button>
-              <button type="submit" className="admin-button-secondary" disabled={advanceBusy || Boolean(sourceTarget && !advanceSource)}>
-                {refundTarget ? 'Xác nhận đã hoàn' : sourceTarget?.is_paid ? 'Lưu nguồn chi' : CONFIRM_PAID_LABEL}
-              </button>
-            </div>
+            ) : (
+              <>
+                {sourceTarget?.is_paid && <p className="text-sm text-slate-400">Nguồn hiện tại <strong className="text-slate-100">{currentAdvance ? `Cá nhân · ${currentAdvance.person}` : 'Quỹ chung'}</strong></p>}
+                {sourceSelector}
+              </>
+            )}
+            {paymentError && <p role="alert" className="text-sm text-red-300">{paymentError}</p>}
           </form>
-        </div>
+        </AdminSidePanel>
       )}
-      {/* POPUP VIETQR DETAILED */}
       {showQrModal && activeQrTarget && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-sm text-center space-y-4 relative text-slate-200 shadow-2xl">
-            <button onClick={() => { setShowQrModal(false); setActiveQrUrl(''); }} className="absolute top-4 right-4 text-slate-500"><X className="w-5 h-5" /></button>
-            <h3 className="font-black text-xs uppercase tracking-wider text-cyan-400">{activeQrTarget.title}</h3>
-            <div className="inline-block rounded-2xl border-4 border-cyan-500/30 bg-white p-3"><Image src={activeQrUrl} alt="VietQR" width={240} height={240} unoptimized className="h-60 w-60 object-contain" /></div>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-left space-y-1 text-[11px] font-mono leading-relaxed">
-              <p><span className="text-slate-500">Ngân hàng:</span> <span className="text-cyan-400 font-bold">{activeQrTarget.bankName}</span></p>
-              <p><span className="text-slate-500">Số tài khoản:</span> <span className="text-slate-200 font-bold">{activeQrTarget.accountNo}</span></p>
-              <p><span className="text-slate-500">Số tiền VND:</span> <span className="text-red-400 font-bold text-xs">{activeQrTarget.amount.toLocaleString()} đ</span></p>
-            </div>
+        <AdminSidePanel title={activeQrTarget.title} description={activeQrTarget.category} onClose={closeQr} busy={advanceBusy}
+          actions={<>
+            <button type="button" className="admin-button-secondary" disabled={advanceBusy} onClick={closeQr}>Đóng</button>
+            <button type="button" className="admin-button-primary" disabled={advanceBusy || (qrNeedsSource && !isAvailableAdvanceSource)} onClick={handleInstantPaymentSuccess}>
+              {advanceBusy ? 'Đang lưu…' : activeQrTarget.type === 'VON_GOP' || activeQrTarget.type === 'DOANH_THU' ? 'Xác nhận đã nhận' : CONFIRM_PAID_LABEL}
+            </button>
+          </>}>
+          <div className="space-y-4">
             {qrNeedsSource && sourceSelector}
-            <div className="pt-2 border-t border-slate-800 flex gap-2 text-xs"><button onClick={() => { setShowQrModal(false); setActiveQrUrl(''); }} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 hover:text-slate-200 transition">Đóng</button><button disabled={qrNeedsSource && !advanceSource} onClick={handleInstantPaymentSuccess} className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition text-white font-black p-3 rounded-xl shadow-lg">{activeQrTarget?.type === 'VON_GOP' || activeQrTarget?.type === 'DOANH_THU' ? 'Xác nhận đã nhận' : CONFIRM_PAID_LABEL}</button></div>
+            <div className="mx-auto w-fit max-w-full rounded-xl bg-white p-3">
+              <Image src={activeQrUrl} alt="Mã VietQR" width={240} height={240} unoptimized className="h-auto max-w-full object-contain" />
+            </div>
+            <dl className="space-y-2 rounded-xl border border-slate-800 bg-slate-950 p-3 text-sm">
+              <div className="flex flex-wrap justify-between gap-x-3"><dt className="text-slate-400">Ngân hàng</dt><dd>{activeQrTarget.bankName}</dd></div>
+              <div className="flex flex-wrap justify-between gap-x-3"><dt className="text-slate-400">Số tài khoản</dt><dd className="font-mono">{activeQrTarget.accountNo}</dd></div>
+              <div className="flex flex-wrap justify-between gap-x-3"><dt className="text-slate-400">Số tiền</dt><dd className="font-semibold">{activeQrTarget.amount.toLocaleString('vi-VN')} đ</dd></div>
+            </dl>
+            {paymentError && <p role="alert" className="text-sm text-red-300">{paymentError}</p>}
           </div>
-        </div>
+        </AdminSidePanel>
       )}
     </div>
   );

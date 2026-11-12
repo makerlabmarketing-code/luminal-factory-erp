@@ -83,3 +83,9 @@ export interface ExpensePaymentSourceOption {
   reporterName: string | null;
   isActive: boolean;
 }
+
+export interface ShareholderPaymentSourceRow {
+  id: number | string;
+  name: string | null;
+  status: string | null;
+}

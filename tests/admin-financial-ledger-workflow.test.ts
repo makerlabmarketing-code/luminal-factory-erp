@@ -157,7 +157,7 @@ describe('Admin financial ledger repair', () => {
     expect(page).toContain('loading && !hasLoadedData');
     expect(page).toContain('<LedgerTableLoadingState />');
     expect(page).toContain("showToast('Không tải được sổ thu chi'");
-    expect(page).toContain('Bạn vẫn có thể xem sổ thu chi và dùng quỹ tiền mặt chung.');
+    expect(page).toContain('getExpensePaymentSourceOptions(ledgerResult.paymentSourceRows ?? [])');
   });
 
   it('loads the ledger with one batched permission query and no duplicate config request', () => {

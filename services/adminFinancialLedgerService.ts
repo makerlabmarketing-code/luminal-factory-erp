@@ -1,8 +1,9 @@
-import type { AdminLedgerMutationInput, FinancialLedgerEntry, PersonalAdvance } from '@/lib/types/finance';
+import type { AdminLedgerMutationInput, FinancialLedgerEntry, PersonalAdvance, ShareholderPaymentSourceRow } from '@/lib/types/finance';
 
 interface LedgerResponse {
   canManageTestRecords: boolean;
   personalAdvances: PersonalAdvance[] | null;
+  paymentSourceRows: ShareholderPaymentSourceRow[] | null;
   salaryPaymentEmailEnabled: boolean;
   activityHistoryEnabled: boolean;
   canUpdate: boolean;
