@@ -1,5 +1,7 @@
 // app/admin/capital/page.tsx
 'use client';
+
+import { CommonTable, TableLoadingRows } from '@/component/data-table/CommonTable';
 import { isSalaryLedger, normalizeSalaryMonth } from '@/lib/salary-payment';
 import { payrollMonthFromLedgerPeriod, isLinkedPayrollLedger } from '@/lib/payroll-ledger-link';
 import { retrySalaryLedgerEmail } from '@/services/adminFinancialLedgerService';
@@ -12,7 +14,7 @@ import { useNotification } from '@/component/NotificationContext';
 import { useGlobalLoading } from '@/component/GlobalLoading';
 import MonthPicker from '@/component/MonthPicker';
 import LedgerMetrics from './components/LedgerMetrics';
-import LedgerTable from './components/LedgerTable';
+import LedgerTable, { LedgerTableHeader } from './components/LedgerTable';
 import { TestLedgerDialog } from './TestLedgerDialog';
 import CapitalShareCard from './components/CapitalShareCard';
 import MonthlyCapitalSettings from './components/MonthlyCapitalSettings';
@@ -128,7 +130,7 @@ function LedgerSkeletonBlock({ className = '' }: { className?: string }) {
 
 function LedgerLoadingSkeleton() {
   return (
-    <div className="space-y-6" aria-live="polite" aria-busy="true">
+    <div className="space-y-6" aria-busy="true">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <LedgerSkeletonBlock className="h-28" />
         <LedgerSkeletonBlock className="h-28" />
@@ -136,41 +138,21 @@ function LedgerLoadingSkeleton() {
         <LedgerSkeletonBlock className="h-28" />
       </div>
       <LedgerSkeletonBlock className="h-40" />
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/40 px-5 py-3">
-          <div className="h-3 w-48 animate-pulse rounded bg-slate-800" />
-          <div className="h-8 w-64 animate-pulse rounded-xl bg-slate-800" />
-        </div>
-        <div className="space-y-3 p-5">
-          {[0, 1, 2, 3, 4].map((row) => (
-            <div key={row} className="grid grid-cols-5 gap-3">
-              <div className="h-4 animate-pulse rounded bg-slate-800" />
-              <div className="h-4 animate-pulse rounded bg-slate-800" />
-              <div className="h-4 animate-pulse rounded bg-slate-800" />
-              <div className="h-4 animate-pulse rounded bg-slate-800" />
-              <div className="h-4 animate-pulse rounded bg-slate-800" />
-            </div>
-          ))}
-        </div>
-      </div>
-      <p className="text-center text-xs font-bold text-slate-500">Đang tải dữ liệu...</p>
+      <section className="admin-table-shell">
+        <h2 className="border-b border-slate-800 px-5 py-4 text-sm font-semibold">Nhật ký thu chi</h2>
+        <LedgerTableLoadingState />
+      </section>
     </div>
   );
 }
 
 function LedgerTableLoadingState() {
   return (
-    <div className="space-y-3 p-5" role="status" aria-live="polite" aria-busy="true">
-      {[0, 1, 2, 3, 4].map((row) => (
-        <div key={row} className="grid grid-cols-5 gap-3">
-          <div className="h-4 animate-pulse rounded bg-slate-800" />
-          <div className="h-4 animate-pulse rounded bg-slate-800" />
-          <div className="h-4 animate-pulse rounded bg-slate-800" />
-          <div className="h-4 animate-pulse rounded bg-slate-800" />
-          <div className="h-4 animate-pulse rounded bg-slate-800" />
-        </div>
-      ))}
-      <p className="text-center text-xs font-bold text-slate-500">Đang tải sổ thu chi...</p>
+    <div className="overflow-x-auto">
+      <CommonTable aria-busy="true" className="min-w-[980px] w-full">
+        <LedgerTableHeader />
+        <tbody><TableLoadingRows columns={6} /></tbody>
+      </CommonTable>
     </div>
   );
 }

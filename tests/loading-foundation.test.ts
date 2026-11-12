@@ -99,10 +99,25 @@ describe('global loading foundation', () => {
     const employeeLoading = source('app/admin/employees/[employeeId]/loading.tsx');
 
     expect(sharedLoading).toMatch(/return <CenteredPageLoading message=\{message\}/);
-    expect(accountsLoading).toMatch(/CenteredPageLoading/);
+    expect(accountsLoading).toMatch(/AdminListLoading/);
     expect(employeeLoading).toMatch(/CenteredPageLoading/);
   });
 
+
+  it('renders the shared table during admin list navigation and data loading', () => {
+    const listRoutes = [
+      'accounts', 'capital', 'commerce/products', 'commerce/raffles', 'email-history',
+      'employees', 'facilities', 'metadata', 'payroll', 'production-orders', 'projects',
+    ];
+    for (const route of listRoutes) {
+      expect(source(`app/admin/${route}/loading.tsx`)).toContain('AdminListLoading');
+    }
+    const shell = source('component/data-table/AdminListLoading.tsx');
+    expect(shell).toContain('<CommonTable');
+    expect(shell).toContain('<TableLoadingRows');
+    expect(source('app/loading.tsx')).toContain('isAdminListRoute(pathname)');
+    expect(source('component/app-shell/AdminAppShell.tsx')).not.toContain('loadingMessage="Đang tải dữ liệu..."');
+  });
 
   it('uses the centered Luminal loader for root and project routes', () => {
     const rootLoadingSource = source('app/loading.tsx');
@@ -114,7 +129,8 @@ describe('global loading foundation', () => {
 
     expect(rootLoadingSource).toMatch(/CenteredPageLoading/);
     expect(projectLoadingSource).toMatch(/Đang tải chi tiết dự án/);
-    expect(projectListSource).toMatch(/Đang tải danh sách dự án/);
+    expect(projectListSource).toMatch(/<TableLoadingRows columns=\{7\}/);
+    expect(projectListSource).not.toMatch(/CenteredPageLoading/);
     expect(projectDetailSource).toMatch(/Đang tải chi tiết dự án\.\.\./);
     expect(loaderSource).toMatch(/LuminalLoadingMark/);
     expect(loaderSource).toMatch(/role="status"/);

@@ -3,7 +3,7 @@ import { PayrollActionDialog } from './PayrollActionDialog';
 import Link from 'next/link';
 import { payrollLedgerMonthInput } from '@/lib/payroll-ledger-link';
 
-import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
+import { CommonTable, TableLoadingRows, TableRowActions } from '@/component/data-table/CommonTable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import MonthPicker from '@/component/MonthPicker';
 import { businessMonthFromInstant, formatBusinessMonthInput } from '@/lib/business-date';
@@ -187,22 +187,19 @@ export default function AdminPayrollPage() {
       {success && <p role="status" className="text-sm text-emerald-300">{success}</p>}
       {error && <div role="alert" className="rounded-lg border border-red-500/30 bg-red-950/30 p-3 text-sm text-red-200">{error}</div>}
 
-      {readyForPayroll && (
+      {(readyForPayroll || (!readiness && setupLoading)) && (
         <>
-          <fieldset disabled={activeAction !== null} className="max-w-xs"><MonthPicker value={month} onChange={setMonth} /></fieldset>
+          <fieldset disabled={setupLoading || activeAction !== null} className="max-w-xs"><MonthPicker value={month} onChange={setMonth} /></fieldset>
           {selectedMonthBeforeStart && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">
               Kỳ {month} chỉ được xem để đối chiếu. Mốc quyết toán đầu tiên đã khóa ở {readiness?.firstSettlementMonth}, nên không thể xác nhận các kỳ cũ hơn.
             </div>
           )}
-          {loading ? (
-            <p className="text-sm text-slate-400">Đang tải bảng lương...</p>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-800">
-              <CommonTable className="w-full text-left text-sm">
+          <div className="admin-table-shell overflow-x-auto">
+              <CommonTable aria-busy={setupLoading || loading} className="min-w-[46rem] w-full text-left text-sm">
                 <thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">Nhân viên</th><th>Giờ / ca</th><th>Lương tính</th><th>Điều chỉnh</th><th>Thực nhận</th><th>Trạng thái</th><th /></tr></thead>
                 <tbody>
-                  {rows.map((row) => (
+                  {setupLoading || loading ? <TableLoadingRows columns={7} /> : rows.map((row) => (
                     <tr key={row.employeeId} className="border-t border-slate-800">
                       <td className="p-3 font-medium">{row.employeeName}{Boolean(row.reopeningHistory?.length) && <details className="mt-1 text-xs text-slate-400"><summary className="cursor-pointer">Lịch sử mở lại ({row.reopeningHistory?.length})</summary><ul className="mt-2 space-y-2">{row.reopeningHistory?.map((item, index) => <li key={`${item.reopenedAt}:${index}`}>{item.actorName} · {new Date(item.reopenedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}<span className="block">{item.reason}</span></li>)}</ul></details>}</td>
                       <td>{row.workedHours} giờ / {row.calculatedShifts} ca</td>
@@ -224,9 +221,8 @@ export default function AdminPayrollPage() {
                   ))}
                 </tbody>
               </CommonTable>
-              {rows.length === 0 && <p className="p-8 text-center text-slate-400">Không có dữ liệu lương trong tháng đã chọn.</p>}
-            </div>
-          )}
+              {!setupLoading && !loading && !error && rows.length === 0 && <p className="p-8 text-center text-slate-400">Không có dữ liệu lương trong tháng đã chọn.</p>}
+          </div>
         </>
       )}
       {actionDialog && <PayrollActionDialog key={`${actionDialog.row.settlementId}:${actionDialog.action}`} {...actionDialog} onBusy={busy => { lock.current = busy; setActiveAction(busy ? actionDialog.action : null); }} onClose={() => setActionDialog(null)} onSaved={async () => { await loadPayroll(); setSuccess(actionDialog.action === 'reopen' ? 'Đã mở lại kỳ lương. Có thể chấm công tiếp và chốt lại.' : actionDialog.action === 'supplement' ? 'Đã tạo phiếu lương bổ sung Chưa trả.' : 'Đã lưu điều chỉnh tiền lương.'); }} />}

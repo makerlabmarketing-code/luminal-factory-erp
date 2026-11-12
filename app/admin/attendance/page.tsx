@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNotification } from '@/component/NotificationContext';
 import MonthPicker from '@/component/MonthPicker';
-import { DataTableError, DataTableShell, DataTableSkeleton } from '@/component/data-table/DataTable';
+import { DataTableError, DataTableShell } from '@/component/data-table/DataTable';
 import DailyAttendanceModal from './components/DailyAttendanceModal';
 import { Calendar as CalendarIcon, Clock, LayoutGrid, User } from 'lucide-react';
 import {
@@ -395,9 +395,7 @@ export default function AdminAttendanceManagement() {
       {/* FULL CALENDAR GRID */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl space-y-4">
         <DataTableShell label="Lịch chấm công theo tháng" height="viewport" isRefreshing={loading && attendanceRecords.length > 0}>
-        {loading && attendanceRecords.length === 0 ? (
-          <DataTableSkeleton rows={5} columns={7} />
-        ) : loadError && attendanceRecords.length === 0 ? (
+        {loadError && attendanceRecords.length === 0 ? (
           <DataTableError message={loadError} onRetry={() => void loadData()} />
         ) : (
           <>
@@ -405,7 +403,7 @@ export default function AdminAttendanceManagement() {
           <LayoutGrid className="w-4 h-4 text-purple-400" /> Bảng phân lịch chi tiết theo ngày
         </h2>
 
-        {selectedMonthSummary.records === 0 && (
+        {!loading && selectedMonthSummary.records === 0 && (
           <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-300">
             Không có bản ghi chấm công trong tháng đang chọn.
           </div>
@@ -415,7 +413,8 @@ export default function AdminAttendanceManagement() {
           <div>CN</div><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div>
         </div>
 
-        <div className="grid auto-rows-[112px] grid-cols-7 gap-2 md:gap-3">
+        {loading && attendanceRecords.length === 0 && <span role="status" className="sr-only">Đang tải lịch chấm công…</span>}
+        <div aria-busy={loading} className="grid auto-rows-[112px] grid-cols-7 gap-2 md:gap-3">
           {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} aria-hidden="true" className="h-full rounded-xl border border-slate-800/60 bg-slate-950/40"></div>)}
 
           {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -435,7 +434,8 @@ export default function AdminAttendanceManagement() {
             return (
               <button
                 type="button"
-                key={`day-${day}`} 
+                key={`day-${day}`}
+                disabled={loading && attendanceRecords.length === 0}
                 onClick={() => handleGridDayClick(currentLoopDateStr)} 
                 onMouseEnter={() => processedDayRecords.length > 0 && setAttendanceDayDetails({ day, records: processedDayRecords })}
                 onMouseLeave={() => setAttendanceDayDetails(null)}

@@ -32,6 +32,21 @@ interface LedgerTableProps {
   onTransitionReimbursement: (item: LedgerRow, status: 'APPROVED' | 'REJECTED' | 'PAID') => void;
 }
 
+export function LedgerTableHeader() {
+  return (
+      <thead className="bg-slate-950 text-[10px] uppercase tracking-wide text-slate-400">
+        <tr>
+          <th className="w-[27%] p-4">Khoản mục</th>
+          <th className="w-[14%] p-4">Người thực hiện</th>
+          <th className="w-[14%] p-4">Người hưởng lợi</th>
+          <th className="w-[13%] p-4">Trạng thái quỹ</th>
+          <th className="w-[10%] p-4 text-right">Số tiền</th>
+          <th className="w-[22%] p-4 text-center">Hành động</th>
+        </tr>
+      </thead>
+  );
+}
+
 export default function LedgerTable({
   data,
   salaryMailEnabled, personalAdvances, onChangeSource, onRetrySalaryEmail,
@@ -73,16 +88,7 @@ export default function LedgerTable({
   return (
     <div className="overflow-x-auto">
     <CommonTable className="min-w-[980px] w-full text-left text-xs text-slate-300">
-      <thead className="bg-slate-950 text-[10px] uppercase tracking-wide text-slate-400">
-        <tr>
-          <th className="w-[27%] p-4">Khoản mục</th>
-          <th className="w-[14%] p-4">Người thực hiện</th>
-          <th className="w-[14%] p-4">Người hưởng lợi</th>
-          <th className="w-[13%] p-4">Trạng thái quỹ</th>
-          <th className="w-[10%] p-4 text-right">Số tiền</th>
-          <th className="w-[22%] p-4 text-center">Hành động</th>
-        </tr>
-      </thead>
+      <LedgerTableHeader />
       <tbody className="divide-y divide-slate-800/60 text-xs font-medium">
         {data.map((l) => {
           // Lấy bản ghi con từ thuộc tính linkedChild (đã được page.tsx gán vào)

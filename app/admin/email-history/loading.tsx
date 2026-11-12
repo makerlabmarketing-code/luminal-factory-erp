@@ -1,5 +1,5 @@
-import { CenteredPageLoading } from '@/component/LuminalLoader';
+import AdminListLoading from '@/component/data-table/AdminListLoading';
 
-export default function EmailHistoryLoading() {
-  return <CenteredPageLoading message="Đang tải lịch sử email..." />;
+export default function Loading() {
+  return <AdminListLoading route="/admin/email-history" />;
 }

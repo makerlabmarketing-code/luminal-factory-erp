@@ -1,5 +1,5 @@
-import { CenteredPageLoading } from '@/component/LuminalLoader';
+import AdminListLoading from '@/component/data-table/AdminListLoading';
 
-export default function CapitalLoading() {
-  return <CenteredPageLoading message="Đang tải dữ liệu tài chính..." />;
+export default function Loading() {
+  return <AdminListLoading route="/admin/capital" />;
 }

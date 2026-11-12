@@ -1,6 +1,6 @@
 'use client';
 
-import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
+import { CommonTable, TableLoadingRows, TableRowActions } from '@/component/data-table/CommonTable';
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
@@ -363,7 +363,7 @@ export default function AdminEmployeesClient({ directory, onEmployeeChange }: {
           </PeopleListToolbar>
 
           <div className="overflow-x-auto">
-            <CommonTable className="w-full text-left text-xs text-slate-300">
+            <CommonTable aria-busy={listLoading} className="w-full text-left text-xs text-slate-300">
               <thead className="border-b border-slate-800 bg-slate-950 text-[10px] uppercase text-slate-400">
                 <tr>
                   <th className="p-4">Nhân sự</th>
@@ -374,7 +374,7 @@ export default function AdminEmployeesClient({ directory, onEmployeeChange }: {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-[11px]">
-                {currentData.length === 0 ? (
+                {listLoading ? <TableLoadingRows columns={5} /> : currentData.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="p-8 text-center text-slate-500">
                       Không tìm thấy dữ liệu nhân sự.

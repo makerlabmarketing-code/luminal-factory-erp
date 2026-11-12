@@ -1,5 +1,5 @@
-import { CenteredPageLoading } from '@/component/LuminalLoader';
+import AdminListLoading from '@/component/data-table/AdminListLoading';
 
-export default function EmployeesLoading() {
-  return <CenteredPageLoading message="Đang tải danh sách nhân sự..." />;
+export default function Loading() {
+  return <AdminListLoading route="/admin/employees" />;
 }

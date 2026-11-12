@@ -20,6 +20,7 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LoadingLink } from "@/component/GlobalLoading";
 import { ERP_UI_TEXT } from "@/lib/i18n/vi";
@@ -169,17 +170,16 @@ function AppSidebar({
                 const active = isAdminNavigationItemActive(pathname, item.path);
 
                 return (
-                  <LoadingLink
+                  <Link
                     key={item.path}
                     href={item.path}
-                    loadingMessage="Đang tải dữ liệu..."
                     onClick={onClose}
                     aria-current={active ? "page" : undefined}
                     className={`admin-nav-item ${active ? "admin-nav-item-active" : ""}`}
                   >
                     <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>{item.name}</span>
-                  </LoadingLink>
+                  </Link>
                 );
               })}
             </div>
@@ -290,16 +290,15 @@ function GlobalCommandMenu({
             items.map((item) => {
               const Icon = ICONS[item.icon];
               return (
-                <LoadingLink
+                <Link
                   key={item.path}
                   href={item.path}
-                  loadingMessage="Đang tải dữ liệu..."
                   onClick={closeMenu}
                   className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
                 >
                   <Icon className="h-4 w-4 text-slate-500" aria-hidden="true" />
                   {item.name}
-                </LoadingLink>
+                </Link>
               );
             })
           ) : (
