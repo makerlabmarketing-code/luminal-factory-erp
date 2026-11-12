@@ -11,13 +11,16 @@ function source(relativePath: string): string {
 describe('expense payment source binding', () => {
   it('loads payment sources from live shareholders columns only', () => {
     const capitalPage = source('app/admin/capital/page.tsx');
-    const shareholdersQuery = capitalPage.match(
-      /supabase\.from\('shareholders'\)\.select\([^\n]+/,
+    const ledgerServer = source('services/server/adminFinancialLedger.ts');
+    const shareholdersQuery = ledgerServer.slice(ledgerServer.indexOf('const canUsePaymentSources')).match(
+      /admin\.from\('shareholders'\)\.select\([^\n]+/,
     )?.[0] || '';
 
     expect(shareholdersQuery).toMatch(/from\('shareholders'\)/);
     expect(shareholdersQuery).toMatch(/select\('id, name, status'\)/);
     expect(shareholdersQuery).not.toMatch(/shareholder_name|display_name|full_name/);
+    expect(capitalPage).not.toContain("supabase.from('shareholders')");
+    expect(ledgerServer.indexOf("includes('FINANCE_VIEW')")).toBeLessThan(ledgerServer.indexOf('const canUsePaymentSources'));
   });
 
   it('uses stable ids as option values and does not hardcode people', () => {
@@ -29,14 +32,13 @@ describe('expense payment source binding', () => {
     expect(capitalPage).not.toMatch(/value=\{source\.label\}/);
   });
 
-  it('renders loading, empty, and error states for the source select', () => {
+  it('uses the ledger load and distinguishes missing personal sources from a query failure', () => {
     const capitalPage = source('app/admin/capital/page.tsx');
 
-    expect(capitalPage).toMatch(/expenseSourcesLoading/);
-    expect(capitalPage).toMatch(/expenseSourcesError/);
-    expect(capitalPage).toMatch(/Đang tải nguồn chi trả/);
-    expect(capitalPage).toMatch(/Chưa có nguồn chi trả hợp lệ/);
-    expect(capitalPage).toMatch(/Không tải được nguồn chi trả/);
+    expect(capitalPage).toMatch(/ledgerResult.paymentSourceRows === null/);
+    expect(capitalPage).toMatch(/Chưa có nguồn chi cá nhân đang hoạt động/);
+    expect(capitalPage).toMatch(/Không tải được danh sách nguồn chi cá nhân/);
+    expect(capitalPage).toMatch(/advanceSource !== currentSourceId/);
   });
 
   it('keeps create and edit expense source behavior on financial_ledger', () => {

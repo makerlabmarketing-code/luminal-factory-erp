@@ -279,6 +279,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
   const auth = await requireWorkspaceAccess('ADMIN_WORKSPACE', { allowLegacyAdminFallback: true });
   const grantedPermissions = await listGrantedPermissions(auth, [
     'FINANCE_VIEW',
+    'FINANCE_CREATE',
     'FINANCE_APPROVE',
     'FINANCE_PAY',
     'FINANCE_UPDATE',
@@ -358,12 +359,19 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
       return name ? [{ id: project.id, name }] : [];
     });
   })();
-  const [employeeNames, attachments, projects, financeMetadata] = await Promise.all([
+  const canUsePaymentSources = grantedPermissions.permissionCodes.some(
+    code => code === 'FINANCE_CREATE' || code === 'FINANCE_UPDATE' || code === 'FINANCE_PAY',
+  );
+  const [employeeNames, attachments, projects, financeMetadata, paymentSources] = await Promise.all([
     employeeNamesPromise,
     attachmentDtos(rows.map((row) => row.id)),
     projectsPromise,
     financeMetadataPromise,
+    canUsePaymentSources ? admin.from('shareholders').select('id, name, status').order('id') : null,
   ]);
+  if (paymentSources?.error) {
+    console.warn('[admin-finance-payment-sources]', { code: paymentSources.error.code });
+  }
 
   console.info('[admin-finance-ledger-read]', {
     durationMs: Math.round(performance.now() - startedAt),
@@ -389,6 +397,7 @@ export async function listAdminFinancialLedger(monthPeriod: string) {
     extendedSchemaEnabled: extendedLedgerEnabled(),
     attachmentsEnabled: extendedLedgerEnabled() && attachmentWritesEnabled(),
     projects,
+    paymentSourceRows: paymentSources?.error ? null : paymentSources?.data ?? [],
     reimbursementCapabilities: {
       currentEmployeeId: String(auth.employee.id),
       canApprove: grantedPermissions.permissionCodes.includes('FINANCE_APPROVE'),
