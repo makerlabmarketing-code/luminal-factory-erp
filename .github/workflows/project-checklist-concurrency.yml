@@ -1,0 +1,34 @@
+name: Project checklist concurrency
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/project-checklist-concurrency.yml'
+      - 'supabase/drafts/project-checklist/**'
+      - 'supabase/drafts/project-checklist-activity/**'
+      - 'supabase/drafts/payroll-ledger-link/local-postgres.mjs'
+      - 'supabase/drafts/20260821_phase_template*.sql'
+      - 'supabase/migrations/20261018152856_project_checklist_atomic.sql'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checklist-races:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Install disposable PostgreSQL outside the application
+        run: npm install --prefix "$RUNNER_TEMP/e011-postgres" --no-audit --no-fund embedded-postgres@17.11.0-beta.19
+      - name: Run checklist acceptance and verify overlapping writes
+        env:
+          CHECKLIST_REQUIRE_CONCURRENCY: '1'
+          EMBEDDED_POSTGRES_MODULE: ${{ runner.temp }}/e011-postgres/node_modules/embedded-postgres/dist/index.js
+        run: node supabase/drafts/project-checklist/test.mjs
