@@ -183,6 +183,7 @@ async function loadAssignedWorkflow(employeeId: number, employeeName: string): P
       rawStatus: task.status || 'READY',
       deadline: dateOnly(task.deadline),
       estimationDate: dateOnly(task.deadline),
+      description: task.description,
       note: '',
       createdAt: task.created_at,
     });

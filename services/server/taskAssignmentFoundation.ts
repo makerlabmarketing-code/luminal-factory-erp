@@ -766,6 +766,8 @@ export async function changeProjectTaskStatus(
   const payload = validateTaskAssignmentStatusPayload(body);
   const context = await contextForMutation(projectId);
   const currentTask = await loadTask(projectId, taskId);
+  const stale = () => taskAssignmentError(409, "Công việc vừa được cập nhật. Hãy tải lại.", "task_assignment_stale_status", "payload_validation");
+  if (payload.expectedStatus && currentTask.status !== payload.expectedStatus) throw stale();
   const isOverrideTransition = currentTask.status === "COMPLETED" && Boolean(payload.overrideCompleted && payload.overrideReason);
   if (!isOverrideTransition && !canTransitionTaskStatus(currentTask.status, payload.status)) {
     throw taskAssignmentError(
@@ -789,17 +791,22 @@ export async function changeProjectTaskStatus(
   };
   if (payload.status === "COMPLETED")
     updatePayload.completed_at = new Date().toISOString();
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("tasks")
     .update(updatePayload)
     .eq("id", taskId)
-    .eq("project_id", projectId);
+    .eq("project_id", projectId)
+    .eq("status", currentTask.status)
+    .select("id")
+    .maybeSingle();
   if (error)
     mapSupabaseError(
       "Không thể đổi trạng thái công việc dự án.",
       "task_assignment_status_failed",
       error.code,
     );
+
+  if (!updated) throw stale();
 
   await insertComment(
     projectId,

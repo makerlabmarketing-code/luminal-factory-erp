@@ -113,7 +113,7 @@ export default function StaffPortalContent({
       </div>
 
       <div className={tabClasses.tasks}>
-        {visitedTabs.tasks && <StaffTasksContent workerData={worker} />}
+        {visitedTabs.tasks && <StaffTasksContent workerData={worker} active={activeTab === 'tasks'} />}
       </div>
 
       <div className={tabClasses.expenses}>

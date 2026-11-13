@@ -73,6 +73,7 @@ export interface TaskAssignmentAssignPayload {
 
 export interface TaskAssignmentStatusPayload {
   status: TaskAssignmentStatus;
+  expectedStatus?: TaskAssignmentStatus;
   comment?: string | null;
   overrideCompleted?: boolean;
   overrideReason?: string | null;

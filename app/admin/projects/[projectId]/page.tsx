@@ -1,5 +1,7 @@
 'use client';
 
+import TaskBoard, { type TaskBoardCard } from '@/component/project/TaskBoard';
+import { useProjectTaskRealtime } from '@/hooks/useProjectTaskRealtime';
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
@@ -349,7 +351,11 @@ export default function ProjectDetailPage() {
   const projectId = Number(params.projectId);
   const [items, setItems] = useState<WorkflowSetting[]>([]);
   const [projectTasks, setProjectTasks] = useState<TaskAssignmentDTO[]>([]);
+  const [boardPhaseId, setBoardPhaseId] = useState<number | null>(null);
+  const [taskView, setTaskView] = useState<'board' | 'list'>('board');
+  const taskRequest = useRef(0);
   const [taskLoadBlocked, setTaskLoadBlocked] = useState(false);
+  const [tasksReady, setTasksReady] = useState(false);
   const [canCreateTasks, setCanCreateTasks] = useState(false);
   const [taskActionLoading, setTaskActionLoading] = useState<number | null>(null);
   const [editingTask, setEditingTask] = useState<TaskEditState | null>(null);
@@ -407,17 +413,29 @@ export default function ProjectDetailPage() {
   );
 
   const refreshTasks = useCallback(async () => {
+    const request = ++taskRequest.current;
     try {
       const tasksResponse = await fetchWithTimeout(`/api/admin/projects/${projectId}/tasks`);
       if (!tasksResponse.ok) throw new Error('task_load_failed');
       const payload = await tasksResponse.json() as { tasks?: TaskAssignmentDTO[]; capabilities?: { canCreateTasks?: boolean } };
+      if (request !== taskRequest.current) return;
       setProjectTasks(payload.tasks || []);
       setCanCreateTasks(Boolean(payload.capabilities?.canCreateTasks));
       setTaskLoadBlocked(false);
+      setTasksReady(true);
     } catch {
+      if (request !== taskRequest.current) return;
+      setProjectTasks([]);
+      setCanCreateTasks(false);
       setTaskLoadBlocked(true);
+      setTasksReady(false);
     }
   }, [projectId]);
+
+  const taskBoardConnected = useProjectTaskRealtime(
+    workspaceTab === 'work' && taskView === 'board' && projectCapabilities.canViewProject && tasksReady ? projectId : undefined,
+    refreshTasks,
+  );
 
   const refreshPhases = useCallback(async () => {
     try {
@@ -949,6 +967,19 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const moveBoardTask = async (card: TaskBoardCard, status: TaskAssignmentStatus, comment: string) => {
+    const response = await fetch(`/api/admin/projects/${projectId}/tasks/${card.id}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, expectedStatus: card.status, comment }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { message?: string } | null;
+      throw new Error(payload?.message || 'Không thể chuyển công việc.');
+    }
+    await refreshTasks();
+  };
+
   const handleSavePhase = async (phase: PhaseRecord) => {
     if (!canManageProject) return;
     if (!phase.item.project_id || !phase.item.phase_id) return;
@@ -1087,7 +1118,29 @@ export default function ProjectDetailPage() {
           </section>
         )}
 
-        {workspaceTab === 'work' && (
+        {workspaceTab === 'work' && tasksReady && (
+          <div className="flex gap-2" role="group" aria-label="Cách xem công việc">
+            <button type="button" className="admin-button-secondary" aria-pressed={taskView === 'board'} onClick={() => setTaskView('board')}>Bảng công việc</button>
+            <button type="button" className="admin-button-secondary" aria-pressed={taskView === 'list'} onClick={() => setTaskView('list')}>Danh sách</button>
+          </div>
+        )}
+        {workspaceTab === 'work' && taskView === 'board' && tasksReady && (
+          <section role="tabpanel" id="project-panel-work" aria-labelledby="project-tab-work">
+            <label className="admin-label mb-3 max-w-xs">Giai đoạn
+              <select className="admin-field mt-1" value={boardPhaseId ?? ''} onChange={event => setBoardPhaseId(event.target.value ? Number(event.target.value) : null)}>
+                <option value="">Tất cả giai đoạn</option>
+                {phasesWithGates.filter(phase => phase.item.phase_id).map(phase => <option key={phase.item.key} value={phase.item.phase_id}>{phase.phaseName}</option>)}
+              </select>
+            </label>
+            <TaskBoard key={projectId} cards={projectTasks.filter(task => !boardPhaseId || task.phaseId === boardPhaseId).map(task => ({
+              id: task.taskId, title: task.title, description: task.description, status: task.status, deadline: task.deadline,
+              assignee: task.assigneeFullName, phase: phasesWithGates.find(phase => phase.item.phase_id === task.phaseId)?.phaseName,
+            }))} getTransitions={card => projectCapabilities.canManageTasks && !isProjectCancelled
+              ? allowedNextTaskStatuses(card.status).filter(status => status !== card.status) : []}
+              onMove={moveBoardTask} onRefresh={refreshTasks} connected={taskBoardConnected} />
+          </section>
+        )}
+        {workspaceTab === 'work' && (taskView === 'list' || !tasksReady) && (
           <section role="tabpanel" id="project-panel-work" aria-labelledby="project-tab-work" tabIndex={0} className="grid items-start gap-4 outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 lg:grid-cols-[240px_minmax(0,1fr)]">
             <nav aria-label="Giai đoạn dự án" className="min-w-0 rounded-lg border border-slate-800 bg-slate-900 p-3 lg:sticky lg:top-4">
               <div className="mb-3 flex items-center justify-between gap-2">

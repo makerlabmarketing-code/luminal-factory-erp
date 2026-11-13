@@ -65,11 +65,11 @@ vi.mock('@/utils/supabase/admin', () => ({
         const values = filters.map(([, value]) => value);
         if (update) {
           const columns = Object.keys(update);
-          await fixture.query(
-            `update ${table} set ${columns.map((column, i) => `${column} = $${i + values.length + 1}`).join(', ')} where ${where}`,
+          const { rows } = await fixture.query(
+            `update ${table} set ${columns.map((column, i) => `${column} = $${i + values.length + 1}`).join(', ')} where ${where} returning id`,
             [...values, ...Object.values(update)],
           );
-          return { data: [], error: null };
+          return { data: rows, error: null };
         }
         const { rows } = await fixture.query(
           `select * from ${table}${where ? ` where ${where}` : ''}${limit ? ` limit ${limit}` : ''}`,
@@ -141,8 +141,8 @@ const request = (path: string, method: string, body: object) =>
   new NextRequest(`https://erp.test${path}`, { method, body: JSON.stringify(body) });
 const staff = (expectedStatus: string, status: string, note = '') =>
   updateStaffTask(request('/api/staff/tasks', 'PATCH', { taskId: 21, expectedStatus, status, note }));
-const manager = (status: string, comment: string) =>
-  reviewTask(request('/api/admin/projects/7/tasks/21/status', 'POST', { status, comment }), {
+const manager = (status: string, comment: string, expectedStatus?: string) =>
+  reviewTask(request('/api/admin/projects/7/tasks/21/status', 'POST', { status, comment, expectedStatus }), {
     params: Promise.resolve({ projectId: '7', taskId: '21' }),
   });
 
@@ -155,7 +155,8 @@ it('keeps the staff submission, rejected stale view, manager revision, resubmiss
   fixture.managerId = 2;
   expect((await manager('REVISION_REQUIRED', 'Bình luận bị từ chối')).status).toBe(403);
   fixture.managerId = 1;
-  expect((await manager('REVISION_REQUIRED', 'Cần sửa bề mặt')).status).toBe(200);
+  expect((await manager('REVISION_REQUIRED', 'Cần sửa bề mặt', 'PENDING_REVIEW')).status).toBe(200);
+  expect((await manager('APPROVED', 'Duyệt từ bảng cũ', 'PENDING_REVIEW')).status).toBe(409);
   expect((await staff('REVISION_REQUIRED', 'IN_PROGRESS')).status).toBe(200);
   expect((await staff('IN_PROGRESS', 'PENDING_REVIEW')).status).toBe(200);
   expect((await manager('APPROVED', 'Đã kiểm tra bản sửa')).status).toBe(200);

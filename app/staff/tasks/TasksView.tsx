@@ -1,4 +1,7 @@
 'use client';
+import TaskBoard, { type TaskBoardCard } from '@/component/project/TaskBoard';
+import { useProjectTaskRealtime } from '@/hooks/useProjectTaskRealtime';
+import type { TaskAssignmentStatus } from '@/lib/types/task-assignment';
 import type { Employee } from '@/lib/types/employee';
 import type {
   EditableWorkflowTask,
@@ -33,6 +36,7 @@ import {
 
 interface StaffTasksContentProps {
   workerData?: Employee | null;
+  active?: boolean;
 }
 
 interface RenderableWorkflowTask extends WorkflowTask {
@@ -42,7 +46,7 @@ interface RenderableWorkflowTask extends WorkflowTask {
 const ITEMS_PER_PAGE = 5;
 
 export function StaffTasksContent({
-  workerData,
+  workerData, active = true,
 }: StaffTasksContentProps) {
   const { showToast } = useNotification();
   const initialWorkerId = workerData?.employee_id || workerData?.id || null;
@@ -54,6 +58,9 @@ export function StaffTasksContent({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [allWorkflowTasks, setAllWorkflowTasks] = useState<WorkflowSetting[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [boardPhaseKey, setBoardPhaseKey] = useState('');
+  const [taskView, setTaskView] = useState<'board' | 'list'>('board');
+  const taskRequest = useRef(0);
   const [selectedProjectName, setSelectedProjectName] = useState<string | null>(null);
   const [localDriveInputs, setLocalDriveInputs] = useState<Record<string, string>>({});
   const [editableTasks, setEditableTasks] = useState<Record<string, EditableWorkflowTask>>({});
@@ -62,6 +69,7 @@ export function StaffTasksContent({
   const taskSaveLockRef = useRef(false);
 
   const loadTasksData = useCallback(async () => {
+    const request = ++taskRequest.current;
     if (!workerData) {
       setLoading(false);
       return true;
@@ -72,6 +80,7 @@ export function StaffTasksContent({
         workerData,
       });
 
+      if (request !== taskRequest.current) return false;
       setWorkerId(tasksData.workerId);
       setWorkerName(tasksData.workerName);
       setAllWorkflowTasks(tasksData.workflowItems);
@@ -81,19 +90,20 @@ export function StaffTasksContent({
       setEditableTasks(maps.editableTasks);
 
       setSelectedProjectName((currentProjectName) => {
-        if (currentProjectName || tasksData.workflowItems.length === 0) return currentProjectName;
         const groupedProjects = groupWorkflowByProject(tasksData.workflowItems);
+        if (currentProjectName && Object.hasOwn(groupedProjects, currentProjectName)) return currentProjectName;
         const firstProject = Object.keys(groupedProjects)[0];
         return firstProject || null;
       });
       setLoadFailed(false);
       return true;
     } catch (error) {
+      if (request !== taskRequest.current) return false;
       console.error(error);
       setLoadFailed(true);
       return false;
     } finally {
-      setLoading(false);
+      if (request === taskRequest.current) setLoading(false);
     }
   }, [workerData]);
 
@@ -226,6 +236,38 @@ export function StaffTasksContent({
     });
   }, [allWorkflowTasks, workerId, workerName]);
 
+  const selectedPhases = selectedProjectName ? globalProjectGroupsMap[selectedProjectName] ?? [] : [];
+  const taskBoardConnected = useProjectTaskRealtime(
+    active && taskView === 'board' && !loadFailed ? selectedPhases[0]?.project_id : undefined, loadTasksData,
+  );
+  const staffBoardTasks = selectedPhases.flatMap(phase => {
+    const description = parseWorkflowDescription(phase.description);
+    return (description.tasks_list ?? []).flatMap((task, index) => task.id ? [{
+      phase, index, task, card: {
+        id: task.id, title: task.name || 'Công việc', status: staffTaskStatus(task.rawStatus || task.status),
+        deadline: task.deadline, assignee: task.assignee_name, phase: description.stage_name, description: task.description,
+      },
+    }] : []);
+  });
+  const selectedProjectClosed = selectedPhases.some(phase =>
+    ['CANCELLED', 'ARCHIVED'].includes(parseWorkflowDescription(phase.description).project_status ?? ''),
+  );
+
+  async function moveBoardTask(card: TaskBoardCard, status: TaskAssignmentStatus, note: string) {
+    const match = staffBoardTasks.find(entry => entry.card.id === card.id);
+    if (!match || match.card.status !== card.status) return 'Công việc vừa được cập nhật.';
+    if (taskSaveLockRef.current) return 'Đang lưu công việc khác.';
+    taskSaveLockRef.current = true;
+    try {
+      await updateStaffWorkflowTask({
+        item: match.phase, taskIndex: match.index, bufferedTask: { status, note, deadline: match.task.deadline || '' },
+      });
+      await loadTasksData();
+    } finally {
+      taskSaveLockRef.current = false;
+    }
+  }
+
   if (loading) {
     return <SectionLoadingState message="Đang tải công việc của bạn..." />;
   }
@@ -299,7 +341,7 @@ export function StaffTasksContent({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[65vh] items-start pt-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:h-[65vh] items-start pt-2">
         <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-xl h-full">
           <div className="px-4 py-3 bg-slate-950/40 border-b border-slate-800 font-bold uppercase text-[10px] text-slate-400 tracking-wider">
             Danh mục toàn bộ dự án
@@ -312,7 +354,7 @@ export function StaffTasksContent({
               return (
                 <div
                   key={projectName}
-                  onClick={() => setSelectedProjectName(projectName)}
+                  onClick={() => { setSelectedProjectName(projectName); setBoardPhaseKey(''); }}
                   className={`p-4 cursor-pointer transition flex items-center justify-between ${
                     isSelected
                       ? 'bg-purple-950/10 border-l-4 border-purple-500 font-bold'
@@ -354,15 +396,30 @@ export function StaffTasksContent({
           </div>
         </div>
 
-        <div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-y-auto shadow-xl space-y-4 h-full">
+        <div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-4 min-w-0 overflow-y-auto shadow-xl space-y-4 lg:h-full">
           {selectedProjectName ? (
             <div className="space-y-4">
               <h3 className="text-sm font-black text-purple-400 uppercase tracking-wider border-b border-slate-800 pb-2">
                 🎯 Dự án hiển thị: {selectedProjectName}
               </h3>
 
-              {globalProjectGroupsMap[selectedProjectName]
-                ?.sort((a, b) => a.key.localeCompare(b.key))
+              <div className="flex gap-2" role="group" aria-label="Cách xem công việc">
+                <button type="button" className="admin-button-secondary" aria-pressed={taskView === 'board'} onClick={() => setTaskView('board')}>Bảng công việc</button>
+                <button type="button" className="admin-button-secondary" aria-pressed={taskView === 'list'} onClick={() => setTaskView('list')}>Danh sách</button>
+              </div>
+              {taskView === 'board' && <>
+                <label className="admin-label max-w-xs">Giai đoạn
+                  <select className="admin-field mt-1" value={boardPhaseKey} onChange={event => setBoardPhaseKey(event.target.value)}>
+                    <option value="">Tất cả giai đoạn</option>
+                    {selectedPhases.map(phase => <option key={phase.key} value={phase.key}>{parseWorkflowDescription(phase.description).stage_name || 'Chưa xếp giai đoạn'}</option>)}
+                  </select>
+                </label>
+                <TaskBoard key={selectedProjectName} cards={staffBoardTasks.filter(entry => !boardPhaseKey || entry.phase.key === boardPhaseKey).map(entry => entry.card)}
+                getTransitions={card => loadFailed || selectedProjectClosed ? [] : staffTaskActions(card.status).map(action => action.status)}
+                onMove={moveBoardTask} onRefresh={loadTasksData} connected={taskBoardConnected} />
+              </>}
+              {taskView === 'list' && [...selectedPhases]
+                .sort((a, b) => a.key.localeCompare(b.key))
                 .map((phase, phaseIndex) => {
                   const currentJSON = parseWorkflowDescription(phase.description);
 
