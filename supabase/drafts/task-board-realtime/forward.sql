@@ -2,7 +2,8 @@ begin;
 
 do $$
 begin
-  if to_regclass('realtime.messages') is null
+  if to_regclass('public.tasks') is null
+    or to_regclass('realtime.messages') is null
     or to_regprocedure('realtime.send(jsonb,text,text,boolean)') is null
     or to_regprocedure('public.is_project_member(bigint)') is null
     or to_regprocedure('public.has_workspace_access(text)') is null
@@ -29,19 +30,22 @@ using (
   else false end
 );
 
-create function public.broadcast_erp_task_status() returns trigger
+create schema erp_task_board_private;
+revoke all on schema erp_task_board_private from public, anon, authenticated;
+
+create function erp_task_board_private.broadcast_task_status() returns trigger
 language plpgsql security definer set search_path = ''
 as $$
 begin
-  if new.project_id is not null and new.task_id is not null and new.activity_type = 'STATUS_CHANGED' then
-    perform realtime.send('{}'::jsonb, 'tasks-changed', 'erp:task-board:' || new.project_id, true);
-  end if;
+  perform realtime.send('{}'::jsonb, 'tasks-changed', 'erp:task-board:' || new.project_id, true);
   return null;
 end
 $$;
-revoke all on function public.broadcast_erp_task_status() from public, anon, authenticated;
+revoke all on function erp_task_board_private.broadcast_task_status() from public, anon, authenticated;
 create trigger erp_task_board_status_changed
-after insert on public.project_activity
-for each row execute function public.broadcast_erp_task_status();
+after update of status on public.tasks
+for each row
+when (new.project_id is not null and old.status is distinct from new.status)
+execute function erp_task_board_private.broadcast_task_status();
 
 commit;

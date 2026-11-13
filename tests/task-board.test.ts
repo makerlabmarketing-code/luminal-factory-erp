@@ -10,7 +10,7 @@ it('maps a drop to a permitted transition and keeps a move within the same colum
   expect(dropStatus('ON_HOLD', todo, ['READY'])).toBe('READY');
 });
 
-it('sends a private empty signal only for committed status history and scopes subscriptions to project access', async () => {
+it('sends a private empty signal only for committed task status changes and scopes subscriptions to project access', async () => {
   const db = new PGlite();
   const sql = (name: string) => readFileSync(`supabase/drafts/task-board-realtime/${name}.sql`, 'utf8');
   try {
@@ -25,14 +25,18 @@ it('sends a private empty signal only for committed status history and scopes su
       create function realtime.send(jsonb,text,text,boolean) returns void language sql as $$
         insert into realtime.messages values ($1,$2,$3,$4,'broadcast')
       $$;
-        create function public.has_workspace_access(text) returns boolean language sql as $$select $1 = 'STAFF_WORKSPACE'$$;
+      create function public.has_workspace_access(text) returns boolean language sql as $$select $1 = 'STAFF_WORKSPACE'$$;
       create function public.has_permission(text) returns boolean language sql as $$select false$$;
       create function public.is_project_member(bigint) returns boolean language sql as $$select $1 = 7$$;
-      create table public.project_activity (project_id bigint, activity_type text, task_id bigint);
+      create table public.tasks (id bigint primary key, project_id bigint, status text, title text);
     `);
     await db.exec(sql('forward'));
-    await db.exec("insert into public.project_activity values (7,'COMMENT_ADDED',21),(7,'STATUS_CHANGED',21),(8,'STATUS_CHANGED',22),(7,'STATUS_CHANGED',null)");
-    await db.exec("begin; insert into public.project_activity values (7,'STATUS_CHANGED',21); rollback;");
+    await db.exec(`
+      insert into public.tasks values (21,7,'READY','First'),(22,8,'READY','Other'),(23,null,'READY','No project');
+      update public.tasks set title = 'Edited', status = 'READY' where id = 21;
+      update public.tasks set status = 'IN_PROGRESS' where id in (21,22,23);
+    `);
+    await db.exec("begin; update public.tasks set status = 'COMPLETED' where id = 21; rollback;");
     await db.exec("set role authenticated; set test.topic = 'erp:task-board:7';");
     expect((await db.query('select payload, event, private from realtime.messages where topic = realtime.topic()')).rows)
       .toEqual([{ payload: {}, event: 'tasks-changed', private: true }]);

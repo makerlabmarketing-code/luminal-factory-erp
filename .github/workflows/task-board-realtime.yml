@@ -1,0 +1,34 @@
+name: Task board realtime acceptance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/task-board-realtime.yml'
+      - 'supabase/drafts/task-board-realtime/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-supabase:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - name: Start Supabase locally and test private WebSocket delivery
+        run: |
+          export PATH="$PWD/node_modules/.bin:$PATH"
+          export TASK_BOARD_STACK_ID=erp-realtime-ci
+          export TASK_BOARD_STACK="$RUNNER_TEMP/$TASK_BOARD_STACK_ID"
+          mkdir -p "$TASK_BOARD_STACK"
+          supabase init --workdir "$TASK_BOARD_STACK"
+          trap 'supabase stop --workdir "$TASK_BOARD_STACK" --project-id "$TASK_BOARD_STACK_ID" --no-backup' EXIT
+          supabase start --workdir "$TASK_BOARD_STACK"
+          node supabase/drafts/task-board-realtime/acceptance.mjs
