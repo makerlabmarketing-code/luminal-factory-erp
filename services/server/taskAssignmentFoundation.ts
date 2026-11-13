@@ -241,7 +241,7 @@ async function loadTask(
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, project_id, phase_id, parent_task_id, title, description, assignee_employee_id, deadline, status, created_at, updated_at, assignee:assignee_employee_id!tasks_assignee_employee_id_fkey(full_name)",
+      "id, project_id, phase_id, parent_task_id, title, description, assignee_employee_id, deadline, status, created_at, updated_at, assignee:employees!tasks_assignee_employee_id_fkey(full_name)",
     )
     .eq("id", taskId)
     .eq("project_id", projectId)
@@ -505,7 +505,7 @@ export async function listProjectTasks(
   let query = supabase
     .from("tasks")
     .select(
-      "id, project_id, phase_id, parent_task_id, title, description, assignee_employee_id, deadline, status, created_at, updated_at, assignee:assignee_employee_id!tasks_assignee_employee_id_fkey(full_name)",
+      "id, project_id, phase_id, parent_task_id, title, description, assignee_employee_id, deadline, status, created_at, updated_at, assignee:employees!tasks_assignee_employee_id_fkey(full_name)",
     )
     .eq("project_id", projectId);
   if (!context.canManageTasks) {
