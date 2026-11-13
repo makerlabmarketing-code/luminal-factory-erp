@@ -96,7 +96,7 @@ describe('Task Assignment Foundation contracts', () => {
     expect(canTransitionTaskStatus('BACKLOG', 'COMPLETED')).toBe(false);
     expect(canTransitionTaskStatus('COMPLETED', 'IN_PROGRESS')).toBe(false);
     expect(() => validateTaskAssignmentAssignPayload({ comment: 'Thiếu người làm' })).toThrow(TaskAssignmentValidationError);
-    expect(service).toMatch(/assignee:assignee_employee_id!tasks_assignee_employee_id_fkey/);
+    expect(service).toMatch(/assignee:employees!tasks_assignee_employee_id_fkey/);
     expect(service).toMatch(/project_members_employee_id_fkey/);
     expect(service).toMatch(/employeeStatus === "INACTIVE"/);
     expect(service).toMatch(/employeeStatus === "LOCKED"/);
