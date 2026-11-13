@@ -96,6 +96,37 @@ describe('QA-003 executable history hardening package', () => {
     expect(await counts()).toEqual([{ tasks:3, comments:3, activity:3, notifications:1 }]);
   });
 
+  it('supports the required legacy task columns on Production and restores the original function on rollback', async () => {
+    const compat = (name: string) => readFileSync(join(root, 'supabase/drafts/task-assignment-create-compatibility', name), 'utf8');
+    const isolated = await fixture();
+    try {
+      await isolated.exec(`
+        alter table projects add column project_name text not null default 'Project fixture';
+        alter table tasks add column project_name text not null default 'Existing';
+        alter table tasks add column assigned_to text not null default '';
+        alter table tasks add column current_phase text;
+        alter table tasks alter column project_name drop default;
+        alter table tasks alter column assigned_to drop default;
+      `);
+      const original = await isolated.query("select prosrc from pg_proc where proname='create_project_task_atomic'");
+      await expect(isolated.exec(createTask())).rejects.toThrow(/project_name/);
+      await isolated.exec(compat('forward.sql'));
+      await isolated.exec('set role service_role');
+      await isolated.exec(createTask());
+      expect((await isolated.query("select project_name, assigned_to, current_phase from tasks where title='New task'")).rows)
+        .toEqual([{ project_name: 'Project fixture', assigned_to: '', current_phase: 'IN_PROG' }]);
+      await isolated.exec('reset role');
+      expect((await isolated.query(compat('validation.sql'))).rows[0]).toMatchObject({
+        prosecdef: false, service_role_execute: true, authenticated_execute: false,
+        anon_execute: false, legacy_columns_supported: true,
+      });
+      await isolated.exec(compat('rollback.sql'));
+      expect((await isolated.query("select prosrc from pg_proc where proname='create_project_task_atomic'")).rows).toEqual(original.rows);
+    } finally {
+      await isolated.close();
+    }
+  }, 15000);
+
   it.each([
     { name:'contributor', query:createTask(3), message:/permission_forbidden/ },
     { name:'inactive assignee', query:createTask(1,'1','null','4'), message:/assignee_invalid/ },
