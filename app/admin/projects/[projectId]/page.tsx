@@ -888,7 +888,8 @@ export default function ProjectDetailPage() {
       editingTask.title.trim() !== currentTask.title ||
       editingTask.description.trim() !== (currentTask.description || '')
     ));
-    const hasComment = Boolean(editingTask.comment.trim());
+    const comment = editingTask.comment.trim() || null;
+    const hasComment = comment !== null;
 
     if (currentTask && !hasTaskEditChanges(editIntent) && !hasContentChange && !hasComment) {
       showToast('Chưa có thay đổi.', 'Hãy chỉnh người phụ trách, hạn hoàn thành hoặc trạng thái trước khi lưu.', 'info');
@@ -903,18 +904,19 @@ export default function ProjectDetailPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             assigneeEmployeeId: nextAssigneeEmployeeId,
-            comment: editingTask.comment || null,
+            comment,
           }),
         });
         const assignPayload = await assignResponse.json().catch(() => null) as { message?: string } | null;
         if (!assignResponse.ok) throw new Error(assignPayload?.message || 'Không thể giao công việc.');
       }
 
-      if (editIntent.hasDeadlineChange || hasContentChange || (hasComment && !editIntent.hasAssigneeChange && !editIntent.hasStatusChange)) {
+      const shouldUpdateTask = editIntent.hasDeadlineChange || hasContentChange || (hasComment && !editIntent.hasAssigneeChange && !editIntent.hasStatusChange);
+      if (shouldUpdateTask) {
         const updateResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: editingTask.title, description: editingTask.description || null, deadline: nextDeadline, comment: editIntent.hasAssigneeChange ? null : editingTask.comment || null }),
+          body: JSON.stringify({ title: editingTask.title, description: editingTask.description || null, deadline: nextDeadline, comment: editIntent.hasAssigneeChange ? null : comment }),
         });
         const updatePayload = await updateResponse.json().catch(() => null) as { message?: string } | null;
         if (!updateResponse.ok) throw new Error(updatePayload?.message || 'Không thể cập nhật hạn hoàn thành.');
@@ -928,7 +930,10 @@ export default function ProjectDetailPage() {
         const statusResponse = await fetch(`/api/admin/projects/${projectId}/tasks/${editingTask.taskId}/status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: editingTask.status }),
+          body: JSON.stringify({
+            status: editingTask.status,
+            comment: editIntent.hasAssigneeChange || shouldUpdateTask ? null : comment,
+          }),
         });
         const statusPayload = await statusResponse.json().catch(() => null) as { message?: string } | null;
         if (!statusResponse.ok) throw new Error(statusPayload?.message || 'Không thể đổi trạng thái.');

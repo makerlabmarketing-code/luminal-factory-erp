@@ -121,9 +121,20 @@ describe('Task Assignment Foundation contracts', () => {
     expect(saveTaskBody).toMatch(/describeTaskEditIntent/);
     expect(saveTaskBody).toMatch(/!hasTaskEditChanges\(editIntent\)/);
     expect(saveTaskBody).toMatch(/if \(editIntent\.hasAssigneeChange\)[\s\S]*\/assign/);
-    expect(saveTaskBody).toMatch(/if \(editIntent\.hasDeadlineChange \|\| hasContentChange[\s\S]*method: 'PATCH'/);
+    expect(saveTaskBody).toMatch(/const shouldUpdateTask = editIntent\.hasDeadlineChange \|\| hasContentChange[\s\S]*if \(shouldUpdateTask\)[\s\S]*method: 'PATCH'/);
     expect(saveTaskBody).toMatch(/if \(editIntent\.hasStatusChange\)[\s\S]*\/status/);
     expect(assignBody.indexOf('currentTask.assigneeEmployeeId === payload.assigneeEmployeeId')).toBeLessThan(assignBody.indexOf('assertAssigneeActiveMember'));
+  });
+
+  it('sends a review comment once, including when status is the only edited field', () => {
+    const detail = source('app/admin/projects/[projectId]/page.tsx');
+    const save = detail.slice(detail.indexOf('const handleSaveTask'), detail.indexOf('const handleSavePhase'));
+    expect(save).toContain('const comment = editingTask.comment.trim() || null');
+    expect(save).toMatch(/assigneeEmployeeId: nextAssigneeEmployeeId,\s*comment,/);
+    expect(save).toContain('comment: editIntent.hasAssigneeChange ? null : comment');
+    expect(save).toMatch(/status: editingTask.status,\s*comment: editIntent.hasAssigneeChange \|\| shouldUpdateTask \? null : comment/);
+    expect(validateTaskAssignmentStatusPayload({ status: 'REVISION_REQUIRED', comment: 'Sửa bề mặt' }))
+      .toMatchObject({ status: 'REVISION_REQUIRED', comment: 'Sửa bề mặt' });
   });
 
   it('wires project detail to normalized task assignment without extra employee-list fetches', () => {
