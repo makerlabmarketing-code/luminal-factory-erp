@@ -4,6 +4,7 @@ export interface WorkflowTask {
   id?: number;
   phase_id?: number | null;
   name?: string;
+  description?: string | null;
   projectName?: string | null;
   assignedEmployee?: {
     fullName?: string | null;

@@ -69,6 +69,7 @@ export const TASK_ASSIGNMENT_ASSIGN_KEYS = new Set([
 ]);
 export const TASK_ASSIGNMENT_STATUS_KEYS = new Set([
   "status",
+  "expectedStatus",
   "comment",
   "overrideCompleted",
   "overrideReason",
@@ -274,8 +275,14 @@ export function validateTaskAssignmentStatusPayload(
     ]);
   }
 
+  const expectedStatus = body.expectedStatus;
+  if (expectedStatus !== undefined && !isTaskAssignmentStatus(expectedStatus)) {
+    throw new TaskAssignmentValidationError([{ field: "expectedStatus", message: "Trạng thái trước đó không hợp lệ." }]);
+  }
+
   return {
     status: body.status,
+    expectedStatus: isTaskAssignmentStatus(expectedStatus) ? expectedStatus : undefined,
     comment: optionalText(body.comment, "comment", 2000) ?? null,
     overrideCompleted: optionalBoolean(body.overrideCompleted, "overrideCompleted") ?? false,
     overrideReason: optionalText(body.overrideReason, "overrideReason", 500) ?? null,
