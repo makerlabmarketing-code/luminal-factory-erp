@@ -884,6 +884,7 @@ export default function AdminFinancialLedger() {
         ) : (
           <>
           <LedgerTable
+            key={`${monthInput}:${showDeleted}:${searchTerm}:${currentPage}`}
             data={currentLedgerData}
             salaryMailEnabled={salaryMailEnabled}
             onRetrySalaryEmail={handleRetrySalaryEmail}

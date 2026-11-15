@@ -32,16 +32,24 @@ interface LedgerTableProps {
   onTransitionReimbursement: (item: LedgerRow, status: 'APPROVED' | 'REJECTED' | 'PAID') => void;
 }
 
-export function LedgerTableHeader() {
+export function LedgerTableHeader({ allSelected = false, partiallySelected = false, onSelectAll }: {
+  allSelected?: boolean;
+  partiallySelected?: boolean;
+  onSelectAll?: (checked: boolean) => void;
+} = {}) {
   return (
     <thead>
       <tr>
-        <th scope="col" className="w-[27%]">Khoản mục</th>
+        <th scope="col" className="w-[7%]">
+          {onSelectAll ? <input type="checkbox" aria-label="Chọn tất cả giao dịch trên trang" checked={allSelected}
+            ref={node => { if (node) node.indeterminate = partiallySelected; }}
+            onChange={event => onSelectAll(event.target.checked)} /> : <span className="sr-only">Chọn</span>}
+        </th>
+        <th scope="col" className="w-[30%]">Khoản mục</th>
         <th scope="col" className="w-[14%]">Người thực hiện</th>
         <th scope="col" className="w-[14%]">Người hưởng lợi</th>
         <th scope="col" className="w-[13%]">Trạng thái quỹ</th>
         <th scope="col" className="w-[10%] text-right">Số tiền</th>
-        <th scope="col" className="w-[22%] text-right">Thao tác</th>
       </tr>
     </thead>
   );
@@ -93,6 +101,17 @@ export default function LedgerTable({
   onTransitionReimbursement,
 }: LedgerTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<number | string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectedRows = data.filter(row => selectedIds.has(String(row.id)));
+  const allSelected = data.length > 0 && selectedRows.length === data.length;
+  const partiallySelected = selectedRows.length > 0 && !allSelected;
+  const selectedTotal = selectedRows.reduce((sum, row) => sum + Math.abs(Number(row.amount) || 0), 0);
+  const toggleSelected = (id: string, checked: boolean) => setSelectedIds(previous => {
+    const next = new Set(previous);
+    if (checked) next.add(id);
+    else next.delete(id);
+    return next;
+  });
 
   const toggleRow = (id: number | string) => {
     setExpandedRows(prev => {
@@ -103,80 +122,25 @@ export default function LedgerTable({
     });
   };
 
-  const getDisplayCategory = (item: FinancialLedgerEntry) =>
-    (item.category || '').replace(/^\[(Đối ứng|Hủy đối ứng)\]\s*/, '');
-
-  const getTypeBadge = (item: FinancialLedgerEntry) => {
-    if (item.type === 'HOAN_UNG') {
-      return <span className="inline-flex items-center gap-1 text-cyan-300"><RefreshCcw className="h-3 w-3" /> Hoàn ứng</span>;
-    }
-    switch(item.type) {
-      case 'CHI_PHI':
-      case 'CHI_TIEU': return <span className="inline-flex items-center gap-1 text-rose-300"><ArrowUpRight className="h-3 w-3" /> Khoản chi</span>;
-      case 'VON_GOP': return <span className="inline-flex items-center gap-1 text-emerald-300"><ArrowDownLeft className="h-3 w-3" /> {item.sub_type === 'HIEN_VAT' ? 'Ghi nhận vốn hiện vật' : 'Góp vốn'}</span>;
-      case 'DOANH_THU': return <span className="inline-flex items-center gap-1 text-amber-300"><ArrowDownLeft className="h-3 w-3" /> Khoản thu</span>;
-      default: return <span>Giao dịch</span>;
-    }
-  };
-
-  return (
-    <div className="overflow-x-auto">
-    <CommonTable className="min-w-[980px]">
-      <LedgerTableHeader />
-      <tbody>
-        {data.map((l) => {
-          // Lấy bản ghi con từ thuộc tính linkedChild (đã được page.tsx gán vào)
-          const child = l.linkedChild;
-          const hasChild = !!child;
-          const isExpanded = expandedRows.has(l.id);
-
-          const isOrphanedCounterEntry = l.type === 'VON_GOP' && /^\[(Đối ứng|Hủy đối ứng)\]/.test(l.category || '');
-          const isReimbursement = l.type === 'HOAN_UNG';
-          const monthlyCapital = l.source_type === 'MONTHLY_CAPITAL';
-          const linkedPayroll = isLinkedPayrollLedger(l);
-          const personalAdvance = personalAdvances?.find(item => String(item.ledger_id) === String(l.id));
-          const generatedAdvance = l.source_type === 'PERSONAL_ADVANCE' || l.source_type === 'PERSONAL_ADVANCE_REFUND';
-          const zeroPayroll = isZeroPayrollObligation(l);
-          const isOwnReimbursement = String(l.reimbursement_requester_employee_id) === reimbursementCapabilities.currentEmployeeId;
-          const reimbursementBusy = String(activeReimbursementActionId) === String(l.id);
-          const canTogglePaid = !l.cancelled_at && !isReimbursement && !generatedAdvance && !isOrphanedCounterEntry && !zeroPayroll && canUpdate
-            && (!linkedPayroll || (salaryMailEnabled && reimbursementCapabilities.canPay))
-            && (!salaryMailEnabled || !isSalaryLedger(l) || reimbursementCapabilities.canPay)
-            && (!l.is_paid || (!activityEnabled && !monthlyCapital));
-          const isIncome = monthlyCapital || l.type === 'VON_GOP' || l.type === 'DOANH_THU';
-          const isInKind = l.type === 'VON_GOP' && l.sub_type === 'HIEN_VAT';
-          const paymentAction = l.is_paid ? 'Đánh dấu chưa tất toán' : isInKind ? 'Xác nhận ghi nhận vốn' : isIncome ? 'Xác nhận đã thu' : CONFIRM_PAID_LABEL;
-          const childRowId = `ledger-counter-${l.id}`;
-
-          return (
-            <Fragment key={l.id}>
-              <tr className={l.cancelled_at || isExpanded ? 'bg-slate-950/35' : undefined}>
-                <td>
-                  <p className="break-words font-semibold leading-5 text-slate-100">{getDisplayCategory(l)}</p>
-                  {personalAdvance && <p className="mt-1 text-[11px] text-amber-300">{personalAdvance.person} ứng trước</p>}
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className={`admin-badge ${badgeTone.neutral}`}>{getTypeBadge(l)}</span>
-                    {Boolean(l.attachments?.length) && (
-                      <span className={`admin-badge whitespace-nowrap ${badgeTone.neutral}`}>{l.attachments?.length} chứng từ</span>
-                    )}
-                    {hasChild && (
-                      <button type="button" aria-expanded={isExpanded} aria-controls={isExpanded ? childRowId : undefined}
-                        onClick={() => toggleRow(l.id)} className="ledger-counter-toggle inline-flex items-center gap-1 whitespace-nowrap rounded px-1.5 font-medium text-blue-300 hover:bg-blue-500/10 hover:text-blue-200">
-                        {isExpanded ? <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />}
-                        Vốn kèm
-                      </button>
-                    )}
-                  </div>
-                </td>
-                <td className="max-w-[180px] break-words p-4 text-slate-400">{monthlyCapital && <span className="block">Người góp: {l.payer_name || l.requested_by || 'Chưa xác định'}</span>}{!monthlyCapital && !l.payroll_settler_name && !l.approver_name && !l.payment_confirmer_name && 'Chưa ghi nhận'}{l.payroll_settler_name && <span className="mt-1 block text-[10px]">Chốt lương: {l.payroll_settler_name}</span>}{l.approver_name && <span className="mt-1 block text-[10px]">Duyệt: {l.approver_name}</span>}{l.payment_confirmer_name && <span className="mt-1 block text-[10px]">{monthlyCapital ? 'Xác nhận thu' : 'Thanh toán'}: {l.payment_confirmer_name}</span>}</td>
-                <td className="max-w-[180px] break-words p-4 text-slate-300">{monthlyCapital ? 'Quỹ chung' : l.beneficiary_name || 'Chưa xác định'}</td>
-                <td>
-                  <LedgerStatusBadge row={l} />
-                  {l.salaryEmailStatus && <p className="mt-1 text-[10px] text-slate-400">{SALARY_EMAIL_LABELS[l.salaryEmailStatus]}</p>}
-                </td>
-                <td className="whitespace-nowrap text-right font-semibold tabular-nums text-slate-100">{Number(l.amount).toLocaleString('vi-VN')} đ</td>
-                <td>
-                  <TableRowActions renderActions={function renderRowActions() { return <>
+  const renderSelectedRowActions = (l: LedgerRow) => {
+    const isOrphanedCounterEntry = l.type === 'VON_GOP' && /^\[(Đối ứng|Hủy đối ứng)\]/.test(l.category || '');
+    const isReimbursement = l.type === 'HOAN_UNG';
+    const monthlyCapital = l.source_type === 'MONTHLY_CAPITAL';
+    const linkedPayroll = isLinkedPayrollLedger(l);
+    const personalAdvance = personalAdvances?.find(item => String(item.ledger_id) === String(l.id));
+    const generatedAdvance = l.source_type === 'PERSONAL_ADVANCE' || l.source_type === 'PERSONAL_ADVANCE_REFUND';
+    const zeroPayroll = isZeroPayrollObligation(l);
+    const isOwnReimbursement = String(l.reimbursement_requester_employee_id) === reimbursementCapabilities.currentEmployeeId;
+    const reimbursementBusy = String(activeReimbursementActionId) === String(l.id);
+    const canTogglePaid = !l.cancelled_at && !isReimbursement && !generatedAdvance && !isOrphanedCounterEntry && !zeroPayroll && canUpdate
+    && (!linkedPayroll || (salaryMailEnabled && reimbursementCapabilities.canPay))
+    && (!salaryMailEnabled || !isSalaryLedger(l) || reimbursementCapabilities.canPay)
+    && (!l.is_paid || (!activityEnabled && !monthlyCapital));
+    const isIncome = monthlyCapital || l.type === 'VON_GOP' || l.type === 'DOANH_THU';
+    const isInKind = l.type === 'VON_GOP' && l.sub_type === 'HIEN_VAT';
+    const paymentAction = l.is_paid ? 'Đánh dấu chưa tất toán' : isInKind ? 'Xác nhận ghi nhận vốn' : isIncome ? 'Xác nhận đã thu' : CONFIRM_PAID_LABEL;
+    return (
+      <TableRowActions renderActions={function renderRowActions() { return <>
                     {personalAdvances && canUpdate && linkedPayroll && l.is_paid && !l.cancelled_at && !Number(personalAdvance?.refunded) &&
                       <button type="button" className={rowAction} onClick={() => onChangeSource?.(l)}>Đổi nguồn chi</button>}
                     {generatedAdvance ? null : l.cancelled_at ? (canManageTestRecords && isReimbursement && !l.source_type && !l.source_reference ? <button type="button" onClick={() => onTestArchive(l)} className={rowAction}><RefreshCcw className="h-3.5 w-3.5" />Khôi phục</button> : null) : isReimbursement ? (
@@ -219,11 +183,86 @@ export default function LedgerTable({
                     {canManageTestRecords && !l.cancelled_at && isReimbursement && !l.source_type && !l.source_reference && <button type="button" onClick={()=>onTestArchive(l)} className={rowAction}>Xóa bản ghi thử</button>}
                     <button type="button" onClick={()=>onHistory(l)} className={rowAction}>Lịch sử</button>
                   </>; }} />
+    );
+  };
+
+  const getDisplayCategory = (item: FinancialLedgerEntry) =>
+    (item.category || '').replace(/^\[(Đối ứng|Hủy đối ứng)\]\s*/, '');
+
+  const getTypeBadge = (item: FinancialLedgerEntry) => {
+    if (item.type === 'HOAN_UNG') {
+      return <span className="inline-flex items-center gap-1 text-cyan-300"><RefreshCcw className="h-3 w-3" /> Hoàn ứng</span>;
+    }
+    switch(item.type) {
+      case 'CHI_PHI':
+      case 'CHI_TIEU': return <span className="inline-flex items-center gap-1 text-rose-300"><ArrowUpRight className="h-3 w-3" /> Khoản chi</span>;
+      case 'VON_GOP': return <span className="inline-flex items-center gap-1 text-emerald-300"><ArrowDownLeft className="h-3 w-3" /> {item.sub_type === 'HIEN_VAT' ? 'Ghi nhận vốn hiện vật' : 'Góp vốn'}</span>;
+      case 'DOANH_THU': return <span className="inline-flex items-center gap-1 text-amber-300"><ArrowDownLeft className="h-3 w-3" /> Khoản thu</span>;
+      default: return <span>Giao dịch</span>;
+    }
+  };
+
+  return (
+    <div>
+      <section aria-label="Công cụ giao dịch đã chọn" className="flex min-h-14 flex-wrap items-center gap-3 border-b border-slate-800 px-5 py-3">
+        <div className="min-w-0 flex-1 text-xs text-slate-400" aria-live="polite">
+          {selectedRows.length === 0 ? 'Chọn giao dịch để hiện thao tác. Có thể chọn nhiều dòng.' :
+            <><strong className="text-slate-100">{selectedRows.length} giao dịch đã chọn</strong><span className="ml-2">Tổng giá trị: {selectedTotal.toLocaleString('vi-VN')} đ</span></>}
+        </div>
+        {selectedRows.length === 1 ? renderSelectedRowActions(selectedRows[0]) : selectedRows.length > 1 ?
+          <span className="text-xs text-amber-300">Thao tác thanh toán, duyệt và email cần xác nhận riêng cho từng giao dịch.</span> : null}
+        {selectedRows.length > 0 && <button type="button" onClick={() => setSelectedIds(new Set())} className="admin-button-secondary">Bỏ chọn</button>}
+      </section>
+      <div className="overflow-x-auto">
+        <CommonTable className="min-w-[980px]">
+          <LedgerTableHeader allSelected={allSelected} partiallySelected={partiallySelected}
+            onSelectAll={checked => setSelectedIds(new Set(checked ? data.map(row => String(row.id)) : []))} />
+      <tbody>
+        {data.map((l) => {
+          // Lấy bản ghi con từ thuộc tính linkedChild (đã được page.tsx gán vào)
+          const child = l.linkedChild;
+          const hasChild = !!child;
+          const isExpanded = expandedRows.has(l.id);
+
+          const monthlyCapital = l.source_type === 'MONTHLY_CAPITAL';
+          const personalAdvance = personalAdvances?.find(item => String(item.ledger_id) === String(l.id));
+          const childRowId = `ledger-counter-${l.id}`;
+
+          return (
+            <Fragment key={l.id}>
+              <tr className={l.cancelled_at || isExpanded ? 'bg-slate-950/35' : undefined}>
+                <td className="text-center"><input type="checkbox" aria-label={`Chọn giao dịch ${getDisplayCategory(l)}`} checked={selectedIds.has(String(l.id))}
+                  onChange={event => toggleSelected(String(l.id), event.target.checked)} /></td>
+                <td>
+                  <p className="break-words font-semibold leading-5 text-slate-100">{getDisplayCategory(l)}</p>
+                  {personalAdvance && <p className="mt-1 text-[11px] text-amber-300">{personalAdvance.person} ứng trước</p>}
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className={`admin-badge ${badgeTone.neutral}`}>{getTypeBadge(l)}</span>
+                    {Boolean(l.attachments?.length) && (
+                      <span className={`admin-badge whitespace-nowrap ${badgeTone.neutral}`}>{l.attachments?.length} chứng từ</span>
+                    )}
+                    {hasChild && (
+                      <button type="button" aria-expanded={isExpanded} aria-controls={isExpanded ? childRowId : undefined}
+                        onClick={() => toggleRow(l.id)} className="ledger-counter-toggle inline-flex items-center gap-1 whitespace-nowrap rounded px-1.5 font-medium text-blue-300 hover:bg-blue-500/10 hover:text-blue-200">
+                        {isExpanded ? <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />}
+                        Vốn kèm
+                      </button>
+                    )}
+                  </div>
                 </td>
+                <td className="max-w-[180px] break-words p-4 text-slate-400">{monthlyCapital && <span className="block">Người góp: {l.payer_name || l.requested_by || 'Chưa xác định'}</span>}{!monthlyCapital && !l.payroll_settler_name && !l.approver_name && !l.payment_confirmer_name && 'Chưa ghi nhận'}{l.payroll_settler_name && <span className="mt-1 block text-[10px]">Chốt lương: {l.payroll_settler_name}</span>}{l.approver_name && <span className="mt-1 block text-[10px]">Duyệt: {l.approver_name}</span>}{l.payment_confirmer_name && <span className="mt-1 block text-[10px]">{monthlyCapital ? 'Xác nhận thu' : 'Thanh toán'}: {l.payment_confirmer_name}</span>}</td>
+                <td className="max-w-[180px] break-words p-4 text-slate-300">{monthlyCapital ? 'Quỹ chung' : l.beneficiary_name || 'Chưa xác định'}</td>
+                <td>
+                  <LedgerStatusBadge row={l} />
+                  {l.salaryEmailStatus && <p className="mt-1 text-[10px] text-slate-400">{SALARY_EMAIL_LABELS[l.salaryEmailStatus]}</p>}
+                </td>
+                <td className="whitespace-nowrap text-right font-semibold tabular-nums text-slate-100">{Number(l.amount).toLocaleString('vi-VN')} đ</td>
+                
               </tr>
 
               {child && isExpanded && (
                 <tr id={childRowId} className="bg-slate-950/35 text-slate-400">
+                  <td aria-hidden="true" />
                   <td>
                     <div className="ml-1 border-l-2 border-slate-600 pl-3">
                       <p className="break-words font-medium leading-5 text-slate-200">{getDisplayCategory(child)}</p>
@@ -234,14 +273,14 @@ export default function LedgerTable({
                   <td>Không áp dụng</td>
                   <td><LedgerStatusBadge row={child} /></td>
                   <td className="whitespace-nowrap text-right font-semibold tabular-nums">{Number(child.amount).toLocaleString('vi-VN')} đ</td>
-                  <td className="text-right text-[11px]">Hệ thống tự ghi nhận</td>
                 </tr>
               )}
             </Fragment>
           );
         })}
       </tbody>
-    </CommonTable>
+        </CommonTable>
+      </div>
     </div>
   );
 }
