@@ -24,7 +24,7 @@ import {
   type ServerEmployee,
 } from '@/services/server/auth';
 import { loadFacilityDirectory } from '@/services/server/facilityDirectory';
-import { isAttendanceMultiCheckEnabled } from '@/lib/attendanceManualMutationGate';
+import { isAttendanceMultiCheckEnabled, isAttendanceStaleIsolationEnabled } from '@/lib/attendanceManualMutationGate';
 
 const ATTENDANCE_SELECT =
   'id, employee_id, work_date, shift_name, check_in, check_out, total_hours, total_salary, status, cancelled_at';
@@ -85,8 +85,8 @@ async function loadFacilities() {
 }
 
 async function getOpenAttendanceRecord(employeeId: number | string, workDate?: string) {
-  // Deliberately omit workDate for the normal check-in guard: an open
-  // Attendance row from any shift/date blocks every new check-in.
+  // With stale isolation OFF, all-date reads preserve the historic guard.
+  // With isolation ON, date-scoped reads resolve today's active shift only.
   const supabase = await createClient();
   let query = supabase
     .from('attendance')
@@ -107,6 +107,24 @@ async function getOpenAttendanceRecord(employeeId: number | string, workDate?: s
 
   if (error) throw error;
 
+  return ((data as AttendanceRecord[] | null)?.[0]) || null;
+}
+
+
+async function getPreviousOpenAttendanceRecord(employeeId: number | string, currentWorkDate: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('attendance')
+    .select(ATTENDANCE_SELECT)
+    .eq('employee_id', employeeId)
+    .is('cancelled_at', null)
+    .is('check_out', null)
+    .not('check_in', 'is', null)
+    .lt('work_date', currentWorkDate)
+    .order('work_date', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(1);
+  if (error) throw error;
   return ((data as AttendanceRecord[] | null)?.[0]) || null;
 }
 
@@ -216,11 +234,18 @@ async function loadAttendancePayload(
   const todayStr = formatBusinessDateInput(businessDateFromInstant(now));
 
   const openRecord = await getOpenAttendanceRecord(employee.id);
-  const shiftState = resolveAttendanceShiftState(openRecord, now);
+  const staleIsolationEnabled = isAttendanceStaleIsolationEnabled();
+  const currentOpenRecord = staleIsolationEnabled
+    ? await getOpenAttendanceRecord(employee.id, todayStr)
+    : openRecord;
+  const staleOpenShift = staleIsolationEnabled
+    ? await getPreviousOpenAttendanceRecord(employee.id, todayStr)
+    : openRecord && isOpenAttendanceRecordStale(openRecord, now) ? openRecord : null;
+  const shiftState = resolveAttendanceShiftState(currentOpenRecord, now);
   const currentShiftName = getAttendanceShiftName(now);
   const currentShiftRecord =
     shiftState === 'ACTIVE_SHIFT_TODAY'
-      ? openRecord
+      ? currentOpenRecord
       : await getAttendanceRecordByShift(employee.id, todayStr, currentShiftName);
   const matchedBranch = await loadOptionalMatchedBranch(employee);
   const attendancePayload = await loadAttendanceData({
@@ -241,12 +266,13 @@ async function loadAttendancePayload(
     },
     localBranchName: resolveBranchName(matchedBranch),
     shiftState,
-    currentShift: shiftState === 'ACTIVE_SHIFT_TODAY' ? openRecord : null,
-    staleOpenShift: shiftState === 'STALE_OPEN_SHIFT' ? openRecord : null,
+    currentShift: shiftState === 'ACTIVE_SHIFT_TODAY' ? currentOpenRecord : null,
+    staleOpenShift,
     todayRecord: currentShiftRecord || null,
     isInShift: shiftState === 'ACTIVE_SHIFT_TODAY',
     capabilities: {
       multiCheckEnabled: isAttendanceMultiCheckEnabled(),
+      staleIsolationEnabled,
     },
     attendanceHistory: attendancePayload.attendanceRecords,
     sourceCounts: attendancePayload.sourceCounts,
@@ -402,9 +428,13 @@ export async function POST(request: Request) {
     });
     const currentShift = getAttendanceShiftName(now);
     const openRecord = await getOpenAttendanceRecord(authContext.employee.id);
+    const staleIsolationEnabled = isAttendanceStaleIsolationEnabled();
+    const currentOpenRecord = staleIsolationEnabled
+      ? await getOpenAttendanceRecord(authContext.employee.id, todayStr)
+      : openRecord;
     const supabase = await createClient();
 
-    if (openRecord && isOpenAttendanceRecordStale(openRecord, now)) {
+    if (!staleIsolationEnabled && openRecord && isOpenAttendanceRecordStale(openRecord, now)) {
       throw new StaffAttendanceError(
         409,
         'attendance_stale_shift_operator_required',
@@ -413,7 +443,7 @@ export async function POST(request: Request) {
     }
 
     if (action === 'check_out') {
-      if (isAttendanceMultiCheckEnabled() && openRecord) {
+      if (isAttendanceMultiCheckEnabled() && currentOpenRecord) {
         const data = await runMultiCheckMutation({
           action,
         });
@@ -422,13 +452,13 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: true,
           code: 'attendance_checked_out',
-          message: `Đã tan ca [${openRecord.shift_name}] thành công.`,
+          message: `Đã tan ca [${currentOpenRecord.shift_name}] thành công.`,
           record: data,
           capabilities: { multiCheckEnabled: true },
         });
       }
 
-      if (!openRecord) {
+      if (!currentOpenRecord) {
         throw new StaffAttendanceError(
           409,
           'attendance_no_open_shift',
@@ -437,7 +467,7 @@ export async function POST(request: Request) {
       }
 
       const timeOut = normalizeTimeValue(timeStr);
-      const totalHours = calculateHoursFromStrings(openRecord.check_in || null, timeOut);
+      const totalHours = calculateHoursFromStrings(currentOpenRecord.check_in || null, timeOut);
       const totalSalary = calculateSalary(totalHours, getEmployeeHourlyRate(authContext.employee));
       const { data, error } = await supabase
         .from('attendance')
@@ -447,7 +477,7 @@ export async function POST(request: Request) {
           total_salary: totalSalary,
           status: 'PRESENT',
         })
-        .eq('id', openRecord.id)
+        .eq('id', currentOpenRecord.id)
         .eq('employee_id', authContext.employee.id)
         .is('check_out', null)
         .select(ATTENDANCE_SELECT)
@@ -466,13 +496,13 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         code: 'attendance_checked_out',
-        message: `Đã tan ca [${openRecord.shift_name}] thành công.`,
+        message: `Đã tan ca [${currentOpenRecord.shift_name}] thành công.`,
         record: data,
         capabilities: { multiCheckEnabled: false },
       });
     }
 
-    assertNoOpenAttendanceForCheckIn(openRecord);
+    assertNoOpenAttendanceForCheckIn(currentOpenRecord);
 
     const existingShift = await getAttendanceRecordByShift(
       authContext.employee.id,
@@ -525,13 +555,16 @@ export async function POST(request: Request) {
 
     const openRecordAfterLocation = await getOpenAttendanceRecord(
       authContext.employee.id,
-      todayStr
+      staleIsolationEnabled ? todayStr : undefined
     );
     const existingShiftAfterLocation = await getAttendanceRecordByShift(
       authContext.employee.id,
       todayStr,
       currentShift
     );
+    if (!staleIsolationEnabled && openRecordAfterLocation && isOpenAttendanceRecordStale(openRecordAfterLocation, now)) {
+      throw new StaffAttendanceError(409, 'attendance_stale_shift_operator_required', 'Có ca cũ chưa được kết thúc. Vui lòng báo quản lý.');
+    }
     assertNoOpenAttendanceForCheckIn(openRecordAfterLocation);
     if (existingShiftAfterLocation && !isAttendanceMultiCheckEnabled()) {
       throw new StaffAttendanceError(

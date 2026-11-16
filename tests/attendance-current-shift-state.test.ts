@@ -24,8 +24,8 @@ describe('Attendance current-shift state regression', () => {
   });
 
   it('distinguishes a stale shift from a current active shift', () => {
-    expect(route).toMatch(/resolveAttendanceShiftState\(openRecord, now\)/);
-    expect(route).toMatch(/staleOpenShift: shiftState === 'STALE_OPEN_SHIFT'/);
+    expect(route).toMatch(/resolveAttendanceShiftState\(currentOpenRecord, now\)/);
+    expect(route).toContain('staleOpenShift,');
     expect(client).toContain('Có ca làm trước đó chưa được kết thúc.');
   });
 

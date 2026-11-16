@@ -10,3 +10,15 @@ export function isAttendanceManualMutationEnabled(value = process.env.ATTENDANCE
 export function isAttendanceMultiCheckEnabled(value = process.env.ATTENDANCE_MULTI_CHECK_ENABLED) {
   return value === 'true';
 }
+
+/**
+ * A previous-day open row may coexist with today's active session only after
+ * the reviewed date-scoped atomic Staff RPC has been deployed. Default OFF.
+ * Do not expose this capability without multi-check being enabled as well.
+ */
+export function isAttendanceStaleIsolationEnabled(
+  value = process.env.ATTENDANCE_STALE_ISOLATION_ENABLED,
+  multiCheckEnabled = isAttendanceMultiCheckEnabled()
+) {
+  return value === 'true' && multiCheckEnabled;
+}

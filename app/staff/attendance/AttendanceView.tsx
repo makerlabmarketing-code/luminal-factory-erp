@@ -44,6 +44,7 @@ interface StaffAttendancePayload {
   attendanceHistory: AttendanceRecord[];
   capabilities?: {
     multiCheckEnabled: boolean;
+    staleIsolationEnabled?: boolean;
   };
 }
 
@@ -135,6 +136,7 @@ export function StaffAttendanceContent({
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [multiCheckEnabled, setMultiCheckEnabled] = useState(false);
+  const [staleIsolationEnabled, setStaleIsolationEnabled] = useState(false);
   const [liveTime, setLiveTime] = useState(new Date());
   const [initialHistoryMonth] = useState(() =>
     formatBusinessMonthInput(businessMonthFromInstant(new Date()))
@@ -159,6 +161,7 @@ export function StaffAttendanceContent({
     setTodayRecord(payload.todayRecord);
     setAttendanceHistory(payload.attendanceHistory);
     setMultiCheckEnabled(Boolean(payload.capabilities?.multiCheckEnabled));
+    setStaleIsolationEnabled(Boolean(payload.capabilities?.staleIsolationEnabled));
     if (options.resetHistoryPage) setHistoryPage(1);
   }, []);
 
@@ -396,7 +399,7 @@ export function StaffAttendanceContent({
         </div>
       )}
 
-      {shiftState === 'STALE_OPEN_SHIFT' && staleOpenShift && (
+      {staleOpenShift && (
         <div className="w-full rounded-lg border border-amber-500/40 bg-amber-950/30 p-4" role="alert">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
@@ -409,7 +412,9 @@ export function StaffAttendanceContent({
                 vào lúc {staleOpenShift.check_in?.slice(0, 5)}.
               </p>
               <p className="mt-1 text-[11px] text-amber-200/90">
-                Vui lòng báo quản lý xử lý. Chức năng khôi phục ca hiện chưa được kích hoạt.
+                {staleIsolationEnabled
+                  ? 'Ca cũ chưa được tính công. Bạn vẫn có thể chấm công ca hôm nay; hãy báo quản lý để bổ sung giờ ra và xác nhận công ca cũ.'
+                  : 'Vui lòng báo quản lý bổ sung giờ ra có lý do trước khi bắt đầu ca mới. Hệ thống không tự điền giờ ra.'}
               </p>
             </div>
           </div>
@@ -440,7 +445,7 @@ export function StaffAttendanceContent({
         </div>
       )}
 
-      {!fetching && !fetchError && shiftState !== 'STALE_OPEN_SHIFT' &&
+      {!fetching && !fetchError && (shiftState !== 'STALE_OPEN_SHIFT' || staleIsolationEnabled) &&
         (!(shiftState === 'NO_OPEN_SHIFT' && todayRecord?.check_out) || canStartCurrentShift) && (
         <button
           type="button"
@@ -483,7 +488,7 @@ export function StaffAttendanceContent({
           <button
             type="button"
             onClick={() => void handleToggleShift()}
-            disabled={submitting || shiftState === 'STALE_OPEN_SHIFT'}
+            disabled={submitting || (shiftState === 'STALE_OPEN_SHIFT' && !staleIsolationEnabled)}
             className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-md border border-red-400/30 px-3 py-2 text-xs font-bold hover:bg-red-900/40 disabled:opacity-60"
           >
             <RefreshCcw className="h-3.5 w-3.5" />
