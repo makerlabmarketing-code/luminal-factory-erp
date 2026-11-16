@@ -13,6 +13,8 @@ if (storageState && process.env.GITHUB_ACTIONS === 'true') {
 const routes = ['/login', '/admin/capital', '/admin/projects', '/admin/employees', '/admin/payroll', '/staff/tasks'];
 const viewports = [
   { name: 'desktop', width: 1440, height: 900 },
+  { name: 'tablet-landscape', width: 1024, height: 768 },
+  { name: 'tablet-portrait', width: 768, height: 1024 },
   { name: 'mobile', width: 390, height: 844 },
 ];
 const outputDir = path.resolve(process.env.QA_OUTPUT_DIR || '.qa-browser-results');
@@ -45,16 +47,32 @@ async function audit(page, route, viewport) {
     if (/Application error: a client-side exception|Internal Server Error/i.test(body.slice(0, 800))) {
       throw new Error('Visible application exception');
     }
-    const authWall = /\/(login|auth)(\/|$)/.test(finalUrl.pathname) || await page.locator('input[type="password"]').count() > 0;
-    if (response.status() === 404 && !authWall) throw new Error('Unexpected 404 for ERP route');
-    if (route === '/login' && !storageState) {
-      if (!await page.getByRole('heading', { name: /Đăng nhập ERP/i }).count()) {
-        throw new Error('Missing ERP sign-in heading');
+    // A generic 200/visible body is not a security check. All guest ERP routes
+    // must show the actual login form or explicitly deny unauthorized access.
+    const denied = response.status() === 401 || response.status() === 403;
+    const authWall = /\/(login|auth)(\/|$)/.test(finalUrl.pathname) ||
+      await page.locator('input[type="password"]').count() > 0;
+    if (response.status() === 404) throw new Error('Unexpected 404 for ERP route');
+    if (!storageState && (route === '/login' || !denied)) {
+      const loginHeading = await page.getByRole('heading', { name: /Đăng nhập ERP/i }).count() > 0;
+      const emailField = await page.locator('input[type="email"]').count() > 0;
+      const passwordField = await page.locator('input[type="password"]').count() > 0;
+      const loginButton = await page.getByRole('button', { name: 'Đăng nhập', exact: true }).count() > 0;
+      if (!loginHeading || !emailField || !passwordField || !loginButton) {
+        throw new Error(route === '/login'
+          ? 'ERP login form is incomplete'
+          : 'Guest route rendered without a complete login gate');
       }
-      if (!await page.locator('input[type="password"]').count()) throw new Error('Missing sign-in password input');
     }
     const overflowPx = await page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - window.innerWidth));
-    observations.push({ viewport: viewport.name, route, status: response.status(), finalPath: finalUrl.pathname, mode: authWall ? 'login-gated' : 'rendered', overflowPx, consoleErrors: consoleErrors.slice(0, 3) });
+    if (!storageState && !denied && overflowPx > 4) {
+      throw new Error('Login form causes horizontal viewport overflow: ' + overflowPx + 'px');
+    }
+    observations.push({
+      viewport: viewport.name, route, status: response.status(), finalPath: finalUrl.pathname,
+      mode: denied ? 'access-denied' : authWall ? 'login-gated' : 'rendered',
+      overflowPx, consoleErrors: consoleErrors.slice(0, 3),
+    });
     if (!authWall && storageState && route === '/admin/capital') await auditLedger(page, label);
     if (pageErrors.length) throw new Error('JavaScript exception: ' + pageErrors.join(' | '));
   } catch (error) {

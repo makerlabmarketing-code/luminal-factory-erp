@@ -13,10 +13,10 @@ Repository ERP hiện **public**. Runner tiêu chuẩn GitHub Actions trên repo
 
 - `.github/workflows/erp-browser-qa.yml`: chạy khi push `main` hoặc `workflow_dispatch`, chờ Vercel READY, sau đó chạy browser smoke. Job báo lỗi có `issues: write` riêng, không nằm trong job duyệt trang.
 - `scripts/qa/erp-browser-smoke.mjs`: kiểm tra đường dẫn /login, /admin/capital, /admin/projects, /admin/employees, /admin/payroll, /staff/tasks.
-- `scripts/qa/erp-browser-contract.test.mjs`: bốn ca kiểm thử offline, gồm 503, bảo vệ origin và không cho lưu phiên đăng nhập lên runner public.
+- `scripts/qa/erp-browser-contract.test.mjs`: sáu ca kiểm thử offline, gồm 503, lỗi login gate, overflow ngang, bảo vệ origin và không cho lưu phiên đăng nhập lên runner public.
 - `scripts/qa/setup-agent-browser.ps1`: cài agent-browser 0.43.0 và đăng ký MCP `luminal-agent-browser` cho Codex trên máy Windows.
 
-Browser chạy hai viewport `1440×900` và `390×844`, chỉ cho phép yêu cầu GET/HEAD/OPTIONS (trừ refresh token nếu chạy riêng tại máy), không bấm nút lưu, chuyển tiền, gửi lương, duyệt, xóa. Trạng thái code xanh **không đồng nghĩa** với QA Owner/Staff đã hoàn tất.
+Browser chạy bốn viewport `1440×900`, `1024×768`, `768×1024` và `390×844`, chỉ cho phép yêu cầu GET/HEAD/OPTIONS (trừ refresh token nếu chạy riêng tại máy), không bấm nút lưu, chuyển tiền, gửi lương, duyệt, xóa. Ở chế độ khách, tất cả route quản trị phải hiển thị form đăng nhập đầy đủ hoặc trả 401/403; trang login không được tràn ngang trên bất kỳ viewport nào. Kết quả trên Chromium viewport giả lập **không thay thế** nghiệm thu Safari/iPad thật. Trạng thái code xanh **không đồng nghĩa** với QA Owner/Staff đã hoàn tất.
 
 ## Tự đăng ký agent-browser trong Codex qua GitHub (không cần máy Windows)
 
