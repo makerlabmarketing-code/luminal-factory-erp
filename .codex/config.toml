@@ -1,0 +1,12 @@
+# Project-level Codex MCP registration. Loaded when this repository is trusted.
+# No ChatGPT account, API key, ERP password or browser state is stored here.
+[mcp_servers.luminal-agent-browser]
+command = "bash"
+args = ["scripts/qa/bootstrap-agent-browser-mcp.sh"]
+startup_timeout_sec = 120
+
+[mcp_servers.luminal-agent-browser.env]
+AGENT_BROWSER_ALLOWED_DOMAINS = "erp.luminalfactory.com,kwfmfmpgpbfewpiizesv.supabase.co"
+AGENT_BROWSER_SESSION = "luminal-erp-qa"
+AGENT_BROWSER_CONFIRM_ACTIONS = "eval,download"
+AGENT_BROWSER_CONTENT_BOUNDARIES = "1"

@@ -5,7 +5,7 @@
 Có hai chế độ riêng biệt để không phát sinh chi phí API AI hoặc ghi nhầm dữ liệu thật.
 
 1. **Tự động sau mỗi deploy từ main:** GitHub Actions đợi commit có trạng thái Vercel = success, sau đó dùng Playwright kiểm tra các trang ERP ở chế độ khách, trên desktop và mobile. Nếu lỗi, job riêng ghi nhận link lần chạy tại [QA-004](https://github.com/makerlabmarketing-code/luminal-factory-erp/issues/280).
-2. **AI tương tác trên máy đã đăng nhập:** Codex CLI + agent-browser MCP khám phá giao diện, thao tác tab/menu/bảng/panel, ghi các bước tái hiện và hình chụp tại máy cục bộ; Codex có thể sửa code sau khi đọc nguyên nhân và chạy regression. Không tự đẩy sửa đổi production dữ liệu/quyền/lương.
+2. **Codex repo trusted / AI tương tác trên máy đã đăng nhập:** Codex CLI + agent-browser MCP khám phá giao diện, thao tác tab/menu/bảng/panel, ghi các bước tái hiện và hình chụp tại máy cục bộ; Codex có thể sửa code sau khi đọc nguyên nhân và chạy regression. Không tự đẩy sửa đổi production dữ liệu/quyền/lương.
 
 Repository ERP hiện **public**. Runner tiêu chuẩn GitHub Actions trên repo public miễn phí; workflow này **không tải artifact lên GitHub**, không sử dụng AI API, không tạo tài nguyên cloud trả phí. Nếu chuyển repo sang private, phải rà lại chính sách phí trước khi bật lại. Codex ChatGPT sign-in dành cho phiên sử dụng cục bộ; không chạy Codex unattended qua API trên Actions.
 
@@ -17,6 +17,14 @@ Repository ERP hiện **public**. Runner tiêu chuẩn GitHub Actions trên repo
 - `scripts/qa/setup-agent-browser.ps1`: cài agent-browser 0.43.0 và đăng ký MCP `luminal-agent-browser` cho Codex trên máy Windows.
 
 Browser chạy hai viewport `1440×900` và `390×844`, chỉ cho phép yêu cầu GET/HEAD/OPTIONS (trừ refresh token nếu chạy riêng tại máy), không bấm nút lưu, chuyển tiền, gửi lương, duyệt, xóa. Trạng thái code xanh **không đồng nghĩa** với QA Owner/Staff đã hoàn tất.
+
+## Tự đăng ký agent-browser trong Codex qua GitHub (không cần máy Windows)
+
+- File `.codex/config.toml` đăng ký MCP `luminal-agent-browser` theo **repo**; khi Codex chạy ở môi trường tin cậy và đọc project config, Codex tự khởi chạy `scripts/qa/bootstrap-agent-browser-mcp.sh`. Script dùng `npx` lấy phiên bản `agent-browser@0.43.0`, chuẩn bị Chrome (lần đầu) và chạy MCP stdio, không cần đăng ký thủ công trên máy cá nhân.
+- Repo cấp cấu hình công cụ, **không cấp quyền đăng nhập ChatGPT/ERP** và không ép được ứng dụng ChatGPT hiện tại nhận MCP mới. Codex Cloud cần mở repo này trong môi trường có `bash`, `node/npm/npx`, internet để tải gói và quyền thực thi; project phải ở trạng thái trusted.
+- Domain được giới hạn vào `erp.luminalfactory.com` và hostname Supabase của ERP; thao tác eval/download cần xác nhận. Không cấu hình API key, không cung cấp cookie, không thiết lập quyền ghi tài chính tự động.
+- Workflow GitHub Actions kiểm tra việc khởi động server MCP, phát hiện tool open/snapshot và thực sự mở `/login` ở chế độ khách. Kết quả kiểm thử đăng nhập Owner/Staff vẫn là bước khác, chỉ thực hiện khi có môi trường xác thực an toàn.
+- Các file: `.codex/config.toml`, `scripts/qa/bootstrap-agent-browser-mcp.sh`, `scripts/qa/verify-project-mcp.mjs`. Script Windows `setup-agent-browser.ps1` vẫn là **tùy chọn** khi sau này muốn chạy local.
 
 ## Cài agent-browser trên Windows (máy cá nhân)
 

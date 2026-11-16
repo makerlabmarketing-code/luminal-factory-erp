@@ -65,6 +65,12 @@ jobs:
           QA_OUTPUT_DIR: .qa-browser-results
         run: node scripts/qa/erp-browser-smoke.mjs
 
+      - name: Validate project Codex MCP auto-registration and guest browser launch
+        run: |
+          python3 -c 'import tomllib; c=tomllib.load(open(".codex/config.toml","rb")); assert c["mcp_servers"]["luminal-agent-browser"]["command"] == "bash"'
+          node --check scripts/qa/verify-project-mcp.mjs
+          node scripts/qa/verify-project-mcp.mjs
+
   report:
     needs: smoke
     if: always() && needs.smoke.result == 'failure' && github.repository == 'makerlabmarketing-code/luminal-factory-erp'
