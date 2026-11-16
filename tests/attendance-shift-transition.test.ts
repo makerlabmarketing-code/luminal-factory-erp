@@ -62,10 +62,11 @@ describe('Attendance shift-transition rule', () => {
     const route = source('app/api/staff/attendance/route.ts');
 
     expect(route).toMatch(/getOpenAttendanceRecord\(authContext\.employee\.id\)/);
-    expect(route).toMatch(/assertNoOpenAttendanceForCheckIn\(openRecord\)/);
+    expect(route).toMatch(/assertNoOpenAttendanceForCheckIn\(currentOpenRecord\)/);
     expect(route).toMatch(/assertNoOpenAttendanceForCheckIn\(openRecordAfterLocation\)/);
     expect(route).toMatch(/\.is\('check_out', null\)/);
-    expect(route).toContain('any shift/date blocks every new check-in');
+    expect(route).toContain('staleIsolationEnabled ? todayStr : undefined');
+    expect(route).toContain('!staleIsolationEnabled && openRecord && isOpenAttendanceRecordStale');
   });
 
   it('keeps only the active row and checkout action while a shift remains open', () => {
@@ -85,12 +86,14 @@ describe('Attendance shift-transition rule', () => {
     expect(client).toMatch(/if \(!refreshed\) applyMutationRecord\(result\.record\)/);
   });
 
-  it('preserves the earlier open shift on refresh instead of resolving the new shift', () => {
+  it('keeps today open and yesterday unresolved as separate GET fields when isolation is enabled', () => {
     const route = source('app/api/staff/attendance/route.ts');
 
     expect(route).toMatch(/const openRecord = await getOpenAttendanceRecord\(employee\.id\)/);
-    expect(route).toMatch(/shiftState === 'ACTIVE_SHIFT_TODAY'\s*\? openRecord/);
-    expect(route).toMatch(/currentShift: shiftState === 'ACTIVE_SHIFT_TODAY' \? openRecord : null/);
+    expect(route).toMatch(/shiftState === 'ACTIVE_SHIFT_TODAY'\s*\? currentOpenRecord/);
+    expect(route).toContain('getPreviousOpenAttendanceRecord(employee.id, todayStr)');
+    expect(route).toMatch(/currentShift: shiftState === 'ACTIVE_SHIFT_TODAY' \? currentOpenRecord : null/);
+    expect(route).toContain('staleOpenShift,');
   });
 
   it('keeps duplicate clicks from issuing another check-in and retains the server recheck', () => {
