@@ -63,7 +63,7 @@ jobs:
           exit 1
 
       - name: Validate browser QA safety and failure handling (offline)
-        run: node --test scripts/qa/erp-browser-contract.test.mjs
+        run: node --test scripts/qa/erp-browser-contract.node.mjs
 
       - name: Install isolated pinned browser QA package (no app dependency change)
         env:

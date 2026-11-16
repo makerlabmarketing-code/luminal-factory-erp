@@ -17,7 +17,7 @@ describe('ERP finance UI selection and shared component QA', () => {
   it('preserves permissions and independent financial actions', () => {
     const ledger = source('app/admin/capital/components/LedgerTable.tsx');
     const actions = ledger.slice(ledger.indexOf('const renderSelectedRowActions'), ledger.indexOf('const getDisplayCategory'));
-    for (const action of ['canTogglePaid', 'onTransitionReimbursement', 'onRetrySalaryEmail', 'onChangeSource', 'onTestArchive', 'onHistory']) expect(actions).toContain(action);
+    for (const action of ['canTogglePaid', 'onTransitionReimbursement', 'onRetrySalaryEmail', 'onChangeSource', 'onTestArchive', 'onHistory', 'onGenerateQr']) expect(actions).toContain(action);
   });
   it('retains semantic tables, accessible menu and focus-managed panel', () => {
     const table = source('component/data-table/CommonTable.tsx');

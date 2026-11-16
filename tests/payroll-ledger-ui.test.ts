@@ -19,8 +19,13 @@ function render(amount:number,cancelled_at:string|null=null, ledgerRows?: Financ
 it('renders a zero obligation without debt label, payment, QR or manual edit',()=>{
  const html=render(0);expect(html).toContain('Không phát sinh thanh toán');expect(html).not.toContain('Treo nợ');expect(html).not.toContain('Mã QR');expect(html).not.toContain('Chỉnh sửa');
 });
-it('renders positive linked payroll as unpaid with QR and no manual edit',()=>{
- const html=render(100);expect(html).toContain('Chưa trả');expect(html).toContain('Mã QR');expect(html).not.toContain('Chỉnh sửa');
+it('renders unpaid payroll as selectable; actions are hidden until choosing its row',()=>{
+ const html=render(100);
+ expect(html).toContain('Chưa trả');
+ expect(html).toContain('Chọn giao dịch Lương');
+ expect(html).toContain('Chọn giao dịch để hiện thao tác');
+ expect(html).not.toContain('Mã QR');
+ expect(html).not.toContain('Chỉnh sửa');
 });
 it('keeps replaced payroll visible as history, without restoring or paying it',()=>{
  const html=render(100,'2026-11-05T00:00:00Z');expect(html).toContain('Đã thay thế');expect(html).not.toContain('Khôi phục');expect(html).not.toContain('Mã QR');
