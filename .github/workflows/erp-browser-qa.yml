@@ -26,6 +26,20 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install pinned ERP dependencies (no external database)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Execute ERP regression tests, including Sổ thu chi toolbar
+        run: npm test
+
+      - name: Verify ESLint
+        run: npm run lint
+
+      - name: Generate Next types and check TypeScript
+        run: |
+          npx next typegen
+          npx tsc --noEmit
+
       - name: Wait until this main commit is READY on Vercel
         if: github.event_name == 'push'
         env:

@@ -4,14 +4,14 @@
 
 Có hai chế độ riêng biệt để không phát sinh chi phí API AI hoặc ghi nhầm dữ liệu thật.
 
-1. **Tự động sau mỗi deploy từ main:** GitHub Actions đợi commit có trạng thái Vercel = success, sau đó dùng Playwright kiểm tra các trang ERP ở chế độ khách, trên desktop và mobile. Nếu lỗi, job riêng ghi nhận link lần chạy tại [QA-004](https://github.com/makerlabmarketing-code/luminal-factory-erp/issues/280).
+1. **Tự động sau mỗi commit main:** GitHub Actions chạy đầy đủ Vitest, ESLint, TypeScript (sau `next typegen`), đợi commit có trạng thái Vercel = success, sau đó dùng Playwright kiểm tra các trang ERP ở chế độ khách trên desktop, tablet và mobile. Nếu lỗi, job riêng ghi nhận link lần chạy tại [QA-004](https://github.com/makerlabmarketing-code/luminal-factory-erp/issues/280). Nếu lỗi, job riêng ghi nhận link lần chạy tại [QA-004](https://github.com/makerlabmarketing-code/luminal-factory-erp/issues/280).
 2. **Codex repo trusted / AI tương tác trên máy đã đăng nhập:** Codex CLI + agent-browser MCP khám phá giao diện, thao tác tab/menu/bảng/panel, ghi các bước tái hiện và hình chụp tại máy cục bộ; Codex có thể sửa code sau khi đọc nguyên nhân và chạy regression. Không tự đẩy sửa đổi production dữ liệu/quyền/lương.
 
 Repository ERP hiện **public**. Runner tiêu chuẩn GitHub Actions trên repo public miễn phí; workflow này **không tải artifact lên GitHub**, không sử dụng AI API, không tạo tài nguyên cloud trả phí. Nếu chuyển repo sang private, phải rà lại chính sách phí trước khi bật lại. Codex ChatGPT sign-in dành cho phiên sử dụng cục bộ; không chạy Codex unattended qua API trên Actions.
 
 ## Các file đã tích hợp
 
-- `.github/workflows/erp-browser-qa.yml`: chạy khi push `main` hoặc `workflow_dispatch`, chờ Vercel READY, sau đó chạy browser smoke. Job báo lỗi có `issues: write` riêng, không nằm trong job duyệt trang.
+- `.github/workflows/erp-browser-qa.yml`: chạy khi push `main` hoặc `workflow_dispatch`, cài dependency từ `package-lock.json` bằng `npm ci --ignore-scripts`, chạy Vitest, ESLint, TypeScript, chờ Vercel READY rồi chạy browser smoke. Job báo lỗi có `issues: write` riêng, không nằm trong job duyệt trang. Build Production do Vercel chịu trách nhiệm.
 - `scripts/qa/erp-browser-smoke.mjs`: kiểm tra đường dẫn /login, /admin/capital, /admin/projects, /admin/employees, /admin/payroll, /staff/tasks.
 - `scripts/qa/erp-browser-contract.test.mjs`: sáu ca kiểm thử offline, gồm 503, lỗi login gate, overflow ngang, bảo vệ origin và không cho lưu phiên đăng nhập lên runner public.
 - `scripts/qa/setup-agent-browser.ps1`: cài agent-browser 0.43.0 và đăng ký MCP `luminal-agent-browser` cho Codex trên máy Windows.
