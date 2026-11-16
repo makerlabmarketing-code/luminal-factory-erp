@@ -84,6 +84,7 @@ Typical routing:
 | Finance | finance references |
 | Inventory | inventory references |
 | UI | ui-rules.md |
+| Browser QA | docs/qa/erp-browser-qa.md |
 | Supabase/Auth/RLS | supabase-contract.md |
 | Validation / Reporting | workflow.md |
 | Repository Planning | SETUP-CODEX-ERP.md |

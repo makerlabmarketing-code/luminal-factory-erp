@@ -1,0 +1,82 @@
+name: ERP browser QA (free, read-only)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: read
+
+concurrency:
+  group: erp-browser-qa-production
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    if: github.repository == 'makerlabmarketing-code/luminal-factory-erp'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Wait until this main commit is READY on Vercel
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 48); do
+            status="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/status" --jq '[.statuses[] | select(.context == "Vercel")][0].state // "pending"')"
+            if [[ "$status" == "success" ]]; then
+              echo 'Vercel deployment READY for this commit.'
+              sleep 5
+              exit 0
+            fi
+            if [[ "$status" == "failure" || "$status" == "error" ]]; then
+              echo "::error::Vercel deployment status: $status"
+              exit 1
+            fi
+            sleep 5
+          done
+          echo '::error::Vercel did not confirm READY within the time limit.'
+          exit 1
+
+      - name: Validate browser QA safety and failure handling (offline)
+        run: node --test scripts/qa/erp-browser-contract.test.mjs
+
+      - name: Install isolated pinned browser QA package (no app dependency change)
+        env:
+          QA_TOOL_DIR: ${{ runner.temp }}/luminal-browser-qa
+        run: |
+          npm install --prefix "$QA_TOOL_DIR" --no-save --ignore-scripts --no-audit --no-fund playwright@1.65.1
+          node "$QA_TOOL_DIR/node_modules/playwright/cli.js" install --with-deps chromium
+
+      - name: Inspect guest ERP pages, never mutate finance
+        env:
+          QA_BASE_URL: https://erp.luminalfactory.com
+          QA_PLAYWRIGHT_MODULE: ${{ runner.temp }}/luminal-browser-qa/node_modules/playwright/index.mjs
+          QA_OUTPUT_DIR: .qa-browser-results
+        run: node scripts/qa/erp-browser-smoke.mjs
+
+  report:
+    needs: smoke
+    if: always() && needs.smoke.result == 'failure' && github.repository == 'makerlabmarketing-code/luminal-factory-erp'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      issues: write
+    steps:
+      - name: Append failure to existing QA-004 issue (no secrets or screenshots)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QA_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          QA_COMMIT: ${{ github.sha }}
+        run: |
+          gh issue comment 280 --repo "$GITHUB_REPOSITORY" --body "ERP browser smoke FAILED after deployment. Commit: \`$QA_COMMIT\`. Evidence, step names and exceptions: $QA_RUN_URL. Mode: public guest, read-only; no production financial actions executed. Authenticated Owner/Staff QA remains separate."

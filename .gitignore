@@ -39,3 +39,8 @@ next-env.d.ts
 # supabase
 supabase/.temp/
 .gitattributes
+
+# Local browser QA tools, reports and private authentication state
+/.qa-browser-results/
+/.qa-local-tool/
+/.qa-auth/
