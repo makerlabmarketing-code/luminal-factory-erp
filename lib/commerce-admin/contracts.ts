@@ -16,6 +16,7 @@ export type CommerceAdminScope =
   | 'commerce.raffle.read'
   | 'commerce.raffle.write'
   | 'commerce.raffle.entry.read'
+  | 'commerce.raffle.winner.manage'
   | 'commerce.hero.read'
   | 'commerce.hero.write'
   | 'commerce.hero.publish'
