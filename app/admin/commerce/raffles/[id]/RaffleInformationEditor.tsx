@@ -1,5 +1,7 @@
 'use client';
 import Link from 'next/link';
+import RaffleShippingRateEditor from './RaffleShippingRateEditor';
+import RafflePaymentQuoteEditor from './RafflePaymentQuoteEditor';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { isCommerceRaffle, type CommerceRaffle } from '@/lib/commerce-admin/raffle-input';
@@ -72,5 +74,7 @@ export default function RaffleInformationEditor({raffle,canManage,viewedAt}: {ra
       {notice ? <p role="status" className="text-sm text-emerald-300">{notice}</p> : null}
       {editable ? <div className="flex flex-wrap gap-3"><button type="submit" className="admin-button-primary" disabled={busy || !dirty}>{busy ? 'Đang lưu…' : 'Lưu nháp'}</button><button type="button" className="admin-button-secondary" disabled={busy || !dirty} onClick={()=>{if(window.confirm('Bỏ các thay đổi chưa lưu?')){setForm(formFromRaffle(current));setError('');setNotice('');}}}>Bỏ thay đổi</button></div> : null}
     </form>
+    <RaffleShippingRateEditor raffleId={current.id} canManage={canManage} />
+    {canManage && !editable && <RafflePaymentQuoteEditor raffleId={current.id} />}
   </div>;
 }
