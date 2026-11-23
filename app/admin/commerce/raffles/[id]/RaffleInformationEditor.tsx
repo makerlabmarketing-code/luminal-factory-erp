@@ -2,18 +2,21 @@
 import Link from 'next/link';
 import RaffleShippingRateEditor from './RaffleShippingRateEditor';
 import RafflePaymentQuoteEditor from './RafflePaymentQuoteEditor';
+import RaffleOperationsEditor from './RaffleOperationsEditor';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { isCommerceRaffle, type CommerceRaffle } from '@/lib/commerce-admin/raffle-input';
 import { canEditRaffleInformation, parseRaffleInformationMutation, raffleDateToVietnamInput,
-  raffleVietnamInputToDate, type RaffleInformationMutation } from '@/lib/commerce-admin/raffle-draft';
+  raffleVietnamInputToDate, raffleSuggestedCloseInput, type RaffleInformationMutation } from '@/lib/commerce-admin/raffle-draft';
 
 function formFromRaffle(raffle: CommerceRaffle) {
   return {title:raffle.title,summary:raffle.summary ?? '',rules:raffle.rules_summary ?? '',
     opens:raffleDateToVietnamInput(raffle.opens_at),closes:raffleDateToVietnamInput(raffle.closes_at)};
 }
-export default function RaffleInformationEditor({raffle,canManage,viewedAt}: {raffle:CommerceRaffle;canManage:boolean;viewedAt:number}) {
+export default function RaffleInformationEditor({raffle,canManage,viewedAt,operationsEnabled}: {raffle:CommerceRaffle;canManage:boolean;viewedAt:number;operationsEnabled:boolean}) {
   const router = useRouter();
+  const [quoteRevision, setQuoteRevision] = useState(0);
+  const [operationsRevision, setOperationsRevision] = useState(0);
   const [current,setCurrent] = useState(raffle);
   const [form,setForm] = useState(()=>formFromRaffle(raffle));
   const [saved,setSaved] = useState(()=>JSON.stringify(formFromRaffle(raffle)));
@@ -55,6 +58,7 @@ export default function RaffleInformationEditor({raffle,canManage,viewedAt}: {ra
     } catch(cause) {setError(cause instanceof Error ? cause.message : 'Không thể lưu thông tin raffle.');}
     finally {saving.current=false;setBusy(false);}
   }
+  const suggestedClose = raffleSuggestedCloseInput(form.opens);
   const openingPassed = current.opens_at !== null && Date.parse(current.opens_at) < viewedAt;
   return <div className="admin-page">
     <header className="admin-page-header"><div><h1 className="admin-page-title">{current.title}</h1><p className="admin-page-description">Thông tin raffle · {current.is_published ? 'Đã công khai' : 'Chưa công khai'}</p></div>
@@ -67,14 +71,24 @@ export default function RaffleInformationEditor({raffle,canManage,viewedAt}: {ra
         <label className="admin-label">Tên đợt raffle<input className="admin-field mt-2" required maxLength={180} value={form.title} onChange={event=>setForm({...form,title:event.target.value})} /></label>
         <label className="admin-label">Giới thiệu ngắn<textarea className="admin-field mt-2" rows={3} maxLength={5000} value={form.summary} onChange={event=>setForm({...form,summary:event.target.value})} /></label>
         <div className="grid gap-4 sm:grid-cols-2"><label className="admin-label">Giờ mở (Việt Nam)<input className="admin-field mt-2" type="datetime-local" step={1} required value={form.opens} onChange={event=>setForm({...form,opens:event.target.value})} /></label>
-          <label className="admin-label">Giờ đóng (Việt Nam)<input className="admin-field mt-2" type="datetime-local" step={1} required value={form.closes} onChange={event=>setForm({...form,closes:event.target.value})} /></label></div>
+          <div className="space-y-2"><label className="admin-label">Giờ đóng (Việt Nam)<input className="admin-field mt-2" type="datetime-local" step={1} required value={form.closes} onChange={event=>setForm({...form,closes:event.target.value})} /></label>
+          {editable && <button type="button" className="admin-button-secondary" disabled={!suggestedClose}
+            onClick={()=>setForm(previous=>({...previous,closes:suggestedClose}))}>Đặt giờ đóng sau 7 ngày</button>}</div></div>
         <label className="admin-label">Thể lệ tham gia<textarea className="admin-field mt-2" rows={7} maxLength={8000} value={form.rules} onChange={event=>setForm({...form,rules:event.target.value})} /></label>
       </fieldset>
       {error ? <p role="alert" className="text-sm text-red-300">{error}</p> : null}
       {notice ? <p role="status" className="text-sm text-emerald-300">{notice}</p> : null}
       {editable ? <div className="flex flex-wrap gap-3"><button type="submit" className="admin-button-primary" disabled={busy || !dirty}>{busy ? 'Đang lưu…' : 'Lưu nháp'}</button><button type="button" className="admin-button-secondary" disabled={busy || !dirty} onClick={()=>{if(window.confirm('Bỏ các thay đổi chưa lưu?')){setForm(formFromRaffle(current));setError('');setNotice('');}}}>Bỏ thay đổi</button></div> : null}
     </form>
+    {current.status === 'DRAFT' && !current.product_id && <p className="admin-card p-4 text-sm text-amber-200">
+      Cần gắn sản phẩm và kiểm tra giá bán trước khi chuẩn bị phát hành.
+    </p>}
     <RaffleShippingRateEditor raffleId={current.id} canManage={canManage} />
-    {canManage && !editable && <RafflePaymentQuoteEditor raffleId={current.id} />}
+    {canManage && !editable && <>
+      {operationsEnabled && <RaffleOperationsEditor raffleId={current.id} revision={operationsRevision}
+        onChanged={() => setQuoteRevision(value => value + 1)} />}
+      <RafflePaymentQuoteEditor key={quoteRevision} raffleId={current.id}
+        onQuotePrepared={() => setOperationsRevision(value => value + 1)} />
+    </>}
   </div>;
 }

@@ -9,7 +9,7 @@ export default async function RaffleDetailPage({params}: {params: Promise<{id:st
     const [information,canManage] = await Promise.all([
       getCommerceRaffleInformation((await params).id),hasPermission(context,'COMMERCE_RAFFLE_MANAGE'),
     ]);
-    return <RaffleInformationEditor {...information} canManage={canManage} />;
+    return <RaffleInformationEditor key={information.raffle.id} {...information} canManage={canManage} operationsEnabled={process.env.ERP_COMMERCE_RAFFLE_OPERATIONS_ENABLED === 'true'} />;
   } catch {
     return <div className="admin-page"><h1 className="admin-page-title">Chi tiết raffle</h1><p role="alert">Không thể tải raffle. Kiểm tra mã raffle, quyền truy cập và kết nối.</p><Link className="admin-button-secondary" href="/admin/commerce/raffles" prefetch={false}>Về danh sách</Link></div>;
   }

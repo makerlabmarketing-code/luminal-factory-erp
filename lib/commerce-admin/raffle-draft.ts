@@ -44,3 +44,8 @@ export function raffleVietnamInputToDate(value: string) {
   const parsed = new Date(`${normalized}+07:00`);
   return Number.isFinite(parsed.getTime()) && raffleDateToVietnamInput(parsed.toISOString()) === normalized ? parsed.toISOString() : null;
 }
+
+export function raffleSuggestedCloseInput(opens: string) {
+  const start = raffleVietnamInputToDate(opens);
+  return start ? raffleDateToVietnamInput(new Date(Date.parse(start) + 7 * 86_400_000).toISOString()) : '';
+}

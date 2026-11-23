@@ -7,7 +7,7 @@ import { parseShippingUsd } from '@/lib/commerce-admin/raffle-shipping';
 type Winner = { id: string; public_code: string; status: string };
 type Quote = { to: string; subject: string; text: string };
 
-export default function RafflePaymentQuoteEditor({ raffleId }: { raffleId: string }) {
+export default function RafflePaymentQuoteEditor({ raffleId, onQuotePrepared }: { raffleId: string; onQuotePrepared: () => void }) {
   const endpoint = `/api/admin/commerce/raffles/${raffleId}/shipping-quotes`;
   const [winners, setWinners] = useState<Winner[]>([]);
   const [allocationId, setAllocationId] = useState('');
@@ -67,6 +67,7 @@ export default function RafflePaymentQuoteEditor({ raffleId }: { raffleId: strin
       setWinners(previous => previous.map(winner => winner.id === allocationId ? { ...winner, status: 'PAYMENT_PENDING' } : winner));
       setQuote(result.quote);
       pending.current = null;
+      if (selected.status === 'SELECTED') onQuotePrepared();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể lấy báo giá.');
     } finally {
