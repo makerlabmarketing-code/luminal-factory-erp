@@ -54,3 +54,35 @@ Rollback: revert this ERP app-only change. No database rollback is needed and
 existing raffle or participant records are retained. Check list/participant
 reads and permission denial after rollback. Colorway association, authoritative
 80 USD price, publication and the email SQL gate remain separate dependencies.
+
+## OldToy operations and release
+
+The draft editor can propose a closing time seven days from opening. The owner
+can set a longer window. Both fields use Vietnam time. Before opening OldToy,
+link the approved product/colorway, check its USD price against the advertised
+amount, and confirm the opening window and the country shipping rates.
+
+The winner operations workspace uses the current Commerce signed APIs.
+`ERP_COMMERCE_RAFFLE_OPERATIONS_ENABLED=true` enables it in the ERP server
+environment. Leave it off until approved for a signed-in trial. The existing
+shipping-rate and payment-quote panels have separate access and remain available.
+Winner/replacement selection requires raffle management and entry visibility.
+Selection records the result of a draw after the raffle has closed. The payment
+and fulfillment actions also require their distinct scopes and permissions
+`COMMERCE_RAFFLE_PAYMENT_CONFIRM` and `COMMERCE_RAFFLE_FULFILLMENT_MANAGE`.
+Owner has the existing permission override. No staff grants are included.
+
+An operator verifies the actual bank receipt before recording payment.
+Fulfillment proposes one calendar month from the recorded payment in
+Vietnam time. At dispatch, the carrier and tracking reference are captured in
+the Commerce operation event's note. The note is an audit record. A separate
+tracking field, carrier integrations and customer tracking links need their
+own contract. The current workspace only sends data to the signed Commerce
+operations API. Public results and customer email activation are separate.
+
+For acceptance, sign in as ERP Owner on an isolated release with approved test
+entries. Verify selection, saved quote, bank reference, one payment across
+a retry, ship deadline, tracking audit note and the cancel/replacement path.
+Verify an account without permission cannot trigger payment or fulfillment.
+Disable the server flag and redeploy to withdraw the new workspace and its
+routes while preserving any recorded history.
