@@ -146,3 +146,28 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     min-height: 44px;
   }
 }
+
+/* The light is limited to card surfaces. Table and control colors come from ERP. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  [data-luminal-card-lit] {
+    background-image: radial-gradient(12rem circle at var(--card-light-x, 50%) var(--card-light-y, 50%), rgb(var(--luminal-resin-cyan) / .075), transparent 75%);
+    box-shadow: inset 0 0 0 1px rgb(var(--luminal-resin-cyan) / .2), var(--luminal-rim-bevel);
+  }
+}
+
+.admin-dashboard-light .admin-page-header {
+  background-image: conic-gradient(from 197deg at 100% 0%, transparent 4deg, rgb(var(--luminal-resin-cyan) / .075) 12deg, transparent 19deg 23deg, #d3a75912 28deg, transparent 35deg);
+  background-repeat: no-repeat;
+}
+
+@supports (background-clip: text) {
+  .admin-page-header .admin-page-title {
+    background-image: linear-gradient(110deg, #f8fafc 25%, #e4f3fa 58%, #cbeaf5 85%);
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@media (forced-colors: active) {
+  .admin-page-header .admin-page-title { background: none; color: CanvasText; }
+}

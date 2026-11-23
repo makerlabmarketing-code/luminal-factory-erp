@@ -11,7 +11,7 @@ export const fetchCache = 'force-no-store';
 export default async function AdminDashboardPage() {
   try {
     const dashboard = await getAdminDashboardDto();
-    return <AdminPage>
+    return <AdminPage className="admin-dashboard-light">
       <AdminPageHeader
         title="Tổng quan vận hành"
         description="Theo dõi dòng tiền đã ghi nhận và sức khỏe quỹ theo từng kỳ."
