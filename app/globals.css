@@ -155,11 +155,6 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   }
 }
 
-.admin-dashboard-light .admin-page-header {
-  background-image: conic-gradient(from 197deg at 100% 0%, transparent 4deg, rgb(var(--luminal-resin-cyan) / .075) 12deg, transparent 19deg 23deg, #d3a75912 28deg, transparent 35deg);
-  background-repeat: no-repeat;
-}
-
 @supports (background-clip: text) {
   .admin-page-header .admin-page-title {
     background-image: linear-gradient(110deg, #f8fafc 25%, #e4f3fa 58%, #cbeaf5 85%);
