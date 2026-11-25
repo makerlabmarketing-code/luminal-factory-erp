@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import RaffleDispatchDetails from './RaffleDispatchDetails';
 import { raffleDateToVietnamInput } from '@/lib/commerce-admin/raffle-draft';
 import { raffleActions, raffleAllocationLabels, raffleFulfillmentDueInput,
   type RaffleAction, type RaffleAllocation } from '@/lib/commerce-admin/raffle-operations';
@@ -145,6 +146,8 @@ export default function RaffleOperationsEditor({ raffleId, revision, onChanged }
             <p className="text-sm font-semibold">{allocation.public_code} · {raffleAllocationLabels[allocation.status]}</p>
             {allocation.status === 'PAYMENT_PENDING' && <p className="text-xs text-slate-400">Hạn thanh toán {vietnamTime(allocation.payment_deadline_at)} (giờ Việt Nam)</p>}
             {allocation.fulfillment_due_at && <p className="text-xs text-slate-400">Hạn gửi {vietnamTime(allocation.fulfillment_due_at)} (giờ Việt Nam)</p>}
+            {allocation.status === 'COMPLETED' && operations.canFulfill &&
+              <RaffleDispatchDetails endpoint={endpoint} allocationId={allocation.id} />}
           </div>
           <div className="flex flex-wrap gap-2">
             {allocation.status === 'SELECTED' && <a className="admin-button-secondary" href="#raffle-payment-quotes">Soạn báo giá</a>}
