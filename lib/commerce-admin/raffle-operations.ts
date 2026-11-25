@@ -104,3 +104,14 @@ export function parseRaffleOperationsInput(input: unknown) {
     }
   }
 }
+
+export type RaffleDispatchRecord = { note: string | null; completedAt: string };
+
+export function isRaffleDispatchResult(value: unknown): value is { tracking: RaffleDispatchRecord | null } {
+  if (!value || typeof value !== 'object' || !('tracking' in value)) return false;
+  const { tracking } = value;
+  return tracking === null || !!tracking && typeof tracking === 'object'
+    && 'note' in tracking && (tracking.note === null || typeof tracking.note === 'string' && tracking.note.length <= 1000)
+    && 'completedAt' in tracking && typeof tracking.completedAt === 'string'
+    && Number.isFinite(Date.parse(tracking.completedAt));
+}

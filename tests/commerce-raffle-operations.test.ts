@@ -105,6 +105,29 @@ describe('ERP raffle operations', () => {
       canFulfill: true, candidates: [{ id: another, name: 'Candidate', email: 'qa@example.test', country: 'VN' }] });
   });
 
+  it('requires fulfillment permission for dispatch notes and returns only the scoped note and timestamp', async () => {
+    const trackingUrl = url + '?tracking=' + allocationId;
+    mocks.permission.mockResolvedValueOnce(false);
+    expect((await GET(new Request(trackingUrl), params)).status).toBe(403);
+    expect(mocks.request).not.toHaveBeenCalled();
+    expect((await GET(new Request(url + '?tracking=invalid'), params)).status).toBe(400);
+
+    const tracking = { note: 'Carrier / TRACK-123', completedAt: '2026-11-25T03:00:00Z' };
+    mocks.request.mockImplementationOnce(async (_endpoint, guard) => {
+      const result = { tracking: { ...tracking, actor_id: 'private' } };
+      expect(guard(result)).toBe(true);
+      return result;
+    });
+    const response = await GET(new Request(trackingUrl), params);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toEqual({ success: true, tracking });
+    expect(mocks.request).toHaveBeenCalledWith({
+      capability: 'COMMERCE_RAFFLE_FULFILLMENT_MANAGE', scope: 'commerce.raffle.fulfillment.manage', method: 'GET',
+      path: `/api/admin/v1/raffles/${id}/winner-allocations/${allocationId}/complete`,
+    }, expect.any(Function));
+    expect(mocks.entries).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['fulfillment', { fulfillmentDue: '2026-02-28T12:15' }, { fulfillmentDueAt: '2026-02-28T05:15:00.000Z' }],
     ['complete', { note: 'Carrier / Tracking' }, { note: 'Carrier / Tracking' }],

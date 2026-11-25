@@ -75,7 +75,9 @@ Owner has the existing permission override. No staff grants are included.
 An operator verifies the actual bank receipt before recording payment.
 Fulfillment proposes one calendar month from the recorded payment in
 Vietnam time. At dispatch, the carrier and tracking reference are captured in
-the Commerce operation event's note. The note is an audit record. A separate
+the Commerce operation event's note. Open **Xem thông tin gửi hàng** on the
+completed allocation to view the Vietnam-time dispatch timestamp and copy the
+note. This private read also requires the fulfillment permission. A separate
 tracking field, carrier integrations and customer tracking links need their
 own contract. The current workspace only sends data to the signed Commerce
 operations API. Public results and customer email activation are separate.

@@ -1,5 +1,5 @@
 import { isRaffleUuid } from '@/lib/commerce-admin/raffle-input';
-import { allocationSummary, canRecordRaffleWinner, isRaffleAllocation, parseRaffleOperationsInput,
+import { allocationSummary, canRecordRaffleWinner, isRaffleAllocation, isRaffleDispatchResult, parseRaffleOperationsInput,
   raffleActions, type RaffleAllocation } from '@/lib/commerce-admin/raffle-operations';
 import { requestCommerceAdmin } from '@/services/server/commerceAdminIntegration';
 import { requireCommerceRaffleAccess } from '@/services/server/commerceAdminRaffleAccess';
@@ -14,12 +14,23 @@ function failure(status: number, message: string) {
   return commerceAdminJson({ success: false, message }, { status });
 }
 
-export async function GET(_request: Request, { params }: Props) {
+export async function GET(request: Request, { params }: Props) {
   if (process.env.ERP_COMMERCE_RAFFLE_OPERATIONS_ENABLED !== 'true') return failure(404, 'Trang vận hành chưa được bật.');
   try {
     const actor = await requireCommerceRaffleAccess('COMMERCE_RAFFLE_MANAGE');
     const { id } = await params;
     if (!isRaffleUuid(id)) return failure(400, 'Mã đợt raffle không hợp lệ.');
+    const trackingId = new URL(request.url).searchParams.get('tracking');
+    if (trackingId !== null) {
+      if (!isRaffleUuid(trackingId)) return failure(400, 'Mã suất trúng không hợp lệ.');
+      const { capability, scope } = raffleActions.complete;
+      if (!(await hasPermission(actor, capability))) return failure(403, 'Bạn chưa có quyền xem thông tin gửi hàng.');
+      const { tracking } = await requestCommerceAdmin({
+        capability, scope, method: 'GET',
+        path: `/api/admin/v1/raffles/${id}/winner-allocations/${trackingId}/complete`,
+      }, isRaffleDispatchResult);
+      return commerceAdminJson({ success: true, tracking: tracking && { note: tracking.note, completedAt: tracking.completedAt } });
+    }
     const [raffle, allocations, canReadEntries, canConfirmPayment, canFulfill] = await Promise.all([
       getCommerceRaffle(id),
       requestCommerceAdmin({
