@@ -1,5 +1,15 @@
 # Luminal Factory ERP Implementation Roadmap
 
+## 2026-11-28 — QA-004 and working rules checkpoint
+
+| Item | Verified state | Next evidence |
+| --- | --- | --- |
+| ERP add/edit panels | [PR #287](https://github.com/makerlabmarketing-code/luminal-factory-erp/pull/287) merged as `4fab988`. [Vercel Production](https://vercel.com/duy-s-projects4/luminal-factory-erp/7e6GJM1BUApRpJzX4EKt5iDu7pBj) is ready with `erp.luminalfactory.com` assigned. The sign-in screen loaded. | Open, tab through, and cancel representative forms in a signed-in browser. Check a narrow viewport. |
+| QA project #23 | The previous production run completed assignment, submission, return for revision, approval and completion with a dual-role account. | Capture why save sometimes needs a second click. Verify independent-role access with separate accounts when available. |
+| New task on the board | [PR #286](https://github.com/makerlabmarketing-code/luminal-factory-erp/pull/286) remains open and GitHub reports a merge conflict after #287. Its earlier preview passed. | Reconcile its project detail changes with #287 before release. Verify visibility in the Staff tab without manual refresh and trace a missing insert event separately. |
+
+For current priority, use [Điều phối ERP & Commerce](https://docs.google.com/spreadsheets/d/1R9HKuFyYe4xrYbvVD-6abV1Br-_c6Jia6G9O0geKCxY/edit#gid=847920559). Existing implementation entries below retain their historical evidence.
+
 ## 2026-11-05 — E-012 concurrency acceptance continuation
 
 Added a dedicated read-only-permission CI job running the existing five overlapping

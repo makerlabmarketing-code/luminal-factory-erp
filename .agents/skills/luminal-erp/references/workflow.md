@@ -144,6 +144,19 @@ Completion criteria:
 - critical accessibility or permission risks are resolved or explicitly accepted
 - rollback notes are documented
 
+## Release and acceptance evidence
+
+| Milestone | Evidence |
+| --- | --- |
+| Implemented | Change summary and validation results for the reviewed head |
+| Merged | PR URL and merged SHA |
+| Production | That SHA is ready in Vercel for ERP and serves the production domain |
+| Accepted | Recorded browser workflow, environment, role coverage, result, and any device limits |
+
+If a check is blocked, record the actual blocker and the next action in the same roadmap item. A dual-role session can cover the normal task workflow. Independence of role permissions requires separate accounts. Build status and fixture tests do not substitute for browser actions.
+
+Use installed connectors for PR checks, reviews, and deployments. Link the failing check or deployment and record the actionable error before retrying. For browser tests, use the designated QA project or safe open-and-cancel checks according to the approved scope.
+
 ## Validation Matrix
 
 Inspect available scripts before choosing commands:
