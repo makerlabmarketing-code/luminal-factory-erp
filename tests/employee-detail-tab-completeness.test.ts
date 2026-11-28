@@ -27,7 +27,7 @@ describe('Employee Detail business-tab completeness', () => {
     expect(service).toContain('canEditPersonalFinance: canViewFinance && canEditEmployee');
   });
   it('renders empty and failure states locally without duplicating mutation routes', () => {
-    const saveFlow = ui.slice(ui.indexOf('const save = async'), ui.indexOf('const editorActions ='));
+    const saveFlow = ui.slice(ui.indexOf('const save = async'), ui.indexOf('const retryOptionalData ='));
     expect(ui).toContain("value === null || value === '' ? 'Chưa cập nhật' : value");
     expect(ui).toContain('function TabWarning');
     expect(ui).toContain('Thử tải lại');

@@ -59,7 +59,8 @@ describe('project membership atomic mutation delivery', () => {
     const page = source('app/admin/projects/[projectId]/page.tsx');
     expect(page).toMatch(/reason: addMemberReason/);
     expect(page).toMatch(/reason: memberMutationReason/);
-    expect(page).toMatch(/role="dialog"/);
+    expect(page).toContain('<AdminSidePanel title="Thêm thành viên dự án"');
+    expect(source('component/AdminSidePanel.tsx')).toContain('role="dialog"');
     expect(page).toMatch(/minLength=\{10\}/);
     expect(page).not.toMatch(/window\.prompt/);
   });

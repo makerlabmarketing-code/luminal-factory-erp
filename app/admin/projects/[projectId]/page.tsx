@@ -1,5 +1,7 @@
 'use client';
 
+import AdminSidePanel from '@/component/AdminSidePanel';
+
 import TaskBoard, { type TaskBoardCard } from '@/component/project/TaskBoard';
 import { useProjectTaskRealtime } from '@/hooks/useProjectTaskRealtime';
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
@@ -22,7 +24,6 @@ import {
 } from 'lucide-react';
 import { useNotification } from '@/component/NotificationContext';
 import { ProjectWorkspaceTabs, type ProjectWorkspaceTab } from './ProjectWorkspaceTabs';
-import { ProjectActionDialog } from './ProjectActionDialog';
 import { PhaseMembersSection } from './PhaseMembersSection';
 import { ProjectMembershipSection } from './ProjectMembershipSection';
 import { ProjectTimelineSection } from './ProjectTimelineSection';
@@ -981,10 +982,11 @@ export default function ProjectDetailPage() {
   };
 
   const handleSavePhase = async (phase: PhaseRecord) => {
-    if (!canManageProject) return;
+    if (!canManageProject || phaseSaving) return;
     if (!phase.item.project_id || !phase.item.phase_id) return;
     const orderIndex = Number(editingPhaseOrder);
 
+    setPhaseSaving(true);
     try {
       await updateWorkflowPhase({
         projectId: phase.item.project_id,
@@ -997,6 +999,8 @@ export default function ProjectDetailPage() {
       await loadData();
     } catch {
       showToast('Không thể lưu giai đoạn.', 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setPhaseSaving(false);
     }
   };
 
@@ -1207,22 +1211,24 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
                 <div className="space-y-4 p-4">
-                  {editingPhaseId === selectedPhase.item.phase_id && (
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_110px_auto]" aria-labelledby="edit-phase-title">
-                      <p id="edit-phase-title" className="sr-only">Sửa thông tin giai đoạn đang chọn</p>
+                  {editingPhaseId !== null && editingPhaseId === selectedPhase.item.phase_id && (
+                    <AdminSidePanel title="Sửa thông tin giai đoạn" initialFocus="#edit-phase-name" busy={phaseSaving} onClose={() => setEditingPhaseId(null)}
+                      actions={<>
+                        <button type="button" disabled={phaseSaving} onClick={() => setEditingPhaseId(null)} className="admin-button-secondary">Hủy</button>
+                        <button type="button" disabled={phaseSaving} onClick={() => handleSavePhase(selectedPhase)} className="admin-button-primary">{phaseSaving ? 'Đang lưu…' : 'Lưu'}</button>
+                      </>}
+                    >
+                      <div className="grid gap-4 text-sm">
                       <div>
-                        <label htmlFor="edit-phase-name" className="sr-only">Tên giai đoạn</label>
-                        <input id="edit-phase-name" value={editingPhaseName} onChange={(event) => setEditingPhaseName(event.target.value)} className="w-full rounded border border-slate-800 bg-slate-950 px-3 py-2 text-xs outline-none" />
+                        <label htmlFor="edit-phase-name" className="mb-1 block font-medium">Tên giai đoạn</label>
+                        <input id="edit-phase-name" disabled={phaseSaving} value={editingPhaseName} onChange={(event) => setEditingPhaseName(event.target.value)} className="w-full rounded border border-slate-800 bg-slate-950 px-3 py-2 text-xs outline-none" />
                       </div>
                       <div>
-                        <label htmlFor="edit-phase-order" className="sr-only">Thứ tự giai đoạn</label>
-                        <input id="edit-phase-order" type="number" min={0} value={editingPhaseOrder} onChange={(event) => setEditingPhaseOrder(event.target.value)} className="w-full rounded border border-slate-800 bg-slate-950 px-3 py-2 text-xs outline-none" />
+                        <label htmlFor="edit-phase-order" className="mb-1 block font-medium">Thứ tự giai đoạn</label>
+                        <input id="edit-phase-order" disabled={phaseSaving} type="number" min={0} value={editingPhaseOrder} onChange={(event) => setEditingPhaseOrder(event.target.value)} className="w-full rounded border border-slate-800 bg-slate-950 px-3 py-2 text-xs outline-none" />
                       </div>
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => handleSavePhase(selectedPhase)} className="rounded bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Lưu</button>
-                        <button type="button" onClick={() => setEditingPhaseId(null)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button>
                       </div>
-                    </div>
+                    </AdminSidePanel>
                   )}
 
                   <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
@@ -1440,22 +1446,25 @@ export default function ProjectDetailPage() {
           </section>
         </section>}
       </div>
-        {newPhaseOpen && <ProjectActionDialog titleId="create-phase-title" descriptionId="create-phase-description" busy={phaseSaving} onClose={() => setNewPhaseOpen(false)}>
-          <h2 id="create-phase-title" className="pr-8 text-base font-bold">Thêm giai đoạn</h2>
-          <p id="create-phase-description" className="mt-1 text-xs text-slate-400">Chỉ cần nhập tên. Giai đoạn sẽ được thêm ở cuối danh sách.</p>
-          <form onSubmit={event => { event.preventDefault(); void handleCreatePhase(); }} className="mt-5 space-y-4">
+        {newPhaseOpen && <AdminSidePanel title="Thêm giai đoạn" description="Chỉ cần nhập tên. Giai đoạn sẽ được thêm ở cuối danh sách." initialFocus="#new-phase-name" busy={phaseSaving} onClose={() => setNewPhaseOpen(false)}
+            actions={<>
+              <button type="button" disabled={phaseSaving} onClick={() => setNewPhaseOpen(false)} className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-bold">Hủy</button>
+              <button type="submit" form="create-phase-form" disabled={phaseSaving} className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{phaseSaving ? 'Đang thêm…' : 'Thêm giai đoạn'}</button>
+            </>}
+          >
+          <form id="create-phase-form" onSubmit={event => { event.preventDefault(); void handleCreatePhase(); }} className="mt-5 space-y-4">
             <div><label htmlFor="new-phase-name" className="mb-2 block text-xs font-bold">Tên giai đoạn</label><input id="new-phase-name" required value={newPhaseName} onChange={event => setNewPhaseName(event.target.value)} disabled={phaseSaving} placeholder="Ví dụ: In thử và kiểm tra" aria-invalid={Boolean(newPhaseError)} aria-describedby={newPhaseError ? 'new-phase-error' : undefined} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm outline-none focus:border-cyan-500" /></div>
             {newPhaseError && <p id="new-phase-error" role="alert" className="text-xs text-red-300">{newPhaseError}</p>}
-            <div className="flex justify-end gap-2"><button type="button" disabled={phaseSaving} onClick={() => setNewPhaseOpen(false)} className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-bold">Hủy</button><button type="submit" disabled={phaseSaving} className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{phaseSaving ? 'Đang thêm…' : 'Thêm giai đoạn'}</button></div>
           </form>
-        </ProjectActionDialog>}
+        </AdminSidePanel>}
         {addMemberOpen && (
-          <ProjectActionDialog titleId="add-member-title" descriptionId="add-member-description" busy={memberActionLoading} onClose={() => setAddMemberOpen(false)}>
-            <form onSubmit={event => { event.preventDefault(); void handleAddMember(); }}>
-              <div className="mb-4">
-                <h2 className="text-base font-black text-slate-100" id="add-member-title">Thêm thành viên dự án</h2>
-                <p className="text-xs text-slate-500" id="add-member-description">Chọn người và vai trò để tham gia dự án.</p>
-              </div>
+          <AdminSidePanel title="Thêm thành viên dự án" description="Chọn người và vai trò để tham gia dự án." initialFocus="#project-member-employee" busy={memberActionLoading} onClose={() => setAddMemberOpen(false)}
+            actions={<>
+              <button type="button" disabled={memberActionLoading} onClick={() => setAddMemberOpen(false)} className="min-h-11 rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button>
+              <button type="submit" form="add-project-member-form" disabled={!memberEmployeeId || memberActionLoading || candidatesLoading} className="min-h-11 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Thêm thành viên'}</button>
+            </>}
+          >
+            <form id="add-project-member-form" onSubmit={event => { event.preventDefault(); void handleAddMember(); }}>
               <div className="space-y-3">
                 <label htmlFor="project-member-employee" className="block text-xs font-bold text-slate-300">Nhân sự</label>
                 <select id="project-member-employee" required value={memberEmployeeId} onChange={(event) => setMemberEmployeeId(event.target.value)} disabled={candidatesLoading || memberActionLoading} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100">
@@ -1473,92 +1482,101 @@ export default function ProjectDetailPage() {
                 {candidatesLoading && <p className="text-xs text-slate-400" role="status">Đang tải nhân sự…</p>}
                 {addMemberError && <p role="alert" className="text-xs text-red-300">{addMemberError}</p>}
               </div>
-              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setAddMemberOpen(false)} className="min-h-11 rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="submit" disabled={!memberEmployeeId || memberActionLoading || candidatesLoading} className="min-h-11 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Thêm thành viên'}</button></div>
             </form>
-          </ProjectActionDialog>
+          </AdminSidePanel>
         )}
 
         {memberMutationIntent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-labelledby="member-mutation-title" aria-describedby="member-mutation-description">
-            <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
-              <h2 id="member-mutation-title" className="text-base font-black text-slate-100">{memberMutationIntent.action === 'CHANGE_ROLE' ? 'Đổi vai trò thành viên' : 'Thu hồi thành viên'}</h2>
-              <p id="member-mutation-description" className="mt-1 text-xs text-slate-500">Thao tác với {memberMutationIntent.member.fullName} sẽ được ghi vào lịch sử kiểm toán.</p>
-              <div className="mt-4 space-y-3">
-                {memberMutationIntent.action === 'CHANGE_ROLE' && <><label htmlFor="project-member-next-role" className="block text-xs font-bold text-slate-300">Vai trò mới</label><select id="project-member-next-role" value={memberNextRoleCode} onChange={(event) => setMemberNextRoleCode(event.target.value as ProjectMemberDTO['roleCode'])} disabled={memberActionLoading} className="min-h-11 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100"><option value="PROJECT_OWNER">Chủ dự án</option><option value="PROJECT_MANAGER">Quản lý dự án</option><option value="CREATIVE_LEAD">Lead sáng tạo</option><option value="CONTRIBUTOR">Thành viên</option></select></>}
-                <label htmlFor="project-member-mutation-reason" className="block text-xs font-bold text-slate-300">Lý do thay đổi</label>
-                <textarea id="project-member-mutation-reason" autoFocus value={memberMutationReason} onChange={(event) => setMemberMutationReason(event.target.value)} minLength={10} maxLength={500} disabled={memberActionLoading} className="min-h-24 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100" placeholder="Nhập ít nhất 10 ký tự." />
-              </div>
-              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={memberActionLoading} onClick={() => setMemberMutationIntent(null)} className="min-h-11 rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={memberMutationReason.trim().length < 10 || memberActionLoading} onClick={handleConfirmMemberMutation} className="min-h-11 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Xác nhận'}</button></div>
+          <AdminSidePanel
+            title={memberMutationIntent.action === 'CHANGE_ROLE' ? 'Đổi vai trò thành viên' : 'Thu hồi thành viên'}
+            description={`Thao tác với ${memberMutationIntent.member.fullName} sẽ được ghi vào lịch sử kiểm toán.`}
+            initialFocus="#project-member-mutation-reason"
+            busy={memberActionLoading}
+            onClose={() => setMemberMutationIntent(null)}
+            actions={<>
+              <button type="button" disabled={memberActionLoading} onClick={() => setMemberMutationIntent(null)} className="min-h-11 rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button>
+              <button type="button" disabled={memberMutationReason.trim().length < 10 || memberActionLoading} onClick={handleConfirmMemberMutation} className="min-h-11 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">{memberActionLoading ? 'Đang lưu...' : 'Xác nhận'}</button>
+            </>}
+          >
+            <div className="mt-4 space-y-3">
+              {memberMutationIntent.action === 'CHANGE_ROLE' && <><label htmlFor="project-member-next-role" className="block text-xs font-bold text-slate-300">Vai trò mới</label><select id="project-member-next-role" value={memberNextRoleCode} onChange={(event) => setMemberNextRoleCode(event.target.value as ProjectMemberDTO['roleCode'])} disabled={memberActionLoading} className="min-h-11 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100"><option value="PROJECT_OWNER">Chủ dự án</option><option value="PROJECT_MANAGER">Quản lý dự án</option><option value="CREATIVE_LEAD">Lead sáng tạo</option><option value="CONTRIBUTOR">Thành viên</option></select></>}
+              <label htmlFor="project-member-mutation-reason" className="block text-xs font-bold text-slate-300">Lý do thay đổi</label>
+              <textarea id="project-member-mutation-reason" value={memberMutationReason} onChange={(event) => setMemberMutationReason(event.target.value)} minLength={10} maxLength={500} disabled={memberActionLoading} className="min-h-24 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100" placeholder="Nhập ít nhất 10 ký tự." />
             </div>
-          </div>
+          </AdminSidePanel>
         )}
 
         {editingTask && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-task-title" aria-describedby="edit-task-description">
-            <div className="w-full max-w-xl rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
-              <div className="mb-4">
-                <h2 className="text-base font-black text-slate-100" id="edit-task-title">Sửa công việc con</h2>
-                <p className="text-xs text-slate-500" id="edit-task-description">Người phụ trách phải là thành viên đang hoạt động của dự án.</p>
-              </div>
-              <div className="space-y-3 text-xs">
-                <label htmlFor="edit-task-name" className="block font-bold text-slate-300">Tên công việc</label>
-                <input id="edit-task-name" value={editingTask.title} onChange={(event) => setEditingTask({ ...editingTask, title: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
-                <label htmlFor="edit-task-note" className="block font-bold text-slate-300">Ghi chú</label>
-                <textarea id="edit-task-note" value={editingTask.description} onChange={(event) => setEditingTask({ ...editingTask, description: event.target.value })} disabled={taskActionLoading !== null} rows={3} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
-                <label htmlFor="edit-task-assignee" className="block font-bold text-slate-300">Người phụ trách</label>
-                <select id="edit-task-assignee" value={editingTask.assigneeEmployeeId} onChange={(event) => setEditingTask({ ...editingTask, assigneeEmployeeId: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">
-                  <option value="">Chưa phân công</option>
-                  {activeProjectMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}{member.title ? ` · ${member.title}` : ''}</option>)}
-                </select>
-                <label htmlFor="edit-task-deadline" className="block font-bold text-slate-300">Hạn hoàn thành</label>
-                <input id="edit-task-deadline" type="date" value={editingTask.deadline} onChange={(event) => setEditingTask({ ...editingTask, deadline: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
-                <label htmlFor="edit-task-status" className="block font-bold text-slate-300">Trạng thái</label>
-                <select id="edit-task-status" value={editingTask.status} onChange={(event) => setEditingTask({ ...editingTask, status: event.target.value as TaskAssignmentStatus })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">
-                  {TASK_STATUS_OPTIONS.filter((option) => {
-                    const currentTask = projectTasks.find((task) => task.taskId === editingTask.taskId);
-                    return !currentTask || allowedNextTaskStatuses(currentTask.status).includes(option.value);
-                  }).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-                <label htmlFor="edit-task-comment" className="block font-bold text-slate-300">Bình luận</label>
-                <textarea id="edit-task-comment" value={editingTask.comment} onChange={(event) => setEditingTask({ ...editingTask, comment: event.target.value })} disabled={taskActionLoading !== null} rows={4} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none" placeholder="Nhập bình luận cho công việc" />
-                <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-slate-400" aria-live="polite">
-                  {editingTaskIntent && (hasTaskEditChanges(editingTaskIntent) || editingTask.comment.trim())
-                    ? `Sẽ cập nhật ${editingTaskIntent.changedLabels.join(', ')}.`
-                    : 'Chưa có thay đổi để lưu.'}
-                </div>
-              </div>
-              <div className="mt-5 flex justify-end gap-2">
-                <button type="button" disabled={taskActionLoading !== null} onClick={() => setEditingTask(null)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button>
+          <AdminSidePanel
+            title="Sửa công việc con"
+            description="Người phụ trách phải là thành viên đang hoạt động của dự án."
+            initialFocus="#edit-task-name"
+            busy={taskActionLoading !== null}
+            onClose={() => setEditingTask(null)}
+            actions={<>
+              <button type="button" disabled={taskActionLoading !== null} onClick={() => setEditingTask(null)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button>
                 <button type="button" disabled={!canSaveEditingTask} onClick={handleSaveTask} className="inline-flex items-center gap-2 rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
                   <Save className="h-4 w-4" /> {taskActionLoading !== null ? 'Đang lưu...' : 'Lưu'}
                 </button>
+            </>}
+          >
+            <div className="space-y-3 text-xs">
+              <label htmlFor="edit-task-name" className="block font-bold text-slate-300">Tên công việc</label>
+              <input id="edit-task-name" value={editingTask.title} onChange={(event) => setEditingTask({ ...editingTask, title: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+              <label htmlFor="edit-task-note" className="block font-bold text-slate-300">Ghi chú</label>
+              <textarea id="edit-task-note" value={editingTask.description} onChange={(event) => setEditingTask({ ...editingTask, description: event.target.value })} disabled={taskActionLoading !== null} rows={3} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+              <label htmlFor="edit-task-assignee" className="block font-bold text-slate-300">Người phụ trách</label>
+              <select id="edit-task-assignee" value={editingTask.assigneeEmployeeId} onChange={(event) => setEditingTask({ ...editingTask, assigneeEmployeeId: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">
+                <option value="">Chưa phân công</option>
+                {activeProjectMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}{member.title ? ` · ${member.title}` : ''}</option>)}
+              </select>
+              <label htmlFor="edit-task-deadline" className="block font-bold text-slate-300">Hạn hoàn thành</label>
+              <input id="edit-task-deadline" type="date" value={editingTask.deadline} onChange={(event) => setEditingTask({ ...editingTask, deadline: event.target.value })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+              <label htmlFor="edit-task-status" className="block font-bold text-slate-300">Trạng thái</label>
+              <select id="edit-task-status" value={editingTask.status} onChange={(event) => setEditingTask({ ...editingTask, status: event.target.value as TaskAssignmentStatus })} disabled={taskActionLoading !== null} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">
+                {TASK_STATUS_OPTIONS.filter((option) => {
+                  const currentTask = projectTasks.find((task) => task.taskId === editingTask.taskId);
+                  return !currentTask || allowedNextTaskStatuses(currentTask.status).includes(option.value);
+                }).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <label htmlFor="edit-task-comment" className="block font-bold text-slate-300">Bình luận</label>
+              <textarea id="edit-task-comment" value={editingTask.comment} onChange={(event) => setEditingTask({ ...editingTask, comment: event.target.value })} disabled={taskActionLoading !== null} rows={4} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none" placeholder="Nhập bình luận cho công việc" />
+              <div className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-slate-400" aria-live="polite">
+                {editingTaskIntent && (hasTaskEditChanges(editingTaskIntent) || editingTask.comment.trim())
+                  ? `Sẽ cập nhật ${editingTaskIntent.changedLabels.join(', ')}.`
+                  : 'Chưa có thay đổi để lưu.'}
               </div>
             </div>
-          </div>
+          </AdminSidePanel>
         )}
 
         {creatingTask && selectedPhase && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-labelledby="create-task-title">
-            <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
-              <h2 id="create-task-title" className="text-base font-black text-slate-100">Thêm công việc</h2>
-              <p className="mt-1 text-xs text-slate-500">Dự án: {projectDetail.name} · Giai đoạn: {selectedPhase.phaseName}</p>
-              <div className="mt-4 space-y-3 text-xs">
-                <label htmlFor="create-task-name" className="block font-bold text-slate-300">Tên công việc <span className="text-red-300">*</span></label>
-                <input id="create-task-name" value={creatingTask.title} onChange={(event) => { setCreatingTask({ ...creatingTask, title: event.target.value }); setTaskTitleError(''); }} aria-invalid={Boolean(taskTitleError)} className={`w-full rounded border bg-slate-950 px-3 py-2 text-slate-100 ${taskTitleError ? 'border-red-500' : 'border-slate-700'}`} />
-                {taskTitleError && <p className="text-red-300">{taskTitleError}</p>}
-                <label htmlFor="create-task-assignee" className="block font-bold text-slate-300">Người phụ trách</label>
-                <select id="create-task-assignee" value={creatingTask.assigneeEmployeeId} onChange={(event) => setCreatingTask({ ...creatingTask, assigneeEmployeeId: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"><option value="">Chưa phân công</option>{activeProjectMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}{member.title ? ` · ${member.title}` : ''}</option>)}</select>
-                <p className="text-slate-500">Người duyệt chưa được hỗ trợ bởi hợp đồng dữ liệu hiện tại.</p>
-                <label htmlFor="create-task-deadline" className="block font-bold text-slate-300">Hạn hoàn thành</label>
-                <input id="create-task-deadline" type="date" value={creatingTask.deadline} onChange={(event) => setCreatingTask({ ...creatingTask, deadline: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
-                <label htmlFor="create-task-note" className="block font-bold text-slate-300">Ghi chú</label>
-                <textarea id="create-task-note" rows={3} value={creatingTask.description} onChange={(event) => setCreatingTask({ ...creatingTask, description: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
-                <label htmlFor="create-task-comment" className="block font-bold text-slate-300">Bình luận</label>
-                <textarea id="create-task-comment" rows={3} value={creatingTask.comment} onChange={(event) => setCreatingTask({ ...creatingTask, comment: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
-              </div>
-              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={taskActionLoading !== null} onClick={() => setCreatingTask(null)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={taskActionLoading !== null} onClick={handleCreateTask} className="rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:bg-slate-800">{taskActionLoading !== null ? 'Đang lưu...' : 'Thêm công việc'}</button></div>
+          <AdminSidePanel
+            title="Thêm công việc"
+            description={`Dự án: ${projectDetail.name} · Giai đoạn: ${selectedPhase.phaseName}`}
+            initialFocus="#create-task-name"
+            busy={taskActionLoading !== null}
+            onClose={() => setCreatingTask(null)}
+            actions={<>
+              <button type="button" disabled={taskActionLoading !== null} onClick={() => setCreatingTask(null)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button>
+              <button type="button" disabled={taskActionLoading !== null} onClick={handleCreateTask} className="rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:bg-slate-800">{taskActionLoading !== null ? 'Đang lưu...' : 'Thêm công việc'}</button>
+            </>}
+          >
+            <div className="mt-4 space-y-3 text-xs">
+              <label htmlFor="create-task-name" className="block font-bold text-slate-300">Tên công việc <span className="text-red-300">*</span></label>
+              <input id="create-task-name" aria-describedby={taskTitleError ? 'create-task-name-error' : undefined} value={creatingTask.title} onChange={(event) => { setCreatingTask({ ...creatingTask, title: event.target.value }); setTaskTitleError(''); }} aria-invalid={Boolean(taskTitleError)} className={`w-full rounded border bg-slate-950 px-3 py-2 text-slate-100 ${taskTitleError ? 'border-red-500' : 'border-slate-700'}`} />
+              {taskTitleError && <p id="create-task-name-error" role="alert" className="text-red-300">{taskTitleError}</p>}
+              <label htmlFor="create-task-assignee" className="block font-bold text-slate-300">Người phụ trách</label>
+              <select id="create-task-assignee" value={creatingTask.assigneeEmployeeId} onChange={(event) => setCreatingTask({ ...creatingTask, assigneeEmployeeId: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"><option value="">Chưa phân công</option>{activeProjectMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}{member.title ? ` · ${member.title}` : ''}</option>)}</select>
+              <p className="text-slate-500">Người duyệt chưa được hỗ trợ bởi hợp đồng dữ liệu hiện tại.</p>
+              <label htmlFor="create-task-deadline" className="block font-bold text-slate-300">Hạn hoàn thành</label>
+              <input id="create-task-deadline" type="date" value={creatingTask.deadline} onChange={(event) => setCreatingTask({ ...creatingTask, deadline: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+              <label htmlFor="create-task-note" className="block font-bold text-slate-300">Ghi chú</label>
+              <textarea id="create-task-note" rows={3} value={creatingTask.description} onChange={(event) => setCreatingTask({ ...creatingTask, description: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+              <label htmlFor="create-task-comment" className="block font-bold text-slate-300">Bình luận</label>
+              <textarea id="create-task-comment" rows={3} value={creatingTask.comment} onChange={(event) => setCreatingTask({ ...creatingTask, comment: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
             </div>
-          </div>
+          </AdminSidePanel>
         )}
 
     </div>

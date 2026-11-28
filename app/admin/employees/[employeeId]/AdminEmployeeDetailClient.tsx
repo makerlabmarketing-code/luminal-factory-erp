@@ -1,5 +1,7 @@
 'use client';
 
+import AdminSidePanel from '@/component/AdminSidePanel';
+
 import Link from 'next/link';
 import ActivityHistory from '@/component/ActivityHistory';
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from 'react';
@@ -51,10 +53,11 @@ function HourlyRateInput({ value, onChange, error }: { value: string; onChange: 
 
 export default function AdminEmployeeDetailClient({ initialData }: { initialData: EmployeeDetailDto }) {
   const router = useRouter();
-  const { showToast } = useNotification();
+  const { showToast, showConfirm } = useNotification();
   const [data, setData] = useState(initialData);
   const [draft, setDraft] = useState(() => draftFrom(initialData));
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
+  const [editorTab, setEditorTab] = useState<EditableTab | null>(null);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +66,8 @@ export default function AdminEmployeeDetailClient({ initialData }: { initialData
 
   useEffect(() => { setData(initialData); setDraft(draftFrom(initialData)); }, [initialData]);
   const baseline = useMemo(() => draftFrom(data), [data]);
-  const dirtyFields = activeTab === 'overview' || activeTab === 'job' || activeTab === 'finance' ? tabFields[activeTab].filter((field) => draft[field] !== baseline[field]) : [];
+  const dirtyFields = editorTab ? tabFields[editorTab].filter((field) => draft[field] !== baseline[field]) : [];
+  const canEdit = editorTab === 'finance' ? data.capabilities.canEditPersonalFinance : data.capabilities.canEditEmployee;
   const dirty = dirtyFields.length > 0;
 
   useEffect(() => {
@@ -72,15 +76,25 @@ export default function AdminEmployeeDetailClient({ initialData }: { initialData
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  const changeTab = (next: DetailTab) => {
-    if (dirty && !window.confirm('Bạn có thay đổi chưa lưu. Bạn có muốn bỏ các thay đổi này?')) return;
-    if (dirty) setDraft(baseline);
-    setError(null); setHourlyRateError(null); setActiveTab(next);
+  const closeEditor = () => {
+    if (savingRef.current) return;
+    const discard = () => {
+      setDraft(baseline);
+      setError(null);
+      setHourlyRateError(null);
+      setEditorTab(null);
+    };
+    if (dirty) {
+      showConfirm('Bỏ thay đổi?', 'Thông tin vừa nhập chưa được lưu.', discard, { confirmLabel: 'Bỏ thay đổi' });
+    } else {
+      discard();
+    }
   };
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
     if (!dirty || savingRef.current) return;
+    if (!canEdit) return;
     if (dirtyFields.includes('hourlyRate')) {
       const hourlyRate = validateEmployeeHourlyRate(draft.hourlyRate);
       if (!hourlyRate.ok) {
@@ -99,6 +113,7 @@ export default function AdminEmployeeDetailClient({ initialData }: { initialData
         throw new Error(`${result.message || 'Không thể cập nhật thông tin. Vui lòng thử lại.'}${reference}`);
       }
       setData((current) => ({ ...current, fullName: draft.fullName, email: draft.email || null, phone: draft.phone || null, title: draft.title || null, facilityCode: draft.department || null, facility: current.facilities.find((f) => f.code === draft.department)?.name || null, employmentStatus: draft.employmentStatus, bankName: draft.bankName || null, bankAccountNumber: draft.bankAccountNumber || null, hourlyRate: dirtyFields.includes('hourlyRate') ? Number(draft.hourlyRate) : current.hourlyRate }));
+      setEditorTab(null);
       showToast('Đã cập nhật', 'Đã cập nhật thông tin nhân sự.', 'success');
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Không thể cập nhật thông tin. Vui lòng thử lại.';
@@ -106,15 +121,48 @@ export default function AdminEmployeeDetailClient({ initialData }: { initialData
     } finally { savingRef.current = false; setSaving(false); }
   };
 
-  const editorActions = dirty && <div className="flex justify-end gap-2 border-t border-slate-800 pt-4"><button type="button" disabled={saving} onClick={() => { setDraft(baseline); setError(null); setHourlyRateError(null); }} className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-bold">Hủy thay đổi</button><button type="submit" disabled={saving || isPending} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-60"><ButtonLoadingState loading={saving} loadingText="Đang lưu..." idleText="Lưu thay đổi" /></button></div>;
   const retryOptionalData = () => startTransition(() => router.refresh());
 
   return <main><AdminPage><header className="rounded-lg border border-slate-800 bg-slate-900 p-5"><Link href="/admin/employees" className="inline-flex items-center gap-2 text-xs font-bold text-slate-400"><ArrowLeft className="h-4 w-4"/>Quay lại danh sách</Link><h1 className="mt-4 text-2xl font-bold">{data.fullName}</h1><p className="mt-1 text-sm text-slate-400">{data.title || 'Chưa gán chức vụ'} · {data.employmentStatus === 'ACTIVE' ? 'Đang làm' : 'Ngừng hoạt động'}</p></header>
-  <nav aria-label="Chi tiết nhân sự" className="mt-4 overflow-x-auto border-b border-slate-800"><div className="flex min-w-max gap-1">{tabs.map((tab) => <button key={tab.id} type="button" onClick={() => changeTab(tab.id)} className={`px-3 py-3 text-xs font-bold ${activeTab === tab.id ? 'border-b-2 border-blue-500 text-blue-300' : 'text-slate-400'}`}>{tab.label}</button>)}</div></nav>
+  <nav aria-label="Chi tiết nhân sự" className="mt-4 overflow-x-auto border-b border-slate-800"><div className="flex min-w-max gap-1">{tabs.map((tab) => <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`px-3 py-3 text-xs font-bold ${activeTab === tab.id ? 'border-b-2 border-blue-500 text-blue-300' : 'text-slate-400'}`}>{tab.label}</button>)}</div></nav>
   <div className="mt-5">
-  {activeTab === 'overview' && (data.capabilities.canEditEmployee ? <form onSubmit={save} className="space-y-4"><div className="grid gap-4 md:grid-cols-2"><Input label="Họ tên" value={draft.fullName} onChange={(fullName) => setDraft({ ...draft, fullName })}/><Input label="Email" type="email" value={draft.email} onChange={(email) => setDraft({ ...draft, email })}/><Input label="Điện thoại" value={draft.phone} onChange={(phone) => setDraft({ ...draft, phone })}/><Field label="Ngày tạo" value={data.createdAt ? new Date(data.createdAt).toLocaleDateString('vi-VN') : null}/></div>{error && <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">{error}</p>}{editorActions}</form> : <section className="grid gap-4 md:grid-cols-2"><Field label="Họ tên" value={data.fullName}/><Field label="Email" value={data.email}/><Field label="Điện thoại" value={data.phone}/><Field label="Ngày tạo" value={data.createdAt}/></section>)}
-  {activeTab === 'job' && <><TabWarning visible={data.warnings.includes('employee_facility_enrichment_failed')} onRetry={retryOptionalData}/>{data.capabilities.canEditEmployee ? <form onSubmit={save} className="space-y-4"><div className="grid gap-4 md:grid-cols-2"><Input label="Chức vụ" value={draft.title} onChange={(title) => setDraft({ ...draft, title })}/><label className="space-y-1"><span className="text-[10px] font-bold uppercase text-slate-500">Cơ sở làm việc</span><select value={draft.department} onChange={(e) => setDraft({ ...draft, department: e.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm"><option value="">Chưa cập nhật</option>{data.facilities.filter((f) => f.isActive || f.code === draft.department).map((f) => <option key={f.id} value={f.code}>{f.name}</option>)}</select></label><label className="space-y-1"><span className="text-[10px] font-bold uppercase text-slate-500">Trạng thái làm việc</span><select value={draft.employmentStatus} onChange={(e) => setDraft({ ...draft, employmentStatus: e.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm"><option value="ACTIVE">Đang làm</option><option value="INACTIVE">Ngừng hoạt động</option></select></label><Field label="Mức lương theo giờ" value={data.hourlyRate}/></div>{error && <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">{error}</p>}{editorActions}</form> : <section className="grid gap-4 md:grid-cols-2"><Field label="Chức vụ" value={data.title}/><Field label="Cơ sở làm việc" value={data.facility}/><Field label="Trạng thái" value={data.employmentStatus === 'ACTIVE' ? 'Đang làm' : 'Ngừng hoạt động'}/><Field label="Mức lương theo giờ" value={data.capabilities.canViewCompensation ? data.hourlyRate : null}/></section>}</>}
+  {activeTab === 'overview' && <>
+    {data.capabilities.canEditEmployee && (
+      <button type="button" onClick={() => setEditorTab('overview')} className="admin-button-secondary mb-4">Chỉnh sửa</button>
+    )}
+    <section className="grid gap-4 md:grid-cols-2"><Field label="Họ tên" value={data.fullName}/><Field label="Email" value={data.email}/><Field label="Điện thoại" value={data.phone}/><Field label="Ngày tạo" value={data.createdAt ? new Date(data.createdAt).toLocaleDateString('vi-VN') : null}/></section>
+  </>}
+  {activeTab === 'job' && <><TabWarning visible={data.warnings.includes('employee_facility_enrichment_failed')} onRetry={retryOptionalData}/>{data.capabilities.canEditEmployee && (
+      <button type="button" onClick={() => setEditorTab('job')} className="admin-button-secondary mb-4">Chỉnh sửa</button>
+    )}
+    <section className="grid gap-4 md:grid-cols-2"><Field label="Chức vụ" value={data.title}/><Field label="Cơ sở làm việc" value={data.facility}/><Field label="Trạng thái" value={data.employmentStatus === 'ACTIVE' ? 'Đang làm' : 'Ngừng hoạt động'}/><Field label="Mức lương theo giờ" value={data.capabilities.canViewCompensation || data.capabilities.canEditEmployee ? data.hourlyRate : null}/></section></>}
   {activeTab === 'projects' && <section><TabWarning visible={data.warnings.includes('employee_tasks_enrichment_failed') || data.warnings.includes('employee_projects_enrichment_failed')} onRetry={retryOptionalData}/><h2 className="text-sm font-bold">Dự án được phân công</h2>{data.projectMemberships.length === 0 ? <p className="mt-3 text-xs text-slate-500">Chưa cập nhật</p> : <div className="mt-3 grid gap-3 md:grid-cols-2">{data.projectMemberships.map((project) => <div key={project.projectId} className="rounded-lg border border-slate-800 bg-slate-950/40 p-4"><p className="font-bold">{project.projectName}</p><p className="mt-1 text-xs text-slate-400">Vai trò: {project.memberRole} · {project.status}</p></div>)}</div>}<h2 className="mt-6 text-sm font-bold">Công việc đang hoạt động</h2>{data.activeTasks.length === 0 ? <p className="mt-3 text-xs text-slate-500">Chưa cập nhật</p> : <div className="mt-3 space-y-2">{data.activeTasks.map((task) => <div key={task.taskId} className="rounded-lg border border-slate-800 p-3"><p className="font-bold">{task.title}</p><p className="mt-1 text-xs text-slate-400">Trạng thái: {task.status} · Hạn: {task.deadline ? new Date(task.deadline).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</p></div>)}</div>}</section>}
-  {activeTab === 'finance' && <><section className="mb-4 rounded-lg border border-slate-800 bg-slate-900 p-3 text-xs text-slate-400">Tóm tắt bảng lương và hoàn ứng chỉ hiển thị sau khi các runtime gate tương ứng được operator xác minh và kích hoạt.</section>{data.capabilities.canEditPersonalFinance ? <form noValidate onSubmit={save} className="space-y-4"><div className="grid gap-4 md:grid-cols-2"><BankSelect value={draft.bankName} options={data.bankOptions} onChange={(bankName) => setDraft({ ...draft, bankName })}/><Input label="Số tài khoản" value={draft.bankAccountNumber} onChange={(bankAccountNumber) => setDraft({ ...draft, bankAccountNumber })}/><HourlyRateInput value={draft.hourlyRate} onChange={(hourlyRate) => { setDraft({ ...draft, hourlyRate }); setHourlyRateError(null); }} error={hourlyRateError}/></div>{error && <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">{error}</p>}{editorActions}</form> : <section className="grid gap-4 md:grid-cols-2"><Field label="Ngân hàng" value={data.bankName}/><Field label="Số tài khoản" value={data.bankAccountNumber}/>{data.capabilities.canViewCompensation && <Field label="Mức lương theo giờ" value={data.hourlyRate}/>}</section>}</>}{activeTab === 'history' && <ActivityHistory entity="employee" entityId={String(data.employeeId)} />}
+  {activeTab === 'finance' && <><section className="mb-4 rounded-lg border border-slate-800 bg-slate-900 p-3 text-xs text-slate-400">Tóm tắt bảng lương và hoàn ứng chỉ hiển thị sau khi các runtime gate tương ứng được operator xác minh và kích hoạt.</section>{data.capabilities.canEditPersonalFinance && (
+      <button type="button" onClick={() => setEditorTab('finance')} className="admin-button-secondary mb-4">Chỉnh sửa</button>
+    )}
+    <section className="grid gap-4 md:grid-cols-2"><Field label="Ngân hàng" value={data.bankName}/><Field label="Số tài khoản" value={data.bankAccountNumber}/>{data.capabilities.canViewCompensation && <Field label="Mức lương theo giờ" value={data.hourlyRate}/>}</section></>}{activeTab === 'history' && <ActivityHistory entity="employee" entityId={String(data.employeeId)} />}
+  {editorTab && canEdit && (
+    <AdminSidePanel
+      title={editorTab === 'overview' ? 'Sửa thông tin nhân sự' : editorTab === 'job' ? 'Sửa thông tin công việc' : 'Sửa tài chính cá nhân'}
+      description={data.fullName}
+      busy={saving}
+      onClose={closeEditor}
+      actions={<>
+        <button type="button" disabled={saving} onClick={closeEditor} className="admin-button-secondary">Hủy</button>
+        <button type="submit" form="employee-edit-form" disabled={!dirty || saving || isPending} className="admin-button-primary">
+          <ButtonLoadingState loading={saving} loadingText="Đang lưu..." idleText="Lưu thay đổi" />
+        </button>
+      </>}
+    >
+      <form id="employee-edit-form" noValidate={editorTab === 'finance'} onSubmit={save} className="space-y-4">
+        <fieldset disabled={saving} className="min-w-0">
+          {editorTab === 'overview' && <div className="space-y-4"><Input label="Họ tên" value={draft.fullName} onChange={(fullName) => setDraft({ ...draft, fullName })}/><Input label="Email" type="email" value={draft.email} onChange={(email) => setDraft({ ...draft, email })}/><Input label="Điện thoại" value={draft.phone} onChange={(phone) => setDraft({ ...draft, phone })}/></div>}
+          {editorTab === 'job' && <div className="space-y-4"><Input label="Chức vụ" value={draft.title} onChange={(title) => setDraft({ ...draft, title })}/><label className="space-y-1"><span className="text-[10px] font-bold uppercase text-slate-500">Cơ sở làm việc</span><select value={draft.department} onChange={(e) => setDraft({ ...draft, department: e.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm"><option value="">Chưa cập nhật</option>{data.facilities.filter((f) => f.isActive || f.code === draft.department).map((f) => <option key={f.id} value={f.code}>{f.name}</option>)}</select></label><label className="space-y-1"><span className="text-[10px] font-bold uppercase text-slate-500">Trạng thái làm việc</span><select value={draft.employmentStatus} onChange={(e) => setDraft({ ...draft, employmentStatus: e.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm"><option value="ACTIVE">Đang làm</option><option value="INACTIVE">Ngừng hoạt động</option></select></label></div>}
+          {editorTab === 'finance' && <div className="space-y-4"><BankSelect value={draft.bankName} options={data.bankOptions} onChange={(bankName) => setDraft({ ...draft, bankName })}/><Input label="Số tài khoản" value={draft.bankAccountNumber} onChange={(bankAccountNumber) => setDraft({ ...draft, bankAccountNumber })}/><HourlyRateInput value={draft.hourlyRate} onChange={(hourlyRate) => { setDraft({ ...draft, hourlyRate }); setHourlyRateError(null); }} error={hourlyRateError}/></div>}
+        </fieldset>
+        {error && <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">{error}</p>}
+      </form>
+    </AdminSidePanel>
+  )}
   </div></AdminPage></main>;
 }

@@ -1,7 +1,7 @@
 import React, { type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-vi.mock('../app/admin/projects/[projectId]/ProjectActionDialog', () => ({ ProjectActionDialog: ({ children }: { children: ReactNode }) => <section>{children}</section> }));
+vi.mock('@/component/AdminSidePanel', () => ({ default: ({ title, description, children, actions }: { title: string; description?: string; children: ReactNode; actions?: ReactNode }) => <section><h2>{title}</h2><p>{description}</p>{children}{actions}</section> }));
 vi.mock('@/lib/payroll-input', () => import('../lib/payroll-input'));
 import { PayrollActionDialog } from '../app/admin/payroll/PayrollActionDialog';
 import type { PayrollMonthDTO } from '../services/server/payroll';

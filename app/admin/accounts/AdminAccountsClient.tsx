@@ -2,6 +2,7 @@
 
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import Link from "next/link";
+import AdminSidePanel from "@/component/AdminSidePanel";
 import { useMemo, useRef, useState, useTransition } from "react";
 import {
   Edit3,
@@ -10,7 +11,6 @@ import {
   Mail,
   ShieldCheck,
   ShieldOff,
-  X,
 } from "lucide-react";
 import {
   ButtonLoadingState,
@@ -593,24 +593,24 @@ export default function AdminAccountsClient({ accounts, employees, onAccountChan
       </div>
 
       {(editorLoading || editorAccount) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <section className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg border border-slate-800 bg-slate-900 p-5 text-xs text-slate-200 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h2 className="font-bold text-blue-300">{canEditPermissionDraft ? "Cập nhật quyền" : "Chi tiết quyền"}</h2>
-                <p className="mt-1 text-slate-500">
-                  {editorAccount?.fullName || "Đang tải dữ liệu"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditorAccount(null)}
-                className="text-slate-500 hover:text-white"
-              >
-                <X className="h-5 w-5" />
+        <AdminSidePanel
+          title={canEditPermissionDraft ? 'Cập nhật quyền' : 'Chi tiết quyền'}
+          description={editorAccount?.fullName || 'Đang tải dữ liệu'}
+          wide
+          busy={Boolean(activeActionKey)}
+          onClose={() => setEditorAccount(null)}
+          actions={editorAccount && permissionDraft && <>
+            <button type="button" disabled={Boolean(activeActionKey)} onClick={() => setEditorAccount(null)} className="admin-button-secondary">
+              {canEditPermissionDraft ? 'Hủy' : 'Đóng'}
+            </button>
+            {canEditPermissionDraft && (
+              <button type="button" disabled={Boolean(activeActionKey) || !permissionDraftChanged} onClick={savePermissions} className="admin-button-primary">
+                <ButtonLoadingState loading={activeActionKey === `${editorAccount.employeeId}:permissions`} loadingText="Đang lưu..." idleText="Lưu quyền" />
               </button>
-            </div>
-
+            )}
+          </>}
+        >
+          <div className="text-sm">
             {editorLoading && (
               <div className="space-y-2 py-6">
                 <div className="h-10 animate-pulse rounded bg-slate-800" />
@@ -739,34 +739,10 @@ export default function AdminAccountsClient({ accounts, employees, onAccountChan
                   )})}
                 </div>
 
-                <div className="flex flex-col gap-2 border-t border-slate-800 pt-4 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={() => setEditorAccount(null)}
-                    className="flex-1 rounded-lg border border-slate-800 bg-slate-950 p-3 font-bold text-slate-400 hover:bg-slate-800"
-                  >
-                    {canEditPermissionDraft ? "Hủy" : "Đóng"}
-                  </button>
-                  {canEditPermissionDraft && <button
-                    type="button"
-                    disabled={Boolean(activeActionKey) || !permissionDraftChanged}
-                    onClick={savePermissions}
-                    className="flex-1 rounded-lg bg-blue-600 p-3 font-bold text-white hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    <ButtonLoadingState
-                      loading={
-                        activeActionKey ===
-                        `${editorAccount.employeeId}:permissions`
-                      }
-                      loadingText="Đang lưu..."
-                      idleText="Lưu quyền"
-                    />
-                  </button>}
-                </div>
               </div>
             )}
-          </section>
-        </div>
+          </div>
+        </AdminSidePanel>
       )}
     </>
   );

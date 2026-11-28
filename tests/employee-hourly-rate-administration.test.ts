@@ -62,7 +62,7 @@ describe('Admin employee hourly-rate administration', () => {
     expect(client).toMatch(/if \(!dirty \|\| savingRef\.current\) return/);
     expect(client).toMatch(/savingRef\.current = true/);
     expect(client).toMatch(/finally \{ savingRef\.current = false; setSaving\(false\); \}/);
-    expect(client).toMatch(/<form noValidate onSubmit=\{save\}/);
+    expect(client).toContain('<form id="employee-edit-form" noValidate={editorTab === \'finance\'} onSubmit={save}');
     expect(client).toMatch(/startTransition\(\(\) => router\.refresh\(\)\)/);
     expect(client).toMatch(/dirtyFields\.includes\('hourlyRate'\) \? Number\(draft\.hourlyRate\) : current\.hourlyRate/);
     expect(actions).toMatch(/validateEmployeeHourlyRate\(input\.hourlyRate\)/);
