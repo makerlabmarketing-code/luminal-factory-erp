@@ -178,139 +178,16 @@ Rules:
   5. user-facing usability;
   6. cosmetics.
 
-## Roadmap Continuation
-
-When no P0, P1, or explicit reported bug blocks progress:
-
-- inspect newly available actionable Code Review findings before selecting the next slice;
-- continue the next approved roadmap feature;
-- do not create standalone tasks whose only purpose is to prepare blockers, delivery notes, review notes, validation notes, documentation, or handoff artifacts when those artifacts fit inside the feature slice;
-- continue additional application-only work whenever it does not require schema, RPC, RLS, storage, deployment, security approval, or live data mutation;
-- stop only at `LIVE_APPROVAL_REQUIRED`, production deployment, security approval, a real infrastructure blocker, a real validation failure, a Git delivery blocker, or an explicit business decision.
-
----
-
 ## Roadmap Execution
 
-The implementation roadmap is the execution authority for project progression.
+Use the [Điều phối ERP & Commerce sheet](https://docs.google.com/spreadsheets/d/1R9HKuFyYe4xrYbvVD-6abV1Br-_c6Jia6G9O0geKCxY/edit#gid=847920559) for current priority, scope, and next action. Use [the ERP repository roadmap](docs/ERP_IMPLEMENTATION_ROADMAP.md) for implementation and acceptance evidence. If the sheet is unavailable, use the latest verified repository checkpoint and report the source limitation.
 
-When a roadmap exists:
+When resuming, read the relevant roadmap row, refresh the base from the latest `main`, and check open PRs, newly actionable reviews, deployment evidence, and pending acceptance for that item. An explicit user request sets the active scope. Otherwise continue the highest-priority approved work.
 
-- determine the current workstream
-- determine the active phase
-- determine acceptance criteria
-- determine exit criteria
-
-Continue automatically whenever allowed.
-
-Update roadmap status after every completed phase.
-
----
-
-
-## Autonomous Roadmap Execution
-
-Future roadmap sessions should advance through the roadmap without requiring additional orchestration prompts.
-
-When continuing a previous roadmap session, automatically determine:
-
-- latest completed slice
-- latest merged state
-- latest roadmap position
-- latest remediation status
-
-Continue from that point and never restart previous slices unless new evidence creates an unresolved blocker.
-
-Continue roadmap slices automatically. Do not stop after every slice. Stop only when reaching:
-
-- `LIVE_APPROVAL_REQUIRED` and no safe preparatory work remains
-- destructive migration
-- production deployment
-- schema mutation requiring approval
-- explicit user instruction
-- unresolved blocker
-
-Otherwise continue to the next roadmap task.
-
-Expected autonomous execution loop:
-
-```
-Inspect review findings
-      ↓
-Implement feature
-      ↓
-Complete migration package if needed
-      ↓
-Test and validate
-      ↓
-Document and update roadmap/handoff
-      ↓
-Commit and create/update PR
-      ↓
-STOP at approval if production delivery is gated
-      ↓
-After protected-main merge, continue next roadmap slice
-```
-
-When `LIVE_APPROVAL_REQUIRED` is reached, continue every safe task before stopping, including:
-
-- documentation
-- tests
-- application wiring
-- review remediation
-- roadmap update
-- handoff
-- validation SQL
-- rollback SQL
-- compatibility analysis
-
-Stop only when no safe work remains before the approval gate.
-
----
-
-## Auto Roadmap Execution
-
-Unless blocked by an approval gate, continue the roadmap automatically.
-
-Normal workflow:
-
-```
-Current Phase
-      ↓
-Code Review check
-      ↓
-Implementation
-      ↓
-Migration package, if needed
-      ↓
-Regression review and validation
-      ↓
-Documentation and roadmap update
-      ↓
-Commit and PR
-      ↓
-Approval gate or next phase
-```
-
-Do not stop after every small implementation, and do not split package/review/validation/documentation preparation into standalone tasks when they belong to the same feature.
-
-Only stop at approval gates or the explicit blockers listed in this guide.
-
----
-
-## Phase Ownership
-
-Each roadmap phase should contain:
-
-- Objective
-- Scope
-- Acceptance Criteria
-- Exit Criteria
-- Handoff
-- Known Risks
-- Dependencies
-
-When Exit Criteria PASS, automatically continue to the next phase.
+- Keep tests, migration packages, review fixes, release evidence, and handoff in the same slice as the feature.
+- Continue additional application-only work whenever it does not require schema, RPC, RLS, storage, deployment, security approval, or live data mutation.
+- Carry safe work through any applicable gate. Stop at a missing approval, unresolved business decision, or concrete validation or infrastructure blocker when no in-scope work can advance.
+- Record the next action and distinguish implementation, PR merge, production release, and workflow acceptance using the evidence requirements in [workflow.md](.agents/skills/luminal-erp/references/workflow.md#release-and-acceptance-evidence).
 
 ---
 
@@ -394,7 +271,7 @@ Successful branch push and pull request creation count as completed delivery onl
 
 `AUTO_MERGE_UNAVAILABLE` is a delivery limitation, not an implementation blocker.
 
-Codex must never push or merge directly to `main`; protected branch rules own the merge.
+Deliver changes through a GitHub pull request into protected `main`. GitHub branch protection applies to every merge. Direct pushes and protection bypasses are prohibited.
 
 Required gates:
 
@@ -481,34 +358,9 @@ Do not weaken any production safety gate because Management API verification is 
 
 ### Pull Request and Auto-Merge
 
-After all required validation gates pass, Codex should:
+Use the approved feature branch and PR. Resolve actionable review findings and check required validations before release. Prefer GitHub auto-merge when available. If auto-merge is unavailable and the user has explicitly approved deploying that PR, merge the reviewed head through GitHub's PR merge action with the expected head SHA. Allow GitHub to enforce required checks and reviews. Without production approval, record the PR and remaining gate.
 
-1. Commit the completed work.
-2. Push the current feature branch through approved GitHub tooling.
-3. Create or update the pull request.
-4. Process review findings according to the Code Review Source and Remediation Policy below.
-5. Enable auto-merge when the available GitHub integration supports it and no actionable Code Review findings remain.
-6. Allow GitHub to merge only after all required checks, reviews, and branch protection rules pass.
-7. Never merge or push directly to `main`.
-
-If auto-merge is unavailable in the current integration:
-
-- report `AUTO_MERGE_UNAVAILABLE`
-- provide the created PR metadata or PR link when available
-- do not treat this alone as an implementation failure
-- consider the delivery step complete when the branch and PR have been created successfully
-
-Stop and report only when:
-
-- the branch cannot be pushed
-- the pull request cannot be created
-- a merge conflict exists
-- a required check fails
-- required approval is missing
-- branch protection blocks delivery
-- unexpected target-branch changes create risk
-
-After the pull request is merged, future roadmap work must continue from the latest `main` branch.
+Verify the deployment for the exact merged commit on the ERP production domain. Approval to release application code covers that PR's reviewed contents. Obtain separate authorization for production SQL, flags, permissions, financial actions, email sends, and live data changes outside that approval.
 
 ## Code Review Remediation Policy
 

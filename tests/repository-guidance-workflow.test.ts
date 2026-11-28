@@ -28,10 +28,23 @@ describe('repository guidance workflow', () => {
     const agents = source('AGENTS.md');
     const workflow = source('.agents/skills/luminal-erp/references/workflow.md');
 
-    expect(agents).toMatch(/Documentation-only tasks must not be split out/);
-    expect(agents).toMatch(/continue additional application-only work whenever it does not require schema, RPC, RLS, storage, deployment, security approval, or live data mutation/);
+    expect(agents).toContain("Keep tests, migration packages, review fixes, release evidence, and handoff in the same slice as the feature.");
+    expect(agents).toMatch(/continue additional application-only work whenever it does not require schema, RPC, RLS, storage, deployment, security approval, or live data mutation/i);
     expect(workflow).toMatch(/Continue automatically from one safe phase or slice to the next/);
     expect(workflow).toMatch(/produced inside the same feature slice whenever possible/);
+  });
+
+  it('keeps deployment evidence and authenticated acceptance distinct', () => {
+    const agents = source('AGENTS.md');
+    const workflow = source('.agents/skills/luminal-erp/references/workflow.md');
+    const uiRules = source('.agents/skills/luminal-erp/references/ui-rules.md');
+
+    expect(agents).toContain('the user has explicitly approved deploying that PR');
+    expect(agents).toContain('expected head SHA');
+    expect(workflow).toContain('| Production |');
+    expect(workflow).toContain('| Accepted |');
+    expect(workflow).toContain('Independence of role permissions requires separate accounts');
+    expect(uiRules).toContain('component/AdminSidePanel.tsx');
   });
 
   it('does not reopen already-remediated Code Review findings', () => {

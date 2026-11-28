@@ -256,6 +256,12 @@ Protect destructive or high-impact operations with appropriate confirmation.
 
 Preserve user input after a failed submission.
 
+### Add and edit panels
+
+Open contextual add or edit forms in the shared `component/AdminSidePanel.tsx`. Use a full-height right panel on desktop and full width on narrow screens. Keep the title and primary actions visible while fields scroll. Leave compact confirmations in the shared confirmation dialog and use dedicated pages for workflows that start from their own route.
+
+Give each panel an accessible title. Keep keyboard focus inside it and return focus to the trigger on close. Escape closes the panel when idle and follows the same discard handling as the close button. Preserve input on validation or save errors and keep the panel open while a save is running.
+
 ## Staff Portal
 
 Staff Portal screens should be fast on mobile.
