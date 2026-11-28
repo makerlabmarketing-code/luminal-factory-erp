@@ -359,6 +359,7 @@ export default function ProjectDetailPage() {
   const [canCreateTasks, setCanCreateTasks] = useState(false);
   const [taskActionLoading, setTaskActionLoading] = useState<number | null>(null);
   const [editingTask, setEditingTask] = useState<TaskEditState | null>(null);
+  const taskCreateLock = useRef(false);
   const [creatingTask, setCreatingTask] = useState<TaskCreateState | null>(null);
   const [taskTitleError, setTaskTitleError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -630,6 +631,8 @@ export default function ProjectDetailPage() {
   const memberCount = membershipSummary?.activeMemberCount ?? members.filter((member) => member.status === 'ACTIVE').length;
   const activePhase = phasesWithGates.find((phase) => phase.status === 'ACTIVE' || phase.status === 'BLOCKED' || phase.status === 'REVIEW') || phases.find((phase) => phase.status === 'COMPLETED') || phases[0] || null;
   const selectedPhase = phasesWithGates.find((phase) => phase.item.phase_id === selectedPhaseId) || activePhase;
+  const boardCreatePhase = boardPhaseId === null ? selectedPhase : phasesWithGates.find(phase => phase.item.phase_id === boardPhaseId);
+  const creatingTaskPhase = creatingTask && phasesWithGates.find(phase => phase.item.phase_id === creatingTask.phaseId);
   const editingCurrentTask = editingTask ? projectTasks.find((task) => task.taskId === editingTask.taskId) || null : null;
   const editingTaskIntent = editingTask && editingCurrentTask
     ? describeTaskEditIntent({
@@ -850,19 +853,23 @@ export default function ProjectDetailPage() {
     });
   };
 
-  const handleStartCreateTask = (phase: PhaseRecord) => {
-    if (!canCreateTasks || !phase.item.phase_id || isProjectCancelled) return;
+  const canStartCreateTask = (phase: PhaseRecord | null | undefined) =>
+    canManageTasks && canCreateTasks && Boolean(phase?.item.phase_id) && !phase?.isLocked && !taskLoadBlocked && !phaseLoadFailed;
+
+  const handleStartCreateTask = (phase: PhaseRecord | null | undefined) => {
+    if (!phase?.item.phase_id || !canStartCreateTask(phase)) return;
     setTaskTitleError('');
     setCreatingTask({ phaseId: phase.item.phase_id, title: '', description: '', assigneeEmployeeId: '', deadline: '', comment: '' });
   };
 
   const handleCreateTask = async () => {
-    if (!creatingTask || taskActionLoading) return;
+    if (!creatingTask || taskActionLoading !== null || taskCreateLock.current || !canStartCreateTask(creatingTaskPhase)) return;
     if (!creatingTask.title.trim()) {
       setTaskTitleError('Vui lòng nhập tên công việc.');
       return;
     }
     setTaskTitleError('');
+    taskCreateLock.current = true;
     setTaskActionLoading(0);
     try {
       const response = await fetch(`/api/admin/projects/${projectId}/tasks`, {
@@ -885,6 +892,7 @@ export default function ProjectDetailPage() {
     } catch (error) {
       showToast('Không thể thêm công việc.', error instanceof Error ? error.message : 'Vui lòng thử lại sau.', 'error');
     } finally {
+      taskCreateLock.current = false;
       setTaskActionLoading(null);
     }
   };
@@ -1126,12 +1134,20 @@ export default function ProjectDetailPage() {
         )}
         {workspaceTab === 'work' && taskView === 'board' && tasksReady && (
           <section role="tabpanel" id="project-panel-work" aria-labelledby="project-tab-work">
-            <label className="admin-label mb-3 max-w-xs">Giai đoạn
-              <select className="admin-field mt-1" value={boardPhaseId ?? ''} onChange={event => setBoardPhaseId(event.target.value ? Number(event.target.value) : null)}>
-                <option value="">Tất cả giai đoạn</option>
-                {phasesWithGates.filter(phase => phase.item.phase_id).map(phase => <option key={phase.item.key} value={phase.item.phase_id}>{phase.phaseName}</option>)}
-              </select>
-            </label>
+            <div className="mb-3 flex flex-wrap items-end gap-3">
+              <label className="admin-label w-full max-w-xs">Giai đoạn
+                <select className="admin-field mt-1" value={boardPhaseId ?? ''} onChange={event => setBoardPhaseId(event.target.value ? Number(event.target.value) : null)}>
+                  <option value="">Tất cả giai đoạn</option>
+                  {phasesWithGates.filter(phase => phase.item.phase_id).map(phase => <option key={phase.item.key} value={phase.item.phase_id}>{phase.phaseName}</option>)}
+                </select>
+              </label>
+              {canManageTasks && canCreateTasks && (
+                <button type="button" className="admin-button-primary" disabled={!canStartCreateTask(boardCreatePhase)}
+                  onClick={() => handleStartCreateTask(boardCreatePhase)}>
+                  <Plus className="h-4 w-4" aria-hidden="true" /> Thêm công việc
+                </button>
+              )}
+            </div>
             <TaskBoard key={projectId} cards={projectTasks.filter(task => !boardPhaseId || task.phaseId === boardPhaseId).map(task => ({
               id: task.taskId, title: task.title, description: task.description, status: task.status, deadline: task.deadline,
               assignee: task.assigneeFullName, phase: phasesWithGates.find(phase => phase.item.phase_id === task.phaseId)?.phaseName,
@@ -1174,7 +1190,7 @@ export default function ProjectDetailPage() {
                         <span className="rounded border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300">{phaseStatusLabel(selectedPhase.status)}</span>
                       </div>
                     </div>
-                    <button type="button" onClick={() => handleStartCreateTask(selectedPhase)} disabled={!projectCapabilities.canManageTasks || !canCreateTasks || isProjectCancelled || selectedPhase.isLocked || taskLoadBlocked} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
+                    <button type="button" onClick={() => handleStartCreateTask(selectedPhase)} disabled={!canStartCreateTask(selectedPhase)} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500">
                       <Plus className="h-4 w-4" /> Thêm công việc vào giai đoạn
                     </button>
                     <div className="flex flex-wrap gap-2">
@@ -1537,11 +1553,11 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
-        {creatingTask && selectedPhase && (
+        {creatingTask && creatingTaskPhase && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-labelledby="create-task-title">
             <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-2xl">
               <h2 id="create-task-title" className="text-base font-black text-slate-100">Thêm công việc</h2>
-              <p className="mt-1 text-xs text-slate-500">Dự án: {projectDetail.name} · Giai đoạn: {selectedPhase.phaseName}</p>
+              <p className="mt-1 text-xs text-slate-500">Dự án: {projectDetail.name} · Giai đoạn: {creatingTaskPhase.phaseName}</p>
               <div className="mt-4 space-y-3 text-xs">
                 <label htmlFor="create-task-name" className="block font-bold text-slate-300">Tên công việc <span className="text-red-300">*</span></label>
                 <input id="create-task-name" value={creatingTask.title} onChange={(event) => { setCreatingTask({ ...creatingTask, title: event.target.value }); setTaskTitleError(''); }} aria-invalid={Boolean(taskTitleError)} className={`w-full rounded border bg-slate-950 px-3 py-2 text-slate-100 ${taskTitleError ? 'border-red-500' : 'border-slate-700'}`} />
@@ -1556,7 +1572,7 @@ export default function ProjectDetailPage() {
                 <label htmlFor="create-task-comment" className="block font-bold text-slate-300">Bình luận</label>
                 <textarea id="create-task-comment" rows={3} value={creatingTask.comment} onChange={(event) => setCreatingTask({ ...creatingTask, comment: event.target.value })} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
               </div>
-              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={taskActionLoading !== null} onClick={() => setCreatingTask(null)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={taskActionLoading !== null} onClick={handleCreateTask} className="rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:bg-slate-800">{taskActionLoading !== null ? 'Đang lưu...' : 'Thêm công việc'}</button></div>
+              <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={taskActionLoading !== null} onClick={() => setCreatingTask(null)} className="rounded border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Hủy</button><button type="button" disabled={taskActionLoading !== null || !canStartCreateTask(creatingTaskPhase)} onClick={handleCreateTask} className="rounded bg-cyan-600 px-3 py-2 text-xs font-bold text-white disabled:bg-slate-800">{taskActionLoading !== null ? 'Đang lưu...' : 'Thêm công việc'}</button></div>
             </div>
           </div>
         )}
