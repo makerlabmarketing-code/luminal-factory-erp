@@ -1,8 +1,10 @@
 'use client';
 
+import AdminSidePanel from '@/component/AdminSidePanel';
+
 import { CommonTable, TableLoadingRows, TableRowActions } from '@/component/data-table/CommonTable';
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { FormEvent, useMemo, useRef, useState, useTransition } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,7 +17,6 @@ import {
   UserRound,
   UserPlus,
   Users,
-  X,
 } from 'lucide-react';
 import { ButtonLoadingState, useGlobalLoading } from '@/component/GlobalLoading';
 import { useNotification } from '@/component/NotificationContext';
@@ -160,16 +161,6 @@ export default function AdminEmployeesClient({ directory, onEmployeeChange }: {
   const selectableFacilities = employeeData.facilities.filter(
     (facility) => facility.isActive || facility.code === formState?.department
   );
-
-  useEffect(() => {
-    if (!formState) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [formState]);
 
   const filtered = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -507,13 +498,21 @@ export default function AdminEmployeesClient({ directory, onEmployeeChange }: {
       </div>
 
       {formState && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/80 p-4">
-          <form noValidate onSubmit={submitEmployeeForm} className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-200 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 p-5 pb-3">
-              <h2 className="font-bold text-blue-300">Tạo hồ sơ nhân sự</h2>
-              <button type="button" disabled={savingEmployee} onClick={() => setFormState(null)} className="text-slate-500 hover:text-white disabled:opacity-60"><X className="h-5 w-5" /></button>
-            </div>
-            <div className="space-y-4 overflow-y-auto p-5">
+        <AdminSidePanel
+          title="Tạo hồ sơ nhân sự"
+          initialFocus="#employee-fullName"
+          busy={savingEmployee}
+          onClose={() => setFormState(null)}
+          actions={<>
+              <button type="button" disabled={savingEmployee} onClick={() => setFormState(null)} className="admin-button-secondary">Hủy</button>
+              <button type="submit" form="employee-create-form" disabled={savingEmployee || isPending} className="admin-button-primary">
+                <span className="inline-flex items-center justify-center gap-2">
+                  <ButtonLoadingState loading={savingEmployee || isPending} loadingText="Đang lưu..." idleText="Lưu" />
+                </span>
+              </button>
+          </>}
+        >
+          <form id="employee-create-form" noValidate onSubmit={submitEmployeeForm} className="space-y-4 text-sm">
             <label className="block space-y-1">
               <span className="font-bold text-slate-400">Họ tên <span className="text-red-300">*</span></span>
               <input id="employee-fullName" name="fullName" aria-invalid={Boolean(formFieldErrors.fullName)} aria-describedby={formFieldErrors.fullName ? 'employee-fullName-error' : undefined} className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 outline-none" value={formState.fullName} onChange={(event) => updateFormField('fullName', event.target.value)} required />
@@ -557,8 +556,6 @@ export default function AdminEmployeesClient({ directory, onEmployeeChange }: {
               </select>
               {formFieldErrors.employmentStatus && <span id="employee-employmentStatus-error" className="block text-[11px] text-red-300">{formFieldErrors.employmentStatus}</span>}
             </label>
-            </div>
-            <div className="border-t border-slate-800 p-5 pt-3">
               {formError && (
                 <div role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-[11px] text-red-200">
                   <p className="font-semibold">{formError}</p>
@@ -585,17 +582,8 @@ export default function AdminEmployeesClient({ directory, onEmployeeChange }: {
                   )}
                 </div>
               )}
-              <div className="flex gap-2">
-              <button type="button" disabled={savingEmployee} onClick={() => setFormState(null)} className="flex-1 rounded-lg border border-slate-800 bg-slate-950 p-3 font-bold text-slate-400 hover:bg-slate-800 disabled:opacity-60">Hủy</button>
-              <button type="submit" disabled={savingEmployee || isPending} className="flex-1 rounded-lg bg-blue-600 p-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                <span className="inline-flex items-center justify-center gap-2">
-                  <ButtonLoadingState loading={savingEmployee || isPending} loadingText="Đang lưu..." idleText="Lưu" />
-                </span>
-              </button>
-              </div>
-            </div>
           </form>
-        </div>
+        </AdminSidePanel>
       )}
     </>
   );

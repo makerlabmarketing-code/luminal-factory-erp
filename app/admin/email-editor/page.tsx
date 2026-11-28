@@ -1,9 +1,11 @@
 // app/admin/email-editor/page.tsx
 'use client';
+
+import AdminSidePanel from '@/component/AdminSidePanel';
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotification } from '@/component/NotificationContext';
-import { Archive, Mail, Plus, Trash2, Edit2, X, Save, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RefreshCcw, RotateCcw, Send, Sparkles } from 'lucide-react';
+import { Archive, Mail, Plus, Trash2, Edit2, Save, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RefreshCcw, RotateCcw, Send, Sparkles } from 'lucide-react';
 
 interface EmailTemplate {
   id: number;
@@ -344,14 +346,17 @@ export default function AdminEmailTemplates() {
         </div>
       </div>
 
-      {/* MODAL SỬA/THÊM KỊCH BẢN EMAIL */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg space-y-4 text-xs text-slate-200 max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
-              <h2 className="font-bold uppercase text-purple-400 tracking-wide font-sans text-xs">{isEditing ? '📝 Sửa kịch bản email' : '✨ Thêm kịch bản email'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
+        <AdminSidePanel
+          title={isEditing ? 'Sửa kịch bản email' : 'Thêm kịch bản email'}
+          wide
+          busy={saving}
+          onClose={() => setShowModal(false)}
+          actions={<>
+            <button type="button" onClick={() => setShowModal(false)} disabled={saving} className="admin-button-secondary">Hủy</button>
+            {isDirty && <button type="button" onClick={handleSave} disabled={saving} className="admin-button-primary"><Save className="h-4 w-4" />{saving ? 'Đang lưu...' : 'Lưu'}</button>}
+          </>}
+        >
             <div className="space-y-3">
               <div>
                 <label className="text-slate-400 font-bold block">Phân hệ nhóm email:</label>
@@ -366,23 +371,26 @@ export default function AdminEmailTemplates() {
                 <textarea className="w-full bg-slate-950 p-3 mt-1.5 rounded-xl border border-slate-800 text-xs h-36 resize-none focus:outline-none text-slate-300 font-mono leading-relaxed" value={body} onChange={(e) => setBody(e.target.value)} />
               </div>
             </div>
-            <div className="flex gap-2 pt-2.5 border-t border-slate-800 font-sans"><button type="button" onClick={() => setShowModal(false)} disabled={saving} className="flex-1 p-3 bg-slate-950 border border-slate-800 rounded-xl font-bold text-slate-400 text-center disabled:opacity-50">Hủy</button>{isDirty && <button type="button" onClick={handleSave} disabled={saving} className="flex-1 p-3 bg-purple-600 text-white font-black rounded-xl shadow-lg disabled:opacity-50"><Save className="mr-2 inline h-4 w-4" />{saving ? 'Đang lưu...' : 'Lưu'}</button>}</div>
-          </div>
-        </div>
+        </AdminSidePanel>
       )}
 
-      {/* Gửi email thử nghiệm: chỉ gửi tới địa chỉ Admin nhập rõ ràng. */}
       {showTestMailPopup && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 font-sans">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 w-full max-w-lg space-y-4 shadow-2xl relative text-xs">
-            <button aria-label="Đóng" onClick={() => setShowTestMailPopup(false)} disabled={sendingTestMail} className="absolute right-4 top-4 text-slate-500 hover:text-white disabled:opacity-50"><X className="w-4 h-4"/></button>
-            <div><h4 className="text-sm font-black text-slate-100">Gửi email thử nghiệm</h4><p className="mt-1 text-slate-400">Xem trước mẫu và nhập rõ địa chỉ nhận. Thao tác này không gửi hàng loạt.</p></div>
+        <AdminSidePanel
+          title="Gửi email thử nghiệm"
+          description="Xem trước mẫu và nhập rõ địa chỉ nhận. Thao tác này không gửi hàng loạt."
+          busy={sendingTestMail}
+          onClose={() => setShowTestMailPopup(false)}
+          actions={<>
+            <button type="button" onClick={() => setShowTestMailPopup(false)} disabled={sendingTestMail} className="admin-button-secondary">Hủy</button>
+            <button type="button" onClick={executeSendTestEmail} disabled={sendingTestMail} className="admin-button-primary">{sendingTestMail ? 'Đang gửi...' : 'Gửi email thử nghiệm'}</button>
+          </>}
+        >
+          <div className="space-y-4 text-sm">
             <div className="rounded-xl border border-slate-700 bg-slate-950 p-3"><p className="font-bold text-amber-300">{activeTestTemplate?.subject || 'Chưa cập nhật tiêu đề'}</p><div className="mt-2 max-h-36 overflow-y-auto text-slate-300" dangerouslySetInnerHTML={{ __html: activeTestTemplate?.html_content || activeTestTemplate?.body || '<p>Chưa cập nhật nội dung</p>' }}/></div>
             <label className="block text-left"><span className="text-slate-400 font-bold">Email nhận thử nghiệm</span><input type="email" autoComplete="off" className="mt-1 w-full bg-slate-950 border border-slate-700 p-2.5 rounded-xl text-purple-300 focus:outline-none focus:border-purple-500" value={testMailAddress} onChange={e => setTestMailAddress(e.target.value)} /></label>
             {testDeliveryResult && <p role="status" className="rounded-lg border border-slate-700 bg-slate-950 p-3 text-slate-300">{testDeliveryResult}</p>}
-            <div className="grid grid-cols-2 gap-2"><button onClick={() => setShowTestMailPopup(false)} disabled={sendingTestMail} className="border border-slate-700 p-2.5 rounded-xl font-bold text-slate-300 disabled:opacity-50">Hủy</button><button onClick={executeSendTestEmail} disabled={sendingTestMail} className="bg-purple-600 text-white font-bold p-2.5 rounded-xl disabled:opacity-50">{sendingTestMail ? 'Đang gửi...' : 'Gửi email thử nghiệm'}</button></div>
           </div>
-        </div>
+        </AdminSidePanel>
       )}
 
     </div>

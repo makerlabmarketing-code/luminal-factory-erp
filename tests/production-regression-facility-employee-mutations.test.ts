@@ -171,11 +171,12 @@ describe('production regression facility and employee mutations', () => {
     expect(detailClient).toMatch(/router\.refresh\(\)/);
     expect(detailClient).not.toMatch(/router\.push\(['"]\/admin\/employees['"]\)/);
 
-    for (const client of [facilitiesClient, listClient]) {
-      expect(client).toMatch(/max-h-\[calc\(100vh-2rem\)\]/);
-      expect(client).toMatch(/overflow-y-auto/);
-      expect(client).toMatch(/document\.body\.style\.overflow = 'hidden'/);
+    for (const client of [facilitiesClient, listClient, detailClient]) {
+      expect(client).toContain('<AdminSidePanel');
     }
+    const sidePanel = source('component/AdminSidePanel.tsx');
+    expect(sidePanel).toContain('overflow-y-auto');
+    expect(sidePanel).toContain("document.body.style.overflow = 'hidden'");
   });
 
   it('does not mutate unrelated business rows during core updates', () => {

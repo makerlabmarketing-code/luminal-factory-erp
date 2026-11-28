@@ -21,13 +21,16 @@ describe('employee profile workspace contract', () => {
     expect(list).not.toContain("method: 'PATCH'");
   });
   it('derives editable versus read-only detail controls from server capability', () => {
-    expect(detail).toContain('data.capabilities.canEditEmployee ? <form');
+    expect(detail).toContain('data.capabilities.canEditEmployee &&');
+    expect(detail).toContain('data.capabilities.canEditPersonalFinance &&');
+    expect(detail).toContain('{editorTab && canEdit && (');
+    expect(detail).toContain('<AdminSidePanel');
     expect(detail).toContain('<Field label="Họ tên"');
     expect(detail).toContain("value === null || value === '' ? 'Chưa cập nhật' : value");
   });
-  it('shows save only for real dirty fields and sends changed fields only', () => {
+  it('enables save only for real dirty fields and sends changed fields only', () => {
     expect(detail).toContain('const dirtyFields');
-    expect(detail).toContain('const editorActions = dirty &&');
+    expect(detail).toContain('disabled={!dirty || saving || isPending}');
     expect(detail).toContain('Object.fromEntries(dirtyFields.map');
     expect(detail).toContain("finance: ['bankName', 'bankAccountNumber', 'hourlyRate']");
   });

@@ -1,10 +1,12 @@
 // app/admin/facilities/page.tsx
 'use client';
+
+import AdminSidePanel from '@/component/AdminSidePanel';
 import { CommonTable, TableRowActions } from '@/component/data-table/CommonTable';
 import { useEffect, useState } from 'react';
 import { useNotification } from '@/component/NotificationContext';
 import { fetchCoordinatesFromAddress, type GeocodeMatch } from '@/ultis/geocoding';
-import { MapPin, Plus, Trash2, Edit2, X, RefreshCcw, Navigation, Loader2 } from 'lucide-react';
+import { MapPin, Plus, Trash2, Edit2, RefreshCcw, Navigation, Loader2 } from 'lucide-react';
 import { AdminListRequestError, useAdminListData } from '@/hooks/useAdminListData';
 import { AdminPage } from '@/component/AdminUI';
 import { reconcileCreatedFacility, reconcileDeletedFacility, reconcileUpdatedFacility } from '@/lib/facilityReconciliation';
@@ -66,16 +68,6 @@ export default function AdminFacilitiesManagement() {
   useEffect(() => {
     if (facilityData?.facilities) setBranches(facilityData.facilities);
   }, [facilityData]);
-
-  useEffect(() => {
-    if (!showModal) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [showModal]);
 
   const handleGeocode = async () => {
     if (!address.trim()) {
@@ -271,70 +263,64 @@ export default function AdminFacilitiesManagement() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-40 animate-fadeIn overflow-y-auto overscroll-contain">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md max-h-[calc(100vh-2rem)] overflow-hidden text-xs text-slate-200 shadow-2xl flex flex-col">
-            <div className="flex justify-between items-center border-b border-slate-800 p-6 pb-2.5">
-              <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px]">KHAI BÁO CHI NHÁNH CƠ SỞ MỚI</h3>
-              <button type="button" disabled={isSaving} onClick={() => setShowModal(false)}><X className="w-5 h-5 text-slate-500 hover:text-white" /></button>
+        <AdminSidePanel
+          title={isEditing ? 'Sửa cơ sở làm việc' : 'Thêm cơ sở làm việc'}
+          busy={isSaving}
+          onClose={() => setShowModal(false)}
+          actions={<>
+            <button type="button" disabled={isSaving} onClick={() => setShowModal(false)} className="admin-button-secondary">Hủy</button>
+            <button type="button" disabled={isSaving} onClick={handleSave} className="admin-button-primary">{isSaving ? 'Đang lưu…' : 'Lưu cơ sở'}</button>
+          </>}
+        >
+          <div className="space-y-4 text-sm">
+            <div>
+              <label className="text-slate-400 font-medium">Tên gợi nhớ cơ sở làm việc:</label>
+              <input type="text" placeholder="Ví dụ: Xưởng CNC Số 1 - Hà Nội" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 focus:outline-none text-slate-200" value={name} onChange={e => setName(e.target.value)} />
             </div>
-
-            <div className="space-y-3 overflow-y-auto px-6 py-4 pr-5">
-              <div>
-                <label className="text-slate-400 font-medium">Tên gợi nhớ cơ sở làm việc:</label>
-                <input type="text" placeholder="Ví dụ: Xưởng CNC Số 1 - Hà Nội" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 focus:outline-none text-slate-200" value={name} onChange={e => setName(e.target.value)} />
+            <div>
+              <label className="text-slate-400 font-medium">Địa chỉ thực tế xưởng:</label>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                <input type="text" placeholder="Gõ đủ số nhà, tên đường, thành phố..." className="min-w-0 flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 focus:outline-none text-slate-200" value={address} onChange={e => setAddress(e.target.value)} />
+                <button
+                  type="button"
+                  onClick={handleGeocode}
+                  disabled={isGeocoding || isSaving}
+                  className="bg-slate-950 border border-slate-850 text-cyan-400 font-bold px-3 py-2 rounded-xl flex items-center gap-1 hover:border-cyan-500/40 transition shrink-0 disabled:opacity-50"
+                >
+                  {isGeocoding ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Navigation className="w-3.5 h-3.5"/>}
+                  {isGeocoding ? 'Đang dò...' : 'Dò Tọa Độ'}
+                </button>
               </div>
-              <div>
-                <label className="text-slate-400 font-medium">Địa chỉ thực tế xưởng:</label>
-                <div className="flex gap-2 mt-1.5">
-                  <input type="text" placeholder="Gõ đủ số nhà, tên đường, thành phố..." className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 focus:outline-none text-slate-200" value={address} onChange={e => setAddress(e.target.value)} />
-                  <button
-                    type="button"
-                    onClick={handleGeocode}
-                    disabled={isGeocoding || isSaving}
-                    className="bg-slate-950 border border-slate-850 text-cyan-400 font-bold px-3 py-2 rounded-xl flex items-center gap-1 hover:border-cyan-500/40 transition shrink-0 disabled:opacity-50"
-                  >
-                    {isGeocoding ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Navigation className="w-3.5 h-3.5"/>}
-                    {isGeocoding ? 'Đang dò...' : 'Dò Tọa Độ'}
-                  </button>
+              {geocodeDisplayName && (
+                <div className="mt-2 rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3" role="status">
+                  <p className="font-semibold text-cyan-200">Địa chỉ bản đồ (chỉ để xác nhận)</p>
+                  <p className="mt-1 text-slate-300">{geocodeDisplayName}</p>
+                  {geocodeAlternatives.length > 1 && (
+                    <div className="mt-2 space-y-1.5">
+                      <p className="text-amber-200">Địa chỉ có nhiều kết quả gần giống, vui lòng chọn lại.</p>
+                      {geocodeAlternatives.map((option) => (
+                        <button key={`${option.lat}-${option.lng}`} type="button" onClick={() => { setLat(option.lat); setLng(option.lng); setGeocodeDisplayName(option.displayName); }} className="block w-full rounded border border-slate-700 p-2 text-left hover:border-cyan-500/50">
+                          {option.displayName}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-2 text-[10px] text-slate-500">Địa chỉ đã nhập được giữ nguyên. Tọa độ chưa được lưu cho đến khi bấm lưu cơ sở.</p>
                 </div>
-                {geocodeDisplayName && (
-                  <div className="mt-2 rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3" role="status">
-                    <p className="font-semibold text-cyan-200">Địa chỉ bản đồ (chỉ để xác nhận)</p>
-                    <p className="mt-1 text-slate-300">{geocodeDisplayName}</p>
-                    {geocodeAlternatives.length > 1 && (
-                      <div className="mt-2 space-y-1.5">
-                        <p className="text-amber-200">Địa chỉ có nhiều kết quả gần giống, vui lòng chọn lại.</p>
-                        {geocodeAlternatives.map((option) => (
-                          <button key={`${option.lat}-${option.lng}`} type="button" onClick={() => { setLat(option.lat); setLng(option.lng); setGeocodeDisplayName(option.displayName); }} className="block w-full rounded border border-slate-700 p-2 text-left hover:border-cyan-500/50">
-                            {option.displayName}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <p className="mt-2 text-[10px] text-slate-500">Địa chỉ đã nhập được giữ nguyên. Tọa độ chưa được lưu cho đến khi bấm lưu cơ sở.</p>
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div><label className="text-slate-400 font-medium">Vĩ độ (Latitude):</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 text-cyan-400 font-mono font-bold focus:outline-none" value={lat} onChange={e => setLat(e.target.value)} /></div>
-                <div><label className="text-slate-400 font-medium">Kinh độ (Longitude):</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 text-cyan-400 font-mono font-bold focus:outline-none" value={lng} onChange={e => setLng(e.target.value)} /></div>
-              </div>
-              <div><label className="text-slate-400 font-medium">Bán kính khoanh vùng bảo mật chấm công (Mét):</label><input type="number" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 focus:outline-none text-amber-400 font-mono font-bold" value={radius} onChange={e => setRadius(e.target.value)} /></div>
-            </div>
-
-            <div className="border-t border-slate-800 p-6 pt-3 font-sans">
-              {saveError && (
-                <p role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-[11px] font-semibold text-red-200">
-                  {saveError}
-                </p>
               )}
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" disabled={isSaving} onClick={() => setShowModal(false)} className="bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-400 text-center disabled:opacity-60">Hủy bỏ</button>
-                <button type="button" disabled={isSaving} onClick={handleSave} className="bg-blue-600 text-white font-black p-3 rounded-xl transition hover:bg-blue-700 shadow-lg tracking-wide uppercase text-[11px] disabled:cursor-not-allowed disabled:opacity-60">{isSaving ? 'ĐANG LƯU...' : '💾 KÍCH HOẠT CƠ SỞ'}</button>
-              </div>
             </div>
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div><label className="text-slate-400 font-medium">Vĩ độ (Latitude):</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 text-cyan-400 font-mono font-bold focus:outline-none" value={lat} onChange={e => setLat(e.target.value)} /></div>
+              <div><label className="text-slate-400 font-medium">Kinh độ (Longitude):</label><input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 text-cyan-400 font-mono font-bold focus:outline-none" value={lng} onChange={e => setLng(e.target.value)} /></div>
+            </div>
+            <div><label className="text-slate-400 font-medium">Bán kính khoanh vùng bảo mật chấm công (Mét):</label><input type="number" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 mt-1.5 focus:outline-none text-amber-400 font-mono font-bold" value={radius} onChange={e => setRadius(e.target.value)} /></div>
+            {saveError && (
+              <p role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-[11px] font-semibold text-red-200">
+                {saveError}
+              </p>
+            )}
           </div>
-        </div>
+        </AdminSidePanel>
       )}
     </div>
     </AdminPage>

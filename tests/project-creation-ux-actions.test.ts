@@ -28,11 +28,11 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(notification).not.toMatch(/fixed inset-0 bg-black\/70[\s\S]{0,220}toast\.show/);
   });
 
-  it('shows a blocking creation overlay and prevents closing or duplicate submit while creating', () => {
+  it('shows progress in the creation panel and prevents closing or duplicate submit while creating', () => {
     const projectPage = source('app/admin/projects/page.tsx');
 
     for (const page of [projectPage]) {
-      expect(page).toMatch(/aria-busy="true"/);
+      expect(page).toMatch(/busy=\{isCreatingProject\}/);
       expect(page).toMatch(/Đang khởi tạo dự án/);
       expect(page).toMatch(/if \(createProjectLockRef\.current\) return/);
       expect(page).toMatch(/if \(isCreatingProject\) return/);
@@ -67,12 +67,12 @@ describe('project creation UX, detail actions, and request cleanup', () => {
 
     expect(detailPage).toMatch(/role="progressbar"/);
     expect(detailPage).toMatch(/aria-valuenow=\{projectDetail\.progressPercent\}/);
-    expect(detailPage).toMatch(/titleId="add-member-title"/);
-    expect(detailPage).toMatch(/descriptionId="add-member-description"/);
+    expect(detailPage).toMatch(/<AdminSidePanel title="Thêm thành viên dự án"/);
+    expect(detailPage).toMatch(/description="Chọn người và vai trò để tham gia dự án."/);
     expect(detailPage).toMatch(/htmlFor="project-member-employee"/);
     expect(detailPage).toMatch(/id="project-member-employee"/);
-    expect(detailPage).toMatch(/aria-labelledby="edit-task-title"/);
-    expect(detailPage).toMatch(/aria-describedby="edit-task-description"/);
+    expect(detailPage).toMatch(/title="Sửa công việc con"/);
+    expect(detailPage).toMatch(/description="Người phụ trách phải là thành viên đang hoạt động của dự án."/);
     expect(detailPage).toMatch(/htmlFor="edit-task-assignee"/);
     expect(detailPage).toMatch(/id="edit-task-assignee"/);
     expect(detailPage).toMatch(/htmlFor="edit-task-comment"/);
@@ -80,7 +80,7 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(detailPage).toMatch(/id="project-drive-link"/);
     expect(detailPage).toMatch(/<button type="button" disabled=\{!canManageProject\} onClick=\{handleSaveDriveLink\}/);
     expect(detailPage).not.toMatch(/>Deadline</);
-    expect(detailPage).toMatch(/aria-labelledby="edit-phase-title"/);
+    expect(detailPage).toMatch(/<AdminSidePanel title="Sửa thông tin giai đoạn"/);
     expect(detailPage).toMatch(/htmlFor="edit-phase-name"/);
     expect(detailPage).toMatch(/id="edit-phase-name"/);
     expect(detailPage).toMatch(/htmlFor="edit-phase-order"/);
@@ -103,7 +103,7 @@ describe('project creation UX, detail actions, and request cleanup', () => {
     expect(projectDetail).toMatch(/>Giai đoạn: \{/);
     expect(projectDetail).toMatch(/Chi tiết giai đoạn/);
     expect(projectDetail).toMatch(/Chuyển trạng thái giai đoạn đang chờ kích hoạt/);
-    expect(source('app/admin/projects/[projectId]/ProjectActionDialog.tsx')).toContain('Đóng hộp thoại');
+    expect(source('component/AdminSidePanel.tsx')).toContain('Đóng panel');
     expect(projectDetail).toMatch(/Người phụ trách phải là thành viên đang hoạt động/);
     expect(projectDetail).not.toMatch(/Task Assignment Foundation|Task legacy|Sequential workflow|membership ACTIVE|thành viên ACTIVE|cổng migration|read-only|derive read-only|hard delete membership|Server chưa có mutation|state machine/);
   });

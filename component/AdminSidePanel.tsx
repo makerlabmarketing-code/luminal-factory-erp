@@ -6,13 +6,14 @@ import { X } from 'lucide-react';
 import { containModalFocus } from '@/lib/modal-focus';
 
 export default function AdminSidePanel({
-  title, description, onClose, busy = false, wide = false, children, actions,
+  title, description, onClose, busy = false, wide = false, initialFocus, children, actions,
 }: {
   title: string;
   description?: string;
   onClose: () => void;
   busy?: boolean;
   wide?: boolean;
+  initialFocus?: string;
   children: ReactNode;
   actions?: ReactNode;
 }) {
@@ -30,10 +31,17 @@ export default function AdminSidePanel({
   useEffect(() => {
     const root = panel.current;
     if (!root) return;
-    return containModalFocus(root, {
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const releaseFocus = containModalFocus(root, {
+      initialFocus,
       onEscape: () => { if (!saving.current) close.current(); },
     });
-  }, []);
+    return () => {
+      document.body.style.overflow = overflow;
+      releaseFocus();
+    };
+  }, [initialFocus]);
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60">
